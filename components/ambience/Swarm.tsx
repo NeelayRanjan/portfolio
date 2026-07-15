@@ -14,16 +14,32 @@ import { useEffect, useRef } from "react";
  * `data-swarm` is a station, and its text is the attractor. Sizing comes from
  * the element's own box, so layout owns placement and this owns physics.
  *
- * WHY THE GAPS AND NOT THE HEADINGS: the section <h2>s live inside TerminalPanel,
- * which is opaque (`bg-panel`). A canvas behind the content cannot show through
- * it, so a station placed on a heading would be invisible. Stations go in the
- * open background between panels. Don't "fix" this by moving a station onto a
- * heading without also making the panel translucent.
+ * TODAY THERE IS EXACTLY ONE STATION: the hero nameplate. Section labels were
+ * built and then removed — a swarm that re-forms all the way down the page is a
+ * full-page background that never stops moving, and on a phone that reads as
+ * noise rather than ambience. The multi-station machinery stays because it costs
+ * nothing and it's the seam; adding a `data-swarm` element brings it back.
+ *
+ * That also buys back the off-screen pause: with the swarm confined to the hero,
+ * the loop stops once no station is on screen, so scrolling the rest of the page
+ * costs nothing. A migrating swarm could never do that — the canvas IS the
+ * viewport.
+ *
+ * IF STATIONS EVER RETURN: don't put one on a section <h2>. Those live inside
+ * TerminalPanel, which is opaque (`bg-panel`), and the canvas is behind the
+ * content, so the swarm would be invisible. They go in open background.
  */
 
 /* ---- nameplate / stations ------------------------------------------------ */
 const TRACKING_RATIO = 6 / 78; // ~6px letter-spacing at 78px, scaled
 const FONT_MAX = 130;
+/** `data-swarm-frac` is the DESKTOP width fraction. The same fraction of a phone's
+ *  much smaller box is a tiny nameplate, so widen it as the viewport narrows —
+ *  ramping to +this at <=640px. (The pre-Swarm hero did this and it got lost in
+ *  the move; the nameplate was unreadably small on mobile until it came back.) */
+const NARROW_FRAC_BOOST = 0.2;
+const NARROW_W = 640;
+const WIDE_W = 1280;
 const STRIDE_SMALL = 3;
 const SMALL_SCREEN = 640;
 const MAX_POINTS = 5200;
@@ -167,7 +183,9 @@ export function Swarm() {
       const lines = (el.dataset.swarm ?? "").split("|").filter(Boolean);
       if (!lines.length) return null;
       const align = el.dataset.swarmAlign === "center" ? "center" : "left";
-      const frac = Number(el.dataset.swarmFrac ?? 0.34);
+      const baseFrac = Number(el.dataset.swarmFrac ?? 0.34);
+      const wide = Math.min(1, Math.max(0, (w - NARROW_W) / (WIDE_W - NARROW_W)));
+      const frac = Math.min(0.92, baseFrac + (1 - wide) * NARROW_FRAC_BOOST);
 
       const off = document.createElement("canvas");
       off.width = bw;
@@ -553,11 +571,29 @@ export function Swarm() {
     active = pickActive();
     if (reduced) paintResolved();
 
-    // No IntersectionObserver pause: the canvas IS the viewport. Tab-hide is the
-    // only free win, so take it.
-    const onVisibility = () => (document.hidden ? stop() : start());
+    // With the swarm confined to the hero, the loop can stop once no station is
+    // on screen — scrolling the rest of the page then costs nothing. The canvas
+    // stays mounted (it's fixed and full-viewport); only the sim halts, and the
+    // last frame is cleared so nothing is left stranded mid-air.
+    let onScreen = false;
+    const io = new IntersectionObserver(
+      (entries) => {
+        onScreen = entries.some((e) => e.isIntersecting);
+        if (onScreen && !document.hidden) start();
+        else {
+          stop();
+          ctx.clearRect(0, 0, w, h);
+        }
+      },
+      { rootMargin: "80px" },
+    );
+    for (const el of document.querySelectorAll<HTMLElement>("[data-swarm]")) io.observe(el);
+
+    const onVisibility = () => {
+      if (document.hidden || !onScreen) stop();
+      else start();
+    };
     document.addEventListener("visibilitychange", onVisibility);
-    if (!document.hidden) start();
 
     // Reduced-motion still has to track scroll, or a fixed nameplate would
     // follow the reader down the page.
@@ -613,6 +649,7 @@ export function Swarm() {
 
     return () => {
       stop();
+      io.disconnect();
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);

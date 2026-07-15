@@ -97,6 +97,13 @@ b {
   color: #fff;
 }
 
+/* Terminal cursor. A CSS animation so it costs no JS; the reduced-motion block
+   below collapses its duration and leaves the cursor sitting still. */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  50.01%, 100% { opacity: 0; }
+}
+
 /* Ambient canvases are decoration — never let them eat a tap. */
 canvas.ambient {
   pointer-events: none;

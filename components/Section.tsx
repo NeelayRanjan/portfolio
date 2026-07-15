@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Reveal } from "./ambience/Reveal";
 import { DenoiseGlyph } from "./ambience/DenoiseGlyph";
+import { ResolveText } from "./ambience/ResolveText";
 
 /**
  * One page section: wrapped in a scroll reveal and carrying the ambience accents.
@@ -18,7 +19,7 @@ export function Section({
   title,
   lede,
   glyphSeed = 1,
-  swarmLabel,
+  label,
   watermark,
   children,
 }: {
@@ -27,11 +28,11 @@ export function Section({
   lede?: ReactNode;
   glyphSeed?: number;
   /**
-   * Text the migrating swarm re-forms into, in the open gap above this section's
-   * panel. Placed here rather than on the <h2> because the panel is opaque and
-   * the swarm canvas sits behind it — see components/ambience/Swarm.tsx.
+   * Big teal marker in the open gap above the panel, resolving out of noise on
+   * scroll-in. Decorative: it echoes the <h2> inside the panel, so it's
+   * aria-hidden rather than read out twice.
    */
-  swarmLabel?: string;
+  label?: string;
   watermark?: ReactNode;
   children: ReactNode;
 }) {
@@ -40,14 +41,15 @@ export function Section({
       {watermark}
       <DenoiseGlyph seed={glyphSeed} className="top-16 right-0" />
 
-      {swarmLabel ? (
-        <div
-          data-swarm={swarmLabel}
-          data-swarm-align="left"
-          data-swarm-frac="0.42"
+      {label ? (
+        // The panel's <h2> is the real heading; this is its echo, so it's hidden
+        // from the a11y tree rather than announced twice.
+        <p
           aria-hidden="true"
-          className="mb-10 h-20 w-full"
-        />
+          className="relative mb-8 font-mono text-2xl tracking-tight text-teal sm:text-3xl"
+        >
+          <ResolveText text={label} />
+        </p>
       ) : null}
 
       <div className="relative">

@@ -24,7 +24,7 @@ export function EnergyHero() {
         <div
           data-swarm="NEELAY|RANJAN"
           data-swarm-align="left"
-          data-swarm-frac="0.45"
+          data-swarm-frac="0.52"
           aria-hidden="true"
           className="h-[52svh] max-h-[440px] min-h-[260px] w-full"
         />
@@ -36,12 +36,12 @@ export function EnergyHero() {
         </p>
 
         <p className="mt-5 max-w-2xl font-mono text-[11px] leading-relaxed text-faint">
-          Illustrative Langevin simulation. Particles descend an energy landscape
-          carved from the letterforms. Thermal kicks knock them{" "}
-          <span className="text-indigo">out of the wells</span>; they re-anneal{" "}
-          <span className="text-teal">back into them</span>, and follow you down the
-          page as you scroll. Drag to pick up a cluster. Hand-built landscape, not a
-          trained model.
+          Illustrative Langevin simulation. The name is the ground state of an energy
+          landscape carved from its own letterforms: particles descend into the wells
+          and settle. Thermal kicks knock them{" "}
+          <span className="text-indigo">out</span>; they re-anneal{" "}
+          <span className="text-teal">back in</span>. Drag to pick up a cluster.
+          Hand-built landscape, not a trained model.
         </p>
 
         <p className="mt-6 max-w-2xl leading-relaxed text-muted">
@@ -49,6 +49,18 @@ export function EnergyHero() {
         </p>
 
         <nav className="mt-8 flex flex-wrap gap-x-6 gap-y-3 font-mono text-sm">
+          {/* Only rendered once PROFILE.resumeUrl is set, so an unset link never
+              ships as a dead one. Externally hosted on purpose — see profile.ts. */}
+          {PROFILE.resumeUrl ? (
+            <a
+              href={PROFILE.resumeUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-indigo underline-offset-4 transition-colors hover:text-teal hover:underline"
+            >
+              Resume
+            </a>
+          ) : null}
           {PROFILE.links.map((link) => (
             <a
               key={link.label}

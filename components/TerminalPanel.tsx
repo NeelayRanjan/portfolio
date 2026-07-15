@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { TerminalLabel } from "./ambience/TerminalLabel";
 
 type TerminalPanelProps = {
   /** Monospace label in the title bar, e.g. "x0-diffusion --digit 7". */
@@ -45,7 +46,7 @@ export function TerminalPanel({
           ))}
         </span>
         <span className="truncate font-mono text-xs tracking-wide text-muted">
-          {label}
+          <TerminalLabel text={label} />
         </span>
         {status ? (
           <span className="ml-auto shrink-0 font-mono text-xs text-faint">

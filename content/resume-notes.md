@@ -16,7 +16,9 @@ Vercel-bound; no reason to publish it. Email/LinkedIn/GitHub below are already p
 
 - **Email:** neelay.ranjan@outlook.com  ← the professional address; *not* the gmail in git config
 - **LinkedIn:** linkedin.com/in/neelayranjan
-- **GitHub:** github.com/nranjan1
+- **GitHub:** github.com/NeelayRanjan  ← the real one. **The resume PDF is wrong**:
+  it says `nranjan1`, which is an empty account (0 public repos). Fix the PDF, not
+  just this file, or every recruiter who follows it lands on nothing.
 - **Site:** neelayranjan.dev
 
 ## Professional summary (resume's own framing)

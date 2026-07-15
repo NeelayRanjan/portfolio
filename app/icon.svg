@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>n</title>
+  <defs>
+    <!-- Default gradientUnits is objectBoundingBox, i.e. the PATH's box (16..48,
+         20..52), not the tile's. That is deliberate: measured across the tile
+         instead, the glyph would only ever span the middle ~50% of the ramp and
+         never reach either endpoint, so the teal and the indigo would both read
+         as muddy blue-grey. Over the glyph's own box the full ramp lands on the
+         letter, which is the point. -->
+    <linearGradient id="n-ramp" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5dcaa5" />
+      <stop offset="1" stop-color="#8f88dd" />
+    </linearGradient>
+  </defs>
+  <!-- The dark tile is baked in rather than transparent, so the mark keeps its
+       contrast on a light browser theme. Only the corners outside the radius are
+       transparent. -->
+  <rect width="64" height="64" rx="13" fill="#0d1512" />
+  <path d="M16,20 L48,20 L48,52 L39,52 L39,29 L25,29 L25,52 L16,52 Z" fill="url(#n-ramp)" />
+</svg>

@@ -1,26 +1,121 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ---- latent-space palette -------------------------------------------------
+   Near-black base, one indigo accent, one teal accent. Nothing else.
+   Two type weights only (400 / 500). No gradients, shadows, or glow.
+--------------------------------------------------------------------------- */
+@theme {
+  --color-base: #080a12;
+  --color-panel: #0c0f19;
+  --color-panel-bar: #11141f;
+  --color-line: #1b2030;
+  --color-ink: #d9dbe6;
+  --color-muted: #7a8199;
+  --color-faint: #4a5167;
+  --color-indigo: #8f88dd;
+  --color-teal: #5dcaa5;
+
+  /* Timestep rail (page ambience) */
+  --color-rail: rgba(93, 202, 165, 0.14);
+  --color-rail-label: #3f8f78;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ---- page ambience: base layer ------------------------------------------
+   Static dot-grid so the page below the hero reads as engineering graph paper
+   rather than flat void. Pure paint, no nodes, no script, zero runtime cost.
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+   This lives on `html`, NOT `body`, and body must stay transparent. The Swarm
+   canvas is fixed at `-z-10`, which paints in the root stacking context's
+   negative layer: above html's background, but BELOW any background body paints.
+   Give body a background and it covers the swarm completely — the nameplate
+   silently vanishes while the canvas keeps rendering to itself.
+-------------------------------------------------------------------------- */
+html {
+  background-color: var(--color-base);
+  background-image: radial-gradient(rgba(159, 225, 203, 0.05) 1px, transparent 1px);
+  background-size: 22px 22px;
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: transparent;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- page ambience: film grain ------------------------------------------
+   One fixed layer of static SVG turbulence, rasterized once by the browser and
+   composited thereafter — no animation, so there is no motion to disable under
+   reduced-motion. Desaturated and barely perceptible; warms the flat black.
+-------------------------------------------------------------------------- */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 140px 140px;
+}
+
+/* ---- page ambience: scroll reveals --------------------------------------
+   Hidden by default, shown once IntersectionObserver marks the section. The
+   <noscript> override in layout.tsx un-hides everything when JS is off, so the
+   content is never trapped behind a script that didn't run.
+-------------------------------------------------------------------------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 500ms ease-out,
+    transform 500ms ease-out;
+}
+
+.reveal[data-shown="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Only ever 400 / 500. Guard against browser-bolded headings. */
+h1,
+h2,
+h3,
+h4,
+strong,
+b {
+  font-weight: 500;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-indigo) 30%, transparent);
+  color: #fff;
+}
+
+/* Ambient canvases are decoration — never let them eat a tap. */
+canvas.ambient {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  /* Show sections outright rather than relying on the observer to un-hide
+     them — the reveal is the effect being opted out of, not just its easing. */
+  .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
 }

@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# onnxruntime-web's wasm, copied from node_modules by scripts/sync-ort.mjs on
+# predev/prebuild. 37MB of derived bytes — version-locked to the npm package, so
+# committing it would put a stale binary in history the moment ORT is bumped.
+# Vercel runs `npm run build`, which fires prebuild, which regenerates it.
+/public/ort/

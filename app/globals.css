@@ -104,6 +104,51 @@ b {
   50.01%, 100% { opacity: 0; }
 }
 
+/* Park every terminal cursor while the tab is backgrounded. `data-tab-hidden` is
+   set on <html> by components/ambience/HeroBoot.tsx. There is no CSS media query
+   for tab visibility, so this is the one bit that needs JS — but the rule is
+   global, so the section labels' cursors get it too, not just the hero's. */
+html[data-tab-hidden] .term-cursor {
+  animation: none !important;
+  opacity: 1;
+}
+
+/* ---- the boot screen ----------------------------------------------------
+   Full-viewport, opaque, on top of a page that is already fully rendered
+   underneath it. The page is never gated on the animation — only hidden by it.
+   That is what keeps crawlers, no-JS and reduced-motion whole.
+-------------------------------------------------------------------------- */
+.boot-screen--done {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 420ms ease-out;
+}
+
+/* FAILSAFE. This overlay is server-rendered, so if the bundle 404s or hydration
+   throws, it would sit on top of the site forever and the page would be a black
+   rectangle — silently, with a 200 on every request. Reveal the page instead.
+   In a normal load the component unmounts at ~2.7s and this never fires; 10s is
+   long enough that someone actually typing their name is not cut off. */
+.boot-screen {
+  animation: boot-failsafe 1ms linear 10s forwards;
+}
+
+@keyframes boot-failsafe {
+  to {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Hidden in CSS, not just skipped in the effect: the overlay is in the server's
+     HTML, so waiting for hydration to drop it would flash it first. */
+  .boot-screen {
+    display: none !important;
+  }
+}
+
 /* Ambient canvases are decoration — never let them eat a tap. */
 canvas.ambient {
   pointer-events: none;

@@ -20,19 +20,19 @@ export default function Home() {
             never stopped moving, which read as noise on a phone. The `label`
             props below are real text that resolves out of noise once, then
             sits still. */}
-        <Section id="diffusion" glyphSeed={2} label="x0 diffusion">
+        <Section id="diffusion" label="x0 diffusion">
           <DiffusionVisualizer />
         </Section>
 
-        <Section id="draw" glyphSeed={5} label="draw a digit">
+        <Section id="draw" label="draw a digit">
           <DrawDigit />
         </Section>
 
-        <Section id="chess" glyphSeed={7} label="play the engine">
+        <Section id="chess" label="play the engine">
           <ChessPanel />
         </Section>
 
-        <Section id="sample-space" glyphSeed={3} label="sample space">
+        <Section id="sample-space" label="sample space">
           <SampleSpace />
           {/* Spec: the write-up sits directly beneath the panel. */}
           <SampleSpaceWriteup />

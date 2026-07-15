@@ -125,9 +125,12 @@ reverse-diffusion pass, noise at the hero to resolved at the footer.
   disable under reduced-motion — it's a readout, like a scrollbar.
 
 **3. Per-section accents** — contained, static, faint. NOT full-section backgrounds.
-- `DenoiseGlyph` — a few rows of `" .·:-=+*"` resolving noise→structure, in a section
-  corner at opacity ~0.16. Seeded per section (`glyphSeed`), never `Math.random()`:
-  it renders on server and client, and a mismatch would trip hydration.
+- `DenoiseGlyph` — **removed 2026-07-15, don't rebuild it.** It was six rows of
+  `" .·:-=+*"` resolving noise→structure in each section's top-right corner. The
+  CharField now does exactly that — same ramp, whole page, re-diffusing as you scroll —
+  so it was two layers of one idea, and once the field went indigo the teal corner block
+  read as a smudge sitting on top of it. Retinting would have hidden it inside the field
+  it duplicated. The field is the accent now. (`glyphSeed` went with it.)
 - Node-graph watermark behind the multi-agent/consensus section — **not built yet**,
   that section doesn't exist. Wire it in with the section.
 - Board-grid watermark behind the chess section — **not built yet**, same reason.
@@ -163,6 +166,104 @@ reached rather than all at once on load.
 Under `prefers-reduced-motion` the typing is skipped and the boot resolves instantly —
 but **still gated on IntersectionObserver**. The deferral is a loading strategy, not an
 animation; reduced-motion users must not eat every section's payload up front.
+
+### The boot screen  *(`components/ambience/BootScreen.tsx`)*
+
+The page ssh's into itself before it loads. Full-viewport, opaque, above the nameplate,
+page blank behind it, ~2.5s + a 420ms fade, once per fresh load:
+
+```
+root@latent:~$ ssh neelay@neelayranjan.dev
+                   ^^^^^^ editable. this is the easter egg.
+connected · latent
+neelay@latent:~$ ./latent --serve
+```
+
+You start at a root shell and connect to the box the site is served from. `root` is
+indigo, you are teal: the colour change IS the connection. The prompt landing on `latent`
+after dialling `neelayranjan.dev` is **not** a bug to fix — ssh shows the remote's
+hostname, not the domain you dialled.
+
+The editable part is the ssh **username**, which is the conceit: you connect as yourself
+and the machine takes your word for it. It's swapped in as an `<input>` once the line
+finishes typing, rather than typed into: you can't type into an input character by
+character on a timer without fighting the caret. `connected · latent` is output, so it
+prints whole and costs no time, only its dwell. Typing is 40ms/char, the fast end of the
+brief's 40-70, because the ssh line is long and the whole thing has to land in ~2.5s.
+
+**It's the overlay that is decoration, not the page.** The whole site is server-rendered
+underneath and merely covered, so crawlers and no-JS get the content directly. That is
+load-bearing in three places, and all three are easy to break:
+- **noscript drops it** (`layout.tsx`). It's in the server's HTML, so without JS to
+  dismiss it the site is a black rectangle with a 200 on every request.
+- **A CSS failsafe** (`boot-failsafe`, 10s) drops it too. noscript does not cover a
+  bundle that 404s or a hydration that throws — JS is *enabled*, just dead, and the
+  overlay would sit there forever. 10s is past the boot but not past someone typing.
+- **`prefers-reduced-motion` hides it in CSS**, not just in the effect: waiting for
+  hydration to skip it would flash the overlay first.
+
+The clock accumulates only while the username is unfocused, so **focusing it pauses the
+boot** rather than racing it. Nothing else stalls it. Scroll is locked while it runs (a
+stray wheel event would scroll the hidden page and show when the overlay lifts).
+
+**The name  *(`lib/identity.ts`)*.** Change who you connect as and every prompt on the
+page follows — this one and every section panel's boot log. That's why the name is a
+store rather than boot-screen state: the panels are nowhere near it in the tree.
+`useSyncExternalStore` with a server snapshot pinned to `neelay`, so SSR and the first
+client render agree. Input is folded to `[a-z0-9._-]`, max 12 chars, so a paste can't
+push the prompt across the viewport. **Deliberately not persisted**: a reload restores
+`neelay`, so the toy can't strand anyone in a state they can't undo, and there's no
+storage read to trip hydration. Verified: typing `Ada Lovelace!!` yields `adalovelace`
+and every panel prompt becomes `adalovelace@latent:~$`.
+
+The affordance is one dashed underline. Discoverable only if you're reading that line,
+which is the brief. It's also the only thing in the overlay that isn't `aria-hidden` —
+a screen reader gets the labelled control, not the theatre around it.
+
+**Superseded: the CSS `.type-in` hero prompt.** It typed by animating `width` in `ch`
+steps over text already in the DOM, which got no-JS and reduced-motion for free. It could
+not survive a sequence that pauses for input and gates the page on its own completion.
+It didn't need to: the content was never inside the animation, so the guarantee moved to
+the overlay being decoration over a rendered page. `HeroPrompt.tsx` is gone; don't
+reintroduce a second prompt in the hero.
+
+### The boot beat is also the preload window  *(`lib/warm.ts`, `HeroBoot.tsx`)*
+
+The boot screen gives ~2.5s of cover, and `warmBackground()` spends it. The two are
+**parallel and share nothing**: the warm never waits on the typing, the typing never
+waits on the warm. `HeroBoot` owns it (it also flips `data-tab-hidden` on `<html>`
+so cursors park when you leave the tab — there's no CSS query for tab visibility).
+
+**What's worth warming is not what you'd guess. Measured in-browser:**
+
+| when | fetched |
+|---|---|
+| page load, hero only | **3.63 MB** — `diffusion_traj.json` + `ascii_traj.json` |
+| reaching `#chess` | **25.01 MB** — of which **onnxruntime-web is 24.44 MB** |
+| reaching `#diffusion` | 0, already loaded |
+
+- **The trajectory JSONs need no help.** The first section is inside the viewport at
+  load on every size checked, so its observer fires immediately and the 3.63MB is
+  already in flight. Warming them is a no-op. Don't add it back.
+- **The entire cost is the ORT runtime**, and it's shared by both model demos. So the
+  warm is one call to `loadChessEngine()`, which pulls ORT + the 553KB int8 model.
+- **Not the draw model.** Its own loader says first-interaction-only, and drawing takes
+  deliberate interaction. Warming ORT already pays half its bill.
+
+**Gated, because 24MB is the one thing on this page that could break "mobile above
+all".** Vetoes: `saveData`, a known-bad `effectiveType`, `deviceMemory < 4`, and
+`(max-width: 767px)`. Phones keep today's behaviour exactly. `navigator.connection` and
+`deviceMemory` are Chrome-only, so **absent must mean "unknown", not "no"** — treating
+absent as a veto would quietly make this Chrome-only and leave every Firefox and Safari
+reader booting chess from scratch. The viewport check carries the decision. Verified:
+desktop warms 24.44MB before any scroll, phone 0.00MB, `saveData` 0.00MB.
+
+Warming runs on `requestIdleCallback`, not immediately: creating the session costs ~1s of
+CPU (int8 load 964ms measured) and spending it during the hero would stutter the swarm,
+the one thing here that can't pause. Being ready before the scroll is the point; being
+ready a second sooner isn't. Every loader is a memoized promise, so the section's own
+call later returns *that* promise instead of downloading again — which is also why the
+warm calls the real loaders rather than raw-fetching the same URLs.
 
 ## Sections (single scrolling page)
 
@@ -210,7 +311,16 @@ and scaled by `k = dt / 16.67`; noise scales by `sqrt(k)` (it's Brownian). Not o
 the kick schedule and the anneal run on wall-clock ms, so unscaled per-frame physics
 drifts out of step with them — a slow device collapses late and gets kicked mid-flight,
 a 144Hz one races.
-- `T = max(0.22, 2.1 * exp(-age_ms / 1400))` — anneals on load.
+- `T = max(0.22, 2.1 * exp(-age_ms / 1400))` — anneals from the swarm's FIRST FRAME,
+  which is **gated on the boot screen lifting** (`lib/booted.ts`), not on page load.
+  This is not optional polish. The boot covers the canvas for ~2.5s, so starting at load
+  spent the entire descent behind an opaque overlay: by the reveal, age was ~2900ms, T had
+  decayed to ~0.26 against its 0.22 floor, and the nameplate was simply already settled.
+  The one deliberately loud thing on the page, missed. Released at the START of the fade,
+  so it is ~420ms in (T still ~1.55) when the overlay clears — mid-descent, rather than an
+  empty gap that pops. Measured: 0 lit pixels during the boot, 58.8k at the reveal
+  settling to 49.0k. `age` only advances inside the sim loop, so gating the loop is enough
+  to hold the clock.
 - `force = -energyGradient*10 + (home - pos)*HOME_PULL*(1 - 0.7*heat) + noise*(T + heat*2.6)`
 - Integrate: `vel = vel*0.82 + force*0.4; pos += vel*0.5; heat *= 0.94`.
 - **`HOME_PULL` is 0.1, not the 0.02 the original spec gave.** Inside a letter the energy
@@ -460,6 +570,25 @@ cannot see threefold repetition or the fifty-move rule, and left alone it shuffl
 endgames — it donated 10 of 20 draws vs SF-2500 exactly this way. chess.js has the history:
 the panel detects threefold, fifty-move, stalemate and insufficient material and ends the
 game. Promotion has a piece picker. **Never call the engine on a finished position.**
+
+**`hint` — the engine's move for YOU.** On demand, never standing: a hint that persisted
+every turn would stop being a game and start being a solver. It is the SAME call the
+engine makes for itself, not a second path — the encoder always builds from the side to
+move (see the encoder notes above), so "its move" and "your move" are one computation, and
+this needed no model work at all. Verified in-browser at startpos: `hint` returns
+`g3 · p=0.236`, matching validation vector D's `g2g3 .236` to three decimals, which is the
+proof it really is running white's perspective and not black's.
+- Rendered as a two-square overlay: `from` at 0.4, `to` at 1.0, tinted **indigo**
+  (`saliency`). Teal already means "the engine's own move map" on that board, and a hint
+  is a different claim. A hint OUTRANKS the map — two overlays at once is two claims in
+  two colours on one board.
+- Cleared on every `fen` change. A hint describes one position; once the board moves it is
+  a claim about a position that no longer exists.
+- Gated on it actually being your turn, and on the game not being over — the same
+  finished-position rule as everything else here. Round trip ~277ms measured in the
+  browser, which is one forward pass over your legal moves.
+- Carries the 1-ply caveat like the rest of the panel. It is what the model would play,
+  not what's best.
 
 **Copy — accurate claims only.** "roughly 2000–2300" or "master-ish vs Stockfish's limited
 modes". **Never claim 2300+ flat**: rung labels compress. Source of truth is

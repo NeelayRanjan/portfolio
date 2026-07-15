@@ -4,6 +4,7 @@ import "./globals.css";
 import { ScrollSpine } from "@/components/ambience/ScrollSpine";
 import { Swarm } from "@/components/ambience/Swarm";
 import { CharField } from "@/components/ambience/CharField";
+import { BootScreen } from "@/components/ambience/BootScreen";
 import { PROFILE } from "@/content/profile";
 
 const geistSans = Geist({
@@ -71,9 +72,15 @@ export default function RootLayout({
     >
       <head>
         {/* Sections start hidden for the scroll reveal; if JS never runs, the
-            observer never fires and the page would be blank. Un-hide them. */}
+            observer never fires and the page would be blank. Un-hide them.
+
+            The boot screen is the same class of trap, one step worse: it is an
+            opaque overlay in the server's HTML, so without JS to dismiss it the
+            site is a black rectangle. It is decoration over a page that is fully
+            rendered underneath, so dropping it costs nothing. */}
         <noscript>
-          <style>{`.reveal { opacity: 1 !important; transform: none !important; }`}</style>
+          <style>{`.reveal { opacity: 1 !important; transform: none !important; }
+                   .boot-screen { display: none !important; }`}</style>
         </noscript>
       </head>
       <body className="min-h-full flex flex-col">
@@ -83,6 +90,11 @@ export default function RootLayout({
         <Swarm />
         <ScrollSpine />
         {children}
+        {/* Last child and z-50: it covers the swarm, the field and the page while
+            it runs. Everything above still mounts and starts loading behind it,
+            which is the point — the boot is cover for that work, not a gate on
+            it. */}
+        <BootScreen />
       </body>
     </html>
   );

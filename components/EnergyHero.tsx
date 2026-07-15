@@ -1,6 +1,7 @@
 "use client";
 
 import { PROFILE } from "@/content/profile";
+import { HeroBoot } from "@/components/ambience/HeroBoot";
 
 /**
  * The hero's copy, and the swarm's first station.
@@ -31,6 +32,12 @@ export function EnergyHero() {
       </div>
 
       <div className="mx-auto w-full max-w-5xl px-6 pb-16">
+        {/* The hero's typing prompt moved to the full-screen boot (BootScreen),
+            which now owns the login beat above the nameplate. HeroBoot stays: it
+            is the page-load side effects (the asset warm, tab-hidden cursors),
+            and it still runs behind the boot screen, which is the cover. */}
+        <HeroBoot />
+
         <p className="font-mono text-[11px] tracking-[2px] text-faint">
           {PROFILE.subtext}
         </p>

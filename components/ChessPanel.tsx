@@ -51,6 +51,20 @@ function moveMap(ranked: ScoredMove[]): number[] {
   return max > 0 ? out.map((v) => v / max) : out;
 }
 
+/** From-square dimmer than the to-square, so the hint reads as a direction
+ *  rather than as two unrelated hot squares. */
+const HINT_FROM_ALPHA = 0.4;
+
+/** The suggested move as a two-square overlay. Indigo (`saliency`) on purpose:
+ *  teal already means "the engine's own move map" on this board, and a hint is a
+ *  different claim. One tint, one meaning. */
+function hintMap(m: ScoredMove): number[] {
+  const out = new Array(64).fill(0);
+  out[squareToIndex(m.uci.slice(0, 2))] = HINT_FROM_ALPHA;
+  out[squareToIndex(m.uci.slice(2, 4))] = 1;
+  return out;
+}
+
 export function ChessPanel() {
   const gameRef = useRef(new Chess());
   const [fen, setFen] = useState(gameRef.current.fen());
@@ -73,6 +87,10 @@ export function ChessPanel() {
    *  tend to end in the threefold the panel detects. That's honest, and it's the
    *  clearest possible demo of why the site has to own draw detection. */
   const [selfPlay, setSelfPlay] = useState(false);
+  /** The engine's suggestion for YOUR move, on demand. Not automatic: a hint
+   *  standing on every turn stops being a game and starts being a solver. */
+  const [hint, setHint] = useState<ScoredMove | null>(null);
+  const [hinting, setHinting] = useState(false);
 
   const boot = useBootSequence(BOOT_CMD, BOOT_LINES);
   const booted = boot.done;
@@ -130,6 +148,35 @@ export function ChessPanel() {
       setThinking(false);
     }
   }, [engine, sync]);
+
+  /**
+   * What the engine would play from where you're sitting.
+   *
+   * The same call it makes for itself, not a second code path: the encoder always
+   * builds from the perspective of the side to move (see lib/chess-encode.ts), so
+   * "its move" and "your move" are one computation and this needed no model work
+   * at all. It carries the same 1-ply caveat as everything else here.
+   */
+  const askHint = useCallback(async () => {
+    const g = gameRef.current;
+    // Never call the engine on a finished position.
+    if (!engine || g.isGameOver() || thinking || g.turn() !== "w") return;
+    setHinting(true);
+    try {
+      const reply = await engine.bestMove(g.fen());
+      setHint(reply.best);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setHinting(false);
+    }
+  }, [engine, thinking]);
+
+  // A hint describes one position. The moment the board moves it is a claim
+  // about a position that no longer exists, so it goes.
+  useEffect(() => {
+    setHint(null);
+  }, [fen]);
 
   // The engine answers when it's its turn: black in a normal game, both sides in
   // self-play. Keyed on fen, so each new position triggers exactly one reply and
@@ -300,10 +347,14 @@ export function ChessPanel() {
                   selected={selected}
                   targets={legalFrom}
                   onSquare={onSquare}
+                  // A hint outranks the move map: two overlays at once would be
+                  // two different claims in two colours on one board.
                   overlay={
-                    showMap && lastReply
-                      ? { values: moveMap(lastReply.ranked), tint: "activation" }
-                      : null
+                    hint
+                      ? { values: hintMap(hint), tint: "saliency" }
+                      : showMap && lastReply
+                        ? { values: moveMap(lastReply.ranked), tint: "activation" }
+                        : null
                   }
                 />
 
@@ -314,6 +365,11 @@ export function ChessPanel() {
                     <span className="text-indigo">{flash}</span>
                   ) : game.isCheck() ? (
                     <span className="text-indigo">check</span>
+                  ) : hint ? (
+                    <>
+                      <span className="text-indigo">it would play {hint.san}</span> · p=
+                      {hint.prior.toFixed(3)} · v={hint.value.toFixed(2)}
+                    </>
                   ) : showMap && lastReply ? (
                     <>
                       <span className="text-teal">its move map</span> · where the engine
@@ -419,7 +475,31 @@ export function ChessPanel() {
                   >
                     take back
                   </button>
+                  {/* Only while it's actually your move: asking the engine what
+                      you should play when it isn't your turn is a question about
+                      a position that isn't on the board. */}
+                  <button
+                    onClick={askHint}
+                    disabled={
+                      !ready ||
+                      selfPlay ||
+                      thinking ||
+                      hinting ||
+                      Boolean(outcome) ||
+                      game.turn() !== "w"
+                    }
+                    className="rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-indigo hover:text-indigo disabled:opacity-40"
+                  >
+                    {hinting ? "thinking…" : "hint"}
+                  </button>
                 </div>
+
+                <p className="mt-3 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
+                  <span className="text-indigo">hint</span> asks what it would play from
+                  where you are sitting. It is the same call it makes for itself: the
+                  encoder always builds from the side to move, so your move and its move
+                  are one computation.
+                </p>
 
                 <p className="mt-6 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
                   Currently one ply: it ranks every legal reply and plays the best, in a

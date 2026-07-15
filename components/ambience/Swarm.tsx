@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { isBooted, subscribeBooted } from "@/lib/booted";
 
 /**
  * The migrating particle swarm.
@@ -556,8 +557,18 @@ export function Swarm() {
       paint();
     };
 
+    /**
+     * The anneal is a wall-clock decay from the first frame, and the boot screen
+     * sits opaque over this canvas for ~2.5s. Starting at page load spent the
+     * entire descent behind it: by the reveal, age was ~2900ms and T had decayed
+     * to ~0.26 against its 0.22 floor, so the nameplate was simply already
+     * settled. `age` only advances inside step(), so gating start() here is
+     * enough — the clock cannot run ahead of the first visible frame.
+     */
+    let pageBooted = isBooted();
+
     const start = () => {
-      if (running || reduced) return;
+      if (running || reduced || !pageBooted) return;
       running = true;
       elapsed = 0;
       raf = requestAnimationFrame(step);
@@ -588,6 +599,15 @@ export function Swarm() {
       { rootMargin: "80px" },
     );
     for (const el of document.querySelectorAll<HTMLElement>("[data-swarm]")) io.observe(el);
+
+    // The boot screen lifting is what releases the sim. Until then start() no-ops,
+    // so the station can be "on screen" for the whole boot and still not burn its
+    // anneal. Sticky, so if the boot already finished this never fires and the
+    // isBooted() read above has already let it run.
+    const unsubBooted = subscribeBooted(() => {
+      pageBooted = true;
+      if (onScreen && !document.hidden) start();
+    });
 
     const onVisibility = () => {
       if (document.hidden || !onScreen) stop();
@@ -650,6 +670,7 @@ export function Swarm() {
     return () => {
       stop();
       io.disconnect();
+      unsubBooted();
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);

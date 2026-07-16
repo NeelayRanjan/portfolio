@@ -100,7 +100,7 @@ export function ChessBoard({
               {...(interactive ? { onClick: () => onSquare?.(square) } : {})}
               aria-label={`${square}${cell ? ` ${cell.color}${cell.type}` : " empty"}`}
               className={`relative flex aspect-square items-center justify-center text-[26px] leading-none transition-colors ${
-                dark ? "bg-panel-bar" : "bg-panel"
+                dark ? "bg-board-dark" : "bg-board-light"
               } ${isSel ? "outline outline-2 -outline-offset-2 outline-teal" : ""}`}
             >
               {rgb && heat > 0.01 ? (

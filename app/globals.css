@@ -15,6 +15,14 @@
   --color-indigo: #8f88dd;
   --color-teal: #5dcaa5;
 
+  /* Chess squares. Their own tokens, not panel/panel-bar: every TerminalPanel on
+     the page uses those, so tuning the board through them would retint the site.
+     Light really is lighter than dark here — the board used to run panel-bar on
+     dark squares and panel on light, which rendered a1 paler than b1. At 5/255
+     apart nobody could see the inversion, or the pattern. */
+  --color-board-light: #1a1f2e;
+  --color-board-dark: #0f121c;
+
   /* Timestep rail (page ambience) */
   --color-rail: rgba(93, 202, 165, 0.14);
   --color-rail-label: #3f8f78;

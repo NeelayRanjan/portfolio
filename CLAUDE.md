@@ -43,6 +43,33 @@ served chunk (`curl` the `/_next/static/chunks/*.css` URL) before doubting the c
   bold type is ever displayed, so the two-weight rule holds.)
 - Mobile: everything must degrade gracefully and stay fast. Lazy-load anything heavy; pause canvas animations off-screen.
 
+### The fonts, and the three things that depend on them
+
+Geist + Geist Mono (`next/font/google`, self-hosted at build), wired to `--font-sans` /
+`--font-mono` in `@theme`. **Evaluated IBM Plex, JetBrains Mono and Instrument Sans on
+2026-07-15 and deliberately stayed on Geist.** Any future swap has to clear all three of
+these, and none of them announce themselves:
+
+- **⚠️ THE MONO'S ADVANCE MUST BE 0.6em.** Measured: Geist Mono is exactly 0.600em, and
+  `AsciiLines`' `lineHeight: 0.68` is that 0.6 **plus** its 0.08em `letterSpacing`. That
+  identity is the only reason the ASCII cells read square. Swap in a narrower mono
+  (Iosevka and Inconsolata are ~0.5em) without re-deriving `lineHeight` and every digit in
+  §2/§2b renders stretched, with no error. Most monos are 0.6em by convention — Plex Mono,
+  JetBrains Mono and Instrument's pairing all measured 0.600em exactly — but measure,
+  don't assume.
+- **⚠️ NO LIGATURE FONTS.** This is a disqualifier here, not a preference. JetBrains Mono
+  rewrites `==` and `===` into single connected rules and `->` into `→`. The ASCII ramp is
+  `" .:-=+*#%@"` and runs of `=` are what mid-intensity regions are MADE of, so a coding
+  font silently turns rows of cells into continuous lines and corrupts the art the page
+  exists to show. `font-variant-ligatures: none` fixes it, but it would have to be
+  remembered on both `AsciiLines` and `CharField`, and forgetting is invisible.
+- **The hero nameplate is NOT in `--font-sans`, and can't easily be.** `Swarm.tsx`
+  rasterizes with a literal `ui-sans-serif, system-ui, -apple-system` stack, because
+  `ctx.font` silently ignores a CSS variable (the same trap `CharField` documents at
+  length). So the loudest text on the page is the visitor's system font, and changing the
+  page's sans does not touch it. If that ever needs to match, resolve the family off
+  `getComputedStyle` first — do not just paste the variable in.
+
 ## Voice — write like a person, not a model
 
 Applies to **all visitor-facing copy**: headings, ledes, captions, notices, boot-log

@@ -10,20 +10,38 @@ import {
   loadChessEngine,
   SEARCH_MODES,
   DEFAULT_SEARCH,
+  THINK_SIMS,
   type ChessEngine,
   type ScoredMove,
 } from "@/lib/chess-engine";
+import { CommandLine } from "./ambience/CommandLine";
 import { loadChessActivations, type ActivationSet } from "@/lib/chess-activations";
 
-// The boot loads the engine; it does not pick a mode. Naming a search here would
-// claim mcts while the panel sits at its 1-ply default. The panel's own label
-// carries the live setting.
-const BOOT_CMD = "./entropy_chess --model int8";
+const CMD_NAME = "./entropy_chess";
+/**
+ * `--sims` here is the budget `let it think` spends, NOT the live sim count.
+ *
+ * The boot loads the engine; it does not pick a mode. So this line is
+ * configuration — what the search will spend when you ask for it — and the title
+ * bar carries which mode is actually running. Two facts, two places, neither
+ * contradicting the other.
+ *
+ * ⚠️ Must match what CommandLine renders, flag for flag and in this order.
+ */
+const BOOT_CMD = `${CMD_NAME} --model int8 --sims ${THINK_SIMS.default}`;
 const BOOT_LINES = [
   "energy-based model · 469K params · scores positions, never outputs a move",
   "int8 quantized to 553 KB · the same artifact that runs on the Pi",
   "onnxruntime-web (wasm) · mcts in a worker · chess.js owns every rule -> ready",
 ];
+
+/** ~230ms a simulation, measured in Firefox (6.6ms/board x ~35 legal moves). Quote
+ *  what's measured in a browser, never the Pi's numbers. */
+const MS_PER_SIM = 0.23;
+const aboutTime = (sims: number) => {
+  const s = Math.round(sims * MS_PER_SIM);
+  return s < 90 ? `${s}s` : `${(s / 60).toFixed(1)} min`;
+};
 
 /** Pause between self-play moves, at 1 ply only. One forward lands in ~140ms,
  *  which is far too fast to watch, so this is pacing rather than compute. A real
@@ -105,6 +123,13 @@ export function ChessPanel() {
   /** 1 ply, or the Pi's real search. Defaults to 1 ply: nobody should land on a
    *  board that takes a minute to answer. */
   const [level, setLevel] = useState(DEFAULT_SEARCH);
+  /** What `let it think` spends, via --sims. Clamped to [250, 500] — see
+   *  THINK_SIMS: the floor is the measurement, not a preference. */
+  const [thinkSims, setThinkSims] = useState<number>(THINK_SIMS.default);
+  /** Confirms a --sims edit. It configures the NEXT search rather than re-running:
+   *  the engine has already moved, and re-answering a position the board has left
+   *  would be a claim about a game that moved on. */
+  const [echo, setEcho] = useState<string | null>(null);
   const [pendingPromo, setPendingPromo] = useState<Pending | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   /** Null until the activation export lands — the toggle is gated on it. */
@@ -167,7 +192,8 @@ export function ChessPanel() {
     () => SEARCH_MODES.find((d) => d.id === level) ?? SEARCH_MODES[0],
     [level],
   );
-  const sims = mode.sims;
+  /** 0 means argmin. Otherwise it's whatever --sims says, not the mode's default. */
+  const sims = mode.sims === 0 ? 0 : thinkSims;
 
   const engineMove = useCallback(async () => {
     const g = gameRef.current;
@@ -339,10 +365,10 @@ export function ChessPanel() {
   return (
     <div ref={boot.ref}>
       <TerminalPanel
-        // Tracks the selector, because a command line that lies about its own
-        // flags is worse than one that has none. Still display-only: making this
-        // an input is a separate piece of work (see CLAUDE.md, editable params).
-        label={`entropy-chess --engine ebm --sims ${sims || 1}`}
+        // Which mode is RUNNING. --sims lives in the boot log and means the
+        // configured budget — showing sims in both places would put two different
+        // numbers under one flag name.
+        label={`entropy-chess --engine ebm --search ${sims === 0 ? "argmin" : "mcts"}`}
         status={status}
         notice={
           booted && err ? (
@@ -352,7 +378,47 @@ export function ChessPanel() {
           ) : null
         }
       >
-        <BootLog typed={boot.typed} printed={boot.printed} done={booted} />
+        <BootLog
+          typed={boot.typed}
+          printed={boot.printed}
+          done={booted}
+          echo={echo}
+          command={
+            <CommandLine
+              name={CMD_NAME}
+              disabled={busy}
+              hint="how long it thinks"
+              dirty={thinkSims !== THINK_SIMS.default}
+              onReset={() => {
+                setThinkSims(THINK_SIMS.default);
+                setEcho(null);
+              }}
+              // Order must match BOOT_CMD.
+              items={[
+                // The loader picks the build (fp32 is a fallback), so this is
+                // never a knob. The status bar reports what actually answered.
+                { kind: "frozen", flag: "--model", value: "int8" },
+                {
+                  kind: "param",
+                  flag: "--sims",
+                  value: thinkSims,
+                  min: THINK_SIMS.min,
+                  max: THINK_SIMS.max,
+                  step: THINK_SIMS.step,
+                  int: true,
+                  onCommit: (v) => {
+                    setThinkSims(v);
+                    setEcho(
+                      sims === 0
+                        ? `--sims ${v} · applies when you let it think`
+                        : `--sims ${v} · applies to its next move`,
+                    );
+                  },
+                },
+              ]}
+            />
+          }
+        />
 
         {!booted ? null : (
           <>
@@ -542,10 +608,18 @@ export function ChessPanel() {
                     ))}
                   </div>
                   <p className="mt-2 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
-                    {mode.about}
-                    {sims > 0
-                      ? ". The Pi runs 500. One forward per simulation is ~230ms here, so this is the honest cost of its search in a browser."
-                      : ". Below ~250 simulations the search returns the same move as this, so there is no tier in between worth offering."}
+                    {sims > 0 ? (
+                      <>
+                        {sims} {mode.about} · about {aboutTime(sims)} a move. Set it with{" "}
+                        <span className="text-ink">--sims</span> above, {THINK_SIMS.min} to{" "}
+                        {THINK_SIMS.max}. The Pi runs {THINK_SIMS.max}.
+                      </>
+                    ) : (
+                      <>
+                        {mode.about}. Below 250 simulations the search returns the same move
+                        as this, which is why --sims stops there rather than at 1.
+                      </>
+                    )}
                   </p>
                 </div>
 

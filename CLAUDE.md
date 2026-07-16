@@ -352,7 +352,8 @@ warm calls the real loaders rather than raw-fetching the same URLs.
 ### Editable terminal params — the rule, and the per-demo ruling  *(NOT BUILT)*
 
 The idea: make the numbers in each panel's command line editable so a visitor can change
-a param and watch the demo re-run with it. **Designed and ruled on; no code written yet.**
+a param and watch the demo re-run with it. **SHIPPED for §2 and §2b**
+(`components/ambience/CommandLine.tsx`). §3 and §4 stay display-only; see the rulings.
 
 **THE RULE, which outranks the appeal of the feature: a param is editable only if changing
 it produces a real, corresponding change. When in doubt, display-only.** A number that
@@ -362,12 +363,12 @@ same principle as "never fake a model's output", applied to a control instead of
 
 Per demo, ruled against what the code and data can actually honour today:
 
-| command (`BOOT_CMD`) | live-editable | display-only, and why |
+| command (`BOOT_CMD`) | live-editable | frozen, and why |
 |---|---|---|
-| `./sdedit --strength 0.6 --steps 20 --dissolve 10` (§2b) | **all three, plus `--guidance` and `--digit`** | — |
+| `./sdedit --digit 7 --strength 0.6 --steps 20 --guidance 2 --dissolve 10` (§2b) | **all five** | — |
 | `./x0_diffusion --digit 7 --steps 32 --schedule cosine` (§2) | `--digit` only | **`--steps` and `--schedule` are BAKED.** ⚠️ |
-| `./entropy_chess --engine ebm --sims N` (§4) | nothing | `--sims` tracks the toggle; a free-form box would be a no-op below ~250 ⚠️ |
-| `./sample_space --target two-moons --compare ddpm,flow` (§3) | cosmetic only | illustrative; must not imply a model re-ran |
+| `./entropy_chess --model int8 --sims 250` (§4) | `--sims`, **clamped to [250, 500]** ⚠️ | `--model`: the loader picks the build, not you |
+| `./sample_space --target two-moons --compare ddpm,flow` (§3) | `--target` (4 shapes) | `--compare`: both fields ARE the comparison |
 
 - **§2b `sdedit` is the hero of the feature.** `generate()` in `lib/ascii-diffusion.js`
   genuinely takes `strength`, `steps`, `guidance`, `dissolve` and `digit`, and streams
@@ -382,28 +383,79 @@ Per demo, ruled against what the code and data can actually honour today:
   `--digit` is genuinely live, because all 10 digits are in the file. **Do not let
   `--steps` look interactive here.** Re-run that check before changing this ruling; a new
   export with multiple step counts is the only thing that changes it.
-- **⚠️ §4 `--sims`: the gate opened and the answer is still NO.** This used to read
-  "display-only until MCTS ships; it becomes editable when the search actually runs in a
-  Web Worker". The search now ships and does run in a worker — and `--sims` **stays
-  display-only**, on the strength of the rule rather than in spite of it. Measured (see
-  §4): every value below ~250 returns the *same move as 1-ply*, and 250 already costs
-  ~60s. So a free-form numeric box would be a control that does nothing across almost its
-  entire usable range, and whose only working values take a minute each to demonstrate.
-  The `1 ply` / `let it think` toggle is that param, reduced to the two values that
-  actually differ. The label tracks it (`--sims 1` / `--sims 250`) so the command line
-  never lies. **Re-measure before reopening this**: a faster runtime or a smaller model is
-  the only thing that changes it.
-- **§3 may change the animation** but must not imply weights re-ran. It's labelled
-  illustrative and that label has to keep being true.
+- **⚠️ §4 `--sims` is live, and THE CLAMP IS THE MEASUREMENT — don't widen it.** It sets
+  what `let it think` spends, over **[250, 500] step 50**, and that range is not taste.
+  Below ~250 the search returns the *same move as 1-ply argmin* (see §4's tables), so a
+  box that accepted 40 would spend 9 seconds to reproduce what the toggle already gives
+  instantly — a control doing nothing, which is the exact thing the rule above forbids.
+  Clamping to 250 is what keeps it honest: every value it accepts is a search that
+  actually searches, and typing `10` snapping to `250` *teaches* the finding. The ceiling
+  is 500 because that is the ladder's setting, the only count that found a mate the others
+  walked into, and the most this can claim without leaving measured ground.
+  - It configures the NEXT search rather than re-running: the engine has already moved,
+    and re-answering a position the board has left would be a claim about a game that
+    moved on. The echo says so.
+  - The boot log owns `--sims` (the configured budget); the title bar owns
+    `--search argmin|mcts` (what is running). **Don't put sims in both** — that puts two
+    different numbers under one flag name.
+  - This inverts an earlier ruling twice over. It first read "display-only until MCTS
+    ships"; then, once MCTS shipped, "still no, a free-form box is a no-op below 250".
+    The clamp is what resolves it: bound the range to where the param is real, and it is
+    real. **Re-measure before widening.**
+- **§3 `--target` is live: four shapes** (two-moons, spiral, ring, 8-gaussians), as a
+  `<select>` in the command line. This is squarely inside "§3 may change the animation but
+  must not imply weights re-ran" — the manifolds are closed-form 2D geometry, so there is
+  nothing to re-train and nothing to fake, and the panel stays as illustrative as it was.
+  The label has to keep being true.
+  - **⚠️ EVERY SHAPE MUST BE DETERMINISTIC** (`hash01`, never `Math.random`). Flow
+    matching's whole claim here is "the same route every time", and `targetFor` picks a
+    start's destination by hashing INTO the manifold array. One random call in a shape
+    silently makes flow paths jump between renders and destroys what the panel exists to
+    show. Same rule as `flowPath`'s bow.
+  - Switching clears live trails: they end on the old manifold and would hang in mid-air
+    pointing at a shape that is no longer there.
+  - The spiral spaces points by `sqrt(i/n)`, not `i/n`: for r proportional to t the arc
+    length grows as t², so linear spacing leaves the outer turns threadbare.
 
-**UX, when it's built:** an inline `<input>` that disappears into the command line (same
-mono font, colour and size; no border or background until focused), `inputmode="numeric"`,
-commit on Enter or blur, then re-run with a brief echo line (`re-running --steps 16…`).
-Clamp HARD — reject or snap out-of-range rather than passing it through. Debounce, and
-disable the inputs while a run is in flight. A subtle per-command reset-to-default.
-Reduced-motion still allows editing; it just skips the flourish. The identity input in the
-boot screen (`BootScreen.tsx`) is the closest existing pattern for the invisible-until-
-focused treatment.
+**How it's built** *(`components/ambience/CommandLine.tsx`)*
+- **It lives in the BOOT LOG's command line, not the panel's title bar.** The title bar
+  `truncate`s and the sdedit line is ~60 characters; the log is body-width. This is why
+  the ruling table above is keyed on `BOOT_CMD`.
+- **The swap-in is the boot screen's trick, for the boot screen's reason.** The boot TYPES
+  the command a character at a time, and you can't type into an input on a timer without
+  fighting the caret. So the line types as plain text and `BootLog` swaps `command` in once
+  `done` flips. **`BOOT_CMD` and the params' defaults must be built from one source** —
+  they are, via `DEFAULTS` in each panel — or the line visibly rewrites itself at the
+  handover.
+- **⚠️ `aria-hidden` moved off `BootLog`'s wrapper onto its pieces.** It used to wrap the
+  whole log, correctly, when every character was theatre. An aria-hidden ancestor hides
+  descendants whatever they declare, so leaving it would have made the params work fine
+  and simply not exist for anyone not using a mouse. Same rule as the boot screen's
+  username: hide the theatre, expose the control.
+- Inputs take the flag's own colour and size with a dashed underline as the entire
+  affordance (BootScreen's username, again); teal only on focus. **Frozen flags are a
+  separate prop** and render as bare text with no underline and no hover — that visible
+  difference is what tells you which numbers are controls and which are facts about a
+  file. `CommandLine` never parses flags out of a string, so a baked param cannot
+  accidentally become editable.
+- Commit on Enter or blur, Escape abandons. **Clamp HARD**: `snap()` rounds to the step
+  grid then into range, so 999 becomes 40 rather than reaching the module. A draft string
+  is held while typing or you could never type "0." on the way to "0.5"; a blur with no
+  draft is a no-op, which matters because disabling a focused input blurs it.
+- **⚠️ A re-run must pass the new value EXPLICITLY** (`generate({ steps: v })`). The commit
+  re-runs in the same tick it calls `setState`, so reading state would re-run with the
+  number the visitor just changed away from, and the param would look broken.
+- **⚠️ §2b has exactly one call site for `model.generate()`, on purpose.** It passes
+  `x0Init`, which is the only way to get `inkIsHigh` right (trap 1 below). A second call
+  site that forgot would feed the model a photographic negative: no error, just plausible
+  garbage that reads as the diffusion being broken. Every re-run routes through `generate`.
+- Re-runs only fire when there IS a run to redo (a previous frame, ink, a loaded model).
+  Changing a number before drawing shouldn't invent a run. The echo line
+  (`re-running --steps 40…`) is `role="status"`, because it is the confirmation that the
+  number did something. §2 gets no echo: it plays a stored trajectory, and "re-running"
+  would claim a model ran.
+- Reduced-motion still allows editing; the boot just resolves instantly, and the inputs
+  swap in with it.
 
 ## Sections (single scrolling page)
 
@@ -982,9 +1034,10 @@ measured numbers rather than the handoff's.
 (§1); the trajectory viewer in both modes on real trained data (§2); live draw-a-digit
 with the real ONNX + zero-shot auto-label (§2b); sample-space (§3); the chess engine at
 1-ply on the real int8 build, with `hint` and the precomputed interpretability view (§4);
-the MCTS port in a Web Worker behind `let it think` (§4); page ambience (CharField, scroll
-spine, resolving labels, reveals, grain); the terminal boot sequence, the ssh boot screen
-+ editable identity, and the preload window; favicon set and OG card; the README.
+the MCTS port in a Web Worker behind `let it think` (§4); editable terminal params on §2
+and §2b; page ambience (CharField, scroll spine, resolving labels, reveals, grain); the
+terminal boot sequence, the ssh boot screen + editable identity, and the preload window;
+favicon set and OG card; the README.
 
 **The page is four sections today** (`app/page.tsx`): `#diffusion`, `#draw`, `#chess`,
 `#sample-space`. §5 and §6 do not exist.
@@ -993,13 +1046,11 @@ spine, resolving labels, reveals, grain); the terminal boot sequence, the ssh bo
 1. **§5 Research** — not built at all. Needs real content from `content/resume-notes.md`,
    and a decision on how to present three "in preparation" papers. **Blocked as of
    2026-07-15**: the work isn't shareable yet.
-2. **Editable terminal params** (§2b `sdedit` is the hero — see the ruling above).
-   Designed in full, no code written. Note `--sims` is settled and stays display-only.
-3. **§6 multi-agent robustness** — not started. Its node-graph watermark and the chess
+2. **§6 multi-agent robustness** — not started. Its node-graph watermark and the chess
    board-grid watermark (see Page ambience §5) land with their sections.
-4. **Live chess activations** — a re-export exposing intermediate layers would turn the
+3. **Live chess activations** — a re-export exposing intermediate layers would turn the
    interpretability view live; the renderer is already source-agnostic (§4).
-5. **A faster chess runtime is the only thing that unblocks deeper search** (§4). WebGPU
+4. **A faster chess runtime is the only thing that unblocks deeper search** (§4). WebGPU
    is untested here (headless Firefox has no adapter, so it can't be measured on this
    box); int8-on-WebGPU is also poorly supported. Don't ship it unmeasured.
 

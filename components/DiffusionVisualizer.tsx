@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AsciiGrid, AsciiLines } from "./AsciiGrid";
 import { TerminalPanel } from "./TerminalPanel";
 import { BootLog, useBootSequence } from "./ambience/BootLog";
+import { CommandLine } from "./ambience/CommandLine";
 import {
   GRID_WIDTH,
   lerpReshape,
@@ -19,6 +20,24 @@ import {
 
 type Mode = "pixel" | "ascii";
 
+const CMD_NAME = "./x0_diffusion";
+/**
+ * ⚠️ ONLY `--digit` IS LIVE HERE, AND THIS PANEL IS THE TRAP.
+ *
+ * §2b's sdedit runs a model, so every flag on it genuinely re-samples. This one
+ * PLAYS A PRECOMPUTED TRAJECTORY — the frames are baked into diffusion_traj.json
+ * and there is no model on the page to re-run. `--digit` works because all 10
+ * digits are in the file. `--steps` and `--schedule` are properties of the export
+ * itself, so they are frozen: verified against the file, the distinct frame count
+ * across all 10 digits is [32], exactly one step count. There is nothing to snap
+ * a typed value to.
+ *
+ * So they render as plain text with no input, no underline, no hover. The visible
+ * difference between them and `--digit` is the point: it says which numbers are
+ * real controls and which are facts about a file. Do NOT let --steps look
+ * interactive. A new export with multiple step counts is the only thing that
+ * changes this ruling, and re-running that check is the only way to know.
+ */
 const BOOT_CMD = "./x0_diffusion --digit 7 --steps 32 --schedule cosine";
 const BOOT_LINES = [
   "resolving trajectory source /diffusion_traj.json",
@@ -193,7 +212,37 @@ export function DiffusionVisualizer() {
           ) : null
         }
       >
-        <BootLog typed={boot.typed} printed={boot.printed} done={booted} />
+        <BootLog
+          typed={boot.typed}
+          printed={boot.printed}
+          done={booted}
+          command={
+            <CommandLine
+              name={CMD_NAME}
+              // Order must match BOOT_CMD, or the line rewrites at the handover.
+              items={[
+                {
+                  kind: "param",
+                  flag: "--digit",
+                  value: Number(digit),
+                  min: 0,
+                  max: 9,
+                  step: 1,
+                  int: true,
+                  onCommit: (v) => pick(String(v)),
+                },
+                // Baked into the export, not knobs. See the ruling above.
+                { kind: "frozen", flag: "--steps", value: "32" },
+                { kind: "frozen", flag: "--schedule", value: "cosine" },
+              ]}
+              // NOT "edit any number": only --digit is live here, and the two
+              // beside it are baked into the export.
+              hint="edit the digit"
+              dirty={digit !== "7"}
+              onReset={() => pick("7")}
+            />
+          }
+        />
 
         {!booted ? null : (
           <>

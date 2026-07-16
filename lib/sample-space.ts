@@ -45,10 +45,49 @@ function gauss(rnd: () => number): number {
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rnd());
 }
 
+/** Fit any raw point cloud into a padded [0,1] box, y flipped for canvas. */
+function normalise(raw: Vec[]): Vec[] {
+  const xs = raw.map((p) => p.x);
+  const ys = raw.map((p) => p.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const pad = 0.12;
+  const span = 1 - pad * 2;
+  const sx = maxX - minX || 1;
+  const sy = maxY - minY || 1;
+  return raw.map((p) => ({
+    x: pad + ((p.x - minX) / sx) * span,
+    // Flip y: canvas grows downward.
+    y: pad + (1 - (p.y - minY) / sy) * span,
+  }));
+}
+
 /**
- * Two interleaving half-circles, normalised into a padded [0,1] box.
- * Deterministic: the same manifold renders on every panel and every reload.
+ * The target distributions, all four straight out of the 2D generative-modelling
+ * toy zoo. They exist so the DDPM-vs-flow contrast can be watched over more than
+ * one geometry — a spiral's long curved routes make the step-count gap far more
+ * obvious than two-moons' short hops do.
+ *
+ * ⚠️ EVERY SHAPE MUST BE DETERMINISTIC. All jitter comes from `hash01`, never
+ * `Math.random`. Flow matching's whole claim on this page is "the same route every
+ * time", and `targetFor` finds a start's destination by hashing INTO the manifold
+ * array — so one stray random call here silently makes flow paths jump between
+ * renders and destroys the thing the panel exists to show. Same rule as flowPath's.
  */
+export type TargetId = "two-moons" | "spiral" | "ring" | "8-gaussians";
+
+export const TARGETS: { id: TargetId; label: string; blurb: string }[] = [
+  { id: "two-moons", label: "two-moons", blurb: "two interleaving half-moons" },
+  { id: "spiral", label: "spiral", blurb: "two arms winding out from the centre" },
+  { id: "ring", label: "ring", blurb: "a single closed circle" },
+  { id: "8-gaussians", label: "8-gaussians", blurb: "eight modes on a circle" },
+];
+
+export const DEFAULT_TARGET: TargetId = "two-moons";
+
+/** Two interleaving half-circles. The classic. */
 export function twoMoons(n = 320): Vec[] {
   const raw: Vec[] = [];
   for (let i = 0; i < n; i++) {
@@ -60,19 +99,65 @@ export function twoMoons(n = 320): Vec[] {
       raw.push({ x: 1 - Math.cos(t) + jitter * 0.4, y: 0.5 - Math.sin(t) + jitter });
     }
   }
-  const xs = raw.map((p) => p.x);
-  const ys = raw.map((p) => p.y);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  const pad = 0.12;
-  const span = 1 - pad * 2;
-  return raw.map((p) => ({
-    x: pad + ((p.x - minX) / (maxX - minX)) * span,
-    // Flip y: canvas grows downward.
-    y: pad + (1 - (p.y - minY) / (maxY - minY)) * span,
-  }));
+  return normalise(raw);
+}
+
+/** Two arms winding out from the centre. The longest routes of the four. */
+export function spiral(n = 320): Vec[] {
+  const raw: Vec[] = [];
+  const turns = 2.6 * Math.PI;
+  for (let i = 0; i < n; i++) {
+    // sqrt, not linear. For r proportional to t the arc length grows as t², so
+    // spacing points evenly in t leaves the outer turns visibly threadbare while
+    // the centre clogs. sqrt spreads them along the curve instead.
+    const f = Math.sqrt(i / (n - 1));
+    const t = f * turns;
+    const r = 0.16 + f * 0.84;
+    const jitter = (hash01(i, 11) - 0.5) * 0.07;
+    const arm = i % 2 === 0 ? 0 : Math.PI; // two arms, interleaved
+    raw.push({
+      x: r * Math.cos(t + arm) + jitter,
+      y: r * Math.sin(t + arm) + jitter,
+    });
+  }
+  return normalise(raw);
+}
+
+/** One closed circle. The hole in the middle is the point: every route has to go
+ *  around rather than through. */
+export function ring(n = 320): Vec[] {
+  const raw: Vec[] = [];
+  for (let i = 0; i < n; i++) {
+    const t = (i / n) * 2 * Math.PI;
+    const r = 1 + (hash01(i, 13) - 0.5) * 0.1;
+    raw.push({ x: r * Math.cos(t), y: r * Math.sin(t) });
+  }
+  return normalise(raw);
+}
+
+/** Eight separated modes on a circle. The standard mode-collapse test bed. */
+export function eightGaussians(n = 320): Vec[] {
+  const raw: Vec[] = [];
+  const modes = 8;
+  for (let i = 0; i < n; i++) {
+    const a = ((i % modes) / modes) * 2 * Math.PI;
+    // Box-Muller off the hash, so the blobs are round and still deterministic.
+    const u = Math.max(hash01(i, 17), 1e-9);
+    const rad = Math.sqrt(-2 * Math.log(u)) * 0.055;
+    const ang = hash01(i, 19) * 2 * Math.PI;
+    raw.push({
+      x: Math.cos(a) + rad * Math.cos(ang),
+      y: Math.sin(a) + rad * Math.sin(ang),
+    });
+  }
+  return normalise(raw);
+}
+
+export function manifoldFor(id: TargetId, n = 320): Vec[] {
+  if (id === "spiral") return spiral(n);
+  if (id === "ring") return ring(n);
+  if (id === "8-gaussians") return eightGaussians(n);
+  return twoMoons(n);
 }
 
 /**

@@ -94,6 +94,9 @@ export type EngineReply = {
  * The model is a strong POLICY: its raw prior is already median ~8cp off
  * Stockfish depth 12. That is why search adds so little so slowly — there is not
  * much left for it to fix except the tail, and the tail is where depth lives.
+ *
+ * So it ships as a toggle: `1 ply` (default) and `let it think`, whose budget is
+ * editable via `--sims` over the range where the number is real. See THINK_SIMS.
  */
 export type SearchMode = {
   id: string;
@@ -105,11 +108,30 @@ export type SearchMode = {
 
 export const SEARCH_MODES: SearchMode[] = [
   { id: "ply1", label: "1 ply", sims: 0, about: "one forward pass, ~150ms" },
-  { id: "think", label: "let it think", sims: 250, about: "250 simulations, ~1 min" },
+  { id: "think", label: "let it think", sims: 250, about: "simulations" },
 ];
 
 /** 1 ply. A visitor must never land on a mode that takes a minute to answer. */
 export const DEFAULT_SEARCH = "ply1";
+
+/**
+ * The editable budget for `let it think`, via `--sims` on the command line.
+ *
+ * ⚠️ THE FLOOR IS THE MEASUREMENT, NOT A TASTE CALL — do not lower it. Below ~250
+ * simulations the search returns the SAME MOVE as 1-ply argmin (23 of 24 positions
+ * at 96 sims and below; see the tables above), so a 100-sim setting would spend 23
+ * seconds to reproduce something the toggle already offers instantly. Clamping to
+ * 250 is what keeps this control honest: every value it accepts is a search that
+ * actually searches. The clamp IS the finding.
+ *
+ * The ceiling is the ladder's setting. 500 is what measured ~2330 Elo and the only
+ * count that found a mate the others walked into, so it is the most this can claim
+ * without leaving measured ground. It costs ~2 minutes a move here.
+ *
+ * Step 50: 250 / 300 / 350 / 400 / 450 / 500. Finer than that is noise — 250 vs
+ * 260 does not reliably change anything.
+ */
+export const THINK_SIMS = { min: 250, max: 500, step: 50, default: 250 } as const;
 
 /** main -> worker */
 export type Req =

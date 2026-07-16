@@ -19,7 +19,7 @@
 import type { EngineBuild, EngineReply, Req, Res } from "./chess-protocol";
 
 export type { EngineReply, ScoredMove, EngineMode, EngineBuild } from "./chess-protocol";
-export { SEARCH_MODES, DEFAULT_SEARCH, type SearchMode } from "./chess-protocol";
+export { SEARCH_MODES, DEFAULT_SEARCH, THINK_SIMS, type SearchMode } from "./chess-protocol";
 
 export type ChessEngine = {
   build: EngineBuild;

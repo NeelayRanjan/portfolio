@@ -1,22 +1,36 @@
 "use client";
 
-import { useCallback, useEffect, useImperativeHandle, useRef } from "react";
+import { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { TerminalPanel } from "./TerminalPanel";
 import { BootLog, useBootSequence } from "./ambience/BootLog";
+import { CommandLine } from "./ambience/CommandLine";
 import {
   DDPM_STEPS,
+  DEFAULT_TARGET,
   FLOW_STEPS,
+  TARGETS,
   ddpmPath,
   flowPath,
+  manifoldFor,
   targetFor,
   sampleStart,
-  twoMoons,
+  type TargetId,
   type Vec,
 } from "@/lib/sample-space";
 
-const BOOT_CMD = "./sample_space --target two-moons --compare ddpm,flow";
+const CMD_NAME = "./sample_space";
+/**
+ * `--target` is genuinely live; `--compare` is not.
+ *
+ * The ruling for this panel is "may change the animation, must not imply weights
+ * re-ran". Swapping the manifold is exactly that: it's hand-drawn 2D geometry, so
+ * there is nothing to re-train and nothing to fake — the panel stays as real (and
+ * as illustrative) as it was. `--compare ddpm,flow` is frozen because both fields
+ * are the entire comparison; there is no third field to switch to.
+ */
+const BOOT_CMD = `${CMD_NAME} --target ${DEFAULT_TARGET} --compare ddpm,flow`;
 const BOOT_LINES = [
-  "building 2d target manifold (two interleaving half-moons)",
+  "building 2d target manifold from a closed form",
   `ddpm: ${DDPM_STEPS} stochastic steps · flow: ${FLOW_STEPS} deterministic steps`,
   "hand-drawn fields, no weights loaded -> ready",
 ];
@@ -46,10 +60,12 @@ const TINT: Record<Kind, string> = {
 
 function SamplePanel({
   kind,
+  target,
   handleRef,
   onPick,
 }: {
   kind: Kind;
+  target: TargetId;
   handleRef: React.RefObject<PanelHandle | null>;
   onPick: (start: Vec) => void;
 }) {
@@ -76,7 +92,10 @@ function SamplePanel({
     if (!ctx) return;
 
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    manifoldRef.current = twoMoons();
+    manifoldRef.current = manifoldFor(target);
+    // Every live trail ends on the OLD manifold, so they'd hang in mid-air
+    // pointing at a shape that is no longer there.
+    trailsRef.current = [];
 
     let w = 0;
     let h = 0;
@@ -193,7 +212,7 @@ function SamplePanel({
       window.removeEventListener("resize", onResize);
       window.clearTimeout(resizeTimer);
     };
-  }, [kind]);
+  }, [kind, target]);
 
   return (
     <canvas
@@ -211,8 +230,10 @@ function SamplePanel({
 export function SampleSpace() {
   const ddpmRef = useRef<PanelHandle | null>(null);
   const flowRef = useRef<PanelHandle | null>(null);
+  const [target, setTarget] = useState<TargetId>(DEFAULT_TARGET);
   const boot = useBootSequence(BOOT_CMD, BOOT_LINES);
   const booted = boot.done;
+  const shape = TARGETS.find((t) => t.id === target) ?? TARGETS[0];
 
   // One start feeds both panels — that shared origin is the whole comparison.
   const spawn = useCallback((start: Vec) => {
@@ -242,20 +263,47 @@ export function SampleSpace() {
           ) : null
         }
       >
-        <BootLog typed={boot.typed} printed={boot.printed} done={booted} />
+        <BootLog
+          typed={boot.typed}
+          printed={boot.printed}
+          done={booted}
+          command={
+            <CommandLine
+              name={CMD_NAME}
+              hint="try another shape"
+              dirty={target !== DEFAULT_TARGET}
+              onReset={() => setTarget(DEFAULT_TARGET)}
+              // Order must match BOOT_CMD.
+              items={[
+                {
+                  kind: "choice",
+                  flag: "--target",
+                  value: target,
+                  options: TARGETS.map((t) => ({ value: t.id, label: t.label })),
+                  onCommit: (v) => setTarget(v as TargetId),
+                },
+                // Both fields ARE the comparison; there's no third to switch to.
+                { kind: "frozen", flag: "--compare", value: "ddpm,flow" },
+              ]}
+            />
+          }
+        />
 
         {!booted ? null : (
           <>
             <h2 className="mt-6 mb-2 text-2xl tracking-tight">Sample space</h2>
             <p className="mb-8 max-w-2xl leading-relaxed text-muted">
-              The same two-moons target, the same starting point, two ways of getting
-              there. Click either panel to launch a trajectory from that point. Both
-              panels run the same start, so the routes are directly comparable.
+              The same target, the same starting point, two ways of getting there. Click
+              either panel to launch a trajectory from that point. Both panels run the
+              same start, so the routes are directly comparable. Switch{" "}
+              <span className="text-ink">--target</span> above to run the same comparison
+              over a different shape: the spiral makes the step-count gap easiest to see,
+              because the routes are long enough to watch.
             </p>
 
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <figure>
-                <SamplePanel kind="ddpm" handleRef={ddpmRef} onPick={spawn} />
+                <SamplePanel kind="ddpm" target={target} handleRef={ddpmRef} onPick={spawn} />
                 <figcaption className="mt-3 font-mono text-[11px] text-faint">
                   <span className="text-indigo">DDPM</span> · stochastic (SDE),{" "}
                   {DDPM_STEPS} steps. Jagged; a different route every run.
@@ -263,13 +311,17 @@ export function SampleSpace() {
               </figure>
 
               <figure>
-                <SamplePanel kind="flow" handleRef={flowRef} onPick={spawn} />
+                <SamplePanel kind="flow" target={target} handleRef={flowRef} onPick={spawn} />
                 <figcaption className="mt-3 font-mono text-[11px] text-faint">
                   <span className="text-teal">Flow matching</span> · deterministic (ODE),{" "}
                   {FLOW_STEPS} steps. Smooth; the same route every time.
                 </figcaption>
               </figure>
             </div>
+
+            <p className="mt-4 font-mono text-[11px] text-faint">
+              target · {shape.blurb}
+            </p>
           </>
         )}
       </TerminalPanel>

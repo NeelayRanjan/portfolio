@@ -1,51 +1,40 @@
 /**
- * The EBM chess engine, in the browser.
+ * The main thread's handle on the chess engine.
  *
- * The model is an energy function over RESULTING positions: it never outputs a
- * move. To pick one, enumerate every legal move, encode each resulting position
- * from the mover's perspective (lib/chess-encode.ts), run the whole batch in one
- * forward, and take argmin(energy). `softmax(-energy)` is a calibrated move
- * distribution; `value` is the expected result for the mover, in [-1, 1].
+ * There is no model here any more, and there must not be. The session, the
+ * encoder and the search all live in lib/chess-worker.ts; this file owns the
+ * worker's lifetime and turns its messages back into promises. Importing
+ * onnxruntime-web (24MB) from this side of the wire would put it straight back
+ * into the page bundle and undo the whole point.
  *
- * Currently 1-ply argmin. The handoff's full-strength mode is MCTS over these
- * same priors and values (~150 lines, port of pi/mcts.py) run in a Web Worker —
- * a search blocks the main thread for seconds, so it cannot live here as-is.
+ * The API is deliberately unchanged from the pre-worker version: `loadChessEngine()`
+ * is still a memoized promise resolving null when the weights aren't deployed, so
+ * lib/warm.ts still warms the engine by calling exactly this and the panel still
+ * gates on null. What moved is where the work happens.
  *
- * chess.js owns every rule. Never hand-roll chess logic.
+ * The Pi runs the same two modes over the same numbers: argmin is one forward and
+ * no search; mcts is `pi/mcts.py` over the priors and values that same forward
+ * produces. See lib/chess-mcts.ts.
  */
-import { Chess, type Color } from "chess.js";
-import { encodeBoard, TENSOR_SIZE } from "./chess-encode";
+import type { EngineBuild, EngineReply, Req, Res } from "./chess-protocol";
 
-/** The int8 build: the exact artifact that ships on the Pi, and 553KB. Verified
- *  to load and pass the handoff's known-answer vector in ort-web's WASM backend,
- *  despite its QInt16 activations. */
-export const MODEL_INT8 = "/models/chess-int8.onnx";
-/** Fallback if a runtime ever rejects the quantized graph. Same answers, 1.8MB. */
-export const MODEL_FP32 = "/models/chess-fp32.onnx";
-
-export type ScoredMove = {
-  uci: string;
-  san: string;
-  /** Lower is better for the mover. Only comparable within one batch. */
-  energy: number;
-  /** softmax(-energy) across this batch: a calibrated move probability. */
-  prior: number;
-  /** Expected game result for the mover, [-1, 1]. Comparable across positions. */
-  value: number;
-};
-
-export type EngineReply = {
-  best: ScoredMove;
-  /** Every legal move, scored, best first. Drives the candidate readout. */
-  ranked: ScoredMove[];
-  ms: number;
-  /** Which build actually answered. */
-  build: "int8" | "fp32";
-};
+export type { EngineReply, ScoredMove, EngineMode, EngineBuild } from "./chess-protocol";
+export { SEARCH_MODES, DEFAULT_SEARCH, type SearchMode } from "./chess-protocol";
 
 export type ChessEngine = {
-  build: "int8" | "fp32";
-  bestMove(fen: string): Promise<EngineReply>;
+  build: EngineBuild;
+  /**
+   * `sims` 0 is 1-ply argmin; anything higher runs that many MCTS simulations.
+   * `onProgress` fires per simulation and never for argmin, which has nothing to
+   * report and returns before a spinner would be honest.
+   */
+  move(
+    fen: string,
+    sims: number,
+    onProgress?: (done: number, total: number) => void,
+  ): Promise<EngineReply>;
+  /** Abandon the running search. Its answer is about a position that has moved on. */
+  cancel(): void;
 };
 
 let cache: Promise<ChessEngine | null> | null = null;
@@ -54,80 +43,88 @@ let cache: Promise<ChessEngine | null> | null = null;
 export function loadChessEngine(): Promise<ChessEngine | null> {
   if (cache) return cache;
   cache = (async () => {
-    try {
-      const head = await fetch(MODEL_INT8, { method: "HEAD" });
-      if (!head.ok) return null;
-    } catch {
+    // Turbopack resolves this form at build time and emits the worker as its own
+    // chunk graph, loaded via its `turbopack-worker-[client-fs]` shim. It must
+    // stay a literal `new URL(..., import.meta.url)`: hand it a variable and the
+    // bundler cannot see the dependency, so nothing is emitted and it 404s.
+    //
+    // ⚠️ RED HERRING, VERIFIED HARMLESS — don't "fix" it. `next build` ALSO drops
+    // the raw, uncompiled source at `.next/static/media/chess-worker.<hash>.ts`,
+    // which the dev server never produces, and serves it as `video/mp2t` (the
+    // MPEG-transport-stream type for `.ts`). It looks exactly like a worker that
+    // is about to be rejected on MIME type. It isn't: that file is a side effect
+    // of `new URL()`'s asset semantics and is never fetched. The worker loads
+    // from compiled chunks. Confirmed against a real `npm start`: engine reaches
+    // "int8 · your move", zero console errors, and vector D returns g3 p=0.236.
+    const worker = new Worker(new URL("./chess-worker.ts", import.meta.url), {
+      type: "module",
+    });
+
+    type Pending = {
+      resolve: (r: EngineReply) => void;
+      reject: (e: Error) => void;
+      onProgress?: (done: number, total: number) => void;
+    };
+    const pending = new Map<number, Pending>();
+    let nextId = 1;
+
+    const ready = new Promise<EngineBuild | null>((resolve, reject) => {
+      const onFirst = (e: MessageEvent<Res>) => {
+        const m = e.data;
+        if (m.type === "ready") {
+          worker.removeEventListener("message", onFirst);
+          resolve(m.build);
+        } else if (m.type === "unavailable") {
+          worker.removeEventListener("message", onFirst);
+          resolve(null);
+        } else if (m.type === "error" && m.id === null) {
+          worker.removeEventListener("message", onFirst);
+          reject(new Error(m.message));
+        }
+      };
+      worker.addEventListener("message", onFirst);
+    });
+
+    worker.addEventListener("message", (e: MessageEvent<Res>) => {
+      const m = e.data;
+      if (m.type === "progress") {
+        pending.get(m.id)?.onProgress?.(m.done, m.total);
+        return;
+      }
+      if (m.type === "result") {
+        pending.get(m.id)?.resolve(m.reply);
+        pending.delete(m.id);
+        return;
+      }
+      if (m.type === "error" && m.id !== null) {
+        pending.get(m.id)?.reject(new Error(m.message));
+        pending.delete(m.id);
+      }
+    });
+
+    const send = (r: Req) => worker.postMessage(r);
+    send({ type: "init" });
+
+    const build = await ready;
+    if (build === null) {
+      worker.terminate();
       return null;
     }
 
-    const ort = await import("onnxruntime-web/webgpu");
-    ort.env.wasm.wasmPaths = "/ort/";
-    ort.env.logLevel = "error";
-    if (!globalThis.crossOriginIsolated) ort.env.wasm.numThreads = 1;
-
-    let build: "int8" | "fp32" = "int8";
-    let session;
-    try {
-      session = await ort.InferenceSession.create(MODEL_INT8, {
-        executionProviders: ["wasm"],
-      });
-    } catch {
-      // The quantized graph was rejected. Losing the "int8" label costs nothing
-      // user-visible — a wrong-answer engine would cost everything.
-      build = "fp32";
-      session = await ort.InferenceSession.create(MODEL_FP32, {
-        executionProviders: ["wasm"],
-      });
-    }
-
-    return {
+    const engine: ChessEngine = {
       build,
-      async bestMove(fen: string): Promise<EngineReply> {
-        const t0 = performance.now();
-        const board = new Chess(fen);
-        if (board.isGameOver()) throw new Error("bestMove called on a finished game");
-
-        // The mover: whoever is to move NOW. Every child is encoded from their
-        // point of view, which is the whole perspective convention.
-        const perspective: Color = board.turn();
-        const moves = board.moves({ verbose: true });
-
-        const batch = new Float32Array(moves.length * TENSOR_SIZE);
-        moves.forEach((m, i) => {
-          const child = new Chess(fen);
-          child.move({ from: m.from, to: m.to, promotion: m.promotion });
-          batch.set(encodeBoard(child, perspective), i * TENSOR_SIZE);
+      move(fen: string, sims: number, onProgress?: (done: number, total: number) => void) {
+        return new Promise<EngineReply>((resolve, reject) => {
+          const id = nextId++;
+          pending.set(id, { resolve, reject, onProgress });
+          send({ type: "search", id, fen, sims });
         });
-
-        const out = await session.run({
-          planes: new ort.Tensor("float32", batch, [moves.length, 18, 8, 8]),
-        });
-        const energy = out.energy.data as Float32Array;
-        const value = out.value.data as Float32Array;
-
-        // softmax(-energy), tau = 1, shifted for stability.
-        let maxNeg = -Infinity;
-        for (let i = 0; i < moves.length; i++) maxNeg = Math.max(maxNeg, -energy[i]);
-        let z = 0;
-        const exp = new Float64Array(moves.length);
-        for (let i = 0; i < moves.length; i++) {
-          exp[i] = Math.exp(-energy[i] - maxNeg);
-          z += exp[i];
-        }
-
-        const ranked: ScoredMove[] = moves.map((m, i) => ({
-          uci: m.from + m.to + (m.promotion ?? ""),
-          san: m.san,
-          energy: energy[i],
-          prior: exp[i] / z,
-          value: value[i],
-        }));
-        ranked.sort((a, b) => a.energy - b.energy);
-
-        return { best: ranked[0], ranked, ms: performance.now() - t0, build };
+      },
+      cancel() {
+        send({ type: "cancel" });
       },
     };
+    return engine;
   })().catch((err) => {
     cache = null;
     throw err;

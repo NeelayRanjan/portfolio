@@ -6,18 +6,28 @@ import { TerminalPanel } from "./TerminalPanel";
 import { ChessBoard } from "./ChessBoard";
 import { ChessActivations } from "./ChessActivations";
 import { BootLog, useBootSequence } from "./ambience/BootLog";
-import { loadChessEngine, type ChessEngine, type ScoredMove } from "@/lib/chess-engine";
+import {
+  loadChessEngine,
+  SEARCH_MODES,
+  DEFAULT_SEARCH,
+  type ChessEngine,
+  type ScoredMove,
+} from "@/lib/chess-engine";
 import { loadChessActivations, type ActivationSet } from "@/lib/chess-activations";
 
-const BOOT_CMD = "./entropy_chess --model int8 --mode argmin";
+// The boot loads the engine; it does not pick a mode. Naming a search here would
+// claim mcts while the panel sits at its 1-ply default. The panel's own label
+// carries the live setting.
+const BOOT_CMD = "./entropy_chess --model int8";
 const BOOT_LINES = [
   "energy-based model · 469K params · scores positions, never outputs a move",
   "int8 quantized to 553 KB · the same artifact that runs on the Pi",
-  "onnxruntime-web (wasm) · chess.js owns every rule -> ready",
+  "onnxruntime-web (wasm) · mcts in a worker · chess.js owns every rule -> ready",
 ];
 
-/** Pause between self-play moves. The engine answers in ~140ms, which is far too
- *  fast to watch — this is pacing, not compute. */
+/** Pause between self-play moves, at 1 ply only. One forward lands in ~140ms,
+ *  which is far too fast to watch, so this is pacing rather than compute. A real
+ *  search already takes seconds and needs no help looking deliberate. */
 const SELF_PLAY_MS = 750;
 
 /** Promotion needs a piece and chess.js will not guess one. */
@@ -32,13 +42,20 @@ const squareToIndex = (sq: string) =>
   (8 - Number(sq[1])) * 8 + (sq.charCodeAt(0) - 97);
 
 /**
- * The engine's move distribution, as a board heatmap.
+ * The engine's move preference, as a board heatmap.
  *
- * Costs nothing: `softmax(-energy)` over every legal move already comes back from
- * the same forward pass that picks the move, and was otherwise thrown away after
- * the top-3 list. Several moves can land on one square (two pieces, a promotion
- * fan), so priors are summed per destination — the question is "how much does it
- * want something HERE", not "which piece".
+ * Costs nothing either way: both numbers already come back from the pass (or the
+ * search) that picked the move, and were otherwise thrown away after the top-3
+ * list. Several moves can land on one square (two pieces, a promotion fan), so
+ * weights are summed per destination — the question is "how much does it want
+ * something HERE", not "which piece".
+ *
+ * ⚠️ WHICH NUMBER IT PAINTS DEPENDS ON THE MODE, and it has to. At 1 ply the
+ * weight is the prior, `softmax(-energy)`, because that IS the decision. Once
+ * MCTS runs, the decision is the visit count, and the two disagree by design —
+ * search exists to overrule the prior. Painting priors under a search would
+ * light up a square the engine then declined to play, which is the map claiming
+ * something the engine didn't do.
  *
  * Normalized by the max, so the hottest square reads 1.0 regardless of how the
  * mass is spread. It is a move preference, NOT an activation — don't let the
@@ -46,7 +63,10 @@ const squareToIndex = (sq: string) =>
  */
 function moveMap(ranked: ScoredMove[]): number[] {
   const out = new Array(64).fill(0);
-  for (const m of ranked) out[squareToIndex(m.uci.slice(2, 4))] += m.prior;
+  const searched = ranked.some((m) => m.visits !== undefined);
+  for (const m of ranked) {
+    out[squareToIndex(m.uci.slice(2, 4))] += searched ? (m.visits ?? 0) : m.prior;
+  }
   const max = Math.max(...out);
   return max > 0 ? out.map((v) => v / max) : out;
 }
@@ -73,7 +93,18 @@ export function ChessPanel() {
   const [err, setErr] = useState<string | null>(null);
   const [selected, setSelected] = useState<Square | null>(null);
   const [thinking, setThinking] = useState(false);
-  const [lastReply, setLastReply] = useState<{ ranked: ScoredMove[]; ms: number } | null>(null);
+  const [lastReply, setLastReply] = useState<{
+    ranked: ScoredMove[];
+    ms: number;
+    mode: "argmin" | "mcts";
+    sims: number;
+  } | null>(null);
+  /** Simulations done, while a search is running. Null when nothing is. A search
+   *  is ~1 minute, so without this the panel is indistinguishable from a hang. */
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  /** 1 ply, or the Pi's real search. Defaults to 1 ply: nobody should land on a
+   *  board that takes a minute to answer. */
+  const [level, setLevel] = useState(DEFAULT_SEARCH);
   const [pendingPromo, setPendingPromo] = useState<Pending | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   /** Null until the activation export lands — the toggle is gated on it. */
@@ -132,22 +163,32 @@ export function ChessPanel() {
     return null;
   }, [fen]);
 
+  const mode = useMemo(
+    () => SEARCH_MODES.find((d) => d.id === level) ?? SEARCH_MODES[0],
+    [level],
+  );
+  const sims = mode.sims;
+
   const engineMove = useCallback(async () => {
     const g = gameRef.current;
     if (!engine || g.isGameOver()) return;
     setThinking(true);
+    setProgress(null);
     try {
-      const reply = await engine.bestMove(g.fen());
+      const reply = await engine.move(g.fen(), sims, (done, total) =>
+        setProgress({ done, total }),
+      );
       g.move(reply.best.san);
       // Keep every move: the top 3 feeds the list, the whole set feeds the map.
-      setLastReply({ ranked: reply.ranked, ms: reply.ms });
+      setLastReply({ ranked: reply.ranked, ms: reply.ms, mode: reply.mode, sims: reply.sims });
       sync();
     } catch (e) {
       setErr((e as Error).message);
     } finally {
       setThinking(false);
+      setProgress(null);
     }
-  }, [engine, sync]);
+  }, [engine, sync, sims]);
 
   /**
    * What the engine would play from where you're sitting.
@@ -155,22 +196,31 @@ export function ChessPanel() {
    * The same call it makes for itself, not a second code path: the encoder always
    * builds from the perspective of the side to move (see lib/chess-encode.ts), so
    * "its move" and "your move" are one computation and this needed no model work
-   * at all. It carries the same 1-ply caveat as everything else here.
+   * at all.
+   *
+   * That is why it searches at the CURRENT difficulty rather than always at 1 ply.
+   * A hint is a claim about what the engine would play, so it has to be what this
+   * engine, as configured, would actually play — a cheaper hint would be a
+   * different engine's advice wearing this one's name.
    */
   const askHint = useCallback(async () => {
     const g = gameRef.current;
     // Never call the engine on a finished position.
     if (!engine || g.isGameOver() || thinking || g.turn() !== "w") return;
     setHinting(true);
+    setProgress(null);
     try {
-      const reply = await engine.bestMove(g.fen());
+      const reply = await engine.move(g.fen(), sims, (done, total) =>
+        setProgress({ done, total }),
+      );
       setHint(reply.best);
     } catch (e) {
       setErr((e as Error).message);
     } finally {
       setHinting(false);
+      setProgress(null);
     }
-  }, [engine, thinking]);
+  }, [engine, thinking, sims]);
 
   // A hint describes one position. The moment the board moves it is a claim
   // about a position that no longer exists, so it goes.
@@ -190,14 +240,15 @@ export function ChessPanel() {
       () => {
         if (!cancelled) void engineMove();
       },
-      selfPlay ? SELF_PLAY_MS : 0,
+      // Only pad self-play when there's nothing to wait for anyway.
+      selfPlay && sims === 0 ? SELF_PLAY_MS : 0,
     );
     return () => {
       cancelled = true;
       window.clearTimeout(t);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fen, engine, selfPlay]);
+  }, [fen, engine, selfPlay, sims]);
 
   const legalFrom = useMemo(() => {
     if (!selected) return new Set<string>();
@@ -245,6 +296,8 @@ export function ChessPanel() {
   };
 
   const reset = () => {
+    // A search in flight is about a board that is about to stop existing.
+    engine?.cancel();
     gameRef.current = new Chess();
     setSelfPlay(false);
     setSelected(null);
@@ -264,12 +317,17 @@ export function ChessPanel() {
   };
 
   const ready = engine !== null;
+  const busy = thinking || hinting;
   const status = !booted
     ? "booting"
     : loading
       ? "loading 553 KB…"
-      : thinking
-        ? "thinking…"
+      : busy
+        ? // The search runs in a worker, so this counter keeps ticking while the
+          // page stays live. That IS the demo: a frozen tab would prove nothing.
+          progress
+          ? `searching · ${progress.done}/${progress.total}`
+          : "thinking…"
         : outcome
           ? "game over"
           : ready
@@ -281,7 +339,10 @@ export function ChessPanel() {
   return (
     <div ref={boot.ref}>
       <TerminalPanel
-        label="entropy-chess --engine ebm --sims 1"
+        // Tracks the selector, because a command line that lies about its own
+        // flags is worse than one that has none. Still display-only: making this
+        // an input is a separate piece of work (see CLAUDE.md, editable params).
+        label={`entropy-chess --engine ebm --sims ${sims || 1}`}
         status={status}
         notice={
           booted && err ? (
@@ -398,8 +459,9 @@ export function ChessPanel() {
                     ranking" keeps it distinct from the "what it saw" view, which
                     shows internals. */}
                 <p className="mt-2 w-[296px] font-mono text-[11px] leading-relaxed text-faint">
-                  Its ranking of every legal reply, summed onto the square each one
-                  lands on. Free: it comes from the same pass that picked its move.
+                  {lastReply?.mode === "mcts"
+                    ? "Where the search actually spent its simulations, summed onto the square each move lands on."
+                    : "Its ranking of every legal reply, summed onto the square each one lands on. Free: it comes from the same pass that picked its move."}
                 </p>
               </div>
 
@@ -432,8 +494,12 @@ export function ChessPanel() {
                         <span className={i === 0 ? "w-10 text-teal" : "w-10 text-muted"}>
                           {m.san}
                         </span>
+                        {/* n= is what the search decided, p= is what the model
+                            guessed before it ran. Showing both is the whole point:
+                            where they disagree, that disagreement IS the search. */}
                         <span className="text-faint">
-                          p={m.prior.toFixed(3)} · v={m.value.toFixed(2)}
+                          {m.visits !== undefined ? `n=${m.visits} · ` : ""}p=
+                          {m.prior.toFixed(3)} · v={m.value.toFixed(2)}
                         </span>
                       </div>
                     ))
@@ -445,9 +511,43 @@ export function ChessPanel() {
                 </div>
                 {lastReply ? (
                   <p className="mt-2 font-mono text-[11px] text-faint">
-                    one forward pass · {Math.round(lastReply.ms)}ms
+                    {lastReply.mode === "mcts"
+                      ? `${lastReply.sims} simulations · ${(lastReply.ms / 1000).toFixed(1)}s`
+                      : `one forward pass · ${Math.round(lastReply.ms)}ms`}
                   </p>
                 ) : null}
+
+                {/* Two modes, not a ladder — see chess-protocol.ts for the
+                    measurement that deleted the ladder. Switching mid-game is
+                    fine: every move is an independent search, no tree is carried
+                    between them. Applies to its move, your hint and self-play
+                    alike, because they are all one call. */}
+                <div className="mt-6">
+                  <span className="font-mono text-xs text-faint">search</span>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {SEARCH_MODES.map((d) => (
+                      <button
+                        key={d.id}
+                        onClick={() => setLevel(d.id)}
+                        disabled={busy}
+                        aria-pressed={d.id === level}
+                        className={`rounded border px-3 py-1.5 font-mono text-xs transition-colors disabled:opacity-40 ${
+                          d.id === level
+                            ? "border-teal text-teal"
+                            : "border-line text-muted hover:border-faint hover:text-ink"
+                        }`}
+                      >
+                        {d.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
+                    {mode.about}
+                    {sims > 0
+                      ? ". The Pi runs 500. One forward per simulation is ~230ms here, so this is the honest cost of its search in a browser."
+                      : ". Below ~250 simulations the search returns the same move as this, so there is no tier in between worth offering."}
+                  </p>
+                </div>
 
                 <div className="mt-6 flex gap-2">
                   <button
@@ -496,15 +596,19 @@ export function ChessPanel() {
 
                 <p className="mt-3 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
                   <span className="text-indigo">hint</span> asks what it would play from
-                  where you are sitting. It is the same call it makes for itself: the
-                  encoder always builds from the side to move, so your move and its move
-                  are one computation.
+                  where you are sitting. It is the same call it makes for itself, at
+                  whatever the search is set to: the encoder always builds from the side
+                  to move, so your move and its move are one computation.
                 </p>
 
                 <p className="mt-6 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
-                  Currently one ply: it ranks every legal reply and plays the best, in a
-                  single forward pass. The Pi runs MCTS on top of these same numbers,
-                  which is where the real strength is.
+                  At 1 ply it ranks every legal reply and plays the best, in one
+                  forward pass. <span className="text-teal">let it think</span>{" "}
+                  runs the Pi&rsquo;s actual search on top of those same numbers, in
+                  a worker, so the page keeps moving while it does. It is slower here
+                  than it has any right to be: the model is 469K parameters, and
+                  scoring one position costs ~6.6ms in WASM no matter how many
+                  threads you give it.
                 </p>
               </div>
             </div>

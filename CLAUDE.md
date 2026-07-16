@@ -366,7 +366,7 @@ Per demo, ruled against what the code and data can actually honour today:
 |---|---|---|
 | `./sdedit --strength 0.6 --steps 20 --dissolve 10` (§2b) | **all three, plus `--guidance` and `--digit`** | — |
 | `./x0_diffusion --digit 7 --steps 32 --schedule cosine` (§2) | `--digit` only | **`--steps` and `--schedule` are BAKED.** ⚠️ |
-| `./entropy_chess --model int8 --mode argmin` (§4) | nothing | no `--sims` to offer: MCTS isn't built |
+| `./entropy_chess --engine ebm --sims N` (§4) | nothing | `--sims` tracks the toggle; a free-form box would be a no-op below ~250 ⚠️ |
 | `./sample_space --target two-moons --compare ddpm,flow` (§3) | cosmetic only | illustrative; must not imply a model re-ran |
 
 - **§2b `sdedit` is the hero of the feature.** `generate()` in `lib/ascii-diffusion.js`
@@ -382,10 +382,17 @@ Per demo, ruled against what the code and data can actually honour today:
   `--digit` is genuinely live, because all 10 digits are in the file. **Do not let
   `--steps` look interactive here.** Re-run that check before changing this ruling; a new
   export with multiple step counts is the only thing that changes it.
-- **§4 `--sims` is display-only until MCTS ships**, and it isn't in the command line at
-  all today. It only becomes editable when the search actually runs in a Web Worker (see
-  §4's NOT BUILT note). Adding a `--sims` box over a 1-ply argmin would be a control
-  wired to nothing.
+- **⚠️ §4 `--sims`: the gate opened and the answer is still NO.** This used to read
+  "display-only until MCTS ships; it becomes editable when the search actually runs in a
+  Web Worker". The search now ships and does run in a worker — and `--sims` **stays
+  display-only**, on the strength of the rule rather than in spite of it. Measured (see
+  §4): every value below ~250 returns the *same move as 1-ply*, and 250 already costs
+  ~60s. So a free-form numeric box would be a control that does nothing across almost its
+  entire usable range, and whose only working values take a minute each to demonstrate.
+  The `1 ply` / `let it think` toggle is that param, reduced to the two values that
+  actually differ. The label tracks it (`--sims 1` / `--sims 250`) so the command line
+  never lies. **Re-measure before reopening this**: a faster runtime or a smaller model is
+  the only thing that changes it.
 - **§3 may change the animation** but must not imply weights re-ran. It's labelled
   illustrative and that label has to keep being true.
 
@@ -698,12 +705,19 @@ SHIPPED, playable, running the **int8** build in the browser. The model is an en
 function over RESULTING positions: it never outputs a move. To move: enumerate every legal
 move, encode each child from the mover's perspective, run the whole batch in ONE forward,
 take `argmin(energy)`. `softmax(-energy)` is a calibrated move distribution; `value` is
-the expected result for the mover in [-1,1]. Currently **1-ply argmin** (~130-200ms/move).
+the expected result for the mover in [-1,1]. **1-ply argmin** (~130-200ms/move) by
+default, with the Pi's real MCTS behind an opt-in (see "the search" below).
 
 **chess.js owns every rule.** Never hand-roll chess logic.
 
-**The pieces.** `lib/chess-engine.ts` owns loading and the 1-ply pick (`loadChessEngine()`
-is a memoized promise — it's what the preload window warms). `components/ChessBoard.tsx`
+**The pieces.** `lib/chess-engine.ts` is a thin **worker client** and holds no model at
+all (`loadChessEngine()` is still a memoized promise resolving null when the weights are
+absent — it's what the preload window warms, and its signature deliberately didn't change
+when the worker landed). `lib/chess-worker.ts` owns the ORT session, the encoder and the
+search; `lib/chess-mcts.ts` is the search itself; `lib/chess-protocol.ts` is the wire
+between them. **onnxruntime-web is imported in the worker and nowhere else** — import it
+from a component and 24MB lands back in the page bundle, which is the whole thing the
+worker exists to prevent. `components/ChessBoard.tsx`
 is the renderer, **shared by the game and the interpretability view**: square geometry,
 the FEN parse and the glyphs live there exactly once, and the overlay is a prop on THAT
 board rather than a second board. Two constraints that live in it: both colours use the
@@ -759,9 +773,12 @@ proof it really is running white's perspective and not black's.
   a claim about a position that no longer exists.
 - Gated on it actually being your turn, and on the game not being over — the same
   finished-position rule as everything else here. Round trip ~277ms measured in the
-  browser, which is one forward pass over your legal moves.
-- Carries the 1-ply caveat like the rest of the panel. It is what the model would play,
-  not what's best.
+  browser at 1 ply, which is one forward pass over your legal moves.
+- **It searches at whatever the toggle says, and that follows from "the same call".** At
+  `let it think` a hint takes the same ~60s the engine's own move does. A hint that
+  quietly ran cheaper would be a different engine's advice wearing this one's name.
+- Carries the same caveat as the rest of the panel: it is what the model would play, not
+  what's best.
 
 **The interpretability view**  *(`components/ChessActivations.tsx`, `lib/chess-activations.ts`,
 `public/chess_activations.json`, 43KB)*
@@ -800,13 +817,49 @@ int8, 500 sims, 0.5s/move ladder); it supersedes both the resume's 2250 and
 ARCHITECTURE.md's older 1850-2000. Quantization cost ~0 Elo. If the site ever quotes
 latency, quote what you measure in the browser — not the Pi's numbers.
 
-**NOT BUILT: MCTS.** 1-ply is the handoff's "ship-able checkpoint". Full strength is an
-AlphaZero-lite search over these same priors and values (port of `pi/mcts.py`, ~150 lines):
-PUCT `Q + 1.5 * prior * sqrt(N_parent+1)/(1+N_child)`, leaf value flipped every ply on
-backup, terminals exact (±1/0, don't call the model), play the most-visited root child.
-Difficulty = sims (casual 40 / club 120 / strong 250 / max 400).
-**It must run in a Web Worker** — each sim is a batched forward of ~30 boards, so 120 sims
-blocks the main thread for seconds. Measure before picking a default.
+**The search — SHIPPED, and it is a toggle, not a ladder**  *(`lib/chess-mcts.ts`,
+`lib/chess-worker.ts`)*
+An exact port of `pi/mcts.py`: PUCT `Q + 1.5 * prior * sqrt(N_parent+1)/(1+N_child)`, leaf
+value flipped every ply on backup, terminals exact (±1/0, never call the model), play the
+most-visited root child. It runs in a Web Worker, which is not optional: a search is ~60s
+of solid compute, and on the main thread that is a minute of frozen page.
+
+- **The UI is `1 ply` (default) and `let it think` (250 sims, ~60s). THE HANDOFF'S
+  DIFFICULTY LADDER WAS BUILT AND THEN DELETED — don't rebuild it.** casual 40 / club 120
+  / strong 250 / max 400 are the *Pi's* tiers, and in a browser three of them are wired to
+  nothing. Measured against Stockfish depth 12 on 24 on-distribution positions, **16, 48
+  and 96 sims return the same move as 1-ply argmin in 23 of 24 positions** (mean cp
+  438.6 → 438.3, median 16.5 → 16.5, SF agreement 11/24 for all four). They are the same
+  engine, 3-20 seconds slower. That is exactly the "control wired to nothing" the editable
+  params rule forbids.
+- **Why it costs what it costs, measured in Firefox and both counter-intuitive.** (a) The
+  model's cost is **per-board, ~6.6ms, flat from batch 8 to batch 256** (batch 8 = 60ms,
+  32 = 208ms, 256 = 1683ms; fixed overhead only ~15ms). So **leaf-batching / virtual loss
+  buys nothing** — 8 leaves in one call costs 8x. (b) **Threads do nothing**: 1 thread and
+  16 threads both land at ~6.5ms/board on a 20-core box (ORT defaults to 4). 469K params
+  over 8x8 is too small to parallelize. One sim = 6.6ms × legal moves ≈ 230ms, hard floor.
+  The Pi's 500 sims is ~2 min/move here.
+- **250 is where it starts paying**, on 30 positions: argmin 8.5 median / 15-30 SF
+  agreement → 250 gives 6.5 / 18-30. 150 is inside the noise. ⚠️ 500 shows mean cp 34.9 vs
+  ~350, which looks spectacular and **is one position**: it was the only setting to find a
+  mate everything else walked into (9551cp → 34cp), and that single fix is the whole mean.
+  Its median is *worse*. Deep search buys blunder-avoidance, not everyday accuracy.
+- **The port is verified exact, independently of the model.** Both `pi/mcts.py` and
+  `lib/chess-mcts.ts` were run against an identical deterministic fake evaluator (FNV-1a
+  over the position + UCI) across 4 positions × {8, 64, 200} sims. All 12 cases match on
+  best move, on **every** root move's visit count, and on every Q to 1e-6. Re-run that
+  before believing any change here is harmless; it isolates search bugs from weight
+  differences. (Scripts: scratchpad `port_ref.py` / `port_ts.ts`.)
+- **⚠️ Terminal detection is python-chess's `outcome(claim_draw=False)` and NOT chess.js's
+  `isDraw()`/`isGameOver()`.** Those fire at the FIFTY-move rule (halfmove ≥ 100); the
+  reference only ends at SEVENTY-FIVE (≥ 150). Using chess.js's notion would score
+  positions as dead draws that the reference still hands to the model, changing the search
+  in exactly the long endgames this engine is weakest in. Repetition blindness is
+  inherited on purpose (nodes hold a FEN, no history) — that IS the Pi's known ceiling.
+- Verified in-browser: 250 sims = **60.4s**, 134 progress ticks rendered, and **135 rAF
+  round-trips under 100ms while it searched** — the main thread never blocked. Root visits
+  came back n=85 / 56 / 29, and the most-visited move was NOT the top prior (p=0.171 beat
+  p=0.235). The search overruling the policy is the thing worth showing.
 
 ### 5. Research
 Clean cards for publications and projects. **Not built — the section does not exist in
@@ -876,9 +929,25 @@ failure on first draw.
   the file. Don't guess.
 - Never hotlink a CDN. Vendored on purpose.
 
+**The chess worker is bundled by Turbopack from `new Worker(new URL("./chess-worker.ts",
+import.meta.url), { type: "module" })`** — it must stay a literal `new URL`, or the
+bundler can't see the dependency and it 404s.
+- **⚠️ A red herring that looks exactly like a shipping bug, verified harmless.**
+  `next build` also drops the RAW, uncompiled worker source at
+  `.next/static/media/chess-worker.<hash>.ts` (the dev server never does), and Next serves
+  it as `video/mp2t` — the MPEG-transport-stream MIME for `.ts`. That is the same shape as
+  the ORT asyncify trap below, so it reads as a module worker about to be rejected on MIME
+  type. It is not: the file is a side effect of `new URL()`'s asset semantics and is never
+  fetched; the worker loads from compiled chunks via `turbopack-worker-[client-fs]`.
+  **Confirmed against a real `npm start`, not a dev server**: engine reaches `int8 · your
+  move`, zero console errors, vector D returns `g3 p=0.236`. Don't spend an afternoon
+  fixing it. Do re-run that prod check if the worker ever stops loading.
+
 **COOP/COEP headers are set on every route** (`next.config.ts`). They enable
 cross-origin isolation → `SharedArrayBuffer` → multi-threaded WASM. Without them ORT is
-pinned to one thread. **This is a real constraint on the whole site**: any future
+pinned to one thread. **This does nothing for the chess model** (1 thread ≈ 16 threads,
+measured — see §4), but the draw demo still needs it: a zero-shot classify goes ~1s → ~17s
+without it. Don't remove them on the strength of the chess numbers. **This is a real constraint on the whole site**: any future
 cross-origin image, script or iframe needs CORP headers or `crossorigin="anonymous"`, or
 it is blocked outright. Safe today — fonts are self-hosted by next/font and the only
 external URLs are `<a href>` links, which COEP doesn't touch.
@@ -913,27 +982,36 @@ measured numbers rather than the handoff's.
 (§1); the trajectory viewer in both modes on real trained data (§2); live draw-a-digit
 with the real ONNX + zero-shot auto-label (§2b); sample-space (§3); the chess engine at
 1-ply on the real int8 build, with `hint` and the precomputed interpretability view (§4);
-page ambience (CharField, scroll spine, resolving labels, reveals, grain); the terminal
-boot sequence, the ssh boot screen + editable identity, and the preload window; favicon
-set and OG card.
+the MCTS port in a Web Worker behind `let it think` (§4); page ambience (CharField, scroll
+spine, resolving labels, reveals, grain); the terminal boot sequence, the ssh boot screen
++ editable identity, and the preload window; favicon set and OG card; the README.
 
 **The page is four sections today** (`app/page.tsx`): `#diffusion`, `#draw`, `#chess`,
 `#sample-space`. §5 and §6 do not exist.
 
 **Left, roughly in order:**
-1. **Chess MCTS in a Web Worker** + difficulty selector (§4). The single biggest
-   remaining win: 1-ply is where most of the strength isn't. It's also the gate on a
-   live-editable `--sims` (see Editable terminal params below).
-2. **§5 Research** — not built at all. Needs real content from `content/resume-notes.md`.
+1. **§5 Research** — not built at all. Needs real content from `content/resume-notes.md`,
+   and a decision on how to present three "in preparation" papers. **Blocked as of
+   2026-07-15**: the work isn't shareable yet.
+2. **Editable terminal params** (§2b `sdedit` is the hero — see the ruling above).
+   Designed in full, no code written. Note `--sims` is settled and stays display-only.
 3. **§6 multi-agent robustness** — not started. Its node-graph watermark and the chess
    board-grid watermark (see Page ambience §5) land with their sections.
-4. **README** — how to run, how to deploy, and where the model artifacts come from.
-5. **Git LFS decision** for ~70MB of binaries.
-6. **Nothing is committed or pushed yet**, and the repo must stay **Private**:
-   `content/resume-notes.md` holds a GPA, clearance eligibility and three unpublished
-   paper titles. Recommendation on the table is to drop it from the repo entirely.
-7. **Live chess activations** — a re-export exposing intermediate layers would turn the
+4. **Live chess activations** — a re-export exposing intermediate layers would turn the
    interpretability view live; the renderer is already source-agnostic (§4).
+5. **A faster chess runtime is the only thing that unblocks deeper search** (§4). WebGPU
+   is untested here (headless Firefox has no adapter, so it can't be measured on this
+   box); int8-on-WebGPU is also poorly supported. Don't ship it unmeasured.
+
+**Settled, don't relitigate:**
+- **Git LFS: not needed.** The old note said "~70MB of binaries in history". It was wrong:
+  `public/ort/` (~37MB) is gitignored and regenerated by `sync-ort.mjs` on prebuild, so it
+  was never in history. Actual tracked binaries are ~31MB, dominated by the 25MB
+  `mnist_x0.onnx` — under GitHub's warning threshold.
+- **The repo is committed, pushed and Private** (`NeelayRanjan/portfolio`). The old note
+  said nothing was committed. Still live: `content/resume-notes.md` IS tracked and holds a
+  GPA, clearance eligibility and three unpublished paper titles. Fine while private; decide
+  before it ever goes public.
 
 **The resume is a link, not a file.** `PROFILE.resumeUrl` points at a Google Doc
 `/preview` URL, deliberately not `public/`: the doc changes often, and an external URL

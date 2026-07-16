@@ -105,6 +105,32 @@ b {
   color: #fff;
 }
 
+/*
+ * Where the keyboard is. One rule, site-wide.
+ *
+ * :focus-visible, NEVER :focus. The browser applies this only when it decides a
+ * ring is actually wanted — Tab yes, mouse click no — which is the whole reason
+ * the old `outline: none` epidemic happened: :focus fired on click too, left a
+ * ring behind after every press, looked like a bug, and got deleted along with
+ * the only thing telling a keyboard user where they were.
+ *
+ * Teal because it already means "live, and yours" here: it's what the boot
+ * screen's username and the command-line params turn on focus. The ring is the
+ * same language, not a second one.
+ *
+ * ⚠️ THE COROLLARY, and it's the easy one to get wrong: `outline-none` on a
+ * component is now only allowed if that component draws its own focus state.
+ * The three that do it today (BootScreen's username, CommandLine's inputs and
+ * its select) all swap a dashed rule to teal, which is a deliberately quieter
+ * treatment for a control sitting inside a line of prose. Anything else that
+ * removes the outline and replaces nothing is a bug.
+ */
+:focus-visible {
+  outline: 2px solid var(--color-teal);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 /* Terminal cursor. A CSS animation so it costs no JS; the reduced-motion block
    below collapses its duration and leaves the cursor sitting still. */
 @keyframes blink {

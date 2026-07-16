@@ -45,3 +45,6 @@ next-env.d.ts
 # committing it would put a stale binary in history the moment ORT is bumped.
 # Vercel runs `npm run build`, which fires prebuild, which regenerates it.
 /public/ort/
+
+# Screenshots for review. Throwaway — delete when done.
+/preview/

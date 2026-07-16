@@ -192,25 +192,34 @@ export function CommandLine({
 }) {
   return (
     <span className="text-ink">
-      <span aria-hidden="true">{name}</span>
+      <span aria-hidden="true" className="whitespace-nowrap">
+        {name}
+      </span>
+      {/* ⚠️ Each flag and its value wrap as ONE unit, and the space BETWEEN units
+          is the only break opportunity. Without the nowrap the line breaker splits
+          `--strength` into `--` + `strength` across two lines (a hyphen is a legal
+          break), and a flag can end up orphaned from the box it labels. See the
+          Tokens note in BootLog — same bug, same reason. */}
       {items.map((it) => (
         <span key={it.flag}>
-          {it.kind === "frozen" ? (
-            // Baked. No underline, no control, no hover: it must read as output.
-            <span aria-hidden="true">
-              {" "}
-              {it.flag} {it.value}
-            </span>
-          ) : (
-            <>
-              <span aria-hidden="true"> {it.flag} </span>
-              {it.kind === "param" ? (
-                <ParamInput p={it} disabled={disabled} />
-              ) : (
-                <ChoiceInput p={it} disabled={disabled} />
-              )}
-            </>
-          )}
+          {" "}
+          <span className="whitespace-nowrap">
+            {it.kind === "frozen" ? (
+              // Baked. No underline, no control, no hover: it must read as output.
+              <span aria-hidden="true">
+                {it.flag} {it.value}
+              </span>
+            ) : (
+              <>
+                <span aria-hidden="true">{it.flag} </span>
+                {it.kind === "param" ? (
+                  <ParamInput p={it} disabled={disabled} />
+                ) : (
+                  <ChoiceInput p={it} disabled={disabled} />
+                )}
+              </>
+            )}
+          </span>
         </span>
       ))}
       {/* One slot, two states. The hint retires the moment you've used it, and

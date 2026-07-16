@@ -291,8 +291,8 @@ export function SampleSpace() {
 
         {!booted ? null : (
           <>
-            <h2 className="mt-6 mb-2 text-2xl tracking-tight">Sample space</h2>
-            <p className="mb-8 max-w-2xl leading-relaxed text-muted">
+            <h2 className="mt-6 mb-2 text-2xl tracking-tight">Stochastic vs deterministic</h2>
+            <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
               The same target, the same starting point, two ways of getting there. Click
               either panel to launch a trajectory from that point. Both panels run the
               same start, so the routes are directly comparable. Switch{" "}
@@ -304,7 +304,7 @@ export function SampleSpace() {
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <figure>
                 <SamplePanel kind="ddpm" target={target} handleRef={ddpmRef} onPick={spawn} />
-                <figcaption className="mt-3 font-mono text-[11px] text-faint">
+                <figcaption className="mt-4 font-mono text-[11px] text-faint">
                   <span className="text-indigo">DDPM</span> · stochastic (SDE),{" "}
                   {DDPM_STEPS} steps. Jagged; a different route every run.
                 </figcaption>
@@ -312,7 +312,7 @@ export function SampleSpace() {
 
               <figure>
                 <SamplePanel kind="flow" target={target} handleRef={flowRef} onPick={spawn} />
-                <figcaption className="mt-3 font-mono text-[11px] text-faint">
+                <figcaption className="mt-4 font-mono text-[11px] text-faint">
                   <span className="text-teal">Flow matching</span> · deterministic (ODE),{" "}
                   {FLOW_STEPS} steps. Smooth; the same route every time.
                 </figcaption>

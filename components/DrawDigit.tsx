@@ -396,8 +396,8 @@ export function DrawDigit() {
 
         {!booted ? null : (
           <>
-            <h2 className="mt-6 mb-2 text-2xl tracking-tight">Draw a digit</h2>
-            <p className="mb-8 max-w-2xl leading-relaxed text-muted">
+            <h2 className="mt-6 mb-2 text-2xl tracking-tight">SDEdit</h2>
+            <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
               Draw one, pick its label, and watch it dissolve into static and re-form.
               This is <span className="text-ink">SDEdit</span>: your drawing is noised
               about 60% of the way to pure static and then denoised back, so the coarse
@@ -421,7 +421,7 @@ export function DrawDigit() {
                   aria-label={`Drawing canvas for digit ${digit}`}
                   role="img"
                 />
-                <figcaption className="mt-3 w-[280px] max-w-full font-mono text-[11px] leading-relaxed text-faint">
+                <figcaption className="mt-4 w-[280px] max-w-full font-mono text-[11px] leading-relaxed text-faint">
                   your drawing · the pen is deliberately fat, so the strokes survive
                   being downscaled 14x
                 </figcaption>
@@ -451,7 +451,7 @@ export function DrawDigit() {
                     </span>
                   )}
                 </div>
-                <figcaption className="mt-3 w-[280px] max-w-full font-mono text-[11px] leading-relaxed text-faint">
+                <figcaption className="mt-4 w-[280px] max-w-full font-mono text-[11px] leading-relaxed text-faint">
                   {frame ? (
                     <>
                       <span className={frame.phase === "dissolve" ? "text-ink" : "text-teal"}>

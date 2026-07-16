@@ -67,7 +67,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
       <div className="flex flex-wrap items-start gap-8">
         <div>
           <ChessBoard fen={position.fen} overlay={overlay} />
-          <p className="mt-3 max-w-[296px] font-mono text-[11px] leading-relaxed text-faint">
+          <p className="mt-4 max-w-[296px] font-mono text-[11px] leading-relaxed text-faint">
             <span className={mode === "saliency" ? "text-indigo" : "text-teal"}>
               {mode === "saliency" ? "energy attribution" : `activation · ${layer}`}
               {mode === "activation" && channel !== null ? ` · ch ${channel}` : ""}
@@ -83,7 +83,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
         </div>
 
         <div className="min-w-[240px] flex-1">
-          <div className="mb-5 flex flex-wrap gap-2">
+          <div className="mb-6 flex flex-wrap gap-2">
             {(["saliency", "activation"] as Mode[]).map((m) => (
               <button
                 key={m}
@@ -104,7 +104,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
           </div>
 
           {mode === "activation" ? (
-            <div className="mb-5">
+            <div className="mb-6">
               {/* Driven by data.layers, never a hardcoded count. */}
               <label className="font-mono text-xs text-faint" htmlFor="depth">
                 depth · {layer} ({layerIndex + 1}/{data.layers.length})
@@ -167,7 +167,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
               ) : null}
             </div>
           ) : (
-            <p className="mb-5 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
+            <p className="mb-6 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
               The model outputs a single scalar energy. The gradient of that energy with
               respect to the board says which squares most move its evaluation: the
               hanging piece, the key defender, the passed pawn.
@@ -190,7 +190,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
           moment, not the id. */}
       <div className="mt-8">
         <span className="font-mono text-xs text-faint">scenarios</span>
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {data.positions.map((p, i) => {
             const active = p.id === position.id;
             return (

@@ -33,8 +33,14 @@ export function Section({
   lede?: ReactNode;
   /**
    * Big teal marker in the open gap above the panel, resolving out of noise on
-   * scroll-in. Decorative: it echoes the <h2> inside the panel, so it's
-   * aria-hidden rather than read out twice.
+   * scroll-in. Says WHERE YOU ARE; the panel's <h2> says WHAT THE THING IS.
+   *
+   * 🔒 The two must never be the same words — they used to be ("x0 diffusion"
+   * above "x0 diffusion"), which read as a stutter. See CLAUDE.md's naming table
+   * before changing either.
+   *
+   * Still aria-hidden, but NOT because it echoes the <h2> any more: it's a
+   * decorative scroll marker, and the <h2> plus the lede carry the content.
    */
   label?: string;
   watermark?: ReactNode;
@@ -58,7 +64,7 @@ export function Section({
       <div className="relative">
         {title ? <h2 className="mb-2 text-2xl tracking-tight">{title}</h2> : null}
         {lede ? (
-          <p className="mb-8 max-w-2xl leading-relaxed text-muted">{lede}</p>
+          <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">{lede}</p>
         ) : null}
         {children}
       </div>

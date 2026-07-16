@@ -246,11 +246,16 @@ export function DiffusionVisualizer() {
 
         {!booted ? null : (
           <>
+            {/* Names the ACTIVE model, which the teal anchor ("reverse process")
+                deliberately does not — the anchor says where you are, this says
+                what is running. It is also where the copy makes the distinction
+                the two models actually have: pixel is Gaussian (continuous),
+                ascii is absorbing-state (discrete). Never repeat the anchor. */}
             <h2 className="mt-6 mb-2 text-2xl tracking-tight">
-              {mode === "ascii" ? "ASCII diffusion" : "x0 diffusion"}
+              {mode === "ascii" ? "Discrete diffusion" : "Continuous diffusion"}
             </h2>
             {mode === "ascii" ? (
-              <p className="mb-8 max-w-2xl leading-relaxed text-muted">
+              <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
                 A different model, and a different kind of corruption: masked cells
                 resolve into characters. It starts with every cell masked and commits
                 them one at a time, most-confident first. There is no noise anywhere in
@@ -261,7 +266,7 @@ export function DiffusionVisualizer() {
                 decided yet.
               </p>
             ) : (
-              <p className="mb-8 max-w-2xl leading-relaxed text-muted">
+              <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
                 Noise sharpens into a digit, one step at a time. On the left, the noisy
                 state x_t resolving. On the right, the model&rsquo;s prediction of the
                 finished digit from that step. This model predicts the clean image
@@ -301,7 +306,7 @@ export function DiffusionVisualizer() {
           })}
         </div>
 
-        <div className={`mb-5 flex flex-wrap items-center gap-2 ${booted ? "" : "hidden"}`}>
+        <div className={`mb-6 flex flex-wrap items-center gap-2 ${booted ? "" : "hidden"}`}>
           <span className="mr-1 font-mono text-xs text-faint">digit</span>
           {DIGITS.map((d) => {
             const available =
@@ -358,7 +363,7 @@ export function DiffusionVisualizer() {
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-            <figure className="flex flex-col items-center gap-3">
+            <figure className="flex flex-col items-center gap-4">
               {asciiLines ? (
                 // line-height 1, no tracking: the 28x14 shape is already aspect
                 // corrected on the model side. Squeezing it re-stretches the digit.
@@ -382,7 +387,7 @@ export function DiffusionVisualizer() {
               </figcaption>
             </figure>
 
-            <figure className="flex flex-col items-center gap-3">
+            <figure className="flex flex-col items-center gap-4">
               {asciiLines ? (
                 <AsciiLines
                   lines={asciiLines.x0}

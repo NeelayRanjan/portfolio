@@ -443,8 +443,8 @@ export function ChessPanel() {
               </div>
             ) : null}
 
-            <h2 className="mt-6 mb-2 text-2xl tracking-tight">Play the engine</h2>
-            <p className="mb-8 max-w-2xl leading-relaxed text-muted">
+            <h2 className="mt-6 mb-2 text-2xl tracking-tight">Energy-based modeling over board states</h2>
+            <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
               A 469K-parameter convolutional energy-based model. It scores resulting
               positions rather than proposing moves: every legal move is played out, the
               whole batch is ranked in one forward pass, and the lowest-energy position
@@ -457,7 +457,7 @@ export function ChessPanel() {
 
             {acts && view === "activations" ? (
               <>
-                <p className="mb-8 max-w-2xl leading-relaxed text-muted">
+                <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
                   The model&rsquo;s evaluation, laid back onto the board, and computed on
                   your device. This works here and not on the diffusion models for a
                   structural reason: the chess backbone never downsamples below 8x8, so
@@ -485,7 +485,7 @@ export function ChessPanel() {
                   }
                 />
 
-                <p className="mt-3 max-w-[296px] font-mono text-[11px] leading-relaxed text-faint">
+                <p className="mt-4 max-w-[296px] font-mono text-[11px] leading-relaxed text-faint">
                   {outcome ? (
                     <span className="text-teal">{outcome}</span>
                   ) : flash ? (
@@ -512,7 +512,7 @@ export function ChessPanel() {
                 <button
                   onClick={() => setShowMap((v) => !v)}
                   aria-pressed={showMap}
-                  className={`mt-3 rounded border px-3 py-1.5 font-mono text-xs transition-colors ${
+                  className={`mt-4 rounded border px-3 py-1.5 font-mono text-xs transition-colors ${
                     showMap
                       ? "border-teal text-teal"
                       : "border-line text-muted hover:border-faint hover:text-ink"
@@ -556,7 +556,7 @@ export function ChessPanel() {
                 <div className="mt-2 min-h-[76px] font-mono text-[11px] leading-relaxed">
                   {lastReply ? (
                     lastReply.ranked.slice(0, 3).map((m, i) => (
-                      <div key={m.uci} className="flex items-baseline gap-3">
+                      <div key={m.uci} className="flex items-baseline gap-4">
                         <span className={i === 0 ? "w-10 text-teal" : "w-10 text-muted"}>
                           {m.san}
                         </span>
@@ -671,7 +671,7 @@ export function ChessPanel() {
                   </button>
                 </div>
 
-                <p className="mt-3 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
+                <p className="mt-4 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
                   <span className="text-indigo">hint</span> asks what it would play from
                   where you are sitting. It is the same call it makes for itself, at
                   whatever the search is set to: the encoder always builds from the side

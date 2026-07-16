@@ -203,7 +203,18 @@ export function Swarm() {
       setFont(REF);
       const refW = Math.max(...lines.map((l) => octx.measureText(l).width));
       let font = REF * ((bw * frac) / refW);
-      font = Math.min(font, (bh * 0.62) / (lines.length * 1.02), FONT_MAX);
+      // 0.86, not the 0.62 this shipped with: the text block may fill 86% of the
+      // station's box height before this cap bites.
+      //
+      // This is a SPACING constant, not a physics one, and it is the whole reason
+      // the hero had a dead zone. The text is centred in the box, so whatever
+      // fraction is left over becomes air split above and below it. At 0.62 the
+      // nameplate could never occupy more than ~62% of its box, which put ~108px
+      // of nothing between the name and the tagline. Shrinking the box alone does
+      // not fix that — it just scales the air down with the font, since FONT_MAX
+      // caps the ink anyway. Raising the fraction is what closes the gap while
+      // keeping the name at full size.
+      font = Math.min(font, (bh * 0.86) / (lines.length * 1.02), FONT_MAX);
       setFont(font);
 
       octx.fillStyle = "#fff";

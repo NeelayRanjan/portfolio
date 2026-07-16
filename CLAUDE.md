@@ -43,6 +43,47 @@ served chunk (`curl` the `/_next/static/chunks/*.css` URL) before doubting the c
   bold type is ever displayed, so the two-weight rule holds.)
 - Mobile: everything must degrade gracefully and stay fast. Lazy-load anything heavy; pause canvas animations off-screen.
 
+### 🔒 LOCKED: the mono/sans split is semantic, not decorative
+
+**Monospace = anything the MACHINE says.** Terminal command lines, flags, the
+`neelay@latent:~$` prompt, demo captions and labels, readouts (step counts, `p`/`v`
+values, timings, sim progress), the boot log, the ASCII grids.
+
+**Sans = anything a PERSON says.** The explanatory paragraph under each demo that tells
+you what it is, and the hero's affiliation line.
+
+**⚠️ DO NOT "unify" this by converting the prose to mono.** It looks tempting, and it is
+the single most likely wrong move a future pass makes here. Long blocks of terminal-styled
+text are genuinely hard to read; the sans prose is what keeps the explanations legible
+while the mono framing carries the terminal identity. The split *is* the design. Apply it
+consistently in both directions: no explanatory paragraph in mono, no readout in sans, and
+no mixing inside one category.
+
+- **Known tension, deliberately left alone:** a few *secondary* notes are still mono prose
+  (the hero's Langevin caption, the classifier note under §2b, the `hint` and search notes
+  under §4). They sit in the "demo caption" bucket rather than the "explanatory paragraph"
+  bucket, and they're styled as captions. If they ever grow past ~4 lines, they've become
+  prose and should move to sans.
+
+### 🔒 LOCKED: the spacing scale is multiples of 8
+
+Every **layout** gap is a multiple of 8px: `8 / 16 / 24 / 32 / 48 / 64 / 80 / 96`
+(Tailwind `2 / 4 / 6 / 8 / 12 / 16 / 20 / 24`). Section-to-section is `py-20` on `Section`,
+heading-to-content is `mb-2`, block-to-block is `mt-4`/`mt-6`/`mt-8`. 20px (`mt-5`, `p-5`)
+and 12px (`mt-3`, `gap-3`) were the strays and are gone; don't reintroduce them.
+
+**Control padding is exempt and stays.** `px-3 py-1.5` on a button is component-internal
+sizing, not page rhythm — snapping it to 8s changes hit targets for nothing.
+
+### 🔒 LOCKED: the measure for sans prose is `max-w-[54ch]`
+
+**⚠️ 54ch renders ~70 ACTUAL characters. This is not a typo, and don't "fix" it to 68.**
+The CSS `ch` unit is the advance of `0`, which is far wider than the average lowercase
+letter in proportional type, so it over-counts by ~30%. Measured in-browser: `68ch` gave
+**88** characters per line (too long, and the reason the chess lede was tiring); `54ch`
+gives **70**, inside the 65-75 comfortable band. Mono and terminal elements stay
+full-width; this cap is for sans prose only.
+
 ### The fonts, and the three things that depend on them
 
 Geist + Geist Mono (`next/font/google`, self-hosted at build), wired to `--font-sans` /
@@ -205,6 +246,29 @@ left margin with a tick tracking scroll position.
 - Hidden below `xl`, where there's no margin to live in.
 - The tick tracks scroll 1:1 with **no easing**, so it has no motion of its own to
   disable under reduced-motion — it's a readout, like a scrollbar.
+
+**🔒 LOCKED: the anchor and the heading never say the same words.** Each section carries
+two names and they do different jobs. The **teal mono anchor** (`Section`'s `label`, in the
+gap above the panel) says WHERE YOU ARE. The **white sans `<h2>`** inside the panel says
+WHAT THE THING IS. They used to be near-duplicates ("x0 diffusion" above "x0 diffusion"),
+which read as a stutter and wasted the one line a visitor actually reads.
+
+| section | teal anchor | sans `<h2>` |
+|---|---|---|
+| §2 | `two models, one idea` | **Continuous diffusion** / **Discrete diffusion** (follows the toggle) |
+| §2b | `draw a digit` | SDEdit |
+| §4 | `play the engine` | Energy-based modeling over board states |
+| §3 | `sample space` | Stochastic vs deterministic |
+
+- **⚠️ §2's anchor must be true of BOTH toggle states.** The obvious pick, "noise to
+  digit", is false half the time: the ascii model has no noise anywhere in it, it unmasks
+  (see §2). Same trap as the copy rule there.
+- **§2's `<h2>` is where the two models' difference gets said**, which is why it follows
+  the toggle rather than sitting static. Gaussian is continuous; absorbing-state is
+  discrete.
+- The anchor stays `aria-hidden`. It is no longer an echo of the `<h2>`, so the old
+  rationale is dead — the new one is that it's a decorative scroll marker and the `<h2>` is
+  the real heading. A screen reader gets the heading and the lede, which carry the content.
 
 **4. Section labels** (`components/ambience/ResolveText.tsx`, via `Section`'s `label`) —
 the big teal mono marker in the open gap above each panel, resolving out of the ASCII
@@ -536,6 +600,17 @@ making panels translucent.
 - The canvas is `pointer-events: none` and drag is handled on `document`, bailing on
   `section, a, button, input, textarea, select`. A full-viewport canvas that ate clicks
   would break every link and control on the page.
+
+**⚠️ The hero's dead zone lived in `bh * 0.86`, and it is a SPACING constant.** The
+nameplate is centred in its station box and `FONT_MAX` (130) caps the font, so the ink is a
+fixed ~219px tall *however tall the box is* — every extra pixel of box height becomes air,
+split evenly above and below. That is why the hero once had **108px of nothing** between
+the name and the tagline (measured: box 0..440, ink 113..332, tagline at 440). Two things
+that do NOT fix it: shrinking the box alone (the air just scales down with the font), and
+raising `data-swarm-frac` (that drives WIDTH, and `FONT_MAX` caps the result anyway).
+Raising the height fraction from 0.62 to **0.86** is what closes it while keeping the name
+at full size. With the box at `max-h-[336px]`: ink 62..280, gap **56px**, name still 130px.
+Re-measure if you touch either number.
 
 **Setup (per station).**
 - Rasterize the text offscreen (bold sans, ~6px letter-spacing at 78px, scaled).
@@ -1021,6 +1096,17 @@ bundler can't see the dependency and it 404s.
   **Confirmed against a real `npm start`, not a dev server**: engine reaches `int8 · your
   move`, zero console errors, vector D returns `g3 p=0.236`. Don't spend an afternoon
   fixing it. Do re-run that prod check if the worker ever stops loading.
+
+**⚠️ The dev overlay's "N Issues" badge counts a warning the dev overlay itself causes.**
+Investigated 2026-07-15 and it is a red herring, in the same family as the worker MIME one
+below. Next's dev overlay loads its OWN copies of Geist (`__nextjs-Geist`,
+`__nextjs-Geist Mono`), which makes Firefox report the *page's* font preloads as
+"preloaded with link preload was not used within a few seconds". Measured: **dev = 5 font
+fetches + 2 warnings; production = 3 fetches, 0 warnings, no overlay.** There is no
+hydration mismatch — a real one appeared in an old dev log and turned out to be a Fast
+Refresh artifact from a mid-edit broken build, which is worth knowing: **a hydration error
+in a dev log that followed a Fast Refresh full reload is not evidence of a bug.** Confirm
+against a real `npm run build && npm start` before chasing it.
 
 **COOP/COEP headers are set on every route** (`next.config.ts`). They enable
 cross-origin isolation → `SharedArrayBuffer` → multi-threaded WASM. Without them ORT is

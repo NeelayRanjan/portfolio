@@ -22,16 +22,32 @@ export function EnergyHero() {
           same max-w-5xl gutter as the copy below — left-aligned text then starts
           on the same edge as the tagline instead of the viewport's. */}
       <div className="mx-auto w-full max-w-5xl px-6">
+        {/* ⚠️ THE BOX IS WHERE THE HERO'S DEAD ZONE LIVED. Swarm centres the
+            nameplate in this box, so every pixel of height the letters don't use
+            becomes air, split evenly above and below. It was 108px of nothing
+            between the name and the tagline (measured: box 0..440, ink 113..332,
+            tagline at 440).
+
+            Two things that look like the fix and aren't. `data-swarm-frac` drives
+            WIDTH, not height. And a single shrunken box only works on desktop:
+            below ~1024px the font is width-bound rather than FONT_MAX-bound, so
+            the name shrinks while a fixed box doesn't — a flat max-h-[336px]
+            measured a 129px gap on a 375px phone, worse than the bug it was
+            fixing. Hence three steps, tracking where the font actually comes from.
+            The other half of the fix is Swarm's height fraction (0.62 -> 0.86).
+
+            Measured gap below the ink, settled: 375px 47 · 640px 44 · 768px 32 ·
+            1024px 46 · 1280px 57. Re-measure if you touch any of it. */}
         <div
           data-swarm="NEELAY|RANJAN"
           data-swarm-align="left"
           data-swarm-frac="0.52"
           aria-hidden="true"
-          className="h-[52svh] max-h-[440px] min-h-[260px] w-full"
+          className="h-[40svh] max-h-[192px] min-h-[160px] w-full sm:max-h-[272px] lg:max-h-[336px]"
         />
       </div>
 
-      <div className="mx-auto w-full max-w-5xl px-6 pb-16">
+      <div className="mx-auto w-full max-w-5xl px-6 pb-24">
         {/* The hero's typing prompt moved to the full-screen boot (BootScreen),
             which now owns the login beat above the nameplate. HeroBoot stays: it
             is the page-load side effects (the asset warm, tab-hidden cursors),
@@ -42,7 +58,7 @@ export function EnergyHero() {
           {PROFILE.subtext}
         </p>
 
-        <p className="mt-5 max-w-2xl font-mono text-[11px] leading-relaxed text-faint">
+        <p className="mt-4 max-w-2xl font-mono text-[11px] leading-relaxed text-faint">
           Illustrative Langevin simulation. The name is the ground state of an energy
           landscape carved from its own letterforms: particles descend into the wells
           and settle. Thermal kicks knock them{" "}
@@ -51,11 +67,11 @@ export function EnergyHero() {
           Hand-built landscape, not a trained model.
         </p>
 
-        <p className="mt-6 max-w-2xl leading-relaxed text-muted">
+        <p className="mt-6 max-w-[54ch] leading-relaxed text-muted">
           {PROFILE.affiliation}
         </p>
 
-        <nav className="mt-8 flex flex-wrap gap-x-6 gap-y-3 font-mono text-sm">
+        <nav className="mt-8 flex flex-wrap gap-x-6 gap-y-2 font-mono text-sm">
           {/* Only rendered once PROFILE.resumeUrl is set, so an unset link never
               ships as a dead one. Externally hosted on purpose — see profile.ts. */}
           {PROFILE.resumeUrl ? (

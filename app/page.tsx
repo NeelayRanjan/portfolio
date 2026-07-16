@@ -20,7 +20,15 @@ export default function Home() {
             never stopped moving, which read as noise on a phone. The `label`
             props below are real text that resolves out of noise once, then
             sits still. */}
-        <Section id="diffusion" label="x0 diffusion">
+        {/* Labels are the teal ANCHOR, not the title. Each panel's <h2> says
+            something different (see CLAUDE.md's naming table) — the anchor names
+            where you are, the heading names what the thing is. They must never
+            be the same words twice. */}
+        {/* "two models, one idea" and NOT "noise to digit", which was the obvious
+            pick and is false half the time: the ascii model has no noise in it at
+            all, it unmasks. The anchor spans both toggle states, so it can only
+            say things true of both. */}
+        <Section id="diffusion" label="two models, one idea">
           <DiffusionVisualizer />
         </Section>
 

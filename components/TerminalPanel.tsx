@@ -35,7 +35,7 @@ export function TerminalPanel({
       data-swarm-avoid=""
       className={`overflow-hidden rounded-lg border border-line bg-panel ${className}`}
     >
-      <header className="flex items-center gap-3 border-b border-line bg-panel-bar px-4 py-2.5">
+      <header className="flex items-center gap-4 border-b border-line bg-panel-bar px-4 py-2.5">
         <span className="flex shrink-0 gap-2" aria-hidden="true">
           {DOTS.map((dot) => (
             <span
@@ -61,7 +61,7 @@ export function TerminalPanel({
         </p>
       ) : null}
 
-      <div className={flush ? "" : "p-4 sm:p-5"}>{children}</div>
+      <div className={flush ? "" : "p-4 sm:p-6"}>{children}</div>
     </section>
   );
 }

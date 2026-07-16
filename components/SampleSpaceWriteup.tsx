@@ -51,7 +51,7 @@ export function SampleSpaceWriteup() {
     .filter(Boolean);
 
   return (
-    <div className="mt-10 max-w-2xl border-l border-line pl-6">
+    <div className="mt-12 max-w-[54ch] border-l border-line pl-6">
       {paragraphs.map((p, i) => (
         <p key={i} className="mb-4 leading-relaxed text-muted last:mb-0">
           {inline(p, `p${i}`)}

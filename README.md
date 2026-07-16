@@ -47,7 +47,7 @@ app/            routes, globals.css (Tailwind v4 theme tokens live in @theme,
 components/     section components
   ambience/     swarm, CharField, boot screen, scroll spine, reveals
 lib/            model loading, encoders, vendored model math
-content/        copy and profile data
+content/        copy.ts (all user-facing strings), plus data
 public/         model artifacts (see below)
 scripts/        build and artifact generators
 ```

@@ -113,6 +113,26 @@ these, and none of them announce themselves:
 
 ## Voice — write like a person, not a model
 
+**🔒 ALL user-facing copy lives in `content/copy.ts`. Edit it there, not inline in
+components.** Headings, ledes, captions, button labels, boot-log lines, terminal command
+names, notices, status words, section anchors, page metadata, the 404, the boot screen,
+and the demo labels/blurbs that used to sit in lib data (`SEARCH_MODES`, `TARGETS`) — all
+in the one file, referenced as `copy.*`. A wording change is now find-by-name, not a JSX
+hunt. `content/profile.ts` was folded into it; `content/sample-space.md` is still the
+external source for that one write-up.
+- **What deliberately stays inline** (moving it changes behavior, not copy): the `--flag`
+  tokens (they're logic identifiers threaded through `commitParam`/`CommandLine`, and
+  interwoven with number interpolation in each `BOOT_CMD`); number-format glue in
+  interpolated readouts (` · `, `p=`, `v=`, `n=`, step/timing/percent counters);
+  aria-labels built from live values; enum values rendered directly (`pixel`/`ascii`/
+  `game` button faces); and the `neelay@latent:~$` prompt (composed in `lib/identity.ts`).
+  The header of `copy.ts` lists these.
+- **⚠️ It's a PURE-EXTRACTION seam: the render must stay byte-identical.** When you move a
+  string, entities become their Unicode chars (`&rsquo;`→’, `&quot;`→", `&ndash;`→–) and
+  a fragment's leading/trailing spaces carry the spacing the JSX `{" "}` used to. Verify by
+  diffing rendered text before/after (the scratchpad `snap.mjs` did exactly this across
+  every section, both toggle states, metadata and the 404 — all identical).
+
 Applies to **all visitor-facing copy**: headings, ledes, captions, notices, boot-log
 lines, alt text, metadata. (Code comments and this file are for maintainers and are
 exempt.) The audience is researchers who read a lot of LLM output and clock it

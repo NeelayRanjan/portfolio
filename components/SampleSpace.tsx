@@ -17,8 +17,9 @@ import {
   type TargetId,
   type Vec,
 } from "@/lib/sample-space";
+import { copy } from "@/content/copy";
 
-const CMD_NAME = "./sample_space";
+const CMD_NAME = copy.sampleSpace.cmd;
 /**
  * `--target` is genuinely live; `--compare` is not.
  *
@@ -30,9 +31,10 @@ const CMD_NAME = "./sample_space";
  */
 const BOOT_CMD = `${CMD_NAME} --target ${DEFAULT_TARGET} --compare ddpm,flow`;
 const BOOT_LINES = [
-  "building 2d target manifold from a closed form",
+  copy.sampleSpace.bootTop,
+  // Interpolates the step-count constants, so it's a template, not static copy.
   `ddpm: ${DDPM_STEPS} stochastic steps · flow: ${FLOW_STEPS} deterministic steps`,
-  "hand-drawn fields, no weights loaded -> ready",
+  copy.sampleSpace.bootBottom,
 ];
 
 /** How long a trajectory takes to draw, and how long it lingers before fading. */
@@ -252,13 +254,13 @@ export function SampleSpace() {
   return (
     <div ref={boot.ref}>
       <TerminalPanel
-        label="sample-space --compare ddpm,flow"
-        status={booted ? "illustrative" : "booting"}
+        label={copy.sampleSpace.label}
+        status={booted ? copy.sampleSpace.statusIllustrative : copy.sampleSpace.statusBooting}
         notice={
           booted ? (
             <>
-              <span className="text-indigo">illustrative</span>. Hand-drawn fields on a
-              2D toy distribution. No model weights are loaded or run here.
+              <span className="text-indigo">{copy.sampleSpace.noticeTag}</span>
+              {copy.sampleSpace.noticeBody}
             </>
           ) : null
         }
@@ -270,7 +272,7 @@ export function SampleSpace() {
           command={
             <CommandLine
               name={CMD_NAME}
-              hint="try another shape"
+              hint={copy.sampleSpace.hint}
               dirty={target !== DEFAULT_TARGET}
               onReset={() => setTarget(DEFAULT_TARGET)}
               // Order must match BOOT_CMD.
@@ -291,36 +293,37 @@ export function SampleSpace() {
 
         {!booted ? null : (
           <>
-            <h2 className="mt-6 mb-2 text-2xl tracking-tight">Stochastic vs deterministic</h2>
+            <h2 className="mt-6 mb-2 text-2xl tracking-tight">{copy.sampleSpace.heading}</h2>
             <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
-              The same target, the same starting point, two ways of getting there. Click
-              either panel to launch a trajectory from that point. Both panels run the
-              same start, so the routes are directly comparable. Switch{" "}
-              <span className="text-ink">--target</span> above to run the same comparison
-              over a different shape: the spiral makes the step-count gap easiest to see,
-              because the routes are long enough to watch.
+              {copy.sampleSpace.lede.pre}
+              <span className="text-ink">{copy.sampleSpace.lede.target}</span>
+              {copy.sampleSpace.lede.post}
             </p>
 
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <figure>
                 <SamplePanel kind="ddpm" target={target} handleRef={ddpmRef} onPick={spawn} />
                 <figcaption className="mt-4 font-mono text-[11px] text-faint">
-                  <span className="text-indigo">DDPM</span> · stochastic (SDE),{" "}
-                  {DDPM_STEPS} steps. Jagged; a different route every run.
+                  <span className="text-indigo">{copy.sampleSpace.ddpmLabel}</span>
+                  {copy.sampleSpace.ddpmCaptionPre}
+                  {DDPM_STEPS}
+                  {copy.sampleSpace.ddpmCaptionPost}
                 </figcaption>
               </figure>
 
               <figure>
                 <SamplePanel kind="flow" target={target} handleRef={flowRef} onPick={spawn} />
                 <figcaption className="mt-4 font-mono text-[11px] text-faint">
-                  <span className="text-teal">Flow matching</span> · deterministic (ODE),{" "}
-                  {FLOW_STEPS} steps. Smooth; the same route every time.
+                  <span className="text-teal">{copy.sampleSpace.flowLabel}</span>
+                  {copy.sampleSpace.flowCaptionPre}
+                  {FLOW_STEPS}
+                  {copy.sampleSpace.flowCaptionPost}
                 </figcaption>
               </figure>
             </div>
 
             <p className="mt-4 font-mono text-[11px] text-faint">
-              target · {shape.blurb}
+              {copy.sampleSpace.targetCaptionPre}{shape.blurb}
             </p>
           </>
         )}

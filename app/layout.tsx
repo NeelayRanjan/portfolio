@@ -5,7 +5,7 @@ import { ScrollSpine } from "@/components/ambience/ScrollSpine";
 import { Swarm } from "@/components/ambience/Swarm";
 import { CharField } from "@/components/ambience/CharField";
 import { BootScreen } from "@/components/ambience/BootScreen";
-import { PROFILE } from "@/content/profile";
+import { copy } from "@/content/copy";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,28 +19,23 @@ const geistMono = Geist_Mono({
   weight: ["400"],
 });
 
+// A URL, not copy — metadataBase and the canonical OG url. Stays here.
 const SITE = "https://neelayranjan.dev";
-/** The unfurl description. Concrete, because a share card is the one place a
- *  recruiter reads before deciding whether to click. */
-const BLURB =
-  "Generative-modeling researcher at NASA Ames and Regenstrief. Diffusion for " +
-  "safety-critical, data-scarce domains. Three trained models run live on this " +
-  "page, in your browser.";
 
 export const metadata: Metadata = {
   // Required for the relative OG image below to resolve to an absolute URL —
   // without it the card unfurls with no image at all.
   metadataBase: new URL(SITE),
-  title: "Neelay Ranjan · generative-modeling researcher",
-  // The long-form tagline lives here rather than in the hero, which now shows
+  title: copy.meta.title,
+  // The long-form tagline lives in copy rather than in the hero, which now shows
   // the terser sub-text. Crawlers still get the full framing.
-  description: PROFILE.tagline,
+  description: copy.hero.tagline,
   openGraph: {
     type: "website",
     url: SITE,
-    siteName: "neelayranjan.dev",
-    title: "Neelay Ranjan · generative-modeling researcher",
-    description: BLURB,
+    siteName: copy.meta.siteName,
+    title: copy.meta.title,
+    description: copy.meta.blurb,
     images: [
       {
         // A real frame of the live hero, rendered by scripts/gen-og.mjs — the
@@ -48,14 +43,14 @@ export const metadata: Metadata = {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "NEELAY RANJAN resolved out of a particle swarm on a near-black field",
+        alt: copy.meta.ogImageAlt,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Neelay Ranjan · generative-modeling researcher",
-    description: BLURB,
+    title: copy.meta.title,
+    description: copy.meta.blurb,
     images: ["/og.png"],
   },
 };

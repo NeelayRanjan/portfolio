@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { copy } from "@/content/copy";
 
 /**
  * A panel's boot command, with its numbers turned into inputs.
@@ -232,7 +233,7 @@ export function CommandLine({
           disabled={disabled}
           className="ml-3 border-b border-dashed border-line text-faint transition-colors hover:border-faint hover:text-ink disabled:opacity-40"
         >
-          # reset
+          # {copy.commandLine.reset}
         </button>
       ) : hint ? (
         // aria-hidden: the inputs are already exposed as labelled controls, so a

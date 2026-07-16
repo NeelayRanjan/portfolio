@@ -5,6 +5,7 @@ import { ChessPanel } from "@/components/ChessPanel";
 import { SampleSpace } from "@/components/SampleSpace";
 import { SampleSpaceWriteup } from "@/components/SampleSpaceWriteup";
 import { Section } from "@/components/Section";
+import { copy } from "@/content/copy";
 
 export default function Home() {
   return (
@@ -28,19 +29,19 @@ export default function Home() {
             pick and is false half the time: the ascii model has no noise in it at
             all, it unmasks. The anchor spans both toggle states, so it can only
             say things true of both. */}
-        <Section id="diffusion" label="two models, one idea">
+        <Section id="diffusion" label={copy.anchors.diffusion}>
           <DiffusionVisualizer />
         </Section>
 
-        <Section id="draw" label="draw a digit">
+        <Section id="draw" label={copy.anchors.draw}>
           <DrawDigit />
         </Section>
 
-        <Section id="chess" label="play the engine">
+        <Section id="chess" label={copy.anchors.chess}>
           <ChessPanel />
         </Section>
 
-        <Section id="sample-space" label="sample space">
+        <Section id="sample-space" label={copy.anchors.sampleSpace}>
           <SampleSpace />
           {/* Spec: the write-up sits directly beneath the panel. */}
           <SampleSpaceWriteup />

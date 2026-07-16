@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { DEFAULT_USER, cleanUser, promptFor, setUser, useUser } from "@/lib/identity";
 import { CharField } from "./CharField";
 import { markBooted } from "@/lib/booted";
+import { copy } from "@/content/copy";
 
 /**
  * The page ssh's into itself before it loads. Full-screen, ~2.5s, once per fresh
@@ -34,15 +35,15 @@ import { markBooted } from "@/lib/booted";
  * The clock accumulates only while `held` is false, so focusing the username
  * pauses the boot instead of racing it. Nothing else stalls it.
  */
-const DOMAIN = "neelayranjan.dev";
-const SSH_PREFIX = "ssh ";
+const DOMAIN = copy.boot.domain;
+const SSH_PREFIX = copy.boot.sshPrefix;
 const SSH_SUFFIX = `@${DOMAIN}`;
 /** Schedule length only. Typing finishes before the field is editable, so the
  *  default name is always what gets typed. */
 const SSH_CMD = SSH_PREFIX + DEFAULT_USER + SSH_SUFFIX;
-const START_CMD = "./latent --serve";
+const START_CMD = copy.boot.startCmd;
 /** Output, so it prints whole rather than typing. Costs no time, only its dwell. */
-const CONNECT_LINE = "connected · latent";
+const CONNECT_LINE = copy.boot.connectLine;
 
 /** 30ms. Below the 40-70 the brief first asked for, on purpose and by request:
  *  the ssh line is 27 characters, and at 40 it read as watching someone hunt for
@@ -239,7 +240,7 @@ export function BootScreen() {
                 }}
                 spellCheck={false}
                 autoComplete="off"
-                aria-label="the user to connect as. Edit it to use your own name in this page's shell prompts."
+                aria-label={copy.boot.usernameAria}
                 className="inline-block border-b border-dashed border-line bg-transparent p-0 align-baseline text-teal outline-none focus:border-teal"
                 // Sized to its content so the caret sits where the text ends
                 // rather than in the middle of a default-width box.

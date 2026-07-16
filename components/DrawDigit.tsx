@@ -15,8 +15,9 @@ import {
   loadDrawModel,
   type AsciiFrame,
 } from "@/lib/draw-model";
+import { copy } from "@/content/copy";
 
-const CMD_NAME = "./sdedit";
+const CMD_NAME = copy.sdedit.cmd;
 
 type RunParams = {
   digit: number;
@@ -61,11 +62,7 @@ const RANGES = {
 const BOOT_CMD =
   `${CMD_NAME} --digit ${DEFAULTS.digit} --strength ${DEFAULTS.strength}` +
   ` --steps ${DEFAULTS.steps} --guidance ${DEFAULTS.guidance} --dissolve ${DEFAULTS.dissolve}`;
-const BOOT_LINES = [
-  "sdedit: noise your drawing ~60% -> denoise -> your strokes survive",
-  "runtime: onnxruntime-web (webgpu, wasm fallback) · fully client-side",
-  "weights: mnist_x0.onnx (26 MB, lazy on first stroke)",
-];
+const BOOT_LINES = [...copy.sdedit.bootLines];
 
 /**
  * Pen width as a fraction of canvas width. THIS IS THE FEATURE'S FAILURE MODE.
@@ -403,24 +400,24 @@ export function DrawDigit() {
 
   const ready = model !== null;
   const status = !booted
-    ? "booting"
+    ? copy.sdedit.statusBooting
     : running && frame
       ? `${frame.phase} ${frame.step + 1}/${frame.total}`
       : loading
-        ? "fetching weights…"
+        ? copy.sdedit.statusFetching
         : ready
-          ? "ready"
-          : "draw to load";
+          ? copy.sdedit.statusReady
+          : copy.sdedit.statusDraw;
 
   return (
     <div ref={boot.ref}>
       <TerminalPanel
-        label={`sdedit --digit ${digit} --strength ${DEFAULT_STRENGTH}`}
+        label={`${copy.sdedit.label} --digit ${digit} --strength ${DEFAULT_STRENGTH}`}
         status={status}
         notice={
           booted && loadErr ? (
             <>
-              <span className="text-indigo">model failed to load</span>: {loadErr}
+              <span className="text-indigo">{copy.sdedit.loadFailed}</span>: {loadErr}
             </>
           ) : null
         }
@@ -435,7 +432,7 @@ export function DrawDigit() {
               name={CMD_NAME}
               disabled={running}
               dirty={dirty}
-              hint="edit any number"
+              hint={copy.sdedit.hint}
               onReset={reset}
               // Order must match BOOT_CMD, or the line rewrites at the handover.
               items={[
@@ -459,15 +456,11 @@ export function DrawDigit() {
 
         {!booted ? null : (
           <>
-            <h2 className="mt-6 mb-2 text-2xl tracking-tight">SDEdit</h2>
+            <h2 className="mt-6 mb-2 text-2xl tracking-tight">{copy.sdedit.heading}</h2>
             <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
-              Draw one, pick its label, and watch it dissolve into static and re-form.
-              This is <span className="text-ink">SDEdit</span>: your drawing is noised
-              about 60% of the way to pure static and then denoised back, so the coarse
-              structure is never destroyed. Your slant and your strokes survive into the
-              result. It is genuinely your digit being cleaned up, not a lookalike
-              fetched from the model. The whole thing runs on your device; nothing is
-              sent anywhere.
+              {copy.sdedit.lede.pre}
+              <span className="text-ink">{copy.sdedit.lede.tech}</span>
+              {copy.sdedit.lede.post}
             </p>
 
             <div className="flex flex-wrap items-start gap-6">
@@ -481,12 +474,11 @@ export function DrawDigit() {
                   // touch-none or a touch drag scrolls the page instead of
                   // drawing. Safe here: a small box, not the full-width hero.
                   className="aspect-square w-[280px] max-w-full cursor-crosshair touch-none rounded border border-line"
-                  aria-label={`Drawing canvas for digit ${digit}`}
+                  aria-label={`${copy.sdedit.canvasAria} ${digit}`}
                   role="img"
                 />
                 <figcaption className="mt-4 w-[280px] max-w-full font-mono text-[11px] leading-relaxed text-faint">
-                  your drawing · the pen is deliberately fat, so the strokes survive
-                  being downscaled 14x
+                  {copy.sdedit.canvasCaption}
                 </figcaption>
               </figure>
 
@@ -507,10 +499,10 @@ export function DrawDigit() {
                   ) : (
                     <span className="px-6 text-center font-mono text-[11px] leading-relaxed text-faint">
                       {loading
-                        ? "fetching weights…"
+                        ? copy.sdedit.resultFetching
                         : ready
-                          ? "hit generate"
-                          : "draw to load the model"}
+                          ? copy.sdedit.resultReady
+                          : copy.sdedit.resultDraw}
                     </span>
                   )}
                 </div>
@@ -522,11 +514,11 @@ export function DrawDigit() {
                       </span>{" "}
                       · {frame.step + 1}/{frame.total}
                       {frame.phase === "dissolve"
-                        ? " · forward process, no model calls"
-                        : " · the model running"}
+                        ? copy.sdedit.resultForward
+                        : copy.sdedit.resultRunning}
                     </>
                   ) : (
-                    "the result · your strokes survive the noise"
+                    copy.sdedit.resultCaptionIdle
                   )}
                 </figcaption>
               </figure>
@@ -559,21 +551,21 @@ export function DrawDigit() {
                     />
                   ) : (
                     <span className="px-6 text-center font-mono text-[11px] leading-relaxed text-faint">
-                      the model&rsquo;s guess appears here
+                      {copy.sdedit.x0Placeholder}
                     </span>
                   )}
                 </div>
                 <figcaption className="mt-4 w-[280px] max-w-full font-mono text-[11px] leading-relaxed text-faint">
                   {frame ? (
                     <>
-                      <span className="text-ink">x̂₀</span> · its guess at the finished
-                      digit
+                      <span className="text-ink">{copy.sdedit.x0Label}</span>
+                      {copy.sdedit.x0CaptionPre}
                       {frame.phase === "dissolve"
-                        ? " · held still, nothing has run yet"
-                        : " · re-predicted every step"}
+                        ? copy.sdedit.x0Held
+                        : copy.sdedit.x0Repredicted}
                     </>
                   ) : (
-                    "x̂₀ · its guess, updated at every step"
+                    copy.sdedit.x0CaptionIdle
                   )}
                 </figcaption>
               </figure>
@@ -581,13 +573,13 @@ export function DrawDigit() {
 
             <div className="mt-6 flex flex-wrap items-center gap-2">
               <span className="mr-1 font-mono text-xs text-faint">
-                label
+                {copy.sdedit.label_}
                 {autoLabel ? (
                   <span className="ml-2 text-teal">
-                    {classifying ? "· guessing…" : model ? "· auto" : ""}
+                    {classifying ? copy.sdedit.labelGuessing : model ? copy.sdedit.labelAuto : ""}
                   </span>
                 ) : (
-                  <span className="ml-2 text-indigo">· yours</span>
+                  <span className="ml-2 text-indigo">{copy.sdedit.labelYours}</span>
                 )}
               </span>
               {DIGITS.map((d) => {
@@ -608,7 +600,9 @@ export function DrawDigit() {
                     // Colour alone would put the whole classifier behind seeing
                     // it, so the fit goes in the accessible name too.
                     aria-label={
-                      f === null ? `${d}` : `${d}, fits your drawing ${Math.round(f * 100)}%`
+                      f === null
+                        ? `${d}`
+                        : `${d}${copy.sdedit.fitAriaMid}${Math.round(f * 100)}${copy.sdedit.fitAriaPost}`
                     }
                     className={`relative size-8 rounded border font-mono text-sm transition-colors ${
                       d === digit
@@ -635,43 +629,40 @@ export function DrawDigit() {
                 disabled={!hasInk || running}
                 className="ml-auto rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-faint hover:text-ink disabled:opacity-40"
               >
-                clear
+                {copy.sdedit.clear}
               </button>
               <button
                 // Not `onClick={generate}`: that hands the MouseEvent to `over`,
                 // which spreads straight into the model's options.
                 onClick={() => void generate()}
                 disabled={!ready || !hasInk || running}
-                title={ready ? undefined : "draw once to fetch the weights"}
+                title={ready ? undefined : copy.sdedit.generateHint}
                 className="rounded border border-teal/60 px-3 py-1.5 font-mono text-xs text-teal transition-colors hover:border-teal disabled:cursor-not-allowed disabled:border-line disabled:text-faint"
               >
-                {running ? "sampling…" : "generate"}
+                {running ? copy.sdedit.sampling : copy.sdedit.generate}
               </button>
             </div>
 
             <p className="mt-4 max-w-2xl font-mono text-[11px] leading-relaxed text-faint">
-              The model is class-conditional, so it needs a label. That guess comes
-              from the diffusion model itself: it predicts the finished digit under all
-              ten labels from identical noise, and whichever best explains your strokes
-              wins. No second model.{" "}
+              {copy.sdedit.classify.a}
               {fit ? (
                 <>
-                  The <span className="text-teal">teal</span> behind each label is that
-                  score, so you can see the ranking it actually produced rather than
-                  take the winner on faith. This one was{" "}
+                  {copy.sdedit.classify.bPre}
+                  <span className="text-teal">{copy.sdedit.classify.teal}</span>
+                  {copy.sdedit.classify.bPost}
                   <span className="text-ink">
                     {fit.margin < 0.1
-                      ? "close to a coin flip"
+                      ? copy.sdedit.classify.coinFlip
                       : fit.margin < 0.25
-                        ? "a near thing"
-                        : "not close"}
+                        ? copy.sdedit.classify.nearThing
+                        : copy.sdedit.classify.notClose}
                   </span>
-                  .{" "}
+                  {copy.sdedit.classify.cMid}
                 </>
               ) : null}
-              It&rsquo;s a suggestion, so override it if it&rsquo;s wrong. Worth trying
-              anyway: draw a 7 and ask for a <span className="text-indigo">4</span>. You
-              can watch conditioning fight your drawing.
+              {copy.sdedit.classify.cPre}
+              <span className="text-indigo">{copy.sdedit.classify.four}</span>
+              {copy.sdedit.classify.cPost}
             </p>
 
           </>

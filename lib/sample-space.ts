@@ -10,6 +10,9 @@
  * All coordinates are normalised to [0,1] so both panels agree regardless of
  * their pixel size, and a click in one can spawn the same start in the other.
  */
+import { copy } from "@/content/copy";
+
+const T = copy.sampleSpace.targets;
 
 export type Vec = { x: number; y: number };
 
@@ -78,11 +81,12 @@ function normalise(raw: Vec[]): Vec[] {
  */
 export type TargetId = "two-moons" | "spiral" | "ring" | "8-gaussians";
 
+// Labels/blurbs live in content/copy.ts; the ids are logic and stay here.
 export const TARGETS: { id: TargetId; label: string; blurb: string }[] = [
-  { id: "two-moons", label: "two-moons", blurb: "two interleaving half-moons" },
-  { id: "spiral", label: "spiral", blurb: "two arms winding out from the centre" },
-  { id: "ring", label: "ring", blurb: "a single closed circle" },
-  { id: "8-gaussians", label: "8-gaussians", blurb: "eight modes on a circle" },
+  { id: "two-moons", label: T.twoMoonsLabel, blurb: T.twoMoonsBlurb },
+  { id: "spiral", label: T.spiralLabel, blurb: T.spiralBlurb },
+  { id: "ring", label: T.ringLabel, blurb: T.ringBlurb },
+  { id: "8-gaussians", label: T.gaussiansLabel, blurb: T.gaussiansBlurb },
 ];
 
 export const DEFAULT_TARGET: TargetId = "two-moons";

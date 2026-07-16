@@ -16,8 +16,9 @@ import {
 } from "@/lib/chess-engine";
 import { CommandLine } from "./ambience/CommandLine";
 import { loadChessActivations, type ActivationSet } from "@/lib/chess-activations";
+import { copy } from "@/content/copy";
 
-const CMD_NAME = "./entropy_chess";
+const CMD_NAME = copy.chess.cmd;
 /**
  * `--sims` here is the budget `let it think` spends, NOT the live sim count.
  *
@@ -29,11 +30,7 @@ const CMD_NAME = "./entropy_chess";
  * ⚠️ Must match what CommandLine renders, flag for flag and in this order.
  */
 const BOOT_CMD = `${CMD_NAME} --model int8 --sims ${THINK_SIMS.default}`;
-const BOOT_LINES = [
-  "energy-based model · 469K params · scores positions, never outputs a move",
-  "int8 quantized to 553 KB · the same artifact that runs on the Pi",
-  "onnxruntime-web (wasm) · mcts in a worker · chess.js owns every rule -> ready",
-];
+const BOOT_LINES = [...copy.chess.bootLines];
 
 /** ~230ms a simulation, measured in Firefox (6.6ms/board x ~35 legal moves). Quote
  *  what's measured in a browser, never the Pi's numbers. */
@@ -180,11 +177,12 @@ export function ChessPanel() {
    */
   const outcome = useMemo(() => {
     const g = new Chess(fen);
-    if (g.isCheckmate()) return `checkmate · ${g.turn() === "w" ? "black" : "white"} wins`;
-    if (g.isStalemate()) return "draw · stalemate";
-    if (g.isThreefoldRepetition()) return "draw · threefold repetition";
-    if (g.isInsufficientMaterial()) return "draw · insufficient material";
-    if (g.isDraw()) return "draw · fifty-move rule";
+    if (g.isCheckmate())
+      return `${copy.chess.checkmatePre}${g.turn() === "w" ? copy.chess.checkmateWinsBlack : copy.chess.checkmateWinsWhite}`;
+    if (g.isStalemate()) return copy.chess.drawStalemate;
+    if (g.isThreefoldRepetition()) return copy.chess.drawThreefold;
+    if (g.isInsufficientMaterial()) return copy.chess.drawInsufficient;
+    if (g.isDraw()) return copy.chess.drawFiftyMove;
     return null;
   }, [fen]);
 
@@ -288,7 +286,7 @@ export function ChessPanel() {
     try {
       g.move({ from, to, promotion });
     } catch {
-      setFlash("illegal move");
+      setFlash(copy.chess.illegalMove);
       setTimeout(() => setFlash(null), 1200);
       return;
     }
@@ -345,22 +343,22 @@ export function ChessPanel() {
   const ready = engine !== null;
   const busy = thinking || hinting;
   const status = !booted
-    ? "booting"
+    ? copy.chess.statusBooting
     : loading
-      ? "loading 553 KB…"
+      ? copy.chess.statusLoading
       : busy
         ? // The search runs in a worker, so this counter keeps ticking while the
           // page stays live. That IS the demo: a frozen tab would prove nothing.
           progress
-          ? `searching · ${progress.done}/${progress.total}`
-          : "thinking…"
+          ? `${copy.chess.statusSearchingPre}${progress.done}/${progress.total}`
+          : copy.chess.statusThinking
         : outcome
-          ? "game over"
+          ? copy.chess.statusGameOver
           : ready
             ? selfPlay
-              ? `${engine.build} · self-play · move ${Math.ceil(game.history().length / 2) || 1}`
-              : `${engine.build} · ${game.turn() === "w" ? "your move" : "…"}`
-            : "engine pending";
+              ? `${engine.build} · ${copy.chess.statusSelfPlay} · move ${Math.ceil(game.history().length / 2) || 1}`
+              : `${engine.build} · ${game.turn() === "w" ? copy.chess.statusYourMove : copy.chess.statusWaiting}`
+            : copy.chess.statusEnginePending;
 
   return (
     <div ref={boot.ref}>
@@ -368,12 +366,12 @@ export function ChessPanel() {
         // Which mode is RUNNING. --sims lives in the boot log and means the
         // configured budget — showing sims in both places would put two different
         // numbers under one flag name.
-        label={`entropy-chess --engine ebm --search ${sims === 0 ? "argmin" : "mcts"}`}
+        label={`${copy.chess.label} --engine ebm --search ${sims === 0 ? "argmin" : "mcts"}`}
         status={status}
         notice={
           booted && err ? (
             <>
-              <span className="text-indigo">engine error</span>: {err}
+              <span className="text-indigo">{copy.chess.engineError}</span>: {err}
             </>
           ) : null
         }
@@ -387,7 +385,7 @@ export function ChessPanel() {
             <CommandLine
               name={CMD_NAME}
               disabled={busy}
-              hint="how long it thinks"
+              hint={copy.chess.hint}
               dirty={thinkSims !== THINK_SIMS.default}
               onReset={() => {
                 setThinkSims(THINK_SIMS.default);
@@ -410,8 +408,8 @@ export function ChessPanel() {
                     setThinkSims(v);
                     setEcho(
                       sims === 0
-                        ? `--sims ${v} · applies when you let it think`
-                        : `--sims ${v} · applies to its next move`,
+                        ? `--sims ${v}${copy.chess.simsEchoWhenThink}`
+                        : `--sims ${v}${copy.chess.simsEchoNextMove}`,
                     );
                   },
                 },
@@ -437,32 +435,21 @@ export function ChessPanel() {
                         : "border-line text-muted hover:border-faint hover:text-ink"
                     }`}
                   >
-                    {v === "game" ? "game" : "what it saw"}
+                    {v === "game" ? v : copy.chess.viewSaw}
                   </button>
                 ))}
               </div>
             ) : null}
 
-            <h2 className="mt-6 mb-2 text-2xl tracking-tight">Energy-based modeling over board states</h2>
+            <h2 className="mt-6 mb-2 text-2xl tracking-tight">{copy.chess.heading}</h2>
             <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
-              A 469K-parameter convolutional energy-based model. It scores resulting
-              positions rather than proposing moves: every legal move is played out, the
-              whole batch is ranked in one forward pass, and the lowest-energy position
-              wins. Trained on ~30M positions from Lichess games where both players were
-              rated 1800+, then quantized to 553 KB for a Raspberry Pi Zero 2 W with a
-              3.5&quot; touchscreen. Strength is roughly 2000&ndash;2300 against
-              Stockfish&rsquo;s limited modes. Quantization cost about nothing. This is
-              that same int8 file, running in your browser.
+              {copy.chess.lede}
             </p>
 
             {acts && view === "activations" ? (
               <>
                 <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
-                  The model&rsquo;s evaluation, laid back onto the board, and computed on
-                  your device. This works here and not on the diffusion models for a
-                  structural reason: the chess backbone never downsamples below 8x8, so
-                  every layer stays registered to the squares and can be read as a
-                  position. A UNet&rsquo;s middle layers have no such luxury.
+                  {copy.chess.activationsLede}
                 </p>
                 <ChessActivations data={acts} />
               </>
@@ -491,21 +478,21 @@ export function ChessPanel() {
                   ) : flash ? (
                     <span className="text-indigo">{flash}</span>
                   ) : game.isCheck() ? (
-                    <span className="text-indigo">check</span>
+                    <span className="text-indigo">{copy.chess.check}</span>
                   ) : hint ? (
                     <>
-                      <span className="text-indigo">it would play {hint.san}</span> · p=
+                      <span className="text-indigo">{copy.chess.hintPlayPre}{hint.san}</span> · p=
                       {hint.prior.toFixed(3)} · v={hint.value.toFixed(2)}
                     </>
                   ) : showMap && lastReply ? (
                     <>
-                      <span className="text-teal">its move map</span> · where the engine
-                      wanted to go, brightest = most wanted
+                      <span className="text-teal">{copy.chess.mapCaption}</span>
+                      {copy.chess.mapCaptionTail}
                     </>
                   ) : selfPlay ? (
-                    <span className="text-teal">engine vs engine · it plays both sides</span>
+                    <span className="text-teal">{copy.chess.selfPlayCaption}</span>
                   ) : (
-                    "you are white · click a piece, then a square"
+                    copy.chess.boardCaptionIdle
                   )}
                 </p>
 
@@ -518,7 +505,7 @@ export function ChessPanel() {
                       : "border-line text-muted hover:border-faint hover:text-ink"
                   }`}
                 >
-                  move map
+                  {copy.chess.moveMap}
                 </button>
 
                 {/* The map is a move preference, not an activation. Saying "its
@@ -526,22 +513,22 @@ export function ChessPanel() {
                     shows internals. */}
                 <p className="mt-2 max-w-[296px] font-mono text-[11px] leading-relaxed text-faint">
                   {lastReply?.mode === "mcts"
-                    ? "Where the search actually spent its simulations, summed onto the square each move lands on."
-                    : "Its ranking of every legal reply, summed onto the square each one lands on. Free: it comes from the same pass that picked its move."}
+                    ? copy.chess.mapNoteMcts
+                    : copy.chess.mapNoteArgmin}
                 </p>
               </div>
 
               <div className="min-w-[220px] flex-1">
                 {pendingPromo ? (
                   <div className="mb-6">
-                    <span className="font-mono text-xs text-faint">promote to</span>
+                    <span className="font-mono text-xs text-faint">{copy.chess.promoteTo}</span>
                     <div className="mt-2 flex gap-2">
                       {PROMOTIONS.map((p) => (
                         <button
                           key={p}
                           onClick={() => play(pendingPromo.from, pendingPromo.to, p)}
                           className="flex size-10 items-center justify-center rounded border border-line text-[22px] text-ink transition-colors hover:border-teal hover:text-teal"
-                          aria-label={`promote to ${p}`}
+                          aria-label={`${copy.chess.promoteAria} ${p}`}
                         >
                           {PROMO_GLYPH[p]}
                         </button>
@@ -551,7 +538,7 @@ export function ChessPanel() {
                 ) : null}
 
                 <span className="font-mono text-xs text-faint">
-                  the engine&rsquo;s top 3
+                  {copy.chess.top3}
                 </span>
                 <div className="mt-2 min-h-[76px] font-mono text-[11px] leading-relaxed">
                   {lastReply ? (
@@ -571,7 +558,7 @@ export function ChessPanel() {
                     ))
                   ) : (
                     <span className="text-faint">
-                      {ready ? "make a move" : "loading the engine…"}
+                      {ready ? copy.chess.makeMove : copy.chess.loadingEngine}
                     </span>
                   )}
                 </div>
@@ -589,7 +576,7 @@ export function ChessPanel() {
                     between them. Applies to its move, your hint and self-play
                     alike, because they are all one call. */}
                 <div className="mt-6">
-                  <span className="font-mono text-xs text-faint">search</span>
+                  <span className="font-mono text-xs text-faint">{copy.chess.searchLabel}</span>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {SEARCH_MODES.map((d) => (
                       <button
@@ -610,14 +597,20 @@ export function ChessPanel() {
                   <p className="mt-2 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
                     {sims > 0 ? (
                       <>
-                        {sims} {mode.about} · about {aboutTime(sims)} a move. Set it with{" "}
-                        <span className="text-ink">--sims</span> above, {THINK_SIMS.min} to{" "}
-                        {THINK_SIMS.max}. The Pi runs {THINK_SIMS.max}.
+                        {sims} {mode.about} · about {aboutTime(sims)} a move.
+                        {copy.chess.searchNoteSetPre}
+                        <span className="text-ink">--sims</span>
+                        {copy.chess.searchNoteRange}
+                        {THINK_SIMS.min}
+                        {copy.chess.searchNoteTo}
+                        {THINK_SIMS.max}
+                        {copy.chess.searchNotePiRuns}
+                        {THINK_SIMS.max}.
                       </>
                     ) : (
                       <>
-                        {mode.about}. Below 250 simulations the search returns the same move
-                        as this, which is why --sims stops there rather than at 1.
+                        {mode.about}
+                        {copy.chess.searchNoteFloor}
                       </>
                     )}
                   </p>
@@ -631,7 +624,7 @@ export function ChessPanel() {
                     onClick={reset}
                     className="rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-faint hover:text-ink"
                   >
-                    new game
+                    {copy.chess.newGame}
                   </button>
                   <button
                     onClick={() => setSelfPlay((v) => !v)}
@@ -643,14 +636,14 @@ export function ChessPanel() {
                         : "border-line text-muted hover:border-faint hover:text-ink"
                     }`}
                   >
-                    {selfPlay ? "stop" : "engine vs engine"}
+                    {selfPlay ? copy.chess.stop : copy.chess.engineVsEngine}
                   </button>
                   <button
                     onClick={undo}
                     disabled={selfPlay || thinking || game.history().length < 2}
                     className="rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-faint hover:text-ink disabled:opacity-40"
                   >
-                    take back
+                    {copy.chess.takeBack}
                   </button>
                   {/* Only while it's actually your move: asking the engine what
                       you should play when it isn't your turn is a question about
@@ -667,25 +660,19 @@ export function ChessPanel() {
                     }
                     className="rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-indigo hover:text-indigo disabled:opacity-40"
                   >
-                    {hinting ? "thinking…" : "hint"}
+                    {hinting ? copy.chess.thinking : copy.chess.hintButton}
                   </button>
                 </div>
 
                 <p className="mt-4 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
-                  <span className="text-indigo">hint</span> asks what it would play from
-                  where you are sitting. It is the same call it makes for itself, at
-                  whatever the search is set to: the encoder always builds from the side
-                  to move, so your move and its move are one computation.
+                  <span className="text-indigo">{copy.chess.hintNote.word}</span>
+                  {copy.chess.hintNote.post}
                 </p>
 
                 <p className="mt-6 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
-                  At 1 ply it ranks every legal reply and plays the best, in one
-                  forward pass. <span className="text-teal">let it think</span>{" "}
-                  runs the Pi&rsquo;s actual search on top of those same numbers, in
-                  a worker, so the page keeps moving while it does. It is slower here
-                  than it has any right to be: the model is 469K parameters, and
-                  scoring one position costs ~6.6ms in WASM no matter how many
-                  threads you give it.
+                  {copy.chess.searchNote.pre}
+                  <span className="text-teal">{copy.chess.searchNote.letItThink}</span>
+                  {copy.chess.searchNote.post}
                 </p>
               </div>
             </div>

@@ -6,6 +6,7 @@
  * (24MB) back onto it, which is the entire thing the worker exists to avoid.
  * Types only, plus the difficulty table. Nothing here executes.
  */
+import { copy } from "@/content/copy";
 
 export type EngineBuild = "int8" | "fp32";
 
@@ -106,9 +107,11 @@ export type SearchMode = {
   about: string;
 };
 
+// Labels/about text live in content/copy.ts; id and sims are logic and stay here.
+// (The worker imports only TYPES from this module, so copy never reaches its bundle.)
 export const SEARCH_MODES: SearchMode[] = [
-  { id: "ply1", label: "1 ply", sims: 0, about: "one forward pass, ~150ms" },
-  { id: "think", label: "let it think", sims: 250, about: "simulations" },
+  { id: "ply1", label: copy.chess.search.ply1Label, sims: 0, about: copy.chess.search.ply1About },
+  { id: "think", label: copy.chess.search.thinkLabel, sims: 250, about: copy.chess.search.thinkAbout },
 ];
 
 /** 1 ply. A visitor must never land on a mode that takes a minute to answer. */

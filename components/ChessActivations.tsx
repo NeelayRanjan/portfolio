@@ -4,6 +4,9 @@ import { useMemo, useState } from "react";
 import { Chess } from "chess.js";
 import { ChessBoard } from "./ChessBoard";
 import type { ActivationSet } from "@/lib/chess-activations";
+import { copy } from "@/content/copy";
+
+const C = copy.chess.activations;
 
 /**
  * The interpretability view: the model's internals painted back onto the squares.
@@ -19,7 +22,7 @@ type Mode = "saliency" | "activation";
 
 /** Whose move it is, in words, so the board isn't ambiguous when it's Black's. */
 function toMoveLabel(fen: string): string {
-  return new Chess(fen).turn() === "w" ? "white to move" : "black to move";
+  return new Chess(fen).turn() === "w" ? C.toMoveWhite : C.toMoveBlack;
 }
 
 export function ChessActivations({ data }: { data: ActivationSet }) {
@@ -69,15 +72,15 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
           <ChessBoard fen={position.fen} overlay={overlay} />
           <p className="mt-4 max-w-[296px] font-mono text-[11px] leading-relaxed text-faint">
             <span className={mode === "saliency" ? "text-indigo" : "text-teal"}>
-              {mode === "saliency" ? "energy attribution" : `activation · ${layer}`}
-              {mode === "activation" && channel !== null ? ` · ch ${channel}` : ""}
+              {mode === "saliency" ? C.attribution : `${C.activationPrefix}${layer}`}
+              {mode === "activation" && channel !== null ? `${C.channelPrefix}${channel}` : ""}
             </span>
             {" · "}
             {toMoveLabel(position.fen)}
           </p>
           {hottest.length ? (
             <p className="mt-2 max-w-[296px] font-mono text-[11px] leading-relaxed text-faint">
-              hottest: <span className="text-ink">{hottest.join(" ")}</span>
+              {C.hottest} <span className="text-ink">{hottest.join(" ")}</span>
             </p>
           ) : null}
         </div>
@@ -98,7 +101,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
                     : "border-line text-muted hover:border-faint hover:text-ink"
                 }`}
               >
-                {m === "saliency" ? "energy attribution" : "layer activation"}
+                {m === "saliency" ? C.attribution : C.layerActivation}
               </button>
             ))}
           </div>
@@ -107,7 +110,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
             <div className="mb-6">
               {/* Driven by data.layers, never a hardcoded count. */}
               <label className="font-mono text-xs text-faint" htmlFor="depth">
-                depth · {layer} ({layerIndex + 1}/{data.layers.length})
+                {C.depthPrefix}{layer} ({layerIndex + 1}/{data.layers.length})
               </label>
               <input
                 id="depth"
@@ -122,14 +125,12 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
                 className="mt-2 w-full accent-teal"
               />
               <p className="mt-2 font-mono text-[11px] leading-relaxed text-faint">
-                shallow to deep. Early layers are local and edge-like; deep layers
-                concentrate onto the squares that decide the eval, and it all stays
-                board-aligned the whole way.
+                {C.shallowToDeep}
               </p>
 
               {channels.length ? (
                 <div className="mt-4">
-                  <span className="font-mono text-xs text-faint">top channels</span>
+                  <span className="font-mono text-xs text-faint">{C.topChannels}</span>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button
                       onClick={() => setChannel(null)}
@@ -140,7 +141,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
                           : "border-line text-muted hover:border-faint hover:text-ink"
                       }`}
                     >
-                      mean
+                      {C.mean}
                     </button>
                     {channels.map((c) => (
                       <button
@@ -159,18 +160,14 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
                   </div>
                   {/* Being straight about this reads as competence, not weakness. */}
                   <p className="mt-2 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
-                    Explore at your own risk: not every channel is human-interpretable.
-                    Plenty light up on nothing nameable. The mean map and the
-                    attribution view are the trustworthy ones.
+                    {C.channelCaveat}
                   </p>
                 </div>
               ) : null}
             </div>
           ) : (
             <p className="mb-6 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
-              The model outputs a single scalar energy. The gradient of that energy with
-              respect to the board says which squares most move its evaluation: the
-              hanging piece, the key defender, the passed pawn.
+              {C.saliencyBody}
             </p>
           )}
 
@@ -179,9 +176,9 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
               nonsense across positions. eval_white is the value head, comparable
               across positions, already sign-flipped to White. */}
           <p className="font-mono text-[11px] leading-relaxed text-faint">
-            value head: {position.eval_white > 0 ? "+" : ""}
-            {position.eval_white.toFixed(2)} for white
-            {Math.abs(position.eval_white) < 0.15 ? " · about level" : ""}
+            {C.valueHeadPre}{position.eval_white > 0 ? "+" : ""}
+            {position.eval_white.toFixed(2)}{C.valueHeadPost}
+            {Math.abs(position.eval_white) < 0.15 ? C.valueHeadLevel : ""}
           </p>
         </div>
       </div>
@@ -189,7 +186,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
       {/* The scenarios, given the room they deserve: the label is the teaching
           moment, not the id. */}
       <div className="mt-8">
-        <span className="font-mono text-xs text-faint">scenarios</span>
+        <span className="font-mono text-xs text-faint">{C.scenarios}</span>
         <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {data.positions.map((p, i) => {
             const active = p.id === position.id;

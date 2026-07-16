@@ -17,10 +17,11 @@ import {
   maskCount,
   type AsciiTrajSet,
 } from "@/lib/ascii-traj";
+import { copy } from "@/content/copy";
 
 type Mode = "pixel" | "ascii";
 
-const CMD_NAME = "./x0_diffusion";
+const CMD_NAME = copy.diffusion.cmd;
 /**
  * ⚠️ ONLY `--digit` IS LIVE HERE, AND THIS PANEL IS THE TRAP.
  *
@@ -38,12 +39,10 @@ const CMD_NAME = "./x0_diffusion";
  * interactive. A new export with multiple step counts is the only thing that
  * changes this ruling, and re-running that check is the only way to know.
  */
-const BOOT_CMD = "./x0_diffusion --digit 7 --steps 32 --schedule cosine";
-const BOOT_LINES = [
-  "resolving trajectory source /diffusion_traj.json",
-  "decoding 10 digits x 32 frames, 28x28 row-major",
-  "warming ascii ramp \" .:-=+*#%@\" -> ready",
-];
+// Command name from copy; the --flags stay inline (they're structural, and must
+// match what CommandLine renders — see copy.ts).
+const BOOT_CMD = `${copy.diffusion.cmd} --digit 7 --steps 32 --schedule cosine`;
+const BOOT_LINES = [...copy.diffusion.bootLines];
 
 /** Milliseconds per stored frame. Playback interpolates within this. */
 const STEP_MS = 190;
@@ -191,23 +190,23 @@ export function DiffusionVisualizer() {
     // Section owns the id and scroll offset; this ref only drives the lazy load.
     <div ref={rootRef}>
       <TerminalPanel
-        label={`${mode === "ascii" ? "ascii-diffusion" : "x0-diffusion"} --digit ${digit}`}
+        label={`${mode === "ascii" ? copy.diffusion.labelAscii : copy.diffusion.labelPixel} --digit ${digit}`}
         status={
           !booted
-            ? "booting"
+            ? copy.diffusion.statusBooting
             : total
               ? mode === "ascii" && asciiLines
                 ? `${asciiLines.masked}/${asciiLines.cells} masked · step ${shownStep}/${total}`
                 : `step ${String(shownStep).padStart(2, "0")}/${total}`
-              : "loading"
+              : copy.diffusion.statusLoading
         }
         notice={
           booted && isPlaceholder ? (
             <>
-              <span className="text-indigo">placeholder data</span>. These frames are
-              synthetic, not output from a trained model: a bitmap digit run through a
-              hand-rolled noising schedule, played backwards. Real trajectories drop into{" "}
-              <span className="text-muted">/diffusion_traj.json</span> unchanged.
+              <span className="text-indigo">{copy.diffusion.notice.tag}</span>
+              {copy.diffusion.notice.body}
+              <span className="text-muted">{copy.diffusion.notice.path}</span>
+              {copy.diffusion.notice.tail}
             </>
           ) : null
         }
@@ -237,7 +236,7 @@ export function DiffusionVisualizer() {
               ]}
               // NOT "edit any number": only --digit is live here, and the two
               // beside it are baked into the export.
-              hint="edit the digit"
+              hint={copy.diffusion.hint}
               dirty={digit !== "7"}
               onReset={() => pick("7")}
             />
@@ -252,32 +251,22 @@ export function DiffusionVisualizer() {
                 the two models actually have: pixel is Gaussian (continuous),
                 ascii is absorbing-state (discrete). Never repeat the anchor. */}
             <h2 className="mt-6 mb-2 text-2xl tracking-tight">
-              {mode === "ascii" ? "Discrete diffusion" : "Continuous diffusion"}
+              {mode === "ascii" ? copy.diffusion.headingDiscrete : copy.diffusion.headingContinuous}
             </h2>
             {mode === "ascii" ? (
               <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
-                A different model, and a different kind of corruption: masked cells
-                resolve into characters. It starts with every cell masked and commits
-                them one at a time, most-confident first. There is no noise anywhere in
-                it. Once a cell commits it&rsquo;s frozen and never re-predicted, so the
-                grid can only ever fill in, never flicker. On the left, what&rsquo;s
-                committed so far, mask holes and all. On the right, the model&rsquo;s
-                current guess for every cell, including the ones it hasn&rsquo;t
-                decided yet.
+                {copy.diffusion.ledeAscii}
               </p>
             ) : (
               <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
-                Noise sharpens into a digit, one step at a time. On the left, the noisy
-                state x_t resolving. On the right, the model&rsquo;s prediction of the
-                finished digit from that step. This model predicts the clean image
-                directly rather than the noise, which is why you get both at every step.
+                {copy.diffusion.ledePixel}
               </p>
             )}
           </>
         )}
 
         <div className={`mb-4 flex flex-wrap items-center gap-2 ${booted ? "" : "hidden"}`}>
-          <span className="mr-1 font-mono text-xs text-faint">model</span>
+          <span className="mr-1 font-mono text-xs text-faint">{copy.diffusion.modelLabel}</span>
           {(["pixel", "ascii"] as Mode[]).map((m) => {
             // ascii is gated on the file being present, not stubbed.
             const ready = m === "pixel" || ascii !== null;
@@ -291,7 +280,7 @@ export function DiffusionVisualizer() {
                 }}
                 disabled={!ready}
                 aria-pressed={m === mode}
-                title={ready ? undefined : "ascii_traj.json not present"}
+                title={ready ? undefined : copy.diffusion.asciiUnavailable}
                 className={`rounded border px-3 py-1.5 font-mono text-xs transition-colors ${
                   m === mode
                     ? "border-indigo text-indigo"
@@ -307,7 +296,7 @@ export function DiffusionVisualizer() {
         </div>
 
         <div className={`mb-6 flex flex-wrap items-center gap-2 ${booted ? "" : "hidden"}`}>
-          <span className="mr-1 font-mono text-xs text-faint">digit</span>
+          <span className="mr-1 font-mono text-xs text-faint">{copy.diffusion.digitLabel}</span>
           {DIGITS.map((d) => {
             const available =
               mode === "ascii" ? Boolean(ascii?.byDigit[d]) : !data || Boolean(data.byDigit[d]);
@@ -335,7 +324,7 @@ export function DiffusionVisualizer() {
             disabled={!frames}
             className="ml-auto rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-faint hover:text-ink disabled:opacity-40"
           >
-            {playing ? "pause" : "play"}
+            {playing ? copy.diffusion.pause : copy.diffusion.play}
           </button>
           <button
             onClick={() => {
@@ -345,21 +334,21 @@ export function DiffusionVisualizer() {
             disabled={!frames}
             className="rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-faint hover:text-ink disabled:opacity-40"
           >
-            replay
+            {copy.diffusion.replay}
           </button>
         </div>
 
         {!booted ? null : error ? (
           <p className="py-16 text-center font-mono text-xs text-indigo">
-            could not load trajectories: {error}
+            {copy.diffusion.errorPrefix}{error}
           </p>
         ) : missing ? (
           <p className="py-16 text-center font-mono text-xs text-faint">
-            no trajectory for digit {digit} in this dataset
+            {copy.diffusion.missingPre}{digit}{copy.diffusion.missingPost}
           </p>
         ) : !grids && !asciiLines ? (
           <p className="py-16 text-center font-mono text-xs text-faint">
-            loading trajectories…
+            {copy.diffusion.loadingTrajectories}
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -382,8 +371,8 @@ export function DiffusionVisualizer() {
                 />
               )}
               <figcaption className="text-center font-mono text-[11px] text-faint">
-                <span className="text-muted">x_t</span> ·{" "}
-                {mode === "ascii" ? "committed so far" : "noisy state"}
+                <span className="text-muted">{copy.diffusion.xtLabel}</span> ·{" "}
+                {mode === "ascii" ? copy.diffusion.xtCommitted : copy.diffusion.xtNoisy}
               </figcaption>
             </figure>
 
@@ -404,8 +393,8 @@ export function DiffusionVisualizer() {
                 />
               )}
               <figcaption className="text-center font-mono text-[11px] text-faint">
-                <span className="text-teal">x̂₀</span> ·{" "}
-                {mode === "ascii" ? "current guess" : "predicted sample"}
+                <span className="text-teal">{copy.diffusion.x0Label}</span> ·{" "}
+                {mode === "ascii" ? copy.diffusion.x0Guess : copy.diffusion.x0Predicted}
               </figcaption>
             </figure>
           </div>
@@ -417,7 +406,7 @@ export function DiffusionVisualizer() {
           aria-valuemin={0}
           aria-valuemax={total || 1}
           aria-valuenow={shownStep}
-          aria-label="Reverse diffusion progress"
+          aria-label={copy.diffusion.progressAria}
         >
           <div
             className="h-px bg-teal"

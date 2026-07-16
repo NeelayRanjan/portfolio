@@ -1,6 +1,6 @@
 "use client";
 
-import { PROFILE } from "@/content/profile";
+import { copy } from "@/content/copy";
 import { HeroBoot } from "@/components/ambience/HeroBoot";
 
 /**
@@ -15,7 +15,7 @@ export function EnergyHero() {
   return (
     <header className="relative border-b border-line">
       {/* The swarm is decoration; this is what screen readers and crawlers get. */}
-      <h1 className="sr-only">{PROFILE.name}</h1>
+      <h1 className="sr-only">{copy.hero.name}</h1>
 
       {/* Station 0. Empty by design: the Swarm canvas paints the nameplate into
           this box. Sizing and placement come from the box, so it lives in the
@@ -55,36 +55,35 @@ export function EnergyHero() {
         <HeroBoot />
 
         <p className="font-mono text-[11px] tracking-[2px] text-faint">
-          {PROFILE.subtext}
+          {copy.hero.subtext}
         </p>
 
         <p className="mt-4 max-w-2xl font-mono text-[11px] leading-relaxed text-faint">
-          Illustrative Langevin simulation. The name is the ground state of an energy
-          landscape carved from its own letterforms: particles descend into the wells
-          and settle. Thermal kicks knock them{" "}
-          <span className="text-indigo">out</span>; they re-anneal{" "}
-          <span className="text-teal">back in</span>. Drag to pick up a cluster.
-          Hand-built landscape, not a trained model.
+          {copy.hero.caption.a}{" "}
+          <span className="text-indigo">{copy.hero.caption.out}</span>
+          {copy.hero.caption.b}{" "}
+          <span className="text-teal">{copy.hero.caption.backIn}</span>
+          {copy.hero.caption.c}
         </p>
 
         <p className="mt-6 max-w-[54ch] leading-relaxed text-muted">
-          {PROFILE.affiliation}
+          {copy.hero.affiliation}
         </p>
 
         <nav className="mt-8 flex flex-wrap gap-x-6 gap-y-2 font-mono text-sm">
           {/* Only rendered once PROFILE.resumeUrl is set, so an unset link never
               ships as a dead one. Externally hosted on purpose — see profile.ts. */}
-          {PROFILE.resumeUrl ? (
+          {copy.hero.links.resumeUrl ? (
             <a
-              href={PROFILE.resumeUrl}
+              href={copy.hero.links.resumeUrl}
               target="_blank"
               rel="noreferrer"
               className="text-indigo underline-offset-4 transition-colors hover:text-teal hover:underline"
             >
-              Resume
+              {copy.hero.resumeLabel}
             </a>
           ) : null}
-          {PROFILE.links.map((link) => (
+          {copy.hero.links.items.map((link) => (
             <a
               key={link.label}
               href={link.href}

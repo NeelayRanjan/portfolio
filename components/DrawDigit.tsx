@@ -93,6 +93,28 @@ const PAPER = "#080a12";
  */
 const PREPROCESS_OPTS = { inkIsHigh: true } as const;
 
+/**
+ * Label scores -> 0..1, where 1 is the best fit.
+ *
+ * The raw numbers are reconstruction MSE: LOWER is better, and they arrive on no
+ * fixed scale (they depend on how much ink you drew), so an absolute threshold
+ * would be meaningless. Min-max within the run is the honest normalisation: it
+ * says "best and worst of these ten", which is exactly the comparison the
+ * classifier makes. It also means one label is always 1.0 and one is always 0 —
+ * this ranks, it does not score confidence. `margin` is what carries confidence.
+ */
+function fitness(scores: number[]): number[] {
+  const lo = Math.min(...scores);
+  const hi = Math.max(...scores);
+  const span = hi - lo;
+  if (!Number.isFinite(span) || span === 0) return scores.map(() => 0);
+  return scores.map((s) => 1 - (s - lo) / span);
+}
+
+/** Alpha ceiling for a label's tint. Above ~0.3 the winning cell reads as
+ *  "selected" and starts fighting the picker's real selected state. */
+const FIT_ALPHA = 0.28;
+
 export function DrawDigit() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
@@ -110,6 +132,16 @@ export function DrawDigit() {
   const digit = params.digit;
   /** The echo under the boot log: proof the number you typed did something. */
   const [echo, setEcho] = useState<string | null>(null);
+  /**
+   * Reconstruction error per label, 0-9, and how decisive the winner was.
+   *
+   * The classifier has always computed these — ten forward passes on every
+   * pen-up — and the panel used to keep the argmin and bin the rest. They're the
+   * only real evidence for the `auto` chip, so the picker paints them: without
+   * this, "the model guessed 7" is a claim you have to take on faith on a page
+   * whose whole argument is that you shouldn't have to.
+   */
+  const [fit, setFit] = useState<{ scores: number[]; margin: number } | null>(null);
   const [model, setModel] = useState<AsciiDiffusion | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadErr, setLoadErr] = useState<string | null>(null);
@@ -134,6 +166,26 @@ export function DrawDigit() {
     ctx.fillStyle = PAPER;
     ctx.fillRect(0, 0, w, h);
   }, []);
+
+  /**
+   * Classify once the weights land.
+   *
+   * ⚠️ Without this, a digit drawn in ONE stroke never gets a guess at all. The
+   * first stroke is what starts the 26MB download, and the classify it schedules
+   * 450ms later runs while `model` is still null and bails out silently. Every
+   * later stroke works, which is exactly why this hid for so long: the moment you
+   * test with a two-stroke digit, or draw again, it looks fine.
+   *
+   * Keyed on `model` alone, so it fires on the null -> loaded transition and not
+   * on every stroke. `hasInk` is guaranteed true here — the ink is what triggered
+   * the load in the first place.
+   */
+  useEffect(() => {
+    if (!model || !hasInk) return;
+    const t = window.setTimeout(() => void autoPick(), 50);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model]);
 
   useEffect(() => {
     if (!booted) return;
@@ -243,7 +295,14 @@ export function DrawDigit() {
     if (!canvas || !model || running || classifying) return;
     setClassifying(true);
     try {
-      const { digit: guess } = await classifyDrawing(model, canvas, modelSpace(model, canvas));
+      const { digit: guess, scores, margin } = await classifyDrawing(
+        model,
+        canvas,
+        modelSpace(model, canvas),
+      );
+      // Kept whatever the picker does with the guess: the scores describe the
+      // DRAWING, so they stay true after a hand-pick overrides the label.
+      setFit({ scores, margin });
       // Re-check: they may have picked by hand while this was running.
       setParams((p) => (autoLabelRef.current ? { ...p, digit: guess } : p));
     } catch {
@@ -260,6 +319,7 @@ export function DrawDigit() {
     clearTo(ctx, canvas.getBoundingClientRect().width, canvas.getBoundingClientRect().height);
     setHasInk(false);
     setFrame(null);
+    setFit(null); // the scores describe a drawing that no longer exists
     setAutoLabel(true); // fresh drawing, guess again
     window.clearTimeout(classifyTimer.current);
   };
@@ -304,6 +364,9 @@ export function DrawDigit() {
     },
     [model, running, params, modelSpace],
   );
+
+  /** The ten label scores, ranked 0..1. Null until a classify has run. */
+  const fits = fit ? fitness(fit.scores) : null;
 
   /** A run to redo: something already ran, there's ink, and the model is here. */
   const canRerun = Boolean(frame && hasInk && model && !running);
@@ -467,6 +530,53 @@ export function DrawDigit() {
                   )}
                 </figcaption>
               </figure>
+
+              {/*
+               * x̂₀ — what the model thinks the finished digit is, at this step.
+               *
+               * ⚠️ This does NOT contradict "render xt, not x0" (see this file's
+               * header and CLAUDE.md §2b). That ruling is about which to show when
+               * there is only ONE panel: x0 alone hides the dissolve, because
+               * during the forward half it is just the drawing held still. With
+               * both panels up, that stillness becomes the point — x̂₀ sits frozen
+               * for the whole dissolve and starts moving the instant the denoise
+               * begins, which is the model switching on, visibly. §2 shows the
+               * same pair for the same reason.
+               */}
+              <figure>
+                <div className="flex aspect-square w-[280px] max-w-full items-center justify-center rounded border border-line">
+                  {frame ? (
+                    <AsciiLines
+                      lines={frame.ascii.x0}
+                      // Indigo while it's inert, teal once it's really predicting.
+                      // Same two colours the rest of the page uses for the same
+                      // distinction; no third tint.
+                      tint={frame.phase === "dissolve" ? "indigo" : "teal"}
+                      fontSize={13}
+                      lineHeight={1}
+                      letterSpacing="0"
+                      label={`the model's guess at the finished digit, step ${frame.step + 1} of ${frame.total}`}
+                    />
+                  ) : (
+                    <span className="px-6 text-center font-mono text-[11px] leading-relaxed text-faint">
+                      the model&rsquo;s guess appears here
+                    </span>
+                  )}
+                </div>
+                <figcaption className="mt-4 w-[280px] max-w-full font-mono text-[11px] leading-relaxed text-faint">
+                  {frame ? (
+                    <>
+                      <span className="text-ink">x̂₀</span> · its guess at the finished
+                      digit
+                      {frame.phase === "dissolve"
+                        ? " · held still, nothing has run yet"
+                        : " · re-predicted every step"}
+                    </>
+                  ) : (
+                    "x̂₀ · its guess, updated at every step"
+                  )}
+                </figcaption>
+              </figure>
             </div>
 
             <div className="mt-6 flex flex-wrap items-center gap-2">
@@ -480,25 +590,45 @@ export function DrawDigit() {
                   <span className="ml-2 text-indigo">· yours</span>
                 )}
               </span>
-              {DIGITS.map((d) => (
-                <button
-                  key={d}
-                  onClick={() => {
-                    setAutoLabel(false); // their pick wins from here
-                    // Same path as editing --digit in the command line: the two
-                    // are one control shown twice and must not drift apart.
-                    commitParam("digit", "--digit", d);
-                  }}
-                  aria-pressed={d === digit}
-                  className={`size-8 rounded border font-mono text-sm transition-colors ${
-                    d === digit
-                      ? "border-teal text-teal"
-                      : "border-line text-muted hover:border-faint hover:text-ink"
-                  }`}
-                >
-                  {d}
-                </button>
-              ))}
+              {DIGITS.map((d) => {
+                // Real model output, not decoration: how well label d explains
+                // the strokes, relative to the other nine.
+                const f = fits ? fits[d] : null;
+                return (
+                  <button
+                    key={d}
+                    onClick={() => {
+                      setAutoLabel(false); // their pick wins from here
+                      // Same path as editing --digit in the command line: the two
+                      // are one control shown twice and must not drift apart.
+                      commitParam("digit", "--digit", d);
+                    }}
+                    aria-pressed={d === digit}
+                    // ⚠️ The tint is NOT the only carrier of this information.
+                    // Colour alone would put the whole classifier behind seeing
+                    // it, so the fit goes in the accessible name too.
+                    aria-label={
+                      f === null ? `${d}` : `${d}, fits your drawing ${Math.round(f * 100)}%`
+                    }
+                    className={`relative size-8 rounded border font-mono text-sm transition-colors ${
+                      d === digit
+                        ? "border-teal text-teal"
+                        : "border-line text-muted hover:border-faint hover:text-ink"
+                    }`}
+                    // Teal, because on this page teal already means "the model's
+                    // own read". Backgrounds only: the border stays the picker's,
+                    // so the model's opinion and your choice never contest the
+                    // same pixels.
+                    style={
+                      f !== null
+                        ? { background: `rgba(93, 202, 165, ${(f * FIT_ALPHA).toFixed(3)})` }
+                        : undefined
+                    }
+                  >
+                    {d}
+                  </button>
+                );
+              })}
 
               <button
                 onClick={clear}
@@ -523,10 +653,25 @@ export function DrawDigit() {
               The model is class-conditional, so it needs a label. That guess comes
               from the diffusion model itself: it predicts the finished digit under all
               ten labels from identical noise, and whichever best explains your strokes
-              wins. No second model. It&rsquo;s a suggestion, so override it if it&rsquo;s
-              wrong. Worth trying anyway: draw a 7 and ask for a{" "}
-              <span className="text-indigo">4</span>. You can watch conditioning fight
-              your drawing.
+              wins. No second model.{" "}
+              {fit ? (
+                <>
+                  The <span className="text-teal">teal</span> behind each label is that
+                  score, so you can see the ranking it actually produced rather than
+                  take the winner on faith. This one was{" "}
+                  <span className="text-ink">
+                    {fit.margin < 0.1
+                      ? "close to a coin flip"
+                      : fit.margin < 0.25
+                        ? "a near thing"
+                        : "not close"}
+                  </span>
+                  .{" "}
+                </>
+              ) : null}
+              It&rsquo;s a suggestion, so override it if it&rsquo;s wrong. Worth trying
+              anyway: draw a 7 and ask for a <span className="text-indigo">4</span>. You
+              can watch conditioning fight your drawing.
             </p>
 
           </>

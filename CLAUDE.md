@@ -788,9 +788,41 @@ phases and `step` numbers continuously across both (10 + 20 = 30):
   exists purely so the drawing is watched coming apart instead of cutting to static.
 - **denoise** — the model actually running, one forward per step.
 
-**Render `ascii.xt`, not `ascii.x0`.** `xt` tells the whole story in one panel: drawing →
-static → digit. `x0` during the dissolve is just the drawing held still, so rendering it
-hides the dissolve completely.
+**Render `ascii.xt`, not `ascii.x0` — IF YOU ONLY HAVE ONE PANEL.** `xt` tells the whole
+story on its own: drawing → static → digit. `x0` alone hides the dissolve completely,
+because during the forward half it is just the drawing held still.
+
+**Amended 2026-07-15: there are now three columns, and x̂₀ is the third.** With both up,
+that stillness stops being a bug and becomes the point — x̂₀ sits frozen for the entire
+dissolve and starts moving the instant the denoise begins, which is the model switching on,
+visibly. It costs nothing (every frame already carries it) and it fills a panel that had
+342px of dead space to the right of two 280px canvases. §2 shows the same pair for the same
+reason. Tint: indigo while inert, teal once it is really predicting; no third colour.
+
+**The label picker paints the classifier's actual scores.** `classifyDrawing` always
+returned `scores[10]` and `margin`; the panel used to keep the argmin and bin the rest. Each
+0-9 button now carries a teal background at `fitness(scores)` × `FIT_ALPHA` (0.28).
+- **Min-max within the run is the honest normalisation.** The raw numbers are
+  reconstruction MSE, lower-is-better, on no fixed scale (they depend on how much ink you
+  drew), so an absolute threshold would mean nothing. The consequence is that one label is
+  always 1.0 and one always 0: **this ranks, it does not score confidence.** `margin` is
+  what carries confidence, and it drives the caption's "close to a coin flip" / "not close".
+- **⚠️ The tint is not the only carrier.** Colour alone would put the whole classifier
+  behind seeing it, so the fit goes in each button's `aria-label` too.
+- Backgrounds only — the border stays the picker's selected state, so the model's opinion
+  and your choice never contest the same pixels. `FIT_ALPHA` above ~0.3 makes the winner
+  read as "selected" and starts that fight.
+- Cleared with the canvas: scores describe a drawing that no longer exists.
+- Verified in-browser, and this is the proof it isn't decoration: a single vertical stroke
+  ranks `1:100% 0:0%`; a loop ranks `6:100% 9:88% 0:44% 1:0%`. Two drawings, inverted
+  rankings. (It picks 6 over 0 on a crude loop — approximate by construction, which is what
+  the picker is for.)
+
+**⚠️ A one-stroke digit never got a guess at all, and it hid for months.** The first stroke
+is what starts the 26MB download, so the classify it schedules 450ms later runs while
+`model` is still null and bails out silently. Every *later* stroke worked, which is exactly
+why nobody noticed: test with a two-stroke digit and it looks perfect. Fixed with an effect
+keyed on `model` alone, firing on the null → loaded transition.
 
 **Auto-label: the classifier suggests, the picker decides**  *(`lib/classify.ts`)*
 The model is class-conditional and can't infer the label. The handoff said "don't add a

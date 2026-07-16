@@ -81,6 +81,10 @@ export function BootScreen() {
   const [draft, setDraft] = useState(DEFAULT_USER);
   /** A ref, not state: the clock reads it every tick and must not re-subscribe. */
   const held = useRef(false);
+  /** Same reason. Set by a skip so the clock stops rather than ticking on into a
+   *  component that is already fading out. */
+  const stopped = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Reduced motion skips the whole thing. The CSS hides it too, so there is no
@@ -100,6 +104,7 @@ export function BootScreen() {
     let last = performance.now();
     let acc = 0;
     const tick = () => {
+      if (stopped.current) return; // skipped
       const now = performance.now();
       const dt = now - last;
       last = now;
@@ -107,6 +112,7 @@ export function BootScreen() {
       if (!held.current) acc += dt;
       setElapsed(acc);
       if (acc >= T_DONE) {
+        stopped.current = true;
         setDone(true);
         return;
       }
@@ -119,6 +125,41 @@ export function BootScreen() {
       html.style.overflow = "";
     };
   }, []);
+
+  /**
+   * Any key or click skips to the page.
+   *
+   * The catch is that the one thing worth staying for lives ON this screen, so a
+   * naive "any keypress" would fire on the first letter of your own name. Four
+   * exemptions, all of them real:
+   *   - typing while the username has focus (that IS the feature)
+   *   - clicking the username (that's how you reach it)
+   *   - Tab, or the boot vanishes the instant a keyboard user reaches for it
+   *   - Ctrl/Cmd/Alt combos, which are the browser's, not ours
+   */
+  useEffect(() => {
+    if (done) return;
+    const skip = () => {
+      stopped.current = true;
+      setDone(true);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === "Tab" || e.key === "Shift") return;
+      if (document.activeElement === inputRef.current) return;
+      skip();
+    };
+    const onPointer = (e: PointerEvent) => {
+      if (e.target === inputRef.current) return;
+      skip();
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onPointer);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onPointer);
+    };
+  }, [done]);
 
   useEffect(() => {
     if (!done) return;
@@ -180,6 +221,7 @@ export function BootScreen() {
                   dashed rule is the entire affordance — invisible in passing,
                   obvious if you are reading this line. */}
               <input
+                ref={inputRef}
                 value={draft}
                 onChange={(e) => {
                   const v = cleanUser(e.target.value);

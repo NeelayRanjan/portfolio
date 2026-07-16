@@ -20,9 +20,12 @@ Everything hides behind a clean seam so a retrained model drops in without touch
 - Deploy target: Vercel (zero-config; custom domain `neelayranjan.dev`)
 - Keep dependencies minimal. No component libraries. The only runtime deps beyond
   Next/React are `chess.js` (all chess rules — never hand-roll them) and
-  `onnxruntime-web` (every model on the page). `playwright` is a devDependency, used
-  to verify canvas work: "HTTP 200" proves nothing about whether particles resolved
-  into a name or a model returned a digit.
+  `onnxruntime-web` (every model on the page). `playwright` is a devDependency with two
+  jobs: verifying canvas work ("HTTP 200" proves nothing about whether particles resolved
+  into a name or a model returned a digit), and **rendering committed artifacts**
+  (`gen-icons.mjs`, `gen-og.mjs` — see Model artifacts). Only Firefox is installed
+  locally, which matters: Playwright's Firefox doesn't implement
+  `screenshot({omitBackground})`, so the icon script rasterizes via canvas `toDataURL`.
 
 **Turbopack has served stale CSS at least once**, for hours, silently: an edit to
 `globals.css` never compiled and the browser kept the old rule, which made a correct
@@ -33,8 +36,8 @@ served chunk (`curl` the `/_next/static/chunks/*.css` URL) before doubting the c
 ## Aesthetic — "latent space"
 
 - Near-black background: `#080a12`. One indigo accent (`#8f88dd`) and one teal accent (`#5dcaa5`). Clean sans type, generous whitespace.
-- The hero is the migrating particle swarm (see §1) — the one deliberately loud
-  element. Everything below it stays quiet.
+- The hero is the particle swarm (see §1) — the one deliberately loud element.
+  Everything below it stays quiet.
 - Two type weights only (400 / 500). Sentence case everywhere. No gradients, no drop shadows, no glow.
   (The swarm rasterizes its text masks bold purely to give the sampler more ink — no
   bold type is ever displayed, so the two-weight rule holds.)
@@ -95,36 +98,95 @@ Build two reusable primitives first, before any section:
 ## Page ambience
 
 Keeps the page from being flat-black below the hero while staying CALM so content
-leads. **Motion lives in the swarm (§1) and the interactive demos, and nowhere else.**
+leads. **Motion lives in the swarm (§1), the CharField, and the interactive demos, and
+nowhere else.**
 
-> **Amended 2026-07-15, deliberately.** This section used to say "never add a second
-> animated full-page background." The migrating swarm IS one: a fixed, full-viewport
-> canvas that runs the whole time you're on the page and cannot use the off-screen
-> pause everything else does. That was an explicit owner decision to trade some of the
-> calm-below-the-hero property for the swarm following you down the page. It is the
-> ONE exception. Don't read it as licence for a second one.
+> **The full-page-background rule, as it actually stands.** This section once said
+> "never add a second animated full-page background", then was amended when the swarm
+> migrated down the page. Both are now history: the swarm is **hero-only** (see §1), and
+> the ONE full-page animated layer is the CharField, which was built to that budget on
+> purpose (~10fps, capped patches, tab-hidden stops it). One layer, and it is that one.
+> Anything else full-page and moving needs a reason this file doesn't have yet.
 
-**1. Base layer** (`app/globals.css`, on `body`) — static dot-grid, near-zero cost:
+**1. Base layer** (`app/globals.css`, **on `html`, NOT on `body`**) — static dot-grid,
+near-zero cost:
 ```css
-background-image: radial-gradient(rgba(159,225,203,0.05) 1px, transparent 1px);
-background-size: 22px 22px;
+html { background-color: var(--color-base);
+       background-image: radial-gradient(rgba(159,225,203,0.05) 1px, transparent 1px);
+       background-size: 22px 22px; }
+body { background: transparent; }
 ```
-Reads "engineering graph paper," not empty void.
+Reads "engineering graph paper," not empty void. **The `html`/`body` split is
+load-bearing, not stylistic**: the swarm canvas and the CharField are fixed negative-z
+children of `body`, so they paint above html's background but below anything `body`
+paints. Give `body` a background (or `bg-base` on the body element) and both layers
+vanish while their code keeps happily rendering to itself. See the stacking traps in
+Sections §1 (Hero).
 
-**2. Diffusion-timestep rail** (`components/ambience/TimestepRail.tsx`) — a thin fixed
-line in the left margin. Top = `x_T · t=1000`, bottom = `x̂₀ · t=0`; a tick and a
-mono label track scroll and count the timestep *down*. Conceit: the whole page is one
-reverse-diffusion pass, noise at the hero to resolved at the footer.
+**2. The CharField** (`components/ambience/CharField.tsx`) — a faint full-page monospace
+texture that mostly sits still, with small patches scrambling to noise and resolving
+back. It's the settled-sample-that-re-samples-itself idea, and it's what gives back "the
+page resolves as you move" now that the swarm stays in the hero.
+- **Budget is the point, and it's why the swarm stopped migrating.** ~10fps on a
+  `setTimeout` (NOT a 60fps rAF), a hard cap on live patches (4, or 3 on small screens),
+  nothing at all while the tab is hidden, fewer cells and a slower cadence under 640px,
+  and reduced-motion paints the settled field once and never touches it again. **If you
+  make this smoother you have missed why it exists.**
+- Patches spawn on an idle timer, under the cursor (throttled; desktop-only in practice,
+  since touch fires no `pointermove`), and where a section scrolls in — the last one is
+  what makes it work on a phone.
+- Ramp `" .·:-=+*"`, the same glyphs the diffusion demos resolve through. Noise adds
+  `/\|_`, which carry no intensity but make a live patch read as flow, not static.
+- Paint budget: the settled field is pre-joined once per resize and only rows a patch
+  touches get rebuilt. Idle is a single cached-string assignment. Written via
+  `textContent`, never React state.
+- **Tint: indigo `rgba(143,136,221,0.18)`.** The alpha is 0.18 where the older teal sat
+  at 0.15, and that is NOT a density change — it holds density constant. Against #080a12
+  indigo carries ~82% of teal's relative luminance, so reusing 0.15 would have quietly
+  made the field fainter than the one tuned by eye. Measured full-viewport, floor
+  subtracted: teal 0.15 = 0.340, indigo 0.18 = 0.338 (-0.6%), indigo 0.15 = 0.261 (-23%).
+  **Retint again and you rescale the alpha by luminance and re-measure. Don't copy the
+  number across.**
+- **⚠️ Cell metrics come from a hidden DOM probe + `ResizeObserver`, and that is not
+  overthinking it.** Two bugs live here, both silent. (a) Measuring via canvas
+  `ctx.measureText` is wrong: next/font ships the family as a CSS variable, and an
+  invalid `ctx.font` assignment is *ignored* rather than thrown, so it silently keeps
+  `10px sans-serif`. (b) The effect can run before the browser applies its own styles —
+  measured in Firefox, `pre.style.fontSize` read back `9px` while `getComputedStyle` said
+  `16px`, giving 9.6px/char instead of 5.4px, so the field spanned **135 columns instead
+  of 239** and stopped 57% across the viewport with a hard vertical edge, forever.
+  `document.fonts.ready` does NOT fix it (fonts were already loaded in failing runs;
+  fonts were never the problem). The observer fires when the advance actually changes,
+  whatever the cause: late styles, a webfont swap, or page zoom.
+- Mounted twice on purpose for the duration of the boot: the page's copy is buried under
+  the boot screen's opaque `bg-base`, so `BootScreen` renders its own inside the overlay.
+  The base pattern is deterministic, so there is nothing to match up when it unmounts.
+
+**3. Scroll spine** (`components/ambience/ScrollSpine.tsx`) — a thin fixed line in the
+left margin with a tick tracking scroll position.
+- **It used to be the "diffusion-timestep rail"**, labelled `x_T · t=1000` at the top and
+  `x̂₀ · t=0` at the footer, on the conceit that the page was one reverse-diffusion pass.
+  **The labels are gone and should stay gone.** That conceit belonged to the migrating
+  swarm. The CharField does re-diffuse, but only *locally* — a patch scrambles wherever a
+  section arrives. It is not a monotonic denoise from hero to footer, so a countdown would
+  be claiming something the page doesn't do. The spine stayed; it's now just a readout of
+  how far down you are.
 - Driven by `scrollY / scrollable height`, never a timer.
-- Line `--color-rail` (rgba(93,202,165,0.14)); tick indigo; endpoint labels
-  `--color-rail-label` (#3f8f78); current-t label indigo.
+- Line `--color-rail` (rgba(93,202,165,0.14)); tick indigo.
 - Writes through refs in a rAF-coalesced scroll handler — a `setState` per scroll
   event would re-render the page tree 60x/sec to move a 1px line.
 - Hidden below `xl`, where there's no margin to live in.
 - The tick tracks scroll 1:1 with **no easing**, so it has no motion of its own to
   disable under reduced-motion — it's a readout, like a scrollbar.
 
-**3. Per-section accents** — contained, static, faint. NOT full-section backgrounds.
+**4. Section labels** (`components/ambience/ResolveText.tsx`, via `Section`'s `label`) —
+the big teal mono marker in the open gap above each panel, resolving out of the ASCII
+ramp on scroll-in. **One-shot, then static**, which is what keeps it in the scroll-reveal
+category instead of becoming a second thing that never stops. Server-renders the real
+text and only scrambles on the client; `aria-hidden`, because it echoes the panel's real
+`<h2>` and must not be announced twice. Reduced-motion skips the scramble entirely.
+
+**5. Per-section accents** — contained, static, faint. NOT full-section backgrounds.
 - `DenoiseGlyph` — **removed 2026-07-15, don't rebuild it.** It was six rows of
   `" .·:-=+*"` resolving noise→structure in each section's top-right corner. The
   CharField now does exactly that — same ramp, whole page, re-diffusing as you scroll —
@@ -132,23 +194,24 @@ reverse-diffusion pass, noise at the hero to resolved at the footer.
   read as a smudge sitting on top of it. Retinting would have hidden it inside the field
   it duplicated. The field is the accent now. (`glyphSeed` went with it.)
 - Node-graph watermark behind the multi-agent/consensus section — **not built yet**,
-  that section doesn't exist. Wire it in with the section.
+  that section doesn't exist. Wire it in with the section. `Section` already takes a
+  `watermark` prop for exactly this.
 - Board-grid watermark behind the chess section — **not built yet**, same reason.
 
-**4. Scroll reveals** (`components/ambience/Reveal.tsx`) — opacity + ~12px translateY
+**6. Scroll reveals** (`components/ambience/Reveal.tsx`) — opacity + ~12px translateY
 over ~500ms via IntersectionObserver, one-way (never re-hides). The hidden state lives
 in CSS (`.reveal`), so the server renders final markup and JS only flips
 `data-shown`. A `<noscript>` override in `layout.tsx` un-hides everything if JS never
 runs — otherwise the whole page is blank without it.
 
-**5. Film grain** — one fixed `body::after` layer of static SVG turbulence
+**7. Film grain** — one fixed `body::after` layer of static SVG turbulence
 (desaturated, opacity 0.035, `pointer-events: none`). Rasterized once by the browser
 and composited thereafter; no animation, so nothing to disable under reduced-motion.
 
 **Accessibility / performance.** Under `prefers-reduced-motion`: reveals show
-outright, and nothing else animates by construction — the dot-grid, rail, accents and
-grain all stay. Every accent is `aria-hidden`, non-focusable, and carries no text a
-screen reader needs.
+outright, labels don't scramble, the CharField paints once, and nothing else animates by
+construction — the dot-grid, spine, accents and grain all stay. Every accent is
+`aria-hidden`, non-focusable, and carries no text a screen reader needs.
 
 ## Terminal boot sequence
 
@@ -157,11 +220,20 @@ few lines of output, then reveals the demo — `components/ambience/BootLog.tsx`
 (`useBootSequence` hook + `BootLog` view).
 
 The section's heading and lede fold *inside* the panel, after the boot log, rather
-than sitting above it. `Section` renders `title`/`lede` only for prose sections.
+than sitting above it. `Section` renders `title`/`lede` only for prose sections; terminal
+sections pass neither, and pass `label` instead for the big resolving marker in the gap
+above the panel (Page ambience §4).
 
 It is not just theatre — **the demo mounts only once `done` flips**, so each section's
-heavy work (the 231KB trajectory JSON, chess.js, a model) starts when its panel is
+heavy work (the 3.0MB trajectory JSON, chess.js, a model) starts when its panel is
 reached rather than all at once on load.
+
+The panel's own command label is `components/ambience/TerminalLabel.tsx`: a blinking
+cursor, plus a rare re-type of the label's **last token only** (every 9-20s, staggered
+per panel, under a third of a second). Scrambling the command name would look like the
+panel broke; scrambling a flag looks like it's re-reading its config. Panels never fire
+in unison — several headers twitching together reads as a glitch. Reduced-motion gets
+neither the blink nor the retype.
 
 Under `prefers-reduced-motion` the typing is skipped and the boot resolves instantly —
 but **still gated on IntersectionObserver**. The deferral is a loading strategy, not an
@@ -170,7 +242,7 @@ animation; reduced-motion users must not eat every section's payload up front.
 ### The boot screen  *(`components/ambience/BootScreen.tsx`)*
 
 The page ssh's into itself before it loads. Full-viewport, opaque, above the nameplate,
-page blank behind it, ~2.5s + a 420ms fade, once per fresh load:
+page blank behind it, ~2.0s + a 420ms fade (~2.45s to gone), once per fresh load:
 
 ```
 root@latent:~$ ssh neelay@neelayranjan.dev
@@ -188,8 +260,10 @@ The editable part is the ssh **username**, which is the conceit: you connect as 
 and the machine takes your word for it. It's swapped in as an `<input>` once the line
 finishes typing, rather than typed into: you can't type into an input character by
 character on a timer without fighting the caret. `connected · latent` is output, so it
-prints whole and costs no time, only its dwell. Typing is 40ms/char, the fast end of the
-brief's 40-70, because the ssh line is long and the whole thing has to land in ~2.5s.
+prints whole and costs no time, only its dwell. **Typing is 30ms/char**, below the brief's
+40-70 and by request: the ssh line is 27 characters, and at 40 it read as watching someone
+hunt for keys rather than a machine connecting. Much faster and the username stops being
+noticeable at all, which is the one thing on this screen worth finding.
 
 **It's the overlay that is decoration, not the page.** The whole site is server-rendered
 underneath and merely covered, so crawlers and no-JS get the content directly. That is
@@ -205,6 +279,16 @@ load-bearing in three places, and all three are easy to break:
 The clock accumulates only while the username is unfocused, so **focusing it pauses the
 boot** rather than racing it. Nothing else stalls it. Scroll is locked while it runs (a
 stray wheel event would scroll the hidden page and show when the overlay lifts).
+
+**Any key or click skips it** (~456ms to gone: the fade, nothing else). The trap is that
+the one thing worth staying for lives ON this screen, so a naive "any keypress" fires on
+the first letter of your own name. Four exemptions, all real, all tested: typing while
+the username has focus; clicking the username; `Tab`, or the boot vanishes the instant a
+keyboard user reaches for the field; and Ctrl/Cmd/Alt combos, which belong to the
+browser. A skip still runs the normal `done` path, so it releases the swarm too — never
+short-circuit past `markBooted()`. Known and accepted: the overlay is server-rendered, so
+a key pressed in the ~300ms before hydration does nothing. Fixing that needs inline
+script, and the sequence isn't running yet anyway.
 
 **The name  *(`lib/identity.ts`)*.** Change who you connect as and every prompt on the
 page follows — this one and every section panel's boot log. That's why the name is a
@@ -229,7 +313,7 @@ reintroduce a second prompt in the hero.
 
 ### The boot beat is also the preload window  *(`lib/warm.ts`, `HeroBoot.tsx`)*
 
-The boot screen gives ~2.5s of cover, and `warmBackground()` spends it. The two are
+The boot screen gives ~2s of cover, and `warmBackground()` spends it. The two are
 **parallel and share nothing**: the warm never waits on the typing, the typing never
 waits on the warm. `HeroBoot` owns it (it also flips `data-tab-hidden` on `<html>`
 so cursors park when you leave the tab — there's no CSS query for tab visibility).
@@ -265,31 +349,104 @@ ready a second sooner isn't. Every loader is a memoized promise, so the section'
 call later returns *that* promise instead of downloading again — which is also why the
 warm calls the real loaders rather than raw-fetching the same URLs.
 
+### Editable terminal params — the rule, and the per-demo ruling  *(NOT BUILT)*
+
+The idea: make the numbers in each panel's command line editable so a visitor can change
+a param and watch the demo re-run with it. **Designed and ruled on; no code written yet.**
+
+**THE RULE, which outranks the appeal of the feature: a param is editable only if changing
+it produces a real, corresponding change. When in doubt, display-only.** A number that
+changes nothing is worse than a number you can't touch — it's the illusion breaking in
+the visitor's hands, on a page whose whole claim is that the demos are real. This is the
+same principle as "never fake a model's output", applied to a control instead of a canvas.
+
+Per demo, ruled against what the code and data can actually honour today:
+
+| command (`BOOT_CMD`) | live-editable | display-only, and why |
+|---|---|---|
+| `./sdedit --strength 0.6 --steps 20 --dissolve 10` (§2b) | **all three, plus `--guidance` and `--digit`** | — |
+| `./x0_diffusion --digit 7 --steps 32 --schedule cosine` (§2) | `--digit` only | **`--steps` and `--schedule` are BAKED.** ⚠️ |
+| `./entropy_chess --model int8 --mode argmin` (§4) | nothing | no `--sims` to offer: MCTS isn't built |
+| `./sample_space --target two-moons --compare ddpm,flow` (§3) | cosmetic only | illustrative; must not imply a model re-ran |
+
+- **§2b `sdedit` is the hero of the feature.** `generate()` in `lib/ascii-diffusion.js`
+  genuinely takes `strength`, `steps`, `guidance`, `dissolve` and `digit`, and streams
+  frames as it computes, so every one of them produces a visibly different run. Ranges:
+  strength 0-1 step 0.05, steps int ~5-40, guidance ~0-5, digit 0-9. Mind trap 1 — the
+  panel passes `x0Init`, not a bare canvas, and that must survive any re-run path.
+- **⚠️ §2 `x0_diffusion` IS THE TRAP.** It plays a **precomputed** trajectory: the frames
+  are baked into `diffusion_traj.json` and there is no model to re-run. **Verified against
+  the file: the distinct frame count across all 10 digits is `[32]` — exactly one step
+  count exists** (same for `ascii_traj.json`). So the "snap to the nearest precomputed
+  value" option has nothing to snap to, and `--steps` and `--schedule` stay display-only.
+  `--digit` is genuinely live, because all 10 digits are in the file. **Do not let
+  `--steps` look interactive here.** Re-run that check before changing this ruling; a new
+  export with multiple step counts is the only thing that changes it.
+- **§4 `--sims` is display-only until MCTS ships**, and it isn't in the command line at
+  all today. It only becomes editable when the search actually runs in a Web Worker (see
+  §4's NOT BUILT note). Adding a `--sims` box over a 1-ply argmin would be a control
+  wired to nothing.
+- **§3 may change the animation** but must not imply weights re-ran. It's labelled
+  illustrative and that label has to keep being true.
+
+**UX, when it's built:** an inline `<input>` that disappears into the command line (same
+mono font, colour and size; no border or background until focused), `inputmode="numeric"`,
+commit on Enter or blur, then re-run with a brief echo line (`re-running --steps 16…`).
+Clamp HARD — reject or snap out-of-range rather than passing it through. Debounce, and
+disable the inputs while a run is in flight. A subtle per-command reset-to-default.
+Reduced-motion still allows editing; it just skips the flourish. The identity input in the
+boot screen (`BootScreen.tsx`) is the closest existing pattern for the invisible-until-
+focused treatment.
+
 ## Sections (single scrolling page)
 
-### 1. Hero — migrating particle swarm  *(`components/ambience/Swarm.tsx`)*
+### 1. Hero — particle swarm  *(`components/ambience/Swarm.tsx`)*
 One fixed, full-viewport canvas behind the page content. Particles do Langevin descent
-into wells carved from whatever text the ACTIVE station declares, and re-target as you
-scroll: the nameplate at the top, then each section's label in the open gap above its
-panel. `components/EnergyHero.tsx` is now only markup — the real `<h1>`, the sub-text,
-the caption and the links. It owns no sim.
+into wells carved from whatever text the ACTIVE station declares.
+`components/EnergyHero.tsx` is now only markup — the real `<h1>`, the sub-text, the
+caption and the links. It owns no sim.
 
-**Stations are declared in the DOM, not hardcoded.** Any element with `data-swarm` is a
-station; its text is the attractor and its box drives placement and font size. Layout
-owns where, Swarm owns physics. `Section` renders one via its `swarmLabel` prop.
+**TODAY THERE IS EXACTLY ONE STATION: the hero nameplate.** Section labels down the page
+were built, shipped, and then removed. A swarm that re-forms all the way down is a
+full-page canvas that never stops moving, which reads as noise on a phone; the CharField
+covers that ground far more cheaply (see Page ambience §2). The gap above each panel now
+gets `ResolveText` instead — real text that resolves out of noise once and then sits
+still.
+
+**That is what buys back the off-screen pause.** With the swarm confined to the hero, an
+IntersectionObserver stops the loop once no station is on screen, so scrolling the rest of
+the page costs nothing and the last frame is cleared rather than stranded mid-air. A
+migrating swarm structurally could not do this — the canvas IS the viewport. **This
+file used to record the opposite as a deliberate trade. That amendment is dead; don't
+resurrect it.**
+
+**The multi-station machinery stays** because it costs nothing and it's the seam: adding
+any element with `data-swarm` brings stations back. Declared in the DOM, not hardcoded —
+its text is the attractor and its box drives placement and font size. Layout owns where,
+Swarm owns physics.
 - `data-swarm="NEELAY|RANJAN"` — `|` splits lines
 - `data-swarm-align="left|center"`, `data-swarm-frac` — text width as a fraction of the box
+- `data-swarm-frac` is the DESKTOP fraction; it ramps up by `NARROW_FRAC_BOOST` (0.2) as
+  the viewport narrows to 640px. Without that the nameplate is unreadably small on a
+  phone — the pre-Swarm hero did this, it got lost in the move, and it had to come back.
 
-**WHY THE GAPS, NOT THE HEADINGS.** The obvious idea is to assemble each section's
-`<h2>`. It cannot work: the h2s live inside `TerminalPanel`, which is opaque
-(`bg-panel`), and the canvas is behind the content. A station on a heading is invisible.
-Stations go in open background. Don't "fix" this without also making panels translucent.
+**IF STATIONS EVER RETURN: use the gaps, not the headings.** The obvious idea is to
+assemble each section's `<h2>`. It cannot work: the h2s live inside `TerminalPanel`,
+which is opaque (`bg-panel`), and the canvas is behind the content. A station on a
+heading is invisible. Stations go in open background. Don't "fix" this without also
+making panels translucent.
 
 **Two stacking traps, both of which silently blank the swarm:**
 - The canvas is `fixed ... -z-10`, which paints ABOVE html's background but BELOW any
   background `body` paints. **`body` must stay transparent** — the base colour and
   dot-grid live on `html`. Put a background back on `body` (or `bg-base` on the body
   element) and the swarm vanishes while the canvas keeps happily rendering to itself.
+  **This blanks the CharField (`-z-20`) with it** — the whole back-to-front order is
+  `html` background → CharField (-z-20) → swarm (-z-10) → content → grain (`body::after`,
+  z-60), and it only holds while `body` paints nothing. (One exception, and it's why the
+  boot screen can carry its own field: `z-50` makes the overlay a stacking context, so a
+  negative-z child inside it paints above the overlay's own background but below its
+  lines, rather than escaping to the back of the page.)
 - The canvas is `pointer-events: none` and drag is handled on `document`, bailing on
   `section, a, button, input, textarea, select`. A full-viewport canvas that ate clicks
   would break every link and control on the page.
@@ -328,18 +485,21 @@ a 144Hz one races.
   on its outline. At 0.02 it loses to the `T=0.22` noise floor: the nameplate reads as
   fuzz and small labels are illegible outright.
 
-**Migration.** On a station change, `transit` flips: a plain capped spring pulls
-particles across the page, with the energy gradient and noise switched OFF (both are
-meaningless that far from the box and just smear the trip). Normal Langevin resumes once
-they land.
-
-**Panel avoidance.** Panels are opaque, so a swarm crossing one disappears for the length
-of the trip. `data-swarm-avoid` on `TerminalPanel` marks the obstacle; particles get
-shoved **horizontally** out to the gutter. Horizontal, NOT toward the nearest edge: a
-panel is far wider than it is tall, so "nearest edge" is usually the top, which shoves a
-descending swarm back where it came from and stalls it. Gated on gutter width — under
-~44px of margin there's nowhere to route to, so it switches off rather than flinging
-particles off-screen.
+**Migration and panel avoidance — both DORMANT at one station.** Neither fires today
+(nothing to migrate to, and the hero has no panel over it). They're the other half of the
+station seam, kept for the same reason and documented so a future station doesn't
+rediscover them the hard way:
+- **Migration.** On a station change, `transit` flips: a plain capped spring pulls
+  particles across the page, with the energy gradient and noise switched OFF (both are
+  meaningless that far from the box and just smear the trip). Normal Langevin resumes
+  once they land.
+- **Panel avoidance.** Panels are opaque, so a swarm crossing one disappears for the
+  length of the trip. `data-swarm-avoid` on `TerminalPanel` marks the obstacle; particles
+  get shoved **horizontally** out to the gutter. Horizontal, NOT toward the nearest edge:
+  a panel is far wider than it is tall, so "nearest edge" is usually the top, which
+  shoves a descending swarm back where it came from and stalls it. Gated on gutter width
+  — under ~44px of margin there's nowhere to route to, so it switches off rather than
+  flinging particles off-screen.
 
 **Disturbances.**
 - **Thermal kicks** (~2.8–4.6s): a random home becomes the centre of a ~46–66px disc;
@@ -358,8 +518,9 @@ particles off-screen.
 **Requirements.**
 - A real, visually-hidden `<h1>Neelay Ranjan</h1>`; the canvas is `aria-hidden`. The drag
   conveys nothing essential, so this holds.
-- No off-screen pause is possible (the canvas IS the viewport); tab-hide is the only
-  free win and is taken.
+- **Pauses off-screen** (IntersectionObserver on the stations, `80px` rootMargin) and on
+  tab-hide. Both are taken. The canvas stays mounted — it's fixed and full-viewport;
+  only the sim halts.
 - `prefers-reduced-motion`: no sim, no kicks, no drag. Draws the resolved outline of the
   active station and redraws it on scroll — a fixed nameplate that followed the reader
   down the page would be worse than the motion.
@@ -370,9 +531,11 @@ current state) and `x̂₀` (the model's guess at the finished digit). Layout, s
 playback and digit picker are identical across modes — only the cell renderer and the
 copy differ, which is why it's one component. **Default pixel**; ascii is opt-in.
 
-Both trajectory files are REAL, trained output. There is no placeholder any more, and
-`scripts/gen-placeholder-traj.mjs` has been deleted: it wrote to the same path as the
-real export and running it would have destroyed 3MB of trained data.
+Both trajectory files are REAL, trained output. There is no placeholder any more, and the
+generator that used to write one is **deleted, deliberately**: it wrote to the same path
+as the real export, so running it would have destroyed 3MB of trained data. Don't add a
+placeholder generator back. If a trajectory file is missing, gate on its absence and say
+so (see the §2b history and the Constraints recap).
 
 **The two models corrupt differently, and the copy must say so.**
 - **pixel** (`/diffusion_traj.json`, 3.0MB, 6.47M params): Gaussian diffusion. Starts
@@ -539,6 +702,16 @@ the expected result for the mover in [-1,1]. Currently **1-ply argmin** (~130-20
 
 **chess.js owns every rule.** Never hand-roll chess logic.
 
+**The pieces.** `lib/chess-engine.ts` owns loading and the 1-ply pick (`loadChessEngine()`
+is a memoized promise — it's what the preload window warms). `components/ChessBoard.tsx`
+is the renderer, **shared by the game and the interpretability view**: square geometry,
+the FEN parse and the glyphs live there exactly once, and the overlay is a prop on THAT
+board rather than a second board. Two constraints that live in it: both colours use the
+SOLID glyph set (the outline set renders at a different weight in most monospace fonts,
+so a mixed set makes one side look faded — colour carries the side), and overlay alpha
+caps at 0.6, above which the pieces stop being readable and the point of reading the map
+*on* the position is lost.
+
 **The encoder** (`lib/chess-encode.ts`) is a port of `training/encoding.py` and must match
 it EXACTLY — a wrong transform gives legal-but-terrible moves, not an error.
 - Perspective = whoever is to move BEFORE the candidate move.
@@ -590,6 +763,36 @@ proof it really is running white's perspective and not black's.
 - Carries the 1-ply caveat like the rest of the panel. It is what the model would play,
   not what's best.
 
+**The interpretability view**  *(`components/ChessActivations.tsx`, `lib/chess-activations.ts`,
+`public/chess_activations.json`, 43KB)*
+The model's internals painted back onto the squares. **A mode on the same board as the
+game, not a second board.** Two overlays: `energy attribution` (which squares move the
+eval, indigo) and `layer activation` (mean magnitude per square, teal), with a depth
+slider over 7 layers (`conv_in`, `res_1`..`res_6`) and a top-channel drill-down where the
+export has one (today `res_5` and `res_6`). It names the hottest squares in words, because
+the section's whole claim is that they're the squares a human would name too.
+
+- **WHY THIS MODEL AND NOT THE DIFFUSION ONES.** The chess backbone is full-resolution:
+  it never downsamples below 8x8 until the last layer, so every layer's activations stay
+  registered to the squares and can be laid straight onto them. The diffusion UNets
+  downsample to 7x7/4x4, so their mid-layers go spatially abstract. **Don't try this
+  there.**
+- **The curated scenarios ARE the feature.** 8 positions, each with a label written by
+  whoever generated the export and asserted against python-chess (the fork really forks,
+  Ra8 really is mate). One is from the author's own loss to the engine. Lead with them.
+  Default is `fork_f7`, not startpos: it's the best first impression.
+- **Precomputed, and NOT live — for a concrete reason.** The shipped `chess-int8.onnx`
+  exposes only `["energy","value"]`. Live extraction needs a re-export marking the
+  intermediate layers as extra outputs. The renderer takes 8x8 float arrays and does not
+  care where they came from, so going live is a new loader and nothing else. **Keep it
+  that way.**
+- **Gated on the file's absence**, per the site's central rule: `loadChessActivations()`
+  resolves `null` when the file isn't there and the toggle simply doesn't render. A
+  plausible fake heatmap would teach the wrong thing about what the model sees.
+- **READ `grid` and `layers` from the file; never hardcode the layer count.** The loader
+  guards `version` and asserts `grid * grid === saliency.length` — a mismatch there is a
+  silent off-by-N that lands every overlay on the wrong squares.
+
 **Copy — accurate claims only.** "roughly 2000–2300" or "master-ish vs Stockfish's limited
 modes". **Never claim 2300+ flat**: rung labels compress. Source of truth is
 `entropy-chess/docs/2026-07-15-elo-ladder.md` (~2000 conservative / ~2330 ±41 nominal,
@@ -606,8 +809,14 @@ Difficulty = sims (casual 40 / club 120 / strong 250 / max 400).
 blocks the main thread for seconds. Measure before picking a default.
 
 ### 5. Research
-Clean cards for publications and projects. Leave well-structured placeholder cards;
-real content (paper titles, NASA/Regenstrief bullets, links) pasted in later.
+Clean cards for publications and projects. **Not built — the section does not exist in
+`app/page.tsx` at all.** (This file previously implied a stub was in place; there isn't
+one.) `Section` already supports it: pass `title`/`lede` for a prose section and it
+renders them above the content, which is exactly the path terminal sections skip.
+
+Real content (paper titles, NASA/Regenstrief bullets, links) comes from
+`content/resume-notes.md`. Three of four publications are "in preparation" — decide how
+to present unpublished work before building the cards, not after.
 
 ### 6. Live preview: multi-agent robustness
 A small `TerminalPanel` animating a committee of agent nodes reaching — or failing to
@@ -617,19 +826,43 @@ multi-agent systems fail under adversarial pressure," not a how-to.
 
 ## Model artifacts and the ONNX runtime
 
-Everything in `public/` that isn't code. All of it is git-tracked and ships to Vercel.
+Everything in `public/` and `app/` that isn't code. All of it is git-tracked and ships to
+Vercel.
 
 | path | size | what |
 |---|---|---|
 | `public/diffusion_traj.json` | 3.0 MB | pixel trajectories, 10 digits x 32 frames |
 | `public/ascii_traj.json` | 586 KB | discrete/mask trajectories, same shape |
+| `public/chess_activations.json` | 43 KB | precomputed saliency + layer activations, 8 curated positions |
 | `public/models/mnist_x0.onnx` | 26 MB | the pixel model, for live draw-a-digit |
 | `public/models/chess-int8.onnx` | 553 KB | the chess EBM (the Pi's artifact) |
 | `public/models/chess-fp32.onnx` | 1.8 MB | chess fallback |
 | `public/ort/*` | ~37 MB | onnxruntime-web's wasm, vendored |
+| `public/og.png` | 508 KB | the share card, `scripts/gen-og.mjs` |
+| `app/icon.svg` | 1.1 KB | **the favicon's source of truth** |
+| `app/icon.png` / `apple-icon.png` / `favicon.ico` | ~5.5 KB | derived, `scripts/gen-icons.mjs` |
 | `lib/ascii-diffusion.js` | 12 KB | the model module, vendored |
 
-**~68MB of binaries live in git history.** Worth a Git LFS decision; flagged, not decided.
+**~70MB of binaries live in git history.** Worth a Git LFS decision; flagged, not decided.
+
+**The two generator scripts are hand-run, and must NOT be wired to `prebuild` the way
+`sync-ort.mjs` is.** Both need a Playwright browser binary, which Vercel's build image
+doesn't have — wiring either one would take the whole deploy down to regenerate files
+that only change when their source does. Their outputs are committed artifacts. Run them
+by hand, commit the result.
+- **`scripts/gen-icons.mjs`** rasterizes `app/icon.svg` → `app/icon.png` (32), 
+  `app/apple-icon.png` (180), `app/favicon.ico` (16+32). Edit the SVG and re-run rather
+  than hand-editing four files that then drift. Next serves these by file convention
+  (`app/icon.*`, `app/apple-icon.*`, `app/favicon.ico`) and emits the `<link>` tags
+  itself — there is no `metadata.icons` config, and adding one would fight the
+  convention. The dark tile is baked into the mark on purpose so it reads on light
+  browser themes; don't make it transparent. ICO is hand-encoded (PNG-in-ICO) since
+  Playwright can't write one.
+- **`scripts/gen-og.mjs`** screenshots the **live hero** at 1200x630 @2x — a real frame
+  of the settled swarm, not a mockup. Needs a dev server on :3000, waits 7s for the
+  anneal, and hides the Next dev overlay first (it would otherwise ship in the card).
+  `metadataBase` in `layout.tsx` is required or the relative `/og.png` never resolves and
+  the card unfurls with no image.
 
 **`scripts/sync-ort.mjs`** copies ORT's wasm into `public/ort/`, wired to `predev` and
 `prebuild`. Not a one-off copy: the binary is version-locked to the JS, so bumping
@@ -676,23 +909,39 @@ measured numbers rather than the handoff's.
 
 ## State — what's built, what's left
 
-**Built and verified:** scaffold + theme + `TerminalPanel`/`AsciiGrid`; the migrating
-swarm (§1); the trajectory viewer in both modes on real trained data (§2); live
-draw-a-digit with the real ONNX + zero-shot auto-label (§2b); sample-space (§3); the
-chess engine at 1-ply on the real int8 build (§4); page ambience, terminal boot,
-scroll reveals, timestep rail.
+**Built and verified:** scaffold + theme + `TerminalPanel`/`AsciiGrid`; the hero swarm
+(§1); the trajectory viewer in both modes on real trained data (§2); live draw-a-digit
+with the real ONNX + zero-shot auto-label (§2b); sample-space (§3); the chess engine at
+1-ply on the real int8 build, with `hint` and the precomputed interpretability view (§4);
+page ambience (CharField, scroll spine, resolving labels, reveals, grain); the terminal
+boot sequence, the ssh boot screen + editable identity, and the preload window; favicon
+set and OG card.
+
+**The page is four sections today** (`app/page.tsx`): `#diffusion`, `#draw`, `#chess`,
+`#sample-space`. §5 and §6 do not exist.
 
 **Left, roughly in order:**
 1. **Chess MCTS in a Web Worker** + difficulty selector (§4). The single biggest
-   remaining win: 1-ply is where most of the strength isn't.
-2. **§5 Research** — cards exist as a stub; needs real content from
-   `content/resume-notes.md`. Three of four publications are "in preparation"; decide
-   how to present unpublished work.
+   remaining win: 1-ply is where most of the strength isn't. It's also the gate on a
+   live-editable `--sims` (see Editable terminal params below).
+2. **§5 Research** — not built at all. Needs real content from `content/resume-notes.md`.
 3. **§6 multi-agent robustness** — not started. Its node-graph watermark and the chess
-   board-grid watermark (see Page ambience §3) land with their sections.
+   board-grid watermark (see Page ambience §5) land with their sections.
 4. **README** — how to run, how to deploy, and where the model artifacts come from.
-5. **Git LFS decision** for ~68MB of binaries.
-6. **`content/profile.ts` links** are real; the resume PDF stays out of `public/`.
+5. **Git LFS decision** for ~70MB of binaries.
+6. **Nothing is committed or pushed yet**, and the repo must stay **Private**:
+   `content/resume-notes.md` holds a GPA, clearance eligibility and three unpublished
+   paper titles. Recommendation on the table is to drop it from the repo entirely.
+7. **Live chess activations** — a re-export exposing intermediate layers would turn the
+   interpretability view live; the renderer is already source-agnostic (§4).
+
+**The resume is a link, not a file.** `PROFILE.resumeUrl` points at a Google Doc
+`/preview` URL, deliberately not `public/`: the doc changes often, and an external URL
+means updating it needs no commit and no redeploy. Left empty, the hero link simply isn't
+rendered, so no dead link ever ships. Use `/preview`, **not** the `/edit?usp=sharing&ouid=…`
+URL Drive hands you: `ouid` is the owner's account id and does nothing for a visitor,
+`/edit` opens the editing chrome for a read-only viewer, and `/export?format=pdf` sends
+`Content-Disposition: attachment` so it downloads a file instead of showing anything.
 
 ## Constraints recap
 
@@ -707,7 +956,9 @@ scroll reveals, timestep rail.
   contradicted a reasonable guess (int8 is not faster; classification wants MORE noise;
   the asyncify build, not jsep). "HTTP 200" proves nothing about a canvas — screenshot it.
 - Performant on mobile above all — no heavy WebGL, lazy-load everything heavy, pause
-  off-screen where possible (the swarm is the one thing that can't).
+  off-screen where possible. **Everything animated pauses now**: the swarm on its
+  stations leaving the viewport, the demos on theirs, the CharField on tab-hide (it's
+  full-page, so off-screen is meaningless, and it's built to a ~10fps budget instead).
 - Illustrative pieces must be labeled as illustrative. §1 and §3 are hand-built; §2,
   §2b and §4 are real trained models. Don't blur that line in copy.
 - All physics runs on a dt-scaled clock (`k = dt / 16.67`) so it behaves the same at 30,

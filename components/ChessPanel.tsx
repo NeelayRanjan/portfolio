@@ -485,7 +485,7 @@ export function ChessPanel() {
                   }
                 />
 
-                <p className="mt-3 w-[296px] font-mono text-[11px] leading-relaxed text-faint">
+                <p className="mt-3 max-w-[296px] font-mono text-[11px] leading-relaxed text-faint">
                   {outcome ? (
                     <span className="text-teal">{outcome}</span>
                   ) : flash ? (
@@ -524,7 +524,7 @@ export function ChessPanel() {
                 {/* The map is a move preference, not an activation. Saying "its
                     ranking" keeps it distinct from the "what it saw" view, which
                     shows internals. */}
-                <p className="mt-2 w-[296px] font-mono text-[11px] leading-relaxed text-faint">
+                <p className="mt-2 max-w-[296px] font-mono text-[11px] leading-relaxed text-faint">
                   {lastReply?.mode === "mcts"
                     ? "Where the search actually spent its simulations, summed onto the square each move lands on."
                     : "Its ranking of every legal reply, summed onto the square each one lands on. Free: it comes from the same pass that picked its move."}
@@ -623,7 +623,10 @@ export function ChessPanel() {
                   </p>
                 </div>
 
-                <div className="mt-6 flex gap-2">
+                {/* flex-wrap: four buttons don't fit one row on a 320px phone,
+                    and the panel is overflow-hidden, so `hint` was cut off the
+                    right edge rather than wrapping under. */}
+                <div className="mt-6 flex flex-wrap gap-2">
                   <button
                     onClick={reset}
                     className="rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-faint hover:text-ink"

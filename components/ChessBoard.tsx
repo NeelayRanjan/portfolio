@@ -45,7 +45,7 @@ export function ChessBoard({
   selected,
   targets,
   onSquare,
-  size = 296,
+  maxSize = 296,
 }: {
   fen: string;
   overlay?: Overlay | null;
@@ -53,36 +53,57 @@ export function ChessBoard({
   targets?: Set<string>;
   /** Omit to render a static board (activation mode passes nothing). */
   onSquare?: (square: Square) => void;
-  size?: number;
+  /** Board width CAP, not a fixed width. It shrinks below this to fit. */
+  maxSize?: number;
 }) {
   const board = useMemo(() => new Chess(fen).board(), [fen]);
   const interactive = Boolean(onSquare);
-  /** Squares are aspect-square, so one is exactly an eighth of the width. The
-   *  coordinate labels track that rather than guessing. Named cellPx, not cell:
-   *  the board map below binds `cell` to a piece and would shadow it. */
-  const cellPx = size / 8;
 
   return (
-    <div className="flex select-none gap-1.5">
+    /**
+     * ⚠️ FLUID, AND IT HAS TO BE. This used to be a hard `width: 296px` with the
+     * labels sized by hand off `size / 8`. 296 plus the rank gutter is ~314px,
+     * which is wider than the panel on a 320px phone — and TerminalPanel is
+     * `overflow-hidden`, so the h-file was silently cut off rather than scrolled
+     * to. Measured: the panel overflowed by 53px with no way to reach the rest.
+     *
+     * One grid does the whole job and deletes the pixel math. The board is
+     * `1fr` of what's left, its cells are aspect-square, so its height follows
+     * its width for free. Row 1's height is therefore the board's, and the rank
+     * column stretches into it and splits it 8 ways — always aligned, at any
+     * width, because nothing is computed. The files sit in row 2 under the board
+     * only, which is what the empty row-2 cell is for.
+     */
+    <div
+      className="grid w-full select-none gap-x-1.5"
+      style={{
+        gridTemplateColumns: "auto minmax(0, 1fr)",
+        // The cap lands the board at ~296px wherever there's room, so this is
+        // identical to the old layout on anything but a narrow phone.
+        maxWidth: maxSize + 18,
+      }}
+    >
       {/* Ranks, 8 down to 1. aria-hidden: every square already carries its own
           coordinate in aria-label, so a screen reader gets this without the
           decoration. */}
-      <div aria-hidden="true" className="flex flex-col">
+      <div
+        aria-hidden="true"
+        className="grid"
+        style={{ gridTemplateRows: "repeat(8, minmax(0, 1fr))" }}
+      >
         {RANKS.map((r) => (
           <span
             key={r}
             className="flex items-center justify-end font-mono text-[9px] text-faint"
-            style={{ height: cellPx }}
           >
             {r}
           </span>
         ))}
       </div>
 
-      <div>
     <div
       className="grid border border-line font-mono"
-      style={{ gridTemplateColumns: "repeat(8, minmax(0, 1fr))", width: size }}
+      style={{ gridTemplateColumns: "repeat(8, minmax(0, 1fr))" }}
     >
       {board.map((row, r) =>
         row.map((cell, f) => {
@@ -133,18 +154,22 @@ export function ChessBoard({
       )}
     </div>
 
-        {/* Files, a to h, aligned to the columns above. */}
-        <div aria-hidden="true" className="flex" style={{ width: size }}>
-          {FILES.map((f) => (
-            <span
-              key={f}
-              className="text-center font-mono text-[9px] text-faint"
-              style={{ width: cellPx }}
-            >
-              {f}
-            </span>
-          ))}
-        </div>
+      {/* Row 2, column 1: empty. It keeps the files under the board rather than
+          under the rank gutter. */}
+      <div />
+
+      {/* Files, a to h. Same 8-column track as the board above, so they line up
+          by construction instead of by arithmetic. */}
+      <div
+        aria-hidden="true"
+        className="grid"
+        style={{ gridTemplateColumns: "repeat(8, minmax(0, 1fr))" }}
+      >
+        {FILES.map((f) => (
+          <span key={f} className="text-center font-mono text-[9px] text-faint">
+            {f}
+          </span>
+        ))}
       </div>
     </div>
   );

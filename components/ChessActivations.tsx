@@ -67,7 +67,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
       <div className="flex flex-wrap items-start gap-8">
         <div>
           <ChessBoard fen={position.fen} overlay={overlay} />
-          <p className="mt-3 w-[296px] font-mono text-[11px] leading-relaxed text-faint">
+          <p className="mt-3 max-w-[296px] font-mono text-[11px] leading-relaxed text-faint">
             <span className={mode === "saliency" ? "text-indigo" : "text-teal"}>
               {mode === "saliency" ? "energy attribution" : `activation · ${layer}`}
               {mode === "activation" && channel !== null ? ` · ch ${channel}` : ""}
@@ -76,7 +76,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
             {toMoveLabel(position.fen)}
           </p>
           {hottest.length ? (
-            <p className="mt-2 w-[296px] font-mono text-[11px] leading-relaxed text-faint">
+            <p className="mt-2 max-w-[296px] font-mono text-[11px] leading-relaxed text-faint">
               hottest: <span className="text-ink">{hottest.join(" ")}</span>
             </p>
           ) : null}

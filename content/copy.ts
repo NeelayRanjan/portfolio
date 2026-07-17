@@ -64,6 +64,26 @@ export const copy = {
       backIn: "back in",
       c: ". Drag to pick up a cluster. Hand-built simulation, not a trained model.",
     },
+    /**
+     * A small blurb under the links: the models are real, mine, and live.
+     * Fragments so "running live in your browser" is teal-emphasized (it's the
+     * claim, and teal = live/affirmative here): pre + <teal>live</teal> + mid.
+     *
+     * ⚠️ Two accuracy guards, both load-bearing on a site that won't blur real
+     * vs illustrative:
+     *   - Scoped to "models I trained." The last panel (sample-space) is a
+     *     hand-built illustration, not a model, so it's never claimed as live.
+     *   - The first-demo reason is the UP-FRONT DOWNLOAD, not model capability.
+     *     Draw-a-digit runs the same pixel model live, so "can't run it in the
+     *     browser" would be false. The real cost is loading it the moment you
+     *     arrive: the ~26 MB model plus the ~24 MB ONNX runtime the later demos
+     *     share, so ~50 MB is the honest first-time figure.
+     */
+    realNote: {
+      pre: "These are real models I trained myself, ",
+      live: "running live in your browser",
+      mid: ". The first demo is the exception: a model this size would mean a 50 MB download the moment you arrive, before anything moved, so it replays real frames I exported instead.",
+    },
     /** The Resume link label. Its URL lives in `links.resumeUrl` below. */
     resumeLabel: "Resume",
     links: {

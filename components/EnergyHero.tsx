@@ -96,6 +96,15 @@ export function EnergyHero() {
             </a>
           ))}
         </nav>
+
+        {/* Sans, because it's the author speaking (human prose), not a machine
+            readout. Scoped to "models I trained" so it never claims the
+            illustrative sample-space panel is a live model — see copy.ts. */}
+        <p className="mt-8 max-w-[54ch] text-sm leading-relaxed text-muted">
+          {copy.hero.realNote.pre}
+          <span className="text-teal">{copy.hero.realNote.live}</span>
+          {copy.hero.realNote.mid}
+        </p>
       </div>
     </header>
   );

@@ -58,11 +58,11 @@ export const copy = {
      * " " + <teal>backIn</teal> + c.
      */
     caption: {
-      a: "Illustrative Langevin simulation. The name is the ground state of an energy landscape carved from its own letterforms: particles descend into the wells and settle. Thermal kicks knock them",
+      a: "Illustrative Langevin simulation. The name is the ground state of an energy landscape carved from its own letterforms: particles descend into the wells and settle. Impulses repel them",
       out: "out",
       b: "; they re-anneal",
       backIn: "back in",
-      c: ". Drag to pick up a cluster. Hand-built landscape, not a trained model.",
+      c: ". Drag to pick up a cluster. Hand-built simulation, not a trained model.",
     },
     /** The Resume link label. Its URL lives in `links.resumeUrl` below. */
     resumeLabel: "Resume",
@@ -108,7 +108,7 @@ export const copy = {
 
   /** §2 — the diffusion trajectory viewer. */
   diffusion: {
-    cmd: "./x0_diffusion",
+    cmd: "./diffusion_methods",
     bootLines: [
       "resolving trajectory source /diffusion_traj.json",
       "decoding 10 digits x 32 frames, 28x28 row-major",
@@ -133,9 +133,9 @@ export const copy = {
     headingContinuous: "Continuous diffusion",
     headingDiscrete: "Discrete diffusion",
     ledePixel:
-      "Noise sharpens into a digit, one step at a time. On the left, the noisy state x_t resolving. On the right, the model’s prediction of the finished digit from that step. This model predicts the clean image directly rather than the noise, which is why you get both at every step.",
+      "Noise sharpens into a digit, one step at a time. On the left, the noisy state x_t resolving. On the right, the model’s prediction of the finished digit from that step. This model predicts the clean image directly rather than the noise, which is why you get both at every step. The ascii filter is then applied on top of the generated image.",
     ledeAscii:
-      "A different model, and a different kind of corruption: masked cells resolve into characters. It starts with every cell masked and commits them one at a time, most-confident first. There is no noise anywhere in it. Once a cell commits it’s frozen and never re-predicted, so the grid can only ever fill in, never flicker. On the left, what’s committed so far, mask holes and all. On the right, the model’s current guess for every cell, including the ones it hasn’t decided yet.",
+      "A different model, and a different kind of corruption: masked cells resolve into ascii characters. It starts with every cell masked and commits them one at a time, most-confident first. Once a cell commits it’s frozen and never re-predicted, so the grid can only ever fill in, never flicker. On the left, what’s committed so far, mask holes and all. On the right, the model’s current guess for every cell, including the ones it hasn’t decided yet.",
     modelLabel: "model",
     /** Hover title on the ascii button when its data file is absent. */
     asciiUnavailable: "ascii_traj.json not present",
@@ -165,7 +165,7 @@ export const copy = {
   sdedit: {
     cmd: "./sdedit",
     bootLines: [
-      "sdedit: noise your drawing ~60% -> denoise -> your strokes survive",
+      "sdedit: partially noise your drawing -> denoise -> your strokes survive",
       "runtime: onnxruntime-web (webgpu, wasm fallback) · fully client-side",
       "weights: mnist_x0.onnx (26 MB, lazy on first stroke)",
     ],
@@ -182,7 +182,7 @@ export const copy = {
     lede: {
       pre: "Draw one, pick its label, and watch it dissolve into static and re-form. This is ",
       tech: "SDEdit",
-      post: ": your drawing is noised about 60% of the way to pure static and then denoised back, so the coarse structure is never destroyed. Your slant and your strokes survive into the result. It is genuinely your digit being cleaned up, not a lookalike fetched from the model. The whole thing runs on your device; nothing is sent anywhere.",
+      post: ": your drawing is noised partially to pure static and then denoised back, so the coarse structure is never fully destroyed. Your slant and your strokes survive into the result. It is your digit being cleaned up, not a lookalike created from scratch. The whole thing runs on your device, nothing is sent anywhere.",
     },
     /** Static prefix of the canvas aria-label (`… for digit ${digit}`). */
     canvasAria: "Drawing canvas for digit",
@@ -219,17 +219,17 @@ export const copy = {
     /** The classifier explainer, in fragments: it has an inline <teal>, a
      *  conditional decisiveness phrase, and an inline <indigo>. */
     classify: {
-      a: "The model is class-conditional, so it needs a label. That guess comes from the diffusion model itself: it predicts the finished digit under all ten labels from identical noise, and whichever best explains your strokes wins. No second model. ",
+      a: "The model is class-conditional, so it needs a label. That guess comes from the diffusion model itself. It predicts the finished digit under all ten labels from identical seeds, and whichever best matches your strokes wins. No second classifier model required. ",
       bPre: "The ",
       teal: "teal",
-      bPost: " behind each label is that score, so you can see the ranking it actually produced rather than take the winner on faith. This one was ",
-      coinFlip: "close to a coin flip",
-      nearThing: "a near thing",
-      notClose: "not close",
+      bPost: " behind each label is that score, so you can see the rankings per categorical. This one was ",
+      coinFlip: "practically a coin flip",
+      nearThing: "a bit unsure",
+      notClose: "a landslide",
       cMid: ". ",
-      cPre: "It’s a suggestion, so override it if it’s wrong. Worth trying anyway: draw a 7 and ask for a ",
-      four: "4",
-      cPost: ". You can watch conditioning fight your drawing.",
+      cPre: "It’s a suggestion, so override it if it’s wrong. Worth trying anyway: draw a 0 and ask for a ",
+      four: "8",
+      cPost: ". If you get lucky, the model will hallucinate an extra stroke.",
     },
   },
 
@@ -258,9 +258,9 @@ export const copy = {
     viewSaw: "what it saw",
     heading: "Energy-based modeling over board states",
     lede:
-      "A 469K-parameter convolutional energy-based model. It scores resulting positions rather than proposing moves: every legal move is played out, the whole batch is ranked in one forward pass, and the lowest-energy position wins. Trained on ~30M positions from Lichess games where both players were rated 1800+, then quantized to 553 KB for a Raspberry Pi Zero 2 W with a 3.5\" touchscreen. Strength is roughly 2000–2300 against Stockfish’s limited modes. Quantization cost about nothing. This is that same int8 file, running in your browser.",
+      "A 469K-parameter convolutional energy-based model. It scores resulting positions rather than proposing moves: every legal move is played out, the whole batch is ranked in one forward pass, and the lowest-energy position wins. Trained on ~30M positions from Lichess games where both players were rated 1800+, then quantized to 553 KB for real-time inferencing on a Raspberry Pi Zero 2W. Strength is roughly 2100–2300 against Stockfish’s limited modes. Quantization cost around 50-100 elo. This is that same int8 file, running in your browser.",
     activationsLede:
-      "The model’s evaluation, laid back onto the board, and computed on your device. This works here and not on the diffusion models for a structural reason: the chess backbone never downsamples below 8x8, so every layer stays registered to the squares and can be read as a position. A UNet’s middle layers have no such luxury.",
+      "The model’s evaluation, laid back onto the board, and computed on your device. This works here and not on the diffusion models for a structural reason: the chess backbone never downsamples below the initial 8x8, so every layer stays cleanly correlated to the squares and can be read as a position. A UNet’s pooled middle layers have no such luxury.",
     /** Outcome banners. The winner side interpolates into `checkmatePre`. */
     checkmatePre: "checkmate · ",
     checkmateWinsBlack: "black wins",
@@ -298,7 +298,7 @@ export const copy = {
     searchNoteTo: " to ",
     searchNotePiRuns: ". The Pi runs ",
     searchNoteFloor:
-      ". Below 250 simulations the search returns the same move as this, which is why --sims stops there rather than at 1.",
+      ". Below 250 simulations the search returns the same move as this the vast majority of the time, which is why --sims stops there rather than at 1.",
     /** Game buttons. */
     newGame: "new game",
     engineVsEngine: "engine vs engine",
@@ -315,7 +315,7 @@ export const copy = {
     searchNote: {
       pre: "At 1 ply it ranks every legal reply and plays the best, in one forward pass. ",
       letItThink: "let it think",
-      post: " runs the Pi’s actual search on top of those same numbers, in a worker, so the page keeps moving while it does. It is slower here than it has any right to be: the model is 469K parameters, and scoring one position costs ~6.6ms in WASM no matter how many threads you give it.",
+      post: " runs the Pi’s actual search on top of those same numbers, in a worker, so the page keeps moving while it does. It is slower here than it has any right to be: the model is 469K parameters, and scoring one position costs ~6.6ms in WASM no matter how many threads you give it, unlike the PI's 2 second inferencing time for 500 sims.",
     },
     hint: "how long it thinks",
     /** --sims echo lines, shown under the boot log after an edit. The number
@@ -349,7 +349,7 @@ export const copy = {
       channelCaveat:
         "Explore at your own risk: not every channel is human-interpretable. Plenty light up on nothing nameable. The mean map and the attribution view are the trustworthy ones.",
       saliencyBody:
-        "The model outputs a single scalar energy. The gradient of that energy with respect to the board says which squares most move its evaluation: the hanging piece, the key defender, the passed pawn.",
+        "The model outputs a single scalar energy. The gradient of that energy with respect to the board says which squares most move its evaluation: the hanging piece, the key defender, the passed pawn, your blunder...",
       /** value head: `+${n} for white · about level`. Sign/number/level interpolate. */
       valueHeadPre: "value head: ",
       valueHeadPost: " for white",
@@ -395,7 +395,7 @@ export const copy = {
       twoMoonsLabel: "two-moons",
       twoMoonsBlurb: "two interleaving half-moons",
       spiralLabel: "spiral",
-      spiralBlurb: "two arms winding out from the centre",
+      spiralBlurb: "two galactic arms winding out from the centre",
       ringLabel: "ring",
       ringBlurb: "a single closed circle",
       gaussiansLabel: "8-gaussians",
@@ -419,7 +419,7 @@ export const copy = {
     ],
     heading: "Page not found",
     lede:
-      "The site is a single page, so there is not much to get lost in beyond a typo. Those four are everything on it.",
+      "The site is a single page, so there is not much to get lost in beyond a typo. Those four are everything on it. Just imagine some cool demos for me ;)",
   },
 
   /** The ssh boot screen (components/ambience/BootScreen.tsx). The prompt itself

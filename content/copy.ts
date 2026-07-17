@@ -247,9 +247,9 @@ export const copy = {
       nearThing: "a bit unsure",
       notClose: "a landslide",
       cMid: ". ",
-      cPre: "It’s a suggestion, so override it if it’s wrong. Worth trying anyway: draw a 0 and ask for a ",
+      cPre: "It’s a suggestion, so override it if it’s wrong. Worth trying anyway: draw a 5 and ask for a ",
       four: "8",
-      cPost: ". If you get lucky, the model will hallucinate an extra stroke.",
+      cPost: ". If you get lucky, the model will hallucinate and close the bottom loop.",
     },
   },
 

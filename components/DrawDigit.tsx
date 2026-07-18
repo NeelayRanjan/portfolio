@@ -148,6 +148,15 @@ export function DrawDigit() {
    *  on — re-classifying over a deliberate override would be obnoxious. */
   const [autoLabel, setAutoLabel] = useState(true);
   const [classifying, setClassifying] = useState(false);
+  /**
+   * Mirrors `classifying` synchronously. The classifier runs 10 forwards on the
+   * SAME model/ORT session generate() uses, and two runs on one session at once
+   * corrupts it and bricks the demo. A state read wouldn't flip until the next
+   * render, and the whole bug is a generate() firing inside that window — so
+   * generate() and autoPick() gate on this ref, which is true the instant a
+   * classify begins.
+   */
+  const classifyingRef = useRef(false);
   const probed = useRef(false);
   const classifyTimer = useRef(0);
 
@@ -289,7 +298,8 @@ export function DrawDigit() {
    */
   const autoPick = async () => {
     const canvas = canvasRef.current;
-    if (!canvas || !model || running || classifying) return;
+    if (!canvas || !model || running || classifyingRef.current) return;
+    classifyingRef.current = true;
     setClassifying(true);
     try {
       const { digit: guess, scores, margin } = await classifyDrawing(
@@ -305,6 +315,7 @@ export function DrawDigit() {
     } catch {
       // A failed guess is not worth surfacing — the picker still works.
     } finally {
+      classifyingRef.current = false;
       setClassifying(false);
     }
   };
@@ -334,7 +345,11 @@ export function DrawDigit() {
   const generate = useCallback(
     async (over?: Partial<RunParams>) => {
       const canvas = canvasRef.current;
-      if (!canvas || !model || running) return;
+      // classifyingRef, not the `classifying` state: a classify shares the one
+      // ORT session, so starting a run on top of it corrupts the session. The
+      // button below is disabled while classifying, but commitParam/reset reach
+      // here too, so the guard is what actually makes it safe.
+      if (!canvas || !model || running || classifyingRef.current) return;
       setRunning(true);
       try {
         const x0Init = modelSpace(model, canvas);
@@ -365,8 +380,10 @@ export function DrawDigit() {
   /** The ten label scores, ranked 0..1. Null until a classify has run. */
   const fits = fit ? fitness(fit.scores) : null;
 
-  /** A run to redo: something already ran, there's ink, and the model is here. */
-  const canRerun = Boolean(frame && hasInk && model && !running);
+  /** A run to redo: something already ran, there's ink, the model is here, and
+   *  nothing else is using it — a classify shares the one ORT session, so a
+   *  param edit mid-guess must wait rather than re-run on top of it. */
+  const canRerun = Boolean(frame && hasInk && model && !running && !classifying);
 
   /**
    * Commit a param, then show it doing something.
@@ -635,11 +652,24 @@ export function DrawDigit() {
                 // Not `onClick={generate}`: that hands the MouseEvent to `over`,
                 // which spreads straight into the model's options.
                 onClick={() => void generate()}
-                disabled={!ready || !hasInk || running}
-                title={ready ? undefined : copy.sdedit.generateHint}
+                // classifying is in here too: the classifier and generate share
+                // the one ORT session, and hitting generate mid-guess used to
+                // run both at once and brick the demo.
+                disabled={!ready || !hasInk || running || classifying}
+                title={
+                  !ready
+                    ? copy.sdedit.generateHint
+                    : classifying
+                      ? copy.sdedit.predictingHint
+                      : undefined
+                }
                 className="rounded border border-teal/60 px-3 py-1.5 font-mono text-xs text-teal transition-colors hover:border-teal disabled:cursor-not-allowed disabled:border-line disabled:text-faint"
               >
-                {running ? copy.sdedit.sampling : copy.sdedit.generate}
+                {running
+                  ? copy.sdedit.sampling
+                  : classifying
+                    ? copy.sdedit.predicting
+                    : copy.sdedit.generate}
               </button>
             </div>
 

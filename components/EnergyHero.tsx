@@ -13,7 +13,7 @@ import { HeroBoot } from "@/components/ambience/HeroBoot";
  */
 export function EnergyHero() {
   return (
-    <header className="relative border-b border-line">
+    <header className="relative">
       {/* The swarm is decoration; this is what screen readers and crawlers get. */}
       <h1 className="sr-only">{copy.hero.name}</h1>
 
@@ -105,6 +105,24 @@ export function EnergyHero() {
           <span className="text-teal">{copy.hero.realNote.live}</span>
           {copy.hero.realNote.mid}
         </p>
+      </div>
+
+      {/* The hero's bottom edge. This used to be `border-b border-line`, a flat
+          1px rule across the viewport — a generic web divider, out of place on a
+          page whose whole texture is the diffusion ramp. It's now a faint,
+          static standing wave through that same ramp (`·.:-=+`, the glyphs the
+          demos resolve through): the latent field condensing into a seam between
+          the loud hero and the quiet page below.
+
+          Static on purpose — the CharField owns full-page motion (Page ambience
+          §2); this adds no second animated layer. aria-hidden decoration. The
+          tile is symmetric so it tiles seamlessly and clips cleanly at either
+          edge, and the low alpha keeps the clip imperceptible. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none select-none overflow-hidden whitespace-nowrap text-center font-mono text-[10px] leading-none tracking-[0.35em] text-indigo/25"
+      >
+        {"·.:-=+=:.·".repeat(80)}
       </div>
     </header>
   );

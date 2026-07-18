@@ -23,10 +23,6 @@
   --color-board-light: #1a1f2e;
   --color-board-dark: #0f121c;
 
-  /* Timestep rail (page ambience) */
-  --color-rail: rgba(93, 202, 165, 0.14);
-  --color-rail-label: #3f8f78;
-
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", monospace;
 }

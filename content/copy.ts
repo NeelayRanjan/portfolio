@@ -233,8 +233,13 @@ export const copy = {
     clear: "clear",
     sampling: "sampling…",
     generate: "generate",
+    /** Generate's face while the classifier is guessing the label. It shares the
+     *  one ORT session, so generate has to wait for it. */
+    predicting: "predicting label…",
     /** Hover title on generate before the weights are in. */
     generateHint: "draw once to fetch the weights",
+    /** Hover title on generate while the label is being guessed. */
+    predictingHint: "wait for the label guess to finish",
     hint: "edit any number",
     /** The classifier explainer, in fragments: it has an inline <teal>, a
      *  conditional decisiveness phrase, and an inline <indigo>. */
@@ -278,7 +283,7 @@ export const copy = {
     viewSaw: "what it saw",
     heading: "Energy-based modeling over board states",
     lede:
-      "A 469K-parameter convolutional energy-based model. It scores resulting positions rather than proposing moves: every legal move is played out, the whole batch is ranked in one forward pass, and the lowest-energy position wins. Trained on ~30M positions from Lichess games where both players were rated 1800+, then quantized to 553 KB for real-time inferencing on a Raspberry Pi Zero 2W. Strength is roughly 2100–2300 against Stockfish’s limited modes. Quantization cost around 25-75 elo, and the lack of MCTS costs another 150-300 elo. This is that same int8 file, running in your browser.",
+      "A 469K-parameter convolutional energy-based model. It scores resulting positions rather than proposing moves: every legal move is played out, the whole batch is ranked in one forward pass, and the lowest-energy position wins. Trained on ~30M positions from Lichess games where both players were rated 1800+, then quantized to 553 KB for real-time inferencing on a Raspberry Pi Zero 2W. Strength is roughly 2100–2300 against Stockfish’s limited modes. Quantization cost around 25-75 elo, and the exclusion of MCTS costs another 150-300 elo, due to compute costs (500 sequential model calls). This is that same int8 file, running in your browser.",
     activationsLede:
       "The model’s evaluation, laid back onto the board, and computed on your device. This works here and not on the diffusion models for a structural reason: the chess backbone never downsamples below the initial 8x8, so every layer stays cleanly correlated to the squares and can be read as a position. A UNet’s pooled middle layers have no such luxury.",
     /** Outcome banners. The winner side interpolates into `checkmatePre`. */

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ScrollSpine } from "@/components/ambience/ScrollSpine";
 import { Swarm } from "@/components/ambience/Swarm";
 import { CharField } from "@/components/ambience/CharField";
 import { BootScreen } from "@/components/ambience/BootScreen";
@@ -83,7 +82,6 @@ export default function RootLayout({
             viewport. CharField sits furthest back (-z-20), the swarm above it. */}
         <CharField />
         <Swarm />
-        <ScrollSpine />
         {children}
         {/* Last child and z-50: it covers the swarm, the field and the page while
             it runs. Everything above still mounts and starts loading behind it,

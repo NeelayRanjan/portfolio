@@ -105,7 +105,7 @@ export const copy = {
        * or this link would wall visitors behind a request-access screen.
        */
       resumeUrl:
-        "https://docs.google.com/document/d/1-qa5lXInCIQoPsL4uvpHWgShjfeeVh_l/preview",
+        "https://docs.google.com/document/d/1Du0NEDaov2tRzY-tWbuN0wrO6xk6SFDi/preview",
       /** Label + href travel together — the label is copy, the href is config, but
        *  splitting them would only make an edit touch two places. */
       items: [

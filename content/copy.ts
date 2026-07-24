@@ -282,8 +282,11 @@ export const copy = {
     /** view toggle: `game` face is the state key; this is the other one. */
     viewSaw: "what it saw",
     heading: "Energy-based modeling over board states",
-    lede:
-      "A 469K-parameter convolutional energy-based model. It scores the position a move leads to rather than proposing the move itself: every legal move is played out, the whole batch is ranked in one forward pass, and the lowest-energy position wins. It was trained on about 30M positions from Lichess games where both sides were rated 1800+, then run under AlphaZero-style MCTS on a Raspberry Pi 4 for real-time play, roughly 1900–2200 Elo against Stockfish’s limited modes. Two findings came out of the on-device work: int8 quantization cost essentially zero strength (about -14 ±59 Elo, statistical noise), and on the Pi’s ARM cores fp32 runs faster than int8, so the deployed engine ships fp32. This page runs the 553 KB int8 file directly in your browser, though by default as the bare network with no search. MCTS is around 500 sequential forward passes a move, too slow to run live, so out of the box you’re playing a few hundred Elo below the full engine.",
+    /** Two paragraphs: what it is, then the on-device findings + what runs here. */
+    lede: {
+      a: "A 469K-parameter convolutional energy-based model. It scores resulting positions rather than proposing moves: every legal move is played out, the batch ranked in one forward pass, and the lowest-energy position wins. Trained on about 30M positions from Lichess games where both sides were rated 1800+, then run under AlphaZero-style MCTS on a Raspberry Pi 4 for real-time play, roughly 1900–2200 Elo against Stockfish’s limited modes.",
+      b: "Two findings from the on-device work: int8 quantization cost close to nothing (-14 ±59 Elo), and on the Pi’s ARM cores fp32 runs faster than int8, so the deployed engine ships fp32. This page runs the 553 KB int8 file in your browser, by default as the bare network with no search. MCTS runs ~500 sequential forward passes a move, too slow to run live, so here you’re a few hundred Elo below the full engine.",
+    },
     activationsLede:
       "The model’s evaluation, laid back onto the board, and computed on your device. This works here and not on the diffusion models for a structural reason: the chess backbone never downsamples below the initial 8x8, so every layer stays cleanly correlated to the squares and can be read as a position. A UNet’s pooled middle layers have no such luxury.",
     /** Outcome banners. The winner side interpolates into `checkmatePre`. */

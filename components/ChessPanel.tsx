@@ -442,8 +442,11 @@ export function ChessPanel() {
             ) : null}
 
             <h2 className="mt-6 mb-2 text-2xl tracking-tight">{copy.chess.heading}</h2>
+            <p className="mb-4 max-w-[54ch] leading-relaxed text-muted">
+              {copy.chess.lede.a}
+            </p>
             <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
-              {copy.chess.lede}
+              {copy.chess.lede.b}
             </p>
 
             {acts && view === "activations" ? (

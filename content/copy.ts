@@ -263,7 +263,7 @@ export const copy = {
     cmd: "./entropy_chess",
     bootLines: [
       "energy-based model · 469K params · scores positions, never outputs a move",
-      "int8 quantized to 553 KB · the same artifact that runs on the Pi",
+      "int8 quantized to 553 KB · a smaller download than the Pi’s fp32",
       "onnxruntime-web (wasm) · mcts in a worker · chess.js owns every rule -> ready",
     ],
     /** Title-bar face (the `--engine ebm --search argmin|mcts` flags stay inline). */
@@ -283,7 +283,7 @@ export const copy = {
     viewSaw: "what it saw",
     heading: "Energy-based modeling over board states",
     lede:
-      "A 469K-parameter convolutional energy-based model. It scores resulting positions rather than proposing moves: every legal move is played out, the whole batch is ranked in one forward pass, and the lowest-energy position wins. Trained on ~30M positions from Lichess games where both players were rated 1800+, then quantized to 553 KB for real-time inferencing on a Raspberry Pi Zero 2W. Strength is roughly 2100–2300 against Stockfish’s limited modes. Quantization cost around 25-75 elo, and the exclusion of MCTS costs another 150-300 elo, due to compute costs (500 sequential model calls). This is that same int8 file, running in your browser.",
+      "A 469K-parameter convolutional energy-based model. It scores the position a move leads to rather than proposing the move itself: every legal move is played out, the whole batch is ranked in one forward pass, and the lowest-energy position wins. It was trained on about 30M positions from Lichess games where both sides were rated 1800+, then run under AlphaZero-style MCTS on a Raspberry Pi 4 for real-time play, roughly 1900–2200 Elo against Stockfish’s limited modes. Two findings came out of the on-device work: int8 quantization cost essentially zero strength (about -14 ±59 Elo, statistical noise), and on the Pi’s ARM cores fp32 runs faster than int8, so the deployed engine ships fp32. This page runs the 553 KB int8 file directly in your browser, though by default as the bare network with no search. MCTS is around 500 sequential forward passes a move, too slow to run live, so out of the box you’re playing a few hundred Elo below the full engine.",
     activationsLede:
       "The model’s evaluation, laid back onto the board, and computed on your device. This works here and not on the diffusion models for a structural reason: the chess backbone never downsamples below the initial 8x8, so every layer stays cleanly correlated to the squares and can be read as a position. A UNet’s pooled middle layers have no such luxury.",
     /** Outcome banners. The winner side interpolates into `checkmatePre`. */

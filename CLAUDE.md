@@ -951,12 +951,17 @@ it EXACTLY — a wrong transform gives legal-but-terrible moves, not an error.
   human-database personality, not a bug.
 
 **int8 works in ort-web.** The handoff warned the QInt16 activations might not load in
-WASM. They do, and vector C passes: `argmin=a1a8, prior=0.169, value=0.89`. So the page
-ships the same 553KB file that runs on the Pi, which is the whole pitch. `chess-fp32.onnx`
-(1.8MB) stays as a fallback the loader uses only if a runtime rejects the graph — losing
-the "int8" label costs nothing user-visible; a wrong-answer engine would cost everything.
-Measured: int8 load 964ms / infer 142ms; fp32 load 47ms / infer 128ms. **int8's win is
-download size, not speed.**
+WASM. They do, and vector C passes: `argmin=a1a8, prior=0.169, value=0.89`. So the browser
+runs the genuine quantized model, not an fp32 stand-in: same trained weights, int8 build.
+**But it is NOT the same file the Pi runs — the old "same artifact on both" pitch is dead.**
+On the Pi's ARM cores fp32 is *faster* than int8, so the deployed on-device engine ships
+fp32; the browser ships int8 for the opposite reason, because 553KB is a far smaller
+download than fp32's 1.8MB. `chess-fp32.onnx` (1.8MB) also stays in the browser as a
+fallback the loader uses only if a runtime rejects the int8 graph — losing the "int8" label
+costs nothing user-visible; a wrong-answer engine would cost everything. Measured in the
+browser: int8 load 964ms / infer 142ms; fp32 load 47ms / infer 128ms. **int8's win here is
+download size, not speed** — which is exactly why the Pi, optimizing for speed over bytes,
+runs fp32 instead.
 
 **Draws are the SITE's job.** Search nodes drop move history, so the engine structurally
 cannot see threefold repetition or the fifty-move rule, and left alone it shuffles in won
@@ -1016,12 +1021,14 @@ the section's whole claim is that they're the squares a human would name too.
   guards `version` and asserts `grid * grid === saliency.length` — a mismatch there is a
   silent off-by-N that lands every overlay on the wrong squares.
 
-**Copy — accurate claims only.** "roughly 2000–2300" or "master-ish vs Stockfish's limited
-modes". **Never claim 2300+ flat**: rung labels compress. Source of truth is
-`entropy-chess/docs/2026-07-15-elo-ladder.md` (~2000 conservative / ~2330 ±41 nominal,
-int8, 500 sims, 0.5s/move ladder); it supersedes both the resume's 2250 and
-ARCHITECTURE.md's older 1850-2000. Quantization cost ~0 Elo. If the site ever quotes
-latency, quote what you measure in the browser — not the Pi's numbers.
+**Copy — accurate claims only.** Current claim is **roughly 1900–2200** vs Stockfish's
+limited modes (new testing, 2026-07-24), or "master-ish". **Never claim 2300+ flat**: rung
+labels compress. This new testing is the source of truth now: it supersedes the earlier
+`entropy-chess/docs/2026-07-15-elo-ladder.md` (~2000 conservative / ~2330 ±41 nominal, int8,
+500 sims, 0.5s/move ladder), the resume's 2250, and ARCHITECTURE.md's older 1850-2000 — the
+site lede says 1900–2200. Quantization cost is inside the noise: **-14 ±59 Elo** (int8 vs
+fp32), i.e. ~0. If the site ever quotes latency, quote what you measure in the browser — not
+the Pi's numbers.
 
 **The search — SHIPPED, and it is a toggle, not a ladder**  *(`lib/chess-mcts.ts`,
 `lib/chess-worker.ts`)*

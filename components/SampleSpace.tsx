@@ -119,9 +119,12 @@ function SamplePanel({
     const drawManifold = () => {
       ctx.fillStyle = "#080a12";
       ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = "rgba(122, 129, 153, 0.28)";
+      // The target-distribution backdrop. Was 0.28 muted grey and washed out in
+      // bright light; lighter and more opaque so it reads as a cloud without
+      // competing with the accent-coloured trails on top.
+      ctx.fillStyle = "rgba(148, 156, 183, 0.5)";
       for (const p of manifoldRef.current) {
-        ctx.fillRect(p.x * w - 0.6, p.y * h - 0.6, 1.2, 1.2);
+        ctx.fillRect(p.x * w - 0.7, p.y * h - 0.7, 1.4, 1.4);
       }
     };
 
@@ -137,7 +140,7 @@ function SamplePanel({
       if (alpha <= 0) return;
 
       // Connected segments...
-      ctx.strokeStyle = `rgba(${rgb}, ${(alpha * 0.5).toFixed(3)})`;
+      ctx.strokeStyle = `rgba(${rgb}, ${(alpha * 0.7).toFixed(3)})`;
       ctx.lineWidth = 1;
       ctx.beginPath();
       for (let i = 0; i < shown; i++) {

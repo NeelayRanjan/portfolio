@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { TerminalPanel } from "./TerminalPanel";
-import { AsciiLines } from "./AsciiGrid";
 import { BootLog, useBootSequence } from "./ambience/BootLog";
 import { CommandLine } from "./ambience/CommandLine";
 import type { AsciiDiffusion } from "@/lib/ascii-diffusion";
@@ -18,6 +17,60 @@ import {
 import { copy } from "@/content/copy";
 
 const CMD_NAME = copy.sdedit.cmd;
+
+/**
+ * The model's output as an actual 28x28 grayscale image, not the ASCII ramp.
+ *
+ * SDEdit is about seeing reconstruction quality: a wrong label comes back as a
+ * mangled digit, and the ASCII ramp muddied exactly the thing worth looking at.
+ * These are the real MNIST intensities. The raw [-1,1] frame (28x28, before the
+ * row-pair averaging toAscii does) maps to 0-255 with ink high, white on black to
+ * match the drawing. The backing store stays 28x28 and CSS upscales it
+ * nearest-neighbour, so every model pixel reads as one crisp block at its true
+ * resolution rather than a blurred photo.
+ */
+function PixelGrid({
+  data,
+  version,
+  label,
+}: {
+  data: Float32Array;
+  version: number;
+  label: string;
+}) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    const n = 28;
+    const img = ctx.createImageData(n, n);
+    for (let i = 0; i < n * n; i++) {
+      // Frame space is [-1,1] with ink high; -> [0,255], clamped since the model
+      // output can nudge just past the ends.
+      const g = Math.round(Math.max(0, Math.min(1, (data[i] + 1) / 2)) * 255);
+      const o = i * 4;
+      img.data[o] = g;
+      img.data[o + 1] = g;
+      img.data[o + 2] = g;
+      img.data[o + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    // version is frame.step: it advances every frame even if the module reuses
+    // the xt/x0 buffer, so a reused reference never makes the redraw skip a frame.
+  }, [data, version]);
+  return (
+    <canvas
+      ref={ref}
+      width={28}
+      height={28}
+      role="img"
+      aria-label={label}
+      className="h-full w-full"
+      style={{ imageRendering: "pixelated" }}
+    />
+  );
+}
 
 type RunParams = {
   digit: number;
@@ -500,17 +553,14 @@ export function DrawDigit() {
               </figure>
 
               <figure>
-                <div className="flex aspect-square w-[280px] max-w-full items-center justify-center rounded border border-line">
+                <div className="flex aspect-square w-[280px] max-w-full items-center justify-center overflow-hidden rounded border border-line">
                   {frame ? (
                     // xt, not x0: xt IS the effect — drawing, then static, then
                     // digit. x0 during the dissolve is just the drawing held
                     // still, so rendering it would hide the dissolve entirely.
-                    <AsciiLines
-                      lines={frame.ascii.xt}
-                      tint={frame.phase === "dissolve" ? "ink" : "teal"}
-                      fontSize={13}
-                      lineHeight={1}
-                      letterSpacing="0"
+                    <PixelGrid
+                      data={frame.xt}
+                      version={frame.step}
                       label={`${frame.phase} frame ${frame.step + 1} of ${frame.total}`}
                     />
                   ) : (
@@ -553,17 +603,11 @@ export function DrawDigit() {
                * same pair for the same reason.
                */}
               <figure>
-                <div className="flex aspect-square w-[280px] max-w-full items-center justify-center rounded border border-line">
+                <div className="flex aspect-square w-[280px] max-w-full items-center justify-center overflow-hidden rounded border border-line">
                   {frame ? (
-                    <AsciiLines
-                      lines={frame.ascii.x0}
-                      // Indigo while it's inert, teal once it's really predicting.
-                      // Same two colours the rest of the page uses for the same
-                      // distinction; no third tint.
-                      tint={frame.phase === "dissolve" ? "indigo" : "teal"}
-                      fontSize={13}
-                      lineHeight={1}
-                      letterSpacing="0"
+                    <PixelGrid
+                      data={frame.x0}
+                      version={frame.step}
                       label={`the model's guess at the finished digit, step ${frame.step + 1} of ${frame.total}`}
                     />
                   ) : (

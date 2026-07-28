@@ -36,6 +36,20 @@ served chunk (`curl` the `/_next/static/chunks/*.css` URL) before doubting the c
 ## Aesthetic — "latent space"
 
 - Near-black background: `#080a12`. One indigo accent (`#8f88dd`) and one teal accent (`#5dcaa5`). Clean sans type, generous whitespace.
+- **Plus exactly one scoped exception: red (`--color-miss`, `#f0564a`), which means a
+  retrieval miss in §7 and nothing else.** Admitted 2026-07-27, by the owner, overriding
+  the two-accent rule and their own "no red/green success-failure palette" brief. The
+  reason it had to be a new hue: indigo already means inert x̂₀ (§2b), DDPM (§3), a hint
+  overlay (§4) and the CharField tint, so it carries no failure sense here and read as a
+  *highlight* on the block that was failing. That is a job hue could not be talked into;
+  it needed a hue that already says it.
+  - The token is named for the MEANING, not the hue, unlike `--color-indigo`/`--color-teal`
+    — deliberately, so it can't drift into decoration. **A new use of red needs a new
+    decision, not this precedent.**
+  - It is not a genuinely new colour on the page: `#f0564a` is already TerminalPanel's
+    close dot. They stay separate declarations, because a window-close dot and a retrieval
+    miss are different things that happen to agree on red.
+  - 5.6:1 on `#080a12`, which clears AA for the 10px label it tints.
 - The hero is the particle swarm (see §1) — the one deliberately loud element.
   Everything below it stays quiet.
 - Two type weights only (400 / 500). Sentence case everywhere. No gradients, no drop shadows, no glow.
@@ -278,8 +292,13 @@ which read as a stutter and wasted the one line a visitor actually reads.
 | §2 | `two models, one idea` | **Continuous diffusion** / **Discrete diffusion** (follows the toggle) |
 | §2b | `draw a digit` | SDEdit |
 | §4 | `play the engine` | Energy-based modeling over board states |
+| §7 | `mae vs i-jepa` | Predicting pixels, or predicting representations |
 | §3 | `sample space` | Stochastic vs deterministic |
 
+- **§7's anchor is the machine's name for the two encoders; the `<h2>` is what the
+  difference between them actually IS.** It survived the removal of the embeddings tab
+  unchanged, which is the test a good anchor should pass: it names the comparison rather
+  than whichever view happens to be rendering it.
 - **⚠️ §2's anchor must be true of BOTH toggle states.** The obvious pick, "noise to
   digit", is false half the time: the ascii model has no noise anywhere in it, it unmasks
   (see §2). Same trap as the copy rule there.
@@ -480,7 +499,14 @@ Per demo, ruled against what the code and data can actually honour today:
 | `./x0_diffusion --digit 7 --steps 32 --schedule cosine` (§2) | `--digit` only | **`--steps` and `--schedule` are BAKED.** ⚠️ |
 | `./entropy_chess --model int8 --sims 250` (§4) | `--sims`, **clamped to [250, 500]** ⚠️ | `--model`: the loader picks the build, not you |
 | `./sample_space --target two-moons --compare ddpm,flow` (§3) | `--target` (4 shapes) | `--compare`: both fields ARE the comparison |
+| `./jepa --compare mae,ijepa --dataset stl10` (§7) | **none** | the bundle holds one dataset and exactly two encoders |
 
+- **§7 passes no `command` to `BootLog` at all**, which is the correct shape for a panel
+  with nothing live: the typed line simply stands as output. Neither flag has a second
+  value to take, so `CommandLine` would render text identical to what was already typed.
+  The query IS live and is the section's main interaction, but its control is **clicking a
+  thumbnail**, which beats a box that accepts 0..4095 on every axis that matters. Don't
+  "finish" this panel by adding `--query N`.
 - **§2b `sdedit` is the hero of the feature.** `generate()` in `lib/ascii-diffusion.js`
   genuinely takes `strength`, `steps`, `guidance`, `dissolve` and `digit`, and streams
   frames as it computes, so every one of them produces a visibly different run. Ranges:
@@ -1074,6 +1100,209 @@ of solid compute, and on the main thread that is a minute of frozen page.
   came back n=85 / 56 / 29, and the most-visited move was NOT the top prior (p=0.171 beat
   p=0.235). The search overruling the policy is the thing worth showing.
 
+### 7. MAE vs I-JEPA — what the prediction target teaches  *(`components/JepaPanel.tsx`)*
+SHIPPED. **Precomputed and real: no model runs in the browser, and none should.** Two
+encoders pretrained offline on STL-10's 100k unlabeled split with identical architecture,
+masking, augmentation, optimiser, schedule and seed. Exactly one variable differs: MAE
+predicts the hidden patches' **pixels**, I-JEPA predicts their **representations**, from an
+EMA copy of the encoder. The export is the result, and this section renders it.
+
+(The number is an identifier, not a page position. On the page it sits between `#chess`
+and `#sample-space`; §5 and §6 above it still don't exist.)
+
+**The pieces.** `lib/jepa.ts` owns loading, validation and the sprite-window maths.
+`components/JepaPanel.tsx` is the whole UI, and it exports
+`JepaSection` — **the component owns its own `<Section>`**, unlike every other panel.
+That is the gate, not a style slip: when the bundle is absent the component returns null,
+and the teal scroll anchor has to go with it. A `<Section>` wrapped around it in
+`page.tsx` would survive its own panel and leave a labelled hole.
+
+**⚠️ GATED ON BOTH ARTIFACTS, and both branches are tested.** `loadJepaManifest()` and
+`loadJepaSprites()` each resolve `null` when their file isn't served, and either one
+drops the entire section. Verified by moving the files aside against a real `npm start`:
+`#jepa` gone, the anchor gone, the other four sections untouched, zero console errors, in
+both the no-manifest and the manifest-but-no-atlas case. There is no placeholder mode and
+there must not be one — a fabricated neighbour grid would teach exactly the wrong thing
+about which encoder confuses what, which is the entire content of the demo.
+- **`null` vs `throw` is a deliberate split**, mirroring `lib/chess-activations.ts`:
+  **absent resolves null** (never shipped, so gate), **malformed throws** (the file is
+  there and wrong, which is a bug in the export that swallowing would hide forever).
+
+**The manifest schema** (`public/jepa/manifest.json`, 483 KB on disk / 186 KB over the
+wire). Everything rendered is READ FROM IT; nothing about the export is hardcoded in the
+component.
+
+| field | type | meaning |
+|---|---|---|
+| `dataset`, `split` | string | `stl10`, `test` — shown in the title bar |
+| `n` | int | 4096 |
+| `classes` | string[10] | class names, indexed by class id |
+| `sprite` | object | `file`, `thumb` (48), `cols` (64), `rows` (64) |
+| `labels` | int[n] | true class index per image |
+| `umap.mae`, `umap.jepa` | float[n][2] | 2D coords, already normalised to [0,1] |
+| `neighbors.mae`, `neighbors.jepa` | int[n][8] | top-8 nearest, nearest first, self excluded |
+| `seed_queries` | int[] | 8 pinned starter queries, picked by purity gap |
+| `metrics` | object | `mae`/`jepa` each `{linear_probe, knn}`, plus `backbone`, `params`, `pretrain_epochs`, `pretrain_images`, `masking` |
+| `mean_neighbor_purity` | object | mean fraction of neighbours sharing the label. Optional: the aggregate readout just doesn't render without it |
+
+- **k comes from `neighbors[e][0].length`, not from the number 8.** Both encoders must
+  expose the same k or their purity fractions aren't comparable, and the loader throws if
+  they disagree.
+- Every length is asserted against `n`. `labels`, `umap.*` and `neighbors.*` are indexed
+  by the same image id, so a manifest whose arrays disagree would render one image's
+  thumbnail under another's class name **with no error anywhere** — a wrong answer that
+  looks exactly like a right one.
+- The manifest also carries `seed_query_details`, `label_efficiency`, `seeds` and `notes`,
+  which the site doesn't render today. `notes` is prose the exporter marked safe to show
+  verbatim; the two honesty notes below say the same things in the site's voice instead.
+
+**Sprite atlas** (`public/jepa/sprites.webp`, 3.6 MB, 3072x3072 = 64x64 cells of 48px).
+Row-major: image `i` is at col `i % cols`, row `floor(i / cols)`.
+- **⚠️ THE WINDOW IS PERCENTAGES, NOT PIXELS** (`spriteCell`), and that is what makes the
+  thumbnails responsive. With `background-size: cols*100%`, a `background-position` of X%
+  resolves to `X% * (elementW - sheetW)`, so landing on column `c` wants
+  `X = c / (cols - 1)`, **not** `c / cols`. Pixel offsets would need recomputing on every
+  resize; this is correct at any size the grid lands at. Verified in-browser against
+  seed query 834: rendered `3.1746% 20.6349%` decodes to col 2 / row 13, which is exactly
+  `834 % 64` and `floor(834 / 64)`.
+- Loaded as an `<img>` and handed to CSS `background-image`, never drawn through canvas:
+  the browser decodes the 3072x3072 sheet once and every thumbnail is an offset into that
+  one decode. The promise is awaited only to know when it's safe to show them.
+
+**The retrieval view is the whole section.** There is ONE view and no tab bar. A query
+thumbnail with its true class, the seed-query presets under it, and then the two encoders'
+answers as **two 4x2 blocks side by side**, each labelled and carrying a
+`hits/k same class` readout. Clicking **any** thumbnail (query presets, either block)
+makes it the query; it's pure state, so it's instant.
+- **⚠️ SIDE BY SIDE, NOT TWO STACKED FULL-WIDTH ROWS, and the shape is the argument.**
+  Stacked rows put the comparison on a vertical scan. Adjacent blocks put it in one
+  glance, which is what the section trades on: MAE's eight are red things, I-JEPA's eight
+  are ships, and you see that before reading a single class label. The swap costs no
+  thumbnail size, which is why it's free — a half-panel at 4 across is the same width per
+  cell as a full panel at 8 across (measured: 107px either way at 1280px).
+- **The size order carries the hierarchy and is deliberate**: query 144px > neighbour
+  ~107px > preset ~77px. The presets are held to `max-w-2xl` and centred for exactly this
+  reason; at full panel width a preset is the same size as a result and the two compete.
+- **The query image is NOT a button** (`Thumb` renders `role="img"` when it has no
+  `onPick`). It is the one thumbnail here that is an answer rather than a control, and
+  making it a button would add a tab stop that swallows a keypress and does nothing.
+- **The seed queries are the demo.** They were picked programmatically by
+  `jepa_purity − mae_purity`, not by eye. The default (834, a ship) is the strongest case
+  in the bundle: MAE returns **0/8**, I-JEPA **8/8**. Verified in-browser against the
+  manifest's own `seed_query_details`. What MAE actually returns there is red trucks, a
+  fire truck and red cars — it matched the colour and the background, not the subject,
+  which is the whole thesis rendered as pictures.
+- **⚠️ THE WRONG-CLASS MARK IS RED, AND IT TOOK THREE PASSES TO GET THERE. Read this
+  before "restoring the palette".** It shipped as a subtle indigo outline, then as a
+  louder indigo outline plus a filled indigo chip on the thumbnail, and is now a red
+  outline plus a red label. What kept failing was never the intensity, it was the hue:
+  **indigo reads as affirmative here if it reads as anything** (inert x̂₀, DDPM, hint
+  overlay, CharField tint), so making it brighter just made a confident-looking highlight
+  sit on the row that was wrong. Two carriers now:
+  1. **A 2px `border-miss` outline.** **`border-2` on BOTH states, colour the only
+     difference** — a 1px correct border against a 2px wrong one shifts every cell by a
+     pixel depending on the data, which reads as broken layout.
+  2. The class label in `text-miss`, prefixed with `✕` (`copy.jepa.differsMark`).
+- **⚠️ KEEP THE `✕` even though red now says it.** It looks redundant beside a red border
+  and a red label and it is not: red against neutral grey is the weakest possible pairing
+  under the common red-green deficiencies, and the cross is the one carrier that doesn't
+  depend on seeing a hue.
+- **The filled corner chip is gone, by request.** It carried the cross onto the thumbnail
+  itself, which mattered while indigo was doing the work and needed the help. With red on
+  the border it was surplus, and it was the one element sitting on top of the evidence.
+- **⚠️ HOVER IS A RING, NOT A BORDER COLOUR, and this was a real bug found in the browser
+  rather than a preference.** It was `hover:border-teal`, which **overrode `border-miss`**:
+  pointing at a failed neighbour turned it teal and made it read as a hit, on the one
+  control whose whole job is saying it missed. Once a border carries data it cannot also
+  carry pointer feedback. `hover:ring-2 hover:ring-teal` is a box-shadow, so it sits
+  outside the border, costs no layout, and leaves the state colour alone. Caught by
+  asserting red-border count == red-label count == cross count and finding 5 vs 6.
+- **That triple-equality is the regression test worth keeping.** All three carriers are
+  derived from the same `differs` boolean, so any of them disagreeing means something is
+  overriding a state colour. Verified: 8/0 on the ship query, and 6/5 on a mixed one.
+- **⚠️ NEVER AN OPACITY VEIL.** Dimming was built and reverted before the outline was:
+  a 0/8 block is eight faded photos, and the finding lives in actually LOOKING at them
+  and noticing they are all red. Fading the evidence to mark it as evidence hides the
+  thing the block exists to show. Mark the corner, never the picture.
+- Colour is still not the only carrier for anyone who can't see it: each thumbnail's
+  `aria-label` says same-class or different-class outright, and the `✕` survives both
+  hues being indistinguishable. Same rule as the draw panel's fit tint.
+- **⚠️ NEITHER ENCODER IS COLOUR-CODED, and the temptation to do it is real** — §3 tints
+  DDPM indigo and flow teal, so the pattern is right there. It cannot work here: a tint
+  on the MAE block would land on the block that fails most and read as branding rather
+  than a result, contesting the one signal (red = this neighbour's class differs) the
+  section actually needs colour for. Encoders are told apart by their labels.
+  Verified that the marking really is data-driven and not a left/right habit: a truck
+  query lands at 2/8 and 3/8, and **both** blocks come back marked (6 and 5 crosses).
+- Blocks are 4 across always: half the panel on desktop, full width stacked on a phone.
+  Eight across at 375px is a 33px photo, and telling a deer from a horse at 33px is exactly
+  the judgement being asked for. The presets strip took the same treatment for the reason.
+
+**⚠️ THERE WAS A SECOND TAB, "embeddings". IT WAS BUILT, SHIPPED, AND THEN REMOVED
+2026-07-27 AT THE OWNER'S CALL. Don't rebuild it without reading this.** It drew
+`umap.mae` and `umap.jepa` as two canvas scatters (4096 points each, one shared uniform
+fit, a 32x32 bucket index for hover hit-testing, and a mono class row that lit one class
+teal against a dimmed field instead of a ten-colour categorical palette). It worked, and
+it was verified: the hover panel named ground truth at all four extremes of the map and
+stayed inside the canvas on every edge. Two reasons it went anyway, and only the first is
+about taste:
+1. **The I-JEPA projection carries a visible artifact.** Measured from the manifest:
+   **12 points collapsed into a 0.005-wide blob** in the corner (`x < 0.005`,
+   `y ≈ 0.86`), class-mixed (6 airplane, 3 ship, cat/truck/dog), and **absent from the MAE
+   fit entirely**. It is a UMAP outlier artifact, not something the encoder did, but on a
+   page whose claim is that the demos are real, a viewer has no way to tell those apart.
+   That is the same failure the "never fake a model's output" rule guards, arriving from
+   the other direction: a true rendering of a misleading intermediate.
+2. It split attention away from retrieval, which is what the section actually demonstrates
+   and what the kNN number actually measures.
+- If it returns: the honesty note below comes back with it, `umap.*` needs parsing again
+  in `lib/jepa.ts` (deliberately dropped, the data is still in the file), and
+  `copy.jepa` needs `viewLabel`, `classLabel`, `classAll`, `scatterHint`,
+  `scatterHintTouch`, `useAsQuery`, `scatterAria` and `umapNote` back. The removed
+  string names are listed in `copy.ts` so this is a checklist, not an excavation.
+- **The artifact is the thing to fix first, not the UI.** A re-export that drops UMAP
+  outliers, or a different projection, is what would make this view honest by default.
+
+**🔒 THE HONESTY NOTE, and it is required.** **Neighbours are cosine similarity in the
+FULL embedding space** (`copy.jepa.neighborNotePre/Post`, under the blocks), not
+nearest-in-a-projection, which is a much weaker and materially different claim.
+- **⚠️ THERE WERE TWO.** The other said the two scatters were separate UMAP fits, that
+  structure was comparable but absolute positions were not, and that a point at (0.2, 0.7)
+  in one map means nothing in the other. **It was removed with the tab it qualified**, on
+  the reasoning that a caveat about panels a visitor can no longer see is noise. **It is
+  not optional if the tab ever returns** — never imply point-to-point correspondence
+  between two independent fits.
+- The surviving note was reworded at the same time: it used to end "not from the 2D
+  projection", which pointed at a projection no longer on the page.
+- The embedding dimension is deliberately NOT stated. It's 384 for this export, but that
+  number lives in the training config and not in `manifest.json`, so asserting it in copy
+  would go stale silently. The backbone name is in the manifest and gets said instead.
+
+**The scope note is the other piece of honesty and is not padding** (`copy.jepa.scope`).
+The measured win is on frozen-feature probes and label efficiency. Left unsaid, the
+section reads as "latent targets beat pixel targets", which is false for the dense
+pixel-precise work a UNet's skip connections exist to serve. Being precise about what the
+claim covers is the point of the section.
+
+**Numbers come from `manifest.metrics`, never from this file.** Today: linear probe MAE
+69.2% / I-JEPA 74.4%, kNN (k=20) 55.4% / 66.4%, mean neighbour purity 41.6% / 54.3%. The
+copy interpolates them, so a re-export updates the page with no edit here.
+
+**Measured, in a real browser, production build.**
+- Payload: manifest 186 KB transferred, atlas 3549 KB. Both boot-gated, so nothing is in
+  flight at first paint.
+- **NOT added to `lib/warm.ts`'s preload window, on purpose.** That window is spent on
+  onnxruntime-web, which two demos share and which costs 24 MB; adding 4 MB of atlas to
+  the same idle callback would compete with it for a section several screens further down.
+- **There is nothing animated in this section at all** — no canvas, no timer, no
+  `requestAnimationFrame`. Query changes are pure state. That is also the answer to "pause
+  it off-screen": nothing is ticking to pause. Reduced-motion was checked and the section
+  is fully usable with the boot resolved instantly.
+- (Kept from the removed scatter, in case it returns: a full repaint of one plot, 4096
+  points, measured **1.2ms median / 1.52ms max**, so hover-driven redraws were free and
+  mobile point-subsampling was never needed. The DOM-vs-canvas choice was the one that
+  mattered.)
+
 ### 5. Research
 Clean cards for publications and projects. **Not built — the section does not exist in
 `app/page.tsx` at all.** (This file previously implied a stub was in place; there isn't
@@ -1100,6 +1329,8 @@ Vercel.
 | `public/diffusion_traj.json` | 3.0 MB | pixel trajectories, 10 digits x 32 frames |
 | `public/ascii_traj.json` | 586 KB | discrete/mask trajectories, same shape |
 | `public/chess_activations.json` | 43 KB | precomputed saliency + layer activations, 8 curated positions |
+| `public/jepa/manifest.json` | 483 KB | §7's bundle: labels, two UMAP fits, top-8 neighbours, metrics |
+| `public/jepa/sprites.webp` | 3.6 MB | 4096 thumbnails, 48px, on a 64x64 row-major atlas (3072x3072) |
 | `public/models/mnist_x0.onnx` | 26 MB | the pixel model, for live draw-a-digit |
 | `public/models/chess-int8.onnx` | 553 KB | the chess EBM (the Pi's artifact) |
 | `public/models/chess-fp32.onnx` | 1.8 MB | chess fallback |
@@ -1110,6 +1341,13 @@ Vercel.
 | `lib/ascii-diffusion.js` | 12 KB | the model module, vendored |
 
 **~70MB of binaries live in git history.** Worth a Git LFS decision; flagged, not decided.
+
+**Where §7's bundle comes from.** `public/jepa/` is copied verbatim out of
+`~/Documents/embedding_jepa/export/`, which `export.py` in that repo writes (it also
+asserts the atlas indexing at build time, including probes straddling a row boundary and
+a re-check after WebP encoding). To refresh: re-run the export there and copy
+`manifest.json` + `sprites.webp` across. Nothing in this repo generates them, and the
+schema guards in `lib/jepa.ts` are what catch a bundle that changed shape.
 
 **The two generator scripts are hand-run, and must NOT be wired to `prebuild` the way
 `sync-ort.mjs` is.** Both need a Playwright browser binary, which Vercel's build image
@@ -1206,13 +1444,17 @@ measured numbers rather than the handoff's.
 (§1); the trajectory viewer in both modes on real trained data (§2); live draw-a-digit
 with the real ONNX + zero-shot auto-label (§2b); sample-space (§3); the chess engine at
 1-ply on the real int8 build, with `hint` and the precomputed interpretability view (§4);
-the MCTS port in a Web Worker behind `let it think` (§4); editable terminal params on §2
+the MCTS port in a Web Worker behind `let it think` (§4); the MAE vs I-JEPA comparison on
+the real export, as a single retrieval view (§7); editable terminal params on §2
 and §2b; page ambience (CharField, scroll spine, resolving labels, reveals, grain); the
 terminal boot sequence, the ssh boot screen + editable identity, and the preload window;
 favicon set and OG card; the README.
 
-**The page is four sections today** (`app/page.tsx`): `#diffusion`, `#draw`, `#chess`,
-`#sample-space`. §5 and §6 do not exist.
+**The page is five sections today** (`app/page.tsx`): `#diffusion`, `#draw`, `#chess`,
+`#jepa`, `#sample-space`. §5 and §6 do not exist. `#jepa` is the one section `page.tsx`
+does NOT wrap in a `<Section>` — it owns its own, so that a missing bundle drops the
+anchor with the panel (see §7). The 404's `ls ~` listing mirrors these five and has to be
+kept in step.
 
 **Left, roughly in order:**
 1. **§5 Research** — not built at all. Needs real content from `content/resume-notes.md`,
@@ -1225,12 +1467,17 @@ favicon set and OG card; the README.
 4. **A faster chess runtime is the only thing that unblocks deeper search** (§4). WebGPU
    is untested here (headless Firefox has no adapter, so it can't be measured on this
    box); int8-on-WebGPU is also poorly supported. Don't ship it unmeasured.
+5. **§7's `label_efficiency` block is exported and unrendered.** Probe accuracy at 1, 5,
+   10, 25, 50 and 100 labels per class, mean and std over 3 subsamples, for both encoders.
+   It's the direct evidence for the "label efficiency" half of the section's claim, which
+   the copy currently asserts from the probe numbers alone. A small plot would close that,
+   and the data is already in the file.
 
 **Settled, don't relitigate:**
 - **Git LFS: not needed.** The old note said "~70MB of binaries in history". It was wrong:
   `public/ort/` (~37MB) is gitignored and regenerated by `sync-ort.mjs` on prebuild, so it
-  was never in history. Actual tracked binaries are ~31MB, dominated by the 25MB
-  `mnist_x0.onnx` — under GitHub's warning threshold.
+  was never in history. Actual tracked binaries are ~35MB, dominated by the 25MB
+  `mnist_x0.onnx` and now §7's 3.6MB `sprites.webp` — under GitHub's warning threshold.
 - **The repo is committed, pushed and Private** (`NeelayRanjan/portfolio`). The old note
   said nothing was committed. Still live: `content/resume-notes.md` IS tracked and holds a
   GPA, clearance eligibility and three unpublished paper titles. Fine while private; decide

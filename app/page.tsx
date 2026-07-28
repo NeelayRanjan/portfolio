@@ -2,6 +2,7 @@ import { EnergyHero } from "@/components/EnergyHero";
 import { DiffusionVisualizer } from "@/components/DiffusionVisualizer";
 import { DrawDigit } from "@/components/DrawDigit";
 import { ChessPanel } from "@/components/ChessPanel";
+import { JepaSection } from "@/components/JepaPanel";
 import { SampleSpace } from "@/components/SampleSpace";
 import { SampleSpaceWriteup } from "@/components/SampleSpaceWriteup";
 import { Section } from "@/components/Section";
@@ -40,6 +41,13 @@ export default function Home() {
         <Section id="chess" label={copy.anchors.chess}>
           <ChessPanel />
         </Section>
+
+        {/* ⚠️ OWNS ITS OWN <Section>, unlike every other panel here, and that is
+            the gate rather than a style slip: when the bundle in public/jepa/ is
+            absent the component returns null, and the teal scroll anchor has to
+            go with it. A <Section> wrapped around it out here would survive its
+            own panel and leave a labelled hole. */}
+        <JepaSection />
 
         <Section id="sample-space" label={copy.anchors.sampleSpace}>
           <SampleSpace />

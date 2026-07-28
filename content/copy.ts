@@ -123,6 +123,7 @@ export const copy = {
     diffusion: "two models, one idea",
     draw: "draw a digit",
     chess: "play the engine",
+    jepa: "mae vs i-jepa",
     sampleSpace: "sample space",
   },
 
@@ -386,6 +387,103 @@ export const copy = {
     },
   },
 
+  /** §7 — MAE vs I-JEPA representation comparison. Precomputed, real data. */
+  jepa: {
+    cmd: "./jepa",
+    bootLines: [
+      "resolving manifest /jepa/manifest.json",
+      "decoding 4096 embeddings · two encoders, one variable",
+      "loading sprite atlas 3072x3072 -> ready",
+    ],
+    /** Title-bar program face. The `--view confusions|embeddings` flag stays
+     *  inline: it names what is on screen, the way chess's `--search` does. */
+    label: "jepa",
+    statusBooting: "booting",
+    statusLoading: "loading atlas…",
+    /** `${n} images · ${dataset} ${split}` — the glue interpolates. */
+    heading: "Predicting pixels, or predicting representations",
+    /**
+     * Three sans paragraphs plus a scope note. Fragments only where a number
+     * from the manifest interpolates — everything else is whole sentences.
+     */
+    lede: {
+      a: "Two encoders, same architecture, same masking, same optimiser, same schedule, same seed, and the same 65 epochs over the same 100,000 unlabeled STL-10 images. One thing differs. MAE predicts the raw pixels of the hidden patches; I-JEPA predicts their representations, produced by an EMA copy of the encoder itself. Neither one saw a label during pretraining. Labels enter afterwards, only to measure what the frozen features turned out to be worth.",
+      b: "A pixel loss has to account for everything in the image, including the parts that can’t be predicted: texture, background clutter, the exact colour of the sky. Capacity goes there because the loss charges for it. Predicting in latent space lets the target encoder discard that first, so what’s left to predict is structure. It shows up in retrieval. MAE’s nearest neighbours often match the background rather than the subject, so a ship pulls back airplanes and a deer pulls back horses.",
+      /** Metrics line. Every number is read from manifest.metrics. */
+      cPre: "Frozen features, linear probe: MAE ",
+      cMid1: ", I-JEPA ",
+      cMid2: ". kNN at k=20: ",
+      cMid3: " and ",
+      cPost:
+        ". The kNN gap is the wider of the two, and kNN is retrieval: rank everything by cosine similarity and look at what comes back.",
+    },
+    /**
+     * ⚠️ SCOPE NOTE, and it is not padding. The measured win is on frozen-feature
+     * probes and label efficiency. Saying nothing here would let the section read
+     * as "latent targets beat pixel targets", which is false for the dense
+     * pixel-precise tasks a UNet's skip connections exist to serve.
+     */
+    scope:
+      "This is a claim about representation quality and label efficiency. It isn’t a claim that latent-target pretraining beats a UNet at dense, pixel-precise output like segmentation, where skip connections carry exactly the detail a latent target throws away.",
+    /**
+     * 🔒 THE HONESTY NOTE, and it sits directly under the blocks it qualifies.
+     *
+     * ⚠️ THERE WAS A SECOND ONE: "the two maps are separate UMAP fits, structure
+     * is comparable but absolute positions are not." It qualified the scatter
+     * tab, and it was removed WITH that tab, because a caveat about panels a
+     * visitor can no longer see is noise. If the tab is ever rebuilt, that note
+     * is not optional and has to come back with it. See CLAUDE.md §7.
+     *
+     * This one was reworded when the tab went: it used to end "not from the 2D
+     * projection", which pointed at a projection that is no longer on the page.
+     * What it has to keep saying is that neighbours come from the full frozen
+     * embedding, since nearest-in-a-projection is a weaker and different claim.
+     */
+    /** `Neighbours are top-${k} by cosine similarity…` */
+    neighborNotePre: "Neighbours are top-",
+    neighborNotePost:
+      " by cosine similarity in the encoder’s full embedding space, computed on the frozen features themselves rather than on any reduction of them.",
+    /** The retrieval view. */
+    queryLabel: "query",
+    queryCaption: "click any thumbnail to make it the query",
+    presetsLabel: "presets",
+    random: "random",
+    maeName: "MAE",
+    maeTarget: "(pixel target)",
+    jepaName: "I-JEPA",
+    jepaTarget: "(latent target)",
+    /**
+     * The wrong-class marker, in front of the neighbour's class label.
+     *
+     * ⚠️ KEEP IT EVEN THOUGH THE MARK IS NOW RED. It looks redundant next to a red
+     * border and a red label, and it is not: red against neutral grey is the
+     * weakest possible pairing under the common red-green deficiencies, and the
+     * cross is the one carrier that doesn't depend on seeing a hue at all.
+     *
+     * It used to appear twice, the second time as a filled chip on the thumbnail
+     * itself, back when indigo carried this and needed the help. Indigo couldn't:
+     * on this site it already means inert x̂₀, DDPM, a hint overlay and the
+     * CharField, so it read as a highlight on the row that was failing.
+     */
+    differsMark: "✕",
+    /** `${hit}/${k} same class` — the fraction is glue, this is the tail. */
+    samePost: " same class",
+    /** Aggregate purity, from manifest.mean_neighbor_purity. */
+    meanPurityPre: "across all ",
+    meanPurityMid: " images · mae ",
+    meanPurityMid2: " · i-jepa ",
+    meanPurityPost: " of neighbours share the query’s class",
+    /** Per-thumbnail aria. `${class}, ${same|differs}. Set as query.` */
+    ariaSame: ", same class as the query",
+    ariaDiffers: ", different class from the query",
+    ariaSetQuery: ". Set as query.",
+    ariaQueryPre: "query image, class ",
+    // The removed scatter tab's strings went with it: `viewLabel`, `classLabel`,
+    // `classAll`, `scatterHint`, `scatterHintTouch`, `useAsQuery`, `scatterAria`
+    // and `umapNote`. Listed here only so a rebuild knows what it needs back.
+    errorPrefix: "could not load the representation bundle: ",
+  },
+
   /** §3 — sample-space DDPM vs flow matching (illustrative). */
   sampleSpace: {
     cmd: "./sample_space",
@@ -443,11 +541,12 @@ export const copy = {
       { href: "/#diffusion", name: "diffusion" },
       { href: "/#draw", name: "draw" },
       { href: "/#chess", name: "chess" },
+      { href: "/#jepa", name: "jepa" },
       { href: "/#sample-space", name: "sample-space" },
     ],
     heading: "Page not found",
     lede:
-      "The site is a single page, so there is not much to get lost in beyond a typo. Those four are everything on it. Just imagine some cool demos for me ;)",
+      "The site is a single page, so there is not much to get lost in beyond a typo. Those five are everything on it. Just imagine some cool demos for me ;)",
   },
 
   /** The ssh boot screen (components/ambience/BootScreen.tsx). The prompt itself

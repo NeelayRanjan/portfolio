@@ -15,6 +15,24 @@
   --color-indigo: #8f88dd;
   --color-teal: #5dcaa5;
 
+  /* ---- the third accent, and it is SCOPED ---------------------------------
+     A retrieval miss in §7: a neighbour whose class differs from the query's.
+     Nothing else. Named for the meaning rather than the hue (unlike indigo and
+     teal above) precisely so it does not drift into decorative use.
+
+     Admitted deliberately, overriding the two-accent rule, because indigo could
+     not do this job. Indigo already means inert x̂₀, DDPM, a hint overlay and the
+     CharField tint — never anything negative — so it read as a highlight on the
+     one row that was failing. Hue was being asked to say something it has never
+     said here. See CLAUDE.md's Aesthetic section before using this anywhere else.
+
+     The value is the hue already on the page as TerminalPanel's close dot, so no
+     genuinely new colour enters the palette. They stay separate declarations: a
+     window-close dot and a retrieval miss are different things that happen to
+     agree on red, and tying them together would make one drag the other.
+     Measured 5.6:1 on #080a12, which clears AA for the 10px label. */
+  --color-miss: #f0564a;
+
   /* Chess squares. Their own tokens, not panel/panel-bar: every TerminalPanel on
      the page uses those, so tuning the board through them would retint the site.
      Light really is lighter than dark here — the board used to run panel-bar on

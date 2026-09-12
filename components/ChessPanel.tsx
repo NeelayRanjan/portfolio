@@ -438,6 +438,18 @@ export function ChessPanel() {
 
   const ready = engine !== null;
   const busy = thinking || hinting;
+  /**
+   * Which of the two views is on screen — and the ONE place that decides it, so
+   * the body and the controls above it can never disagree.
+   *
+   * ⚠️ The search toggle, the sims box and the note under them are gated on
+   * this, and that is not tidying. In the interpretability view they configure a
+   * search that nothing on screen runs: the activation maps are a precomputed
+   * export over curated positions, so changing the budget there is a control
+   * wired to nothing, which is exactly what the repo's editable-param rule
+   * forbids. They come back with their state intact when the game does.
+   */
+  const showGame = !(acts && view === "activations");
   const status = loading
     ? copy.systems.chess.statusLoading
     : busy
@@ -480,114 +492,6 @@ export function ChessPanel() {
         </p>
       ) : null}
 
-      {/*
-       * The control row: which search is running, and what it spends.
-       *
-       * Two modes, not a ladder — see chess-protocol.ts for the measurement that
-       * deleted the ladder. Switching mid-game is fine: every move is an
-       * independent search, no tree is carried between them. It applies to its
-       * move, your hint and self-play alike, because they are all one call.
-       *
-       * v1 rendered the mode in the panel's title bar and the number as an
-       * editable `--sims` flag in the boot command. Same two facts, same clamp,
-       * same commit rules; only the chrome changed.
-       */}
-      <div className="mb-2 flex flex-wrap items-end gap-x-5 gap-y-3 font-mono text-[11px]">
-        <div className="flex flex-col gap-1">
-          <span aria-hidden="true" className="text-mut">
-            {copy.systems.chess.searchLabel}
-          </span>
-          <div className="flex" role="group" aria-label={copy.systems.chess.searchLabel}>
-            {SEARCH_MODES.map((d, i) => (
-              <button
-                key={d.id}
-                onClick={() => setLevel(d.id)}
-                disabled={busy}
-                aria-pressed={d.id === level}
-                // -ml-px joins the two into one segmented control; `relative` on
-                // the active half keeps its border painting over its neighbour's
-                // rather than under it.
-                className={`border px-2.5 py-1 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                  i > 0 ? "-ml-px" : ""
-                } ${
-                  d.id === level
-                    ? "relative border-ok text-ok"
-                    : "border-rule text-mut hover:border-mut hover:text-ink"
-                }`}
-              >
-                {d.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <SimsField
-          name="sims"
-          value={thinkSims}
-          disabled={busy}
-          onCommit={(v) => {
-            setThinkSims(v);
-            setEcho(
-              sims === 0
-                ? `sims ${v}${copy.systems.chess.simsEchoWhenThink}`
-                : `sims ${v}${copy.systems.chess.simsEchoNextMove}`,
-            );
-          }}
-        />
-
-        {/* One slot, two states. The hint retires the moment the number has been
-            touched, and reset takes its place — which is also the only moment
-            reset is worth offering. */}
-        {thinkSims !== THINK_SIMS.default ? (
-          <button
-            onClick={() => {
-              setThinkSims(THINK_SIMS.default);
-              setEcho(null);
-            }}
-            disabled={busy}
-            className="self-end border-b border-dashed border-rule py-1 text-mut transition-colors hover:border-mut hover:text-ink disabled:opacity-40"
-          >
-            {copy.commandLine.reset}
-          </button>
-        ) : (
-          // aria-hidden: the box above is already an exposed labelled control
-          // carrying its own range, so this would only repeat it.
-          <span aria-hidden="true" className="self-end py-1 text-mut/60">
-            {copy.systems.chess.hint}
-          </span>
-        )}
-      </div>
-
-      {/* The confirmation that the number did something. `role="status"`, because
-          the edit configures the NEXT search rather than re-running this one, so
-          nothing else on screen changes to acknowledge it. */}
-      {echo ? (
-        <p role="status" className="mb-2 font-mono text-[11px] text-warm">
-          {echo}
-        </p>
-      ) : null}
-
-      <p className="mb-6 max-w-2xl font-mono text-[11px] leading-relaxed text-mut/60">
-        {sims > 0 ? (
-          <>
-            {sims} {mode.about} · about {aboutTime(sims)} a move.
-            {copy.systems.chess.searchNoteSetPre}
-            <span className="text-ink">{copy.systems.chess.searchNoteSims}</span>
-            {copy.systems.chess.searchNoteRange}
-            {THINK_SIMS.min}
-            {copy.systems.chess.searchNoteTo}
-            {THINK_SIMS.max}
-            {copy.systems.chess.searchNotePiRuns}
-            {THINK_SIMS.max}.
-          </>
-        ) : (
-          <>
-            {mode.about}
-            {copy.systems.chess.searchNoteFloor}
-          </>
-        )}
-      </p>
-
       {/* Gated on the export existing. No data -> no toggle, rather than a
           disabled control advertising something that may never land. */}
       {acts ? (
@@ -609,7 +513,123 @@ export function ChessPanel() {
         </div>
       ) : null}
 
-      {acts && view === "activations" ? (
+      {/* Game-only, see `showGame`: in the interpretability view these
+          configure a search that nothing on screen runs. */}
+      {showGame ? (
+        <>
+        {/*
+         * The control row: which search is running, and what it spends.
+         *
+         * Two modes, not a ladder — see chess-protocol.ts for the measurement that
+         * deleted the ladder. Switching mid-game is fine: every move is an
+         * independent search, no tree is carried between them. It applies to its
+         * move, your hint and self-play alike, because they are all one call.
+         *
+         * v1 rendered the mode in the panel's title bar and the number as an
+         * editable `--sims` flag in the boot command. Same two facts, same clamp,
+         * same commit rules; only the chrome changed.
+         */}
+        <div className="mb-2 flex flex-wrap items-end gap-x-5 gap-y-3 font-mono text-[11px]">
+          <div className="flex flex-col gap-1">
+            <span aria-hidden="true" className="text-mut">
+              {copy.systems.chess.searchLabel}
+            </span>
+            <div className="flex" role="group" aria-label={copy.systems.chess.searchLabel}>
+              {SEARCH_MODES.map((d, i) => (
+                <button
+                  key={d.id}
+                  onClick={() => setLevel(d.id)}
+                  disabled={busy}
+                  aria-pressed={d.id === level}
+                  // -ml-px joins the two into one segmented control; `relative` on
+                  // the active half keeps its border painting over its neighbour's
+                  // rather than under it.
+                  className={`border px-2.5 py-1 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                    i > 0 ? "-ml-px" : ""
+                  } ${
+                    d.id === level
+                      ? "relative border-ok text-ok"
+                      : "border-rule text-mut hover:border-mut hover:text-ink"
+                  }`}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <SimsField
+            name="sims"
+            value={thinkSims}
+            disabled={busy}
+            onCommit={(v) => {
+              setThinkSims(v);
+              setEcho(
+                sims === 0
+                  ? `sims ${v}${copy.systems.chess.simsEchoWhenThink}`
+                  : `sims ${v}${copy.systems.chess.simsEchoNextMove}`,
+              );
+            }}
+          />
+
+          {/* One slot, two states. The hint retires the moment the number has been
+              touched, and reset takes its place — which is also the only moment
+              reset is worth offering. */}
+          {thinkSims !== THINK_SIMS.default ? (
+            <button
+              onClick={() => {
+                setThinkSims(THINK_SIMS.default);
+                setEcho(null);
+              }}
+              disabled={busy}
+              className="self-end border-b border-dashed border-rule py-1 text-mut transition-colors hover:border-mut hover:text-ink disabled:opacity-40"
+            >
+              {copy.commandLine.reset}
+            </button>
+          ) : (
+            // aria-hidden: the box above is already an exposed labelled control
+            // carrying its own range, so this would only repeat it.
+            <span aria-hidden="true" className="self-end py-1 text-mut/60">
+              {copy.systems.chess.hint}
+            </span>
+          )}
+        </div>
+
+        {/* The confirmation that the number did something. `role="status"`, because
+            the edit configures the NEXT search rather than re-running this one, so
+            nothing else on screen changes to acknowledge it. */}
+        {echo ? (
+          <p role="status" className="mb-2 font-mono text-[11px] text-warm">
+            {echo}
+          </p>
+        ) : null}
+
+        <p className="mb-6 max-w-2xl font-mono text-[11px] leading-relaxed text-mut/60">
+          {sims > 0 ? (
+            <>
+              {sims} {mode.about} · about {aboutTime(sims)} a move.
+              {copy.systems.chess.searchNoteSetPre}
+              <span className="text-ink">{copy.systems.chess.searchNoteSims}</span>
+              {copy.systems.chess.searchNoteRange}
+              {THINK_SIMS.min}
+              {copy.systems.chess.searchNoteTo}
+              {THINK_SIMS.max}
+              {copy.systems.chess.searchNotePiRuns}
+              {THINK_SIMS.max}.
+            </>
+          ) : (
+            <>
+              {mode.about}
+              {copy.systems.chess.searchNoteFloor}
+            </>
+          )}
+        </p>
+        </>
+      ) : null}
+
+      {/* Same `showGame`, inverted: one boolean decides the body and the
+          controls above it, so they cannot drift apart. */}
+      {!showGame ? (
         <>
           <p className="mb-6 max-w-2xl text-[15px] leading-relaxed text-mut">
             {copy.systems.chess.activationsLede}

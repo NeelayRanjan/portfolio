@@ -366,12 +366,16 @@ export const copy = {
       loadingEngine: "loading the engine…",
       searchLabel: "search",
       searchNoteSetPre: " Set it with ",
-      searchNoteSims: "--sims",
+      /** The sims control's own name. It was the `--sims` flag on v1's typed
+       *  command line; the manuscript chrome renders it as a labeled number box
+       *  called `sims`, and this note points at that box, so the two have to
+       *  keep saying the same word. */
+      searchNoteSims: "sims",
       searchNoteRange: " above, ",
       searchNoteTo: " to ",
       searchNotePiRuns: ". The Pi runs ",
       searchNoteFloor:
-        ". Below 250 simulations the search returns the same move as this the vast majority of the time, which is why --sims stops there rather than at 1.",
+        ". Below 250 simulations the search returns the same move as this the vast majority of the time, which is why sims stops at 250 rather than at 1.",
       newGame: "new game",
       engineVsEngine: "engine vs engine",
       stop: "stop",

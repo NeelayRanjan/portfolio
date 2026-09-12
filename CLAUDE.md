@@ -37,9 +37,10 @@ against its own class, versus the other two as controls). All 13 checks pass
 against the current branch. Re-run it after any change that touches a demo, a
 figure, or the page shell.
 
-**Status: awaiting the owner's review of the Vercel preview and his explicit go
-to promote `redesign` to `main`.** Nothing here promotes itself — see the
-brief's own rule: hand over the preview URL and stop.
+**Status: PROMOTED to production 2026-09-12 at the owner's explicit request**
+(fast-forward of `redesign` into `main` after a full 14/14 verification run).
+Post-launch additions follow the same rule: verify on a prod build, then the
+owner says when anything ships.
 
 Deadline pressure: polished by ~early November 2026 (MS application season; the
 owner is drafting his SOP against the same facts this site will show).

@@ -6,7 +6,7 @@ import { ChessBoard } from "./ChessBoard";
 import type { ActivationSet } from "@/lib/chess-activations";
 import { copy } from "@/content/copy";
 
-const C = copy.chess.activations;
+const C = copy.systems.chess.activations;
 
 /**
  * The interpretability view: the model's internals painted back onto the squares.

@@ -14,7 +14,7 @@ import {
 } from "@/lib/jepa";
 import { copy } from "@/content/copy";
 
-const C = copy.jepa;
+const C = copy.lab.jepa;
 
 /**
  * MAE vs I-JEPA: what two encoders retrieve for the same query.

@@ -18,7 +18,7 @@ import { CommandLine } from "./ambience/CommandLine";
 import { loadChessActivations, type ActivationSet } from "@/lib/chess-activations";
 import { copy } from "@/content/copy";
 
-const CMD_NAME = copy.chess.cmd;
+const CMD_NAME = copy.systems.chess.cmd;
 /**
  * `--sims` here is the budget `let it think` spends, NOT the live sim count.
  *
@@ -30,7 +30,7 @@ const CMD_NAME = copy.chess.cmd;
  * ⚠️ Must match what CommandLine renders, flag for flag and in this order.
  */
 const BOOT_CMD = `${CMD_NAME} --model int8 --sims ${THINK_SIMS.default}`;
-const BOOT_LINES = [...copy.chess.bootLines];
+const BOOT_LINES = [...copy.systems.chess.bootLines];
 
 /** ~230ms a simulation, measured in Firefox (6.6ms/board x ~35 legal moves). Quote
  *  what's measured in a browser, never the Pi's numbers. */
@@ -178,11 +178,11 @@ export function ChessPanel() {
   const outcome = useMemo(() => {
     const g = new Chess(fen);
     if (g.isCheckmate())
-      return `${copy.chess.checkmatePre}${g.turn() === "w" ? copy.chess.checkmateWinsBlack : copy.chess.checkmateWinsWhite}`;
-    if (g.isStalemate()) return copy.chess.drawStalemate;
-    if (g.isThreefoldRepetition()) return copy.chess.drawThreefold;
-    if (g.isInsufficientMaterial()) return copy.chess.drawInsufficient;
-    if (g.isDraw()) return copy.chess.drawFiftyMove;
+      return `${copy.systems.chess.checkmatePre}${g.turn() === "w" ? copy.systems.chess.checkmateWinsBlack : copy.systems.chess.checkmateWinsWhite}`;
+    if (g.isStalemate()) return copy.systems.chess.drawStalemate;
+    if (g.isThreefoldRepetition()) return copy.systems.chess.drawThreefold;
+    if (g.isInsufficientMaterial()) return copy.systems.chess.drawInsufficient;
+    if (g.isDraw()) return copy.systems.chess.drawFiftyMove;
     return null;
   }, [fen]);
 
@@ -286,7 +286,7 @@ export function ChessPanel() {
     try {
       g.move({ from, to, promotion });
     } catch {
-      setFlash(copy.chess.illegalMove);
+      setFlash(copy.systems.chess.illegalMove);
       setTimeout(() => setFlash(null), 1200);
       return;
     }
@@ -343,22 +343,22 @@ export function ChessPanel() {
   const ready = engine !== null;
   const busy = thinking || hinting;
   const status = !booted
-    ? copy.chess.statusBooting
+    ? copy.systems.chess.statusBooting
     : loading
-      ? copy.chess.statusLoading
+      ? copy.systems.chess.statusLoading
       : busy
         ? // The search runs in a worker, so this counter keeps ticking while the
           // page stays live. That IS the demo: a frozen tab would prove nothing.
           progress
-          ? `${copy.chess.statusSearchingPre}${progress.done}/${progress.total}`
-          : copy.chess.statusThinking
+          ? `${copy.systems.chess.statusSearchingPre}${progress.done}/${progress.total}`
+          : copy.systems.chess.statusThinking
         : outcome
-          ? copy.chess.statusGameOver
+          ? copy.systems.chess.statusGameOver
           : ready
             ? selfPlay
-              ? `${engine.build} · ${copy.chess.statusSelfPlay} · move ${Math.ceil(game.history().length / 2) || 1}`
-              : `${engine.build} · ${game.turn() === "w" ? copy.chess.statusYourMove : copy.chess.statusWaiting}`
-            : copy.chess.statusEnginePending;
+              ? `${engine.build} · ${copy.systems.chess.statusSelfPlay} · move ${Math.ceil(game.history().length / 2) || 1}`
+              : `${engine.build} · ${game.turn() === "w" ? copy.systems.chess.statusYourMove : copy.systems.chess.statusWaiting}`
+            : copy.systems.chess.statusEnginePending;
 
   return (
     <div ref={boot.ref}>
@@ -366,12 +366,12 @@ export function ChessPanel() {
         // Which mode is RUNNING. --sims lives in the boot log and means the
         // configured budget — showing sims in both places would put two different
         // numbers under one flag name.
-        label={`${copy.chess.label} --engine ebm --search ${sims === 0 ? "argmin" : "mcts"}`}
+        label={`${copy.systems.chess.label} --engine ebm --search ${sims === 0 ? "argmin" : "mcts"}`}
         status={status}
         notice={
           booted && err ? (
             <>
-              <span className="text-indigo">{copy.chess.engineError}</span>: {err}
+              <span className="text-indigo">{copy.systems.chess.engineError}</span>: {err}
             </>
           ) : null
         }
@@ -385,7 +385,7 @@ export function ChessPanel() {
             <CommandLine
               name={CMD_NAME}
               disabled={busy}
-              hint={copy.chess.hint}
+              hint={copy.systems.chess.hint}
               dirty={thinkSims !== THINK_SIMS.default}
               onReset={() => {
                 setThinkSims(THINK_SIMS.default);
@@ -408,8 +408,8 @@ export function ChessPanel() {
                     setThinkSims(v);
                     setEcho(
                       sims === 0
-                        ? `--sims ${v}${copy.chess.simsEchoWhenThink}`
-                        : `--sims ${v}${copy.chess.simsEchoNextMove}`,
+                        ? `--sims ${v}${copy.systems.chess.simsEchoWhenThink}`
+                        : `--sims ${v}${copy.systems.chess.simsEchoNextMove}`,
                     );
                   },
                 },
@@ -435,24 +435,24 @@ export function ChessPanel() {
                         : "border-line text-muted hover:border-faint hover:text-ink"
                     }`}
                   >
-                    {v === "game" ? v : copy.chess.viewSaw}
+                    {v === "game" ? v : copy.systems.chess.viewSaw}
                   </button>
                 ))}
               </div>
             ) : null}
 
-            <h2 className="mt-6 mb-2 text-2xl tracking-tight">{copy.chess.heading}</h2>
+            <h2 className="mt-6 mb-2 text-2xl tracking-tight">{copy.systems.chess.heading}</h2>
             <p className="mb-4 max-w-[54ch] leading-relaxed text-muted">
-              {copy.chess.lede.a}
+              {copy.systems.chess.lede.a}
             </p>
             <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
-              {copy.chess.lede.b}
+              {copy.systems.chess.lede.b}
             </p>
 
             {acts && view === "activations" ? (
               <>
                 <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
-                  {copy.chess.activationsLede}
+                  {copy.systems.chess.activationsLede}
                 </p>
                 <ChessActivations data={acts} />
               </>
@@ -481,21 +481,21 @@ export function ChessPanel() {
                   ) : flash ? (
                     <span className="text-indigo">{flash}</span>
                   ) : game.isCheck() ? (
-                    <span className="text-indigo">{copy.chess.check}</span>
+                    <span className="text-indigo">{copy.systems.chess.check}</span>
                   ) : hint ? (
                     <>
-                      <span className="text-indigo">{copy.chess.hintPlayPre}{hint.san}</span> · p=
+                      <span className="text-indigo">{copy.systems.chess.hintPlayPre}{hint.san}</span> · p=
                       {hint.prior.toFixed(3)} · v={hint.value.toFixed(2)}
                     </>
                   ) : showMap && lastReply ? (
                     <>
-                      <span className="text-teal">{copy.chess.mapCaption}</span>
-                      {copy.chess.mapCaptionTail}
+                      <span className="text-teal">{copy.systems.chess.mapCaption}</span>
+                      {copy.systems.chess.mapCaptionTail}
                     </>
                   ) : selfPlay ? (
-                    <span className="text-teal">{copy.chess.selfPlayCaption}</span>
+                    <span className="text-teal">{copy.systems.chess.selfPlayCaption}</span>
                   ) : (
-                    copy.chess.boardCaptionIdle
+                    copy.systems.chess.boardCaptionIdle
                   )}
                 </p>
 
@@ -508,7 +508,7 @@ export function ChessPanel() {
                       : "border-line text-muted hover:border-faint hover:text-ink"
                   }`}
                 >
-                  {copy.chess.moveMap}
+                  {copy.systems.chess.moveMap}
                 </button>
 
                 {/* The map is a move preference, not an activation. Saying "its
@@ -516,22 +516,22 @@ export function ChessPanel() {
                     shows internals. */}
                 <p className="mt-2 max-w-[296px] font-mono text-[11px] leading-relaxed text-faint">
                   {lastReply?.mode === "mcts"
-                    ? copy.chess.mapNoteMcts
-                    : copy.chess.mapNoteArgmin}
+                    ? copy.systems.chess.mapNoteMcts
+                    : copy.systems.chess.mapNoteArgmin}
                 </p>
               </div>
 
               <div className="min-w-[220px] flex-1">
                 {pendingPromo ? (
                   <div className="mb-6">
-                    <span className="font-mono text-xs text-faint">{copy.chess.promoteTo}</span>
+                    <span className="font-mono text-xs text-faint">{copy.systems.chess.promoteTo}</span>
                     <div className="mt-2 flex gap-2">
                       {PROMOTIONS.map((p) => (
                         <button
                           key={p}
                           onClick={() => play(pendingPromo.from, pendingPromo.to, p)}
                           className="flex size-10 items-center justify-center rounded border border-line text-[22px] text-ink transition-colors hover:border-teal hover:text-teal"
-                          aria-label={`${copy.chess.promoteAria} ${p}`}
+                          aria-label={`${copy.systems.chess.promoteAria} ${p}`}
                         >
                           {PROMO_GLYPH[p]}
                         </button>
@@ -541,7 +541,7 @@ export function ChessPanel() {
                 ) : null}
 
                 <span className="font-mono text-xs text-faint">
-                  {copy.chess.top3}
+                  {copy.systems.chess.top3}
                 </span>
                 <div className="mt-2 min-h-[76px] font-mono text-[11px] leading-relaxed">
                   {lastReply ? (
@@ -561,7 +561,7 @@ export function ChessPanel() {
                     ))
                   ) : (
                     <span className="text-faint">
-                      {ready ? copy.chess.makeMove : copy.chess.loadingEngine}
+                      {ready ? copy.systems.chess.makeMove : copy.systems.chess.loadingEngine}
                     </span>
                   )}
                 </div>
@@ -579,7 +579,7 @@ export function ChessPanel() {
                     between them. Applies to its move, your hint and self-play
                     alike, because they are all one call. */}
                 <div className="mt-6">
-                  <span className="font-mono text-xs text-faint">{copy.chess.searchLabel}</span>
+                  <span className="font-mono text-xs text-faint">{copy.systems.chess.searchLabel}</span>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {SEARCH_MODES.map((d) => (
                       <button
@@ -601,19 +601,19 @@ export function ChessPanel() {
                     {sims > 0 ? (
                       <>
                         {sims} {mode.about} · about {aboutTime(sims)} a move.
-                        {copy.chess.searchNoteSetPre}
+                        {copy.systems.chess.searchNoteSetPre}
                         <span className="text-ink">--sims</span>
-                        {copy.chess.searchNoteRange}
+                        {copy.systems.chess.searchNoteRange}
                         {THINK_SIMS.min}
-                        {copy.chess.searchNoteTo}
+                        {copy.systems.chess.searchNoteTo}
                         {THINK_SIMS.max}
-                        {copy.chess.searchNotePiRuns}
+                        {copy.systems.chess.searchNotePiRuns}
                         {THINK_SIMS.max}.
                       </>
                     ) : (
                       <>
                         {mode.about}
-                        {copy.chess.searchNoteFloor}
+                        {copy.systems.chess.searchNoteFloor}
                       </>
                     )}
                   </p>
@@ -627,7 +627,7 @@ export function ChessPanel() {
                     onClick={reset}
                     className="rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-faint hover:text-ink"
                   >
-                    {copy.chess.newGame}
+                    {copy.systems.chess.newGame}
                   </button>
                   <button
                     onClick={() => setSelfPlay((v) => !v)}
@@ -639,14 +639,14 @@ export function ChessPanel() {
                         : "border-line text-muted hover:border-faint hover:text-ink"
                     }`}
                   >
-                    {selfPlay ? copy.chess.stop : copy.chess.engineVsEngine}
+                    {selfPlay ? copy.systems.chess.stop : copy.systems.chess.engineVsEngine}
                   </button>
                   <button
                     onClick={undo}
                     disabled={selfPlay || thinking || game.history().length < 2}
                     className="rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-faint hover:text-ink disabled:opacity-40"
                   >
-                    {copy.chess.takeBack}
+                    {copy.systems.chess.takeBack}
                   </button>
                   {/* Only while it's actually your move: asking the engine what
                       you should play when it isn't your turn is a question about
@@ -663,19 +663,19 @@ export function ChessPanel() {
                     }
                     className="rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-indigo hover:text-indigo disabled:opacity-40"
                   >
-                    {hinting ? copy.chess.thinking : copy.chess.hintButton}
+                    {hinting ? copy.systems.chess.thinking : copy.systems.chess.hintButton}
                   </button>
                 </div>
 
                 <p className="mt-4 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
-                  <span className="text-indigo">{copy.chess.hintNote.word}</span>
-                  {copy.chess.hintNote.post}
+                  <span className="text-indigo">{copy.systems.chess.hintNote.word}</span>
+                  {copy.systems.chess.hintNote.post}
                 </p>
 
                 <p className="mt-6 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
-                  {copy.chess.searchNote.pre}
-                  <span className="text-teal">{copy.chess.searchNote.letItThink}</span>
-                  {copy.chess.searchNote.post}
+                  {copy.systems.chess.searchNote.pre}
+                  <span className="text-teal">{copy.systems.chess.searchNote.letItThink}</span>
+                  {copy.systems.chess.searchNote.post}
                 </p>
               </div>
             </div>

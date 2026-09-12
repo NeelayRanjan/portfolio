@@ -32,7 +32,7 @@ type ModelRow = {
 
 const models = data.models as Record<string, ModelRow[]>;
 const modelKeys = Object.keys(models);
-const modelLabels: Record<string, string> = copy.research.efficiency.modelLabels;
+const modelLabels: Record<string, string> = copy.research.figEfficiency.modelLabels;
 
 const WIDTH = 680;
 const HEIGHT = 340;
@@ -104,13 +104,13 @@ const labelByKey = new Map(labelPlacements.map((p) => [p.key, p]));
 
 export function EfficiencyFigure() {
   return (
-    <InstrumentFigure n="2" caption={copy.research.efficiency.caption}>
+    <InstrumentFigure n="2" caption={copy.research.figEfficiency.caption}>
       <div className="text-mut font-mono text-[10.5px]">
         <svg
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           className="w-full"
           role="img"
-          aria-label={copy.research.efficiency.caption}
+          aria-label={copy.research.figEfficiency.caption}
         >
           {/* axes */}
           <line
@@ -166,7 +166,7 @@ export function EfficiencyFigure() {
             textAnchor="middle"
             fill="currentColor"
           >
-            {copy.research.efficiency.xAxisLabel}
+            {copy.research.figEfficiency.xAxisLabel}
           </text>
 
           {modelKeys

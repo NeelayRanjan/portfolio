@@ -21,7 +21,7 @@ import { copy } from "@/content/copy";
  * one thing here worth being careful about — see MAX_PATH.
  */
 
-/** The real sections (copy.notFound.sections) double as navigation, so `ls` isn't
+/** The real sections (copy.notFoundV1.sections) double as navigation, so `ls` isn't
  *  a joke that dead-ends. */
 
 /**
@@ -43,7 +43,7 @@ export default function NotFound() {
   return (
     <main className="flex-1">
       <div className="mx-auto w-full max-w-5xl px-6 py-20 sm:py-28">
-        <TerminalPanel label={copy.notFound.shell} status={copy.notFound.status}>
+        <TerminalPanel label={copy.notFoundV1.shell} status={copy.notFoundV1.status}>
           <div className="font-mono text-[11px] leading-relaxed">
             <div className="select-none">
               <span aria-hidden="true" className="text-teal">
@@ -53,16 +53,16 @@ export default function NotFound() {
             </div>
             {/* The real error, and the only line here a screen reader needs from
                 the theatre: it's the one that says what happened. */}
-            <div className="text-muted">cat: {path}{copy.notFound.catError}</div>
+            <div className="text-muted">cat: {path}{copy.notFoundV1.catError}</div>
 
             <div className="mt-4 select-none">
               <span aria-hidden="true" className="text-teal">
                 {prompt}
               </span>{" "}
-              <span className="text-ink">{copy.notFound.ls}</span>
+              <span className="text-ink">{copy.notFoundV1.ls}</span>
             </div>
             <nav aria-label="Sections" className="mt-1 flex flex-wrap gap-x-6 gap-y-1">
-              {copy.notFound.sections.map((s) => (
+              {copy.notFoundV1.sections.map((s) => (
                 <Link
                   key={s.href}
                   href={s.href}
@@ -76,8 +76,8 @@ export default function NotFound() {
 
           {/* Heading and lede inside the panel, after the shell — the same shape
               every terminal section on the home page uses. */}
-          <h1 className="mt-6 mb-2 text-2xl tracking-tight">{copy.notFound.heading}</h1>
-          <p className="max-w-2xl leading-relaxed text-muted">{copy.notFound.lede}</p>
+          <h1 className="mt-6 mb-2 text-2xl tracking-tight">{copy.notFoundV1.heading}</h1>
+          <p className="max-w-2xl leading-relaxed text-muted">{copy.notFoundV1.lede}</p>
         </TerminalPanel>
       </div>
     </main>

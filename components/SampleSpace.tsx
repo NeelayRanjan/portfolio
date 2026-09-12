@@ -19,7 +19,7 @@ import {
 } from "@/lib/sample-space";
 import { copy } from "@/content/copy";
 
-const CMD_NAME = copy.sampleSpace.cmd;
+const CMD_NAME = copy.lab.sampleSpace.cmd;
 /**
  * `--target` is genuinely live; `--compare` is not.
  *
@@ -31,10 +31,10 @@ const CMD_NAME = copy.sampleSpace.cmd;
  */
 const BOOT_CMD = `${CMD_NAME} --target ${DEFAULT_TARGET} --compare ddpm,flow`;
 const BOOT_LINES = [
-  copy.sampleSpace.bootTop,
+  copy.lab.sampleSpace.bootTop,
   // Interpolates the step-count constants, so it's a template, not static copy.
   `ddpm: ${DDPM_STEPS} stochastic steps · flow: ${FLOW_STEPS} deterministic steps`,
-  copy.sampleSpace.bootBottom,
+  copy.lab.sampleSpace.bootBottom,
 ];
 
 /** How long a trajectory takes to draw, and how long it lingers before fading. */
@@ -257,13 +257,13 @@ export function SampleSpace() {
   return (
     <div ref={boot.ref}>
       <TerminalPanel
-        label={copy.sampleSpace.label}
-        status={booted ? copy.sampleSpace.statusIllustrative : copy.sampleSpace.statusBooting}
+        label={copy.lab.sampleSpace.label}
+        status={booted ? copy.lab.sampleSpace.statusIllustrative : copy.lab.sampleSpace.statusBooting}
         notice={
           booted ? (
             <>
-              <span className="text-indigo">{copy.sampleSpace.noticeTag}</span>
-              {copy.sampleSpace.noticeBody}
+              <span className="text-indigo">{copy.lab.sampleSpace.noticeTag}</span>
+              {copy.lab.sampleSpace.noticeBody}
             </>
           ) : null
         }
@@ -275,7 +275,7 @@ export function SampleSpace() {
           command={
             <CommandLine
               name={CMD_NAME}
-              hint={copy.sampleSpace.hint}
+              hint={copy.lab.sampleSpace.hint}
               dirty={target !== DEFAULT_TARGET}
               onReset={() => setTarget(DEFAULT_TARGET)}
               // Order must match BOOT_CMD.
@@ -296,37 +296,37 @@ export function SampleSpace() {
 
         {!booted ? null : (
           <>
-            <h2 className="mt-6 mb-2 text-2xl tracking-tight">{copy.sampleSpace.heading}</h2>
+            <h2 className="mt-6 mb-2 text-2xl tracking-tight">{copy.lab.sampleSpace.heading}</h2>
             <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
-              {copy.sampleSpace.lede.pre}
-              <span className="text-ink">{copy.sampleSpace.lede.target}</span>
-              {copy.sampleSpace.lede.post}
+              {copy.lab.sampleSpace.lede.pre}
+              <span className="text-ink">{copy.lab.sampleSpace.lede.target}</span>
+              {copy.lab.sampleSpace.lede.post}
             </p>
 
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <figure>
                 <SamplePanel kind="ddpm" target={target} handleRef={ddpmRef} onPick={spawn} />
                 <figcaption className="mt-4 font-mono text-[11px] text-faint">
-                  <span className="text-indigo">{copy.sampleSpace.ddpmLabel}</span>
-                  {copy.sampleSpace.ddpmCaptionPre}
+                  <span className="text-indigo">{copy.lab.sampleSpace.ddpmLabel}</span>
+                  {copy.lab.sampleSpace.ddpmCaptionPre}
                   {DDPM_STEPS}
-                  {copy.sampleSpace.ddpmCaptionPost}
+                  {copy.lab.sampleSpace.ddpmCaptionPost}
                 </figcaption>
               </figure>
 
               <figure>
                 <SamplePanel kind="flow" target={target} handleRef={flowRef} onPick={spawn} />
                 <figcaption className="mt-4 font-mono text-[11px] text-faint">
-                  <span className="text-teal">{copy.sampleSpace.flowLabel}</span>
-                  {copy.sampleSpace.flowCaptionPre}
+                  <span className="text-teal">{copy.lab.sampleSpace.flowLabel}</span>
+                  {copy.lab.sampleSpace.flowCaptionPre}
                   {FLOW_STEPS}
-                  {copy.sampleSpace.flowCaptionPost}
+                  {copy.lab.sampleSpace.flowCaptionPost}
                 </figcaption>
               </figure>
             </div>
 
             <p className="mt-4 font-mono text-[11px] text-faint">
-              {copy.sampleSpace.targetCaptionPre}{shape.blurb}
+              {copy.lab.sampleSpace.targetCaptionPre}{shape.blurb}
             </p>
           </>
         )}

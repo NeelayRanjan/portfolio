@@ -16,7 +16,7 @@ import {
 } from "@/lib/draw-model";
 import { copy } from "@/content/copy";
 
-const CMD_NAME = copy.sdedit.cmd;
+const CMD_NAME = copy.systems.draw.cmd;
 
 /**
  * The model's output as an actual 28x28 grayscale image, not the ASCII ramp.
@@ -115,7 +115,7 @@ const RANGES = {
 const BOOT_CMD =
   `${CMD_NAME} --digit ${DEFAULTS.digit} --strength ${DEFAULTS.strength}` +
   ` --steps ${DEFAULTS.steps} --guidance ${DEFAULTS.guidance} --dissolve ${DEFAULTS.dissolve}`;
-const BOOT_LINES = [...copy.sdedit.bootLines];
+const BOOT_LINES = [...copy.systems.draw.bootLines];
 
 /**
  * Pen width as a fraction of canvas width. THIS IS THE FEATURE'S FAILURE MODE.
@@ -470,24 +470,24 @@ export function DrawDigit() {
 
   const ready = model !== null;
   const status = !booted
-    ? copy.sdedit.statusBooting
+    ? copy.systems.draw.statusBooting
     : running && frame
       ? `${frame.phase} ${frame.step + 1}/${frame.total}`
       : loading
-        ? copy.sdedit.statusFetching
+        ? copy.systems.draw.statusFetching
         : ready
-          ? copy.sdedit.statusReady
-          : copy.sdedit.statusDraw;
+          ? copy.systems.draw.statusReady
+          : copy.systems.draw.statusDraw;
 
   return (
     <div ref={boot.ref}>
       <TerminalPanel
-        label={`${copy.sdedit.label} --digit ${digit} --strength ${DEFAULT_STRENGTH}`}
+        label={`${copy.systems.draw.label} --digit ${digit} --strength ${DEFAULT_STRENGTH}`}
         status={status}
         notice={
           booted && loadErr ? (
             <>
-              <span className="text-indigo">{copy.sdedit.loadFailed}</span>: {loadErr}
+              <span className="text-indigo">{copy.systems.draw.loadFailed}</span>: {loadErr}
             </>
           ) : null
         }
@@ -502,7 +502,7 @@ export function DrawDigit() {
               name={CMD_NAME}
               disabled={running}
               dirty={dirty}
-              hint={copy.sdedit.hint}
+              hint={copy.systems.draw.hint}
               onReset={reset}
               // Order must match BOOT_CMD, or the line rewrites at the handover.
               items={[
@@ -526,11 +526,11 @@ export function DrawDigit() {
 
         {!booted ? null : (
           <>
-            <h2 className="mt-6 mb-2 text-2xl tracking-tight">{copy.sdedit.heading}</h2>
+            <h2 className="mt-6 mb-2 text-2xl tracking-tight">{copy.systems.draw.heading}</h2>
             <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
-              {copy.sdedit.lede.pre}
-              <span className="text-ink">{copy.sdedit.lede.tech}</span>
-              {copy.sdedit.lede.post}
+              {copy.systems.draw.lede.pre}
+              <span className="text-ink">{copy.systems.draw.lede.tech}</span>
+              {copy.systems.draw.lede.post}
             </p>
 
             <div className="flex flex-wrap items-start gap-6">
@@ -544,11 +544,11 @@ export function DrawDigit() {
                   // touch-none or a touch drag scrolls the page instead of
                   // drawing. Safe here: a small box, not the full-width hero.
                   className="aspect-square w-[280px] max-w-full cursor-crosshair touch-none rounded border border-line"
-                  aria-label={`${copy.sdedit.canvasAria} ${digit}`}
+                  aria-label={`${copy.systems.draw.canvasAria} ${digit}`}
                   role="img"
                 />
                 <figcaption className="mt-4 w-[280px] max-w-full font-mono text-[11px] leading-relaxed text-faint">
-                  {copy.sdedit.canvasCaption}
+                  {copy.systems.draw.canvasCaption}
                 </figcaption>
               </figure>
 
@@ -566,10 +566,10 @@ export function DrawDigit() {
                   ) : (
                     <span className="px-6 text-center font-mono text-[11px] leading-relaxed text-faint">
                       {loading
-                        ? copy.sdedit.resultFetching
+                        ? copy.systems.draw.resultFetching
                         : ready
-                          ? copy.sdedit.resultReady
-                          : copy.sdedit.resultDraw}
+                          ? copy.systems.draw.resultReady
+                          : copy.systems.draw.resultDraw}
                     </span>
                   )}
                 </div>
@@ -581,11 +581,11 @@ export function DrawDigit() {
                       </span>{" "}
                       · {frame.step + 1}/{frame.total}
                       {frame.phase === "dissolve"
-                        ? copy.sdedit.resultForward
-                        : copy.sdedit.resultRunning}
+                        ? copy.systems.draw.resultForward
+                        : copy.systems.draw.resultRunning}
                     </>
                   ) : (
-                    copy.sdedit.resultCaptionIdle
+                    copy.systems.draw.resultCaptionIdle
                   )}
                 </figcaption>
               </figure>
@@ -612,21 +612,21 @@ export function DrawDigit() {
                     />
                   ) : (
                     <span className="px-6 text-center font-mono text-[11px] leading-relaxed text-faint">
-                      {copy.sdedit.x0Placeholder}
+                      {copy.systems.draw.x0Placeholder}
                     </span>
                   )}
                 </div>
                 <figcaption className="mt-4 w-[280px] max-w-full font-mono text-[11px] leading-relaxed text-faint">
                   {frame ? (
                     <>
-                      <span className="text-ink">{copy.sdedit.x0Label}</span>
-                      {copy.sdedit.x0CaptionPre}
+                      <span className="text-ink">{copy.systems.draw.x0Label}</span>
+                      {copy.systems.draw.x0CaptionPre}
                       {frame.phase === "dissolve"
-                        ? copy.sdedit.x0Held
-                        : copy.sdedit.x0Repredicted}
+                        ? copy.systems.draw.x0Held
+                        : copy.systems.draw.x0Repredicted}
                     </>
                   ) : (
-                    copy.sdedit.x0CaptionIdle
+                    copy.systems.draw.x0CaptionIdle
                   )}
                 </figcaption>
               </figure>
@@ -634,13 +634,13 @@ export function DrawDigit() {
 
             <div className="mt-6 flex flex-wrap items-center gap-2">
               <span className="mr-1 font-mono text-xs text-faint">
-                {copy.sdedit.label_}
+                {copy.systems.draw.label_}
                 {autoLabel ? (
                   <span className="ml-2 text-teal">
-                    {classifying ? copy.sdedit.labelGuessing : model ? copy.sdedit.labelAuto : ""}
+                    {classifying ? copy.systems.draw.labelGuessing : model ? copy.systems.draw.labelAuto : ""}
                   </span>
                 ) : (
-                  <span className="ml-2 text-indigo">{copy.sdedit.labelYours}</span>
+                  <span className="ml-2 text-indigo">{copy.systems.draw.labelYours}</span>
                 )}
               </span>
               {DIGITS.map((d) => {
@@ -663,7 +663,7 @@ export function DrawDigit() {
                     aria-label={
                       f === null
                         ? `${d}`
-                        : `${d}${copy.sdedit.fitAriaMid}${Math.round(f * 100)}${copy.sdedit.fitAriaPost}`
+                        : `${d}${copy.systems.draw.fitAriaMid}${Math.round(f * 100)}${copy.systems.draw.fitAriaPost}`
                     }
                     className={`relative size-8 rounded border font-mono text-sm transition-colors ${
                       d === digit
@@ -690,7 +690,7 @@ export function DrawDigit() {
                 disabled={!hasInk || running}
                 className="ml-auto rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-faint hover:text-ink disabled:opacity-40"
               >
-                {copy.sdedit.clear}
+                {copy.systems.draw.clear}
               </button>
               <button
                 // Not `onClick={generate}`: that hands the MouseEvent to `over`,
@@ -702,41 +702,41 @@ export function DrawDigit() {
                 disabled={!ready || !hasInk || running || classifying}
                 title={
                   !ready
-                    ? copy.sdedit.generateHint
+                    ? copy.systems.draw.generateHint
                     : classifying
-                      ? copy.sdedit.predictingHint
+                      ? copy.systems.draw.predictingHint
                       : undefined
                 }
                 className="rounded border border-teal/60 px-3 py-1.5 font-mono text-xs text-teal transition-colors hover:border-teal disabled:cursor-not-allowed disabled:border-line disabled:text-faint"
               >
                 {running
-                  ? copy.sdedit.sampling
+                  ? copy.systems.draw.sampling
                   : classifying
-                    ? copy.sdedit.predicting
-                    : copy.sdedit.generate}
+                    ? copy.systems.draw.predicting
+                    : copy.systems.draw.generate}
               </button>
             </div>
 
             <p className="mt-4 max-w-2xl font-mono text-[11px] leading-relaxed text-faint">
-              {copy.sdedit.classify.a}
+              {copy.systems.draw.classify.a}
               {fit ? (
                 <>
-                  {copy.sdedit.classify.bPre}
-                  <span className="text-teal">{copy.sdedit.classify.teal}</span>
-                  {copy.sdedit.classify.bPost}
+                  {copy.systems.draw.classify.bPre}
+                  <span className="text-teal">{copy.systems.draw.classify.teal}</span>
+                  {copy.systems.draw.classify.bPost}
                   <span className="text-ink">
                     {fit.margin < 0.1
-                      ? copy.sdedit.classify.coinFlip
+                      ? copy.systems.draw.classify.coinFlip
                       : fit.margin < 0.25
-                        ? copy.sdedit.classify.nearThing
-                        : copy.sdedit.classify.notClose}
+                        ? copy.systems.draw.classify.nearThing
+                        : copy.systems.draw.classify.notClose}
                   </span>
-                  {copy.sdedit.classify.cMid}
+                  {copy.systems.draw.classify.cMid}
                 </>
               ) : null}
-              {copy.sdedit.classify.cPre}
-              <span className="text-indigo">{copy.sdedit.classify.four}</span>
-              {copy.sdedit.classify.cPost}
+              {copy.systems.draw.classify.cPre}
+              <span className="text-indigo">{copy.systems.draw.classify.four}</span>
+              {copy.systems.draw.classify.cPost}
             </p>
 
           </>

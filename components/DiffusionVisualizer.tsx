@@ -21,7 +21,7 @@ import { copy } from "@/content/copy";
 
 type Mode = "pixel" | "ascii";
 
-const CMD_NAME = copy.diffusion.cmd;
+const CMD_NAME = copy.lab.diffusion.cmd;
 /**
  * ⚠️ ONLY `--digit` IS LIVE HERE, AND THIS PANEL IS THE TRAP.
  *
@@ -41,8 +41,8 @@ const CMD_NAME = copy.diffusion.cmd;
  */
 // Command name from copy; the --flags stay inline (they're structural, and must
 // match what CommandLine renders — see copy.ts).
-const BOOT_CMD = `${copy.diffusion.cmd} --digit 7 --steps 32 --schedule cosine`;
-const BOOT_LINES = [...copy.diffusion.bootLines];
+const BOOT_CMD = `${copy.lab.diffusion.cmd} --digit 7 --steps 32 --schedule cosine`;
+const BOOT_LINES = [...copy.lab.diffusion.bootLines];
 
 /** Milliseconds per stored frame. Playback interpolates within this. */
 const STEP_MS = 190;
@@ -190,23 +190,23 @@ export function DiffusionVisualizer() {
     // Section owns the id and scroll offset; this ref only drives the lazy load.
     <div ref={rootRef}>
       <TerminalPanel
-        label={`${mode === "ascii" ? copy.diffusion.labelAscii : copy.diffusion.labelPixel} --digit ${digit}`}
+        label={`${mode === "ascii" ? copy.lab.diffusion.labelAscii : copy.lab.diffusion.labelPixel} --digit ${digit}`}
         status={
           !booted
-            ? copy.diffusion.statusBooting
+            ? copy.lab.diffusion.statusBooting
             : total
               ? mode === "ascii" && asciiLines
                 ? `${asciiLines.masked}/${asciiLines.cells} masked · step ${shownStep}/${total}`
                 : `step ${String(shownStep).padStart(2, "0")}/${total}`
-              : copy.diffusion.statusLoading
+              : copy.lab.diffusion.statusLoading
         }
         notice={
           booted && isPlaceholder ? (
             <>
-              <span className="text-indigo">{copy.diffusion.notice.tag}</span>
-              {copy.diffusion.notice.body}
-              <span className="text-muted">{copy.diffusion.notice.path}</span>
-              {copy.diffusion.notice.tail}
+              <span className="text-indigo">{copy.lab.diffusion.notice.tag}</span>
+              {copy.lab.diffusion.notice.body}
+              <span className="text-muted">{copy.lab.diffusion.notice.path}</span>
+              {copy.lab.diffusion.notice.tail}
             </>
           ) : null
         }
@@ -236,7 +236,7 @@ export function DiffusionVisualizer() {
               ]}
               // NOT "edit any number": only --digit is live here, and the two
               // beside it are baked into the export.
-              hint={copy.diffusion.hint}
+              hint={copy.lab.diffusion.hint}
               dirty={digit !== "7"}
               onReset={() => pick("7")}
             />
@@ -251,22 +251,22 @@ export function DiffusionVisualizer() {
                 the two models actually have: pixel is Gaussian (continuous),
                 ascii is absorbing-state (discrete). Never repeat the anchor. */}
             <h2 className="mt-6 mb-2 text-2xl tracking-tight">
-              {mode === "ascii" ? copy.diffusion.headingDiscrete : copy.diffusion.headingContinuous}
+              {mode === "ascii" ? copy.lab.diffusion.headingDiscrete : copy.lab.diffusion.headingContinuous}
             </h2>
             {mode === "ascii" ? (
               <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
-                {copy.diffusion.ledeAscii}
+                {copy.lab.diffusion.ledeAscii}
               </p>
             ) : (
               <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
-                {copy.diffusion.ledePixel}
+                {copy.lab.diffusion.ledePixel}
               </p>
             )}
           </>
         )}
 
         <div className={`mb-4 flex flex-wrap items-center gap-2 ${booted ? "" : "hidden"}`}>
-          <span className="mr-1 font-mono text-xs text-faint">{copy.diffusion.modelLabel}</span>
+          <span className="mr-1 font-mono text-xs text-faint">{copy.lab.diffusion.modelLabel}</span>
           {(["pixel", "ascii"] as Mode[]).map((m) => {
             // ascii is gated on the file being present, not stubbed.
             const ready = m === "pixel" || ascii !== null;
@@ -280,7 +280,7 @@ export function DiffusionVisualizer() {
                 }}
                 disabled={!ready}
                 aria-pressed={m === mode}
-                title={ready ? undefined : copy.diffusion.asciiUnavailable}
+                title={ready ? undefined : copy.lab.diffusion.asciiUnavailable}
                 className={`rounded border px-3 py-1.5 font-mono text-xs transition-colors ${
                   m === mode
                     ? "border-indigo text-indigo"
@@ -296,7 +296,7 @@ export function DiffusionVisualizer() {
         </div>
 
         <div className={`mb-6 flex flex-wrap items-center gap-2 ${booted ? "" : "hidden"}`}>
-          <span className="mr-1 font-mono text-xs text-faint">{copy.diffusion.digitLabel}</span>
+          <span className="mr-1 font-mono text-xs text-faint">{copy.lab.diffusion.digitLabel}</span>
           {DIGITS.map((d) => {
             const available =
               mode === "ascii" ? Boolean(ascii?.byDigit[d]) : !data || Boolean(data.byDigit[d]);
@@ -324,7 +324,7 @@ export function DiffusionVisualizer() {
             disabled={!frames}
             className="ml-auto rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-faint hover:text-ink disabled:opacity-40"
           >
-            {playing ? copy.diffusion.pause : copy.diffusion.play}
+            {playing ? copy.lab.diffusion.pause : copy.lab.diffusion.play}
           </button>
           <button
             onClick={() => {
@@ -334,21 +334,21 @@ export function DiffusionVisualizer() {
             disabled={!frames}
             className="rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-faint hover:text-ink disabled:opacity-40"
           >
-            {copy.diffusion.replay}
+            {copy.lab.diffusion.replay}
           </button>
         </div>
 
         {!booted ? null : error ? (
           <p className="py-16 text-center font-mono text-xs text-indigo">
-            {copy.diffusion.errorPrefix}{error}
+            {copy.lab.diffusion.errorPrefix}{error}
           </p>
         ) : missing ? (
           <p className="py-16 text-center font-mono text-xs text-faint">
-            {copy.diffusion.missingPre}{digit}{copy.diffusion.missingPost}
+            {copy.lab.diffusion.missingPre}{digit}{copy.lab.diffusion.missingPost}
           </p>
         ) : !grids && !asciiLines ? (
           <p className="py-16 text-center font-mono text-xs text-faint">
-            {copy.diffusion.loadingTrajectories}
+            {copy.lab.diffusion.loadingTrajectories}
           </p>
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -371,8 +371,8 @@ export function DiffusionVisualizer() {
                 />
               )}
               <figcaption className="text-center font-mono text-[11px] text-faint">
-                <span className="text-muted">{copy.diffusion.xtLabel}</span> ·{" "}
-                {mode === "ascii" ? copy.diffusion.xtCommitted : copy.diffusion.xtNoisy}
+                <span className="text-muted">{copy.lab.diffusion.xtLabel}</span> ·{" "}
+                {mode === "ascii" ? copy.lab.diffusion.xtCommitted : copy.lab.diffusion.xtNoisy}
               </figcaption>
             </figure>
 
@@ -393,8 +393,8 @@ export function DiffusionVisualizer() {
                 />
               )}
               <figcaption className="text-center font-mono text-[11px] text-faint">
-                <span className="text-teal">{copy.diffusion.x0Label}</span> ·{" "}
-                {mode === "ascii" ? copy.diffusion.x0Guess : copy.diffusion.x0Predicted}
+                <span className="text-teal">{copy.lab.diffusion.x0Label}</span> ·{" "}
+                {mode === "ascii" ? copy.lab.diffusion.x0Guess : copy.lab.diffusion.x0Predicted}
               </figcaption>
             </figure>
           </div>
@@ -406,7 +406,7 @@ export function DiffusionVisualizer() {
           aria-valuemin={0}
           aria-valuemax={total || 1}
           aria-valuenow={shownStep}
-          aria-label={copy.diffusion.progressAria}
+          aria-label={copy.lab.diffusion.progressAria}
         >
           <div
             className="h-px bg-teal"

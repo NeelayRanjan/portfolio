@@ -12,7 +12,7 @@
  */
 import { copy } from "@/content/copy";
 
-const T = copy.sampleSpace.targets;
+const T = copy.lab.sampleSpace.targets;
 
 export type Vec = { x: number; y: number };
 

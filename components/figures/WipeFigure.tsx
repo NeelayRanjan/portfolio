@@ -63,7 +63,7 @@ function readRedInk(): { r: number; g: number; b: number } {
 export function WipeFigure() {
   const [cut, setCut] = useState(50);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const t = copy.research.wipe;
+  const t = copy.research.figWipe;
 
   useEffect(() => {
     const canvas = canvasRef.current;

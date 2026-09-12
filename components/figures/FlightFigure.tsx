@@ -53,7 +53,7 @@ export function FlightFigure() {
   }, [reducedMotion]);
 
   return (
-    <InstrumentFigure n="3" caption={copy.research.flight.caption}>
+    <InstrumentFigure n="3" caption={copy.research.figFlight.caption}>
       <video
         ref={videoRef}
         muted
@@ -62,7 +62,7 @@ export function FlightFigure() {
         preload="none"
         poster="/research/flight_poster.webp"
         controls={reducedMotion}
-        aria-label={copy.research.flight.videoAria}
+        aria-label={copy.research.figFlight.videoAria}
         className="w-full border border-rule"
       >
         <source src="/research/flight_lm_day.mp4" type="video/mp4" />

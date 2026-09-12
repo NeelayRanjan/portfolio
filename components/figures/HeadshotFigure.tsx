@@ -39,9 +39,13 @@ export function HeadshotFigure() {
   }
   if (meta?.version !== 1 || !meta.k || !meta.res) return null;
 
-  const photos = Array.from({ length: meta.k }, (_, i) => i).filter((i) =>
-    fs.existsSync(path.join(root, `public/headshot/photos/${i}.webp`)),
-  );
+  // Presented last-class-first (owner's call, 2026-09-12): display order is the
+  // reverse of the class indices, so class k-1 is the default photo. Class
+  // indices themselves never change — they are the model's conditioning and
+  // the photos' filenames.
+  const photos = Array.from({ length: meta.k }, (_, i) => i)
+    .filter((i) => fs.existsSync(path.join(root, `public/headshot/photos/${i}.webp`)))
+    .reverse();
   if (photos.length === 0) return null;
 
   return <HeadshotToy photos={photos} res={meta.res} />;

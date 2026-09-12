@@ -469,6 +469,15 @@ async function checkHeadshotSamplesPhoto(browser) {
 
     const face = page.locator('#headshot-toy button[aria-label^="Sample photo 1"]');
     await face.waitFor({ state: "visible", timeout: 10000 });
+    // "Sample photo 1" is a DISPLAY position, not a class index — the photos
+    // are presented in whatever order the server component chose (currently
+    // reversed). The class this button actually samples is read off its own
+    // thumbnail, so a presentation reorder can never silently break the check.
+    const thumbSrc = await face.locator("img").getAttribute("src");
+    const cls = Number(/photos\/(\d+)_thumb/.exec(thumbSrc ?? "")?.[1] ?? NaN);
+    if (!Number.isInteger(cls)) {
+      throw new Error(`could not derive the class index from the face button (src ${thumbSrc})`);
+    }
     await face.scrollIntoViewIfNeeded();
     await face.click();
 
@@ -490,7 +499,7 @@ async function checkHeadshotSamplesPhoto(browser) {
       throw new Error("run completed without ever requesting a model file");
     }
 
-    const { mad, controls } = await page.evaluate(async () => {
+    const { mad, controls } = await page.evaluate(async (cls) => {
       const N = 32;
       // Downscale both through the same 2D path, so any resampling the browser
       // does applies equally to the sample and to the target.
@@ -520,17 +529,17 @@ async function checkHeadshotSamplesPhoto(browser) {
         return shrink(img);
       };
       const sample = shrink(document.querySelector("#headshot-toy canvas"));
-      const target = await load("/headshot/photos/0.webp");
+      const target = await load(`/headshot/photos/${cls}.webp`);
       const controls = [];
-      for (const p of ["/headshot/photos/1.webp", "/headshot/photos/2.webp"]) {
-        controls.push(meanAbs(sample, await load(p)));
+      for (const i of [0, 1, 2].filter((i) => i !== cls)) {
+        controls.push(meanAbs(sample, await load(`/headshot/photos/${i}.webp`)));
       }
       return { mad: meanAbs(sample, target), controls };
-    });
+    }, cls);
 
     if (mad > HEADSHOT_MAD_MAX) {
       throw new Error(
-        `sampled canvas is ${mad.toFixed(2)} mean abs off photo 0 at 32x32 (limit ${HEADSHOT_MAD_MAX})`,
+        `sampled canvas is ${mad.toFixed(2)} mean abs off photo ${cls} at 32x32 (limit ${HEADSHOT_MAD_MAX})`,
       );
     }
     // The sample must be closer to its own class than to either other photo,

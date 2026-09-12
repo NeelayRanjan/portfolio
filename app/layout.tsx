@@ -24,9 +24,10 @@ export const metadata: Metadata = {
   // without it the card unfurls with no image at all.
   metadataBase: new URL(SITE),
   title: copy.meta.title,
-  // The long-form tagline lives in copy rather than in the hero, which now shows
-  // the terser sub-text. Crawlers still get the full framing.
-  description: copy.hero.tagline,
+  // Same blurb as the share card: it's already the concrete, first-person
+  // description written for the one place a recruiter or admissions reader
+  // sees before deciding whether to click.
+  description: copy.meta.blurb,
   openGraph: {
     type: "website",
     url: SITE,

@@ -674,6 +674,10 @@ export const copy = {
     heading: "Reference not found",
     lede:
       "This citation doesn't resolve to a real page. The site only has two: the paper itself, and its supplementary material.",
+    /** The struck-through entry standing in for whatever was requested.
+     *  Generic on purpose: the site never echoes a visitor-supplied path
+     *  back into the page. See app/not-found.tsx. */
+    brokenLabel: "The page you asked for",
     links: [
       { label: "Back to the paper", href: "/" },
       { label: "Supplementary material", href: "/lab" },

@@ -1,85 +1,45 @@
-"use client";
-
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { TerminalPanel } from "@/components/TerminalPanel";
-import { usePrompt } from "@/lib/identity";
+import { Sheet } from "@/components/manuscript/Sheet";
 import { copy } from "@/content/copy";
 
 /**
- * 404, as a shell that can't find the file.
+ * 404, restyled to the "reference not found" conceit (spec §2): the same
+ * shape as `References`, a numbered list of citations, except the entry a
+ * visitor followed here doesn't resolve. It renders struck through, next to
+ * the site's two real routes.
  *
- * It inherits the whole layout, which is the point: the boot screen still ssh's
- * in, the CharField still runs, and the prompt still follows whatever name you
- * connected as. A mistyped URL lands somewhere that is recognisably the same
- * machine rather than on Next's unstyled default in the wrong font.
- *
- * The swarm is inherited too and costs nothing here: there's no `data-swarm`
- * station on this page, so its observer never fires and the loop never starts.
- *
- * A client component only because it reads the attempted path. That is also the
- * one thing here worth being careful about — see MAX_PATH.
+ * Server component, deliberately. The v1 page read `usePathname` to echo the
+ * attempted path back into the shell; this one doesn't. RULING: never echo a
+ * visitor-supplied path into the page, even inertly — a generic
+ * `copy.notFound.brokenLabel` ("the page you asked for") says the same thing
+ * without reflecting attacker-controlled path strings, and it means this page
+ * needs no "use client" and no pathname at all.
  */
-
-/** The real sections (copy.notFoundV1.sections) double as navigation, so `ls` isn't
- *  a joke that dead-ends. */
-
-/**
- * Long enough to recognise your own typo, short enough that a pasted essay can't
- * push the prompt across the panel.
- *
- * Echoing a visitor-supplied path back into the page is the one place this site
- * does that at all. It's inert because React escapes a text child, so `<script>`
- * in a URL renders as those literal characters. It would NOT be inert via
- * innerHTML, which is the same rule the ASCII grids follow for the same reason.
- */
-const MAX_PATH = 32;
-
 export default function NotFound() {
-  const prompt = usePrompt();
-  const raw = usePathname() || "/";
-  const path = raw.length > MAX_PATH ? `${raw.slice(0, MAX_PATH)}…` : raw;
+  const t = copy.notFound;
 
   return (
-    <main className="flex-1">
-      <div className="mx-auto w-full max-w-5xl px-6 py-20 sm:py-28">
-        <TerminalPanel label={copy.notFoundV1.shell} status={copy.notFoundV1.status}>
-          <div className="font-mono text-[11px] leading-relaxed">
-            <div className="select-none">
-              <span aria-hidden="true" className="text-teal">
-                {prompt}
-              </span>{" "}
-              <span className="text-ink">cat {path}</span>
-            </div>
-            {/* The real error, and the only line here a screen reader needs from
-                the theatre: it's the one that says what happened. */}
-            <div className="text-muted">cat: {path}{copy.notFoundV1.catError}</div>
+    <main className="flex-1 px-4 pb-24">
+      <Sheet>
+        <h1 className="mt-[60px] mb-5 text-[22px] font-semibold text-ink">
+          {t.heading}
+        </h1>
+        <p className="max-w-2xl text-[15px] leading-relaxed text-mut">{t.lede}</p>
 
-            <div className="mt-4 select-none">
-              <span aria-hidden="true" className="text-teal">
-                {prompt}
-              </span>{" "}
-              <span className="text-ink">{copy.notFoundV1.ls}</span>
-            </div>
-            <nav aria-label="Sections" className="mt-1 flex flex-wrap gap-x-6 gap-y-1">
-              {copy.notFoundV1.sections.map((s) => (
-                <Link
-                  key={s.href}
-                  href={s.href}
-                  className="text-teal underline-offset-4 hover:underline"
-                >
-                  {s.name}
-                </Link>
-              ))}
-            </nav>
-          </div>
-
-          {/* Heading and lede inside the panel, after the shell — the same shape
-              every terminal section on the home page uses. */}
-          <h1 className="mt-6 mb-2 text-2xl tracking-tight">{copy.notFoundV1.heading}</h1>
-          <p className="max-w-2xl leading-relaxed text-muted">{copy.notFoundV1.lede}</p>
-        </TerminalPanel>
-      </div>
+        <ol className="mt-6 list-decimal space-y-2 pl-7 text-[15px] text-mut marker:text-mut">
+          <li className="line-through text-mut">{t.brokenLabel}</li>
+          {t.links.map((item) => (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className="text-link hover:underline hover:underline-offset-[3px]"
+              >
+                {item.label}
+              </Link>
+            </li>
+          ))}
+        </ol>
+      </Sheet>
     </main>
   );
 }

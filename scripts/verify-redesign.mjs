@@ -556,6 +556,135 @@ async function checkHeadshotSamplesPhoto(browser) {
 }
 
 /* ---------------------------------------------------------------------- */
+/* 12. Figure 2's label-budget ladder                                      */
+/* (components/figures/EfficiencyFigure.tsx + public/research/ladder.json) */
+/* ---------------------------------------------------------------------- */
+
+/**
+ * The ladder's claim is that the panel numbers describe the panel pixels, so
+ * the check reads both: the Dice text under each panel must equal
+ * ladder.json's computed value for that (model, budget), and moving the
+ * slider must both change those numbers AND repaint the canvases.
+ *
+ * Sampling the canvas dataURL before and after is what separates "the labels
+ * changed" from "the masks changed". A slider that only rewrote text would
+ * pass a text-only assertion, and that is exactly the wired-to-nothing
+ * control the house rules forbid.
+ */
+async function checkEfficiencyLadder(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 1400 } }, async (page) => {
+    const ladder = await (await fetch(`${BASE}/research/ladder.json`)).json();
+    const first = ladder.budgets[0];
+    const last = ladder.budgets[ladder.budgets.length - 1];
+    const diceFor = (key, labels) =>
+      ladder.models
+        .find((m) => m.key === key)
+        .series.find((s) => s.labels === labels).dice;
+
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    const strip = page.locator("#fig-ladder");
+    await strip.waitFor({ state: "visible", timeout: 10000 });
+    await strip.scrollIntoViewIfNeeded();
+    const slider = page.locator("#ladder-budget");
+    await slider.waitFor({ state: "attached", timeout: 10000 });
+
+    // Default must be the first budget: the crossover story starts where
+    // x0-diffusion is ahead.
+    if ((await slider.inputValue()) !== "0") {
+      throw new Error(`slider does not default to index 0 (got ${await slider.inputValue()})`);
+    }
+
+    // Bounded poll for the panels to have painted at all, then read text.
+    const names = {
+      x0diffusion: "x0-diffusion",
+      vit_base_patch16: "ViT-DPT",
+      deeplabv3: "DeepLabV3",
+    };
+    const readPanels = async () =>
+      strip.evaluate((el) =>
+        [...el.children].map((panel) => ({
+          text: panel.textContent.trim().replace(/\s+/g, " "),
+          url: panel.querySelector("canvas").toDataURL(),
+        })),
+      );
+
+    await page.waitForFunction(
+      () => {
+        const el = document.querySelector("#fig-ladder");
+        return el && [...el.children].length === 3;
+      },
+      null,
+      { timeout: 10000 },
+    );
+    // Wait for every panel's mask to have painted something (a fully
+    // transparent canvas is the pre-paint state).
+    await page.waitForFunction(
+      () =>
+        [...document.querySelectorAll("#fig-ladder canvas")].every((c) => {
+          const g = c.getContext("2d");
+          if (!c.width || !c.height) return false;
+          const px = g.getImageData(0, 0, c.width, c.height).data;
+          for (let i = 3; i < px.length; i += 4) if (px[i] > 0) return true;
+          return false;
+        }),
+      null,
+      { timeout: 20000 },
+    );
+
+    const before = await readPanels();
+    for (const [i, key] of Object.keys(names).entries()) {
+      const want = diceFor(key, first).toFixed(3);
+      if (!before[i].text.includes(names[key])) {
+        throw new Error(`panel ${i} is not labeled "${names[key]}": "${before[i].text}"`);
+      }
+      if (!before[i].text.includes(want)) {
+        throw new Error(
+          `panel ${i} (${names[key]}) at ${first} labels shows "${before[i].text}", want Dice ${want}`,
+        );
+      }
+    }
+
+    await setRange(slider, ladder.budgets.length - 1);
+    await page.waitForFunction(
+      (want) => document.querySelector("#ladder-budget")?.value === String(want),
+      ladder.budgets.length - 1,
+      { timeout: 5000 },
+    );
+    // Bounded poll: the new budget's masks have to decode before the canvases
+    // can differ.
+    await page.waitForFunction(
+      (want) =>
+        [...document.querySelectorAll("#fig-ladder canvas")].every(
+          (c, i) => c.toDataURL() !== want[i],
+        ),
+      before.map((p) => p.url),
+      { timeout: 20000 },
+    );
+
+    const after = await readPanels();
+    for (const [i, key] of Object.keys(names).entries()) {
+      const want = diceFor(key, last).toFixed(3);
+      if (!after[i].text.includes(want)) {
+        throw new Error(
+          `panel ${i} (${names[key]}) at ${last} labels shows "${after[i].text}", want Dice ${want}`,
+        );
+      }
+      if (after[i].url === before[i].url) {
+        throw new Error(`panel ${i} (${names[key]}) canvas did not repaint at ${last} labels`);
+      }
+    }
+
+    return (
+      `3 panels; ${first} labels ` +
+      Object.keys(names).map((k) => diceFor(k, first).toFixed(3)).join("/") +
+      ` -> ${last} labels ` +
+      Object.keys(names).map((k) => diceFor(k, last).toFixed(3)).join("/") +
+      "; all three canvases repainted"
+    );
+  });
+}
+
+/* ---------------------------------------------------------------------- */
 /* driver                                                                  */
 /* ---------------------------------------------------------------------- */
 
@@ -567,6 +696,7 @@ const CHECKS = [
   ["no-h-scroll-lab-400", checkNoHorizontalScroll("/lab")],
   ["no-early-heavy-payload-400", checkNoEarlyHeavyPayload],
   ["wipe-endpoints-differ", checkWipeEndpointsDiffer],
+  ["efficiency-ladder", checkEfficiencyLadder],
   ["flight-video-play-pause", checkFlightVideoPlayPause],
   ["draw-stroke-auto-label", checkDrawAutoLabel],
   ["chess-hint-g3", checkChessHint],

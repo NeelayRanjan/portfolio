@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "image": 330,
+  "budgets": [
+    16,
+    32,
+    80,
+    160,
+    320
+  ],
+  "models": [
+    {
+      "key": "x0diffusion",
+      "series": [
+        {
+          "labels": 16,
+          "dice": 0.8517
+        },
+        {
+          "labels": 32,
+          "dice": 0.8083
+        },
+        {
+          "labels": 80,
+          "dice": 0.8657
+        },
+        {
+          "labels": 160,
+          "dice": 0.9245
+        },
+        {
+          "labels": 320,
+          "dice": 0.9204
+        }
+      ]
+    },
+    {
+      "key": "vit_base_patch16",
+      "series": [
+        {
+          "labels": 16,
+          "dice": 0.2903
+        },
+        {
+          "labels": 32,
+          "dice": 0.7831
+        },
+        {
+          "labels": 80,
+          "dice": 0.8727
+        },
+        {
+          "labels": 160,
+          "dice": 0.8526
+        },
+        {
+          "labels": 320,
+          "dice": 0.9271
+        }
+      ]
+    },
+    {
+      "key": "deeplabv3",
+      "series": [
+        {
+          "labels": 16,
+          "dice": 0.8052
+        },
+        {
+          "labels": 32,
+          "dice": 0.4799
+        },
+        {
+          "labels": 80,
+          "dice": 0.6492
+        },
+        {
+          "labels": 160,
+          "dice": 0.7581
+        },
+        {
+          "labels": 320,
+          "dice": 0.8134
+        }
+      ]
+    }
+  ]
+}

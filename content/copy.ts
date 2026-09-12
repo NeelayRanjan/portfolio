@@ -220,11 +220,30 @@ export const copy = {
       ariaPost: "%",
     },
     /** Figure 2 — mean Dice vs labeled images, computed from the paper's
-     *  data. Carried over unchanged, renamed from `efficiency`. */
+     *  data, plus the label-budget ladder (2026-09-12): three real predicted
+     *  masks for one real image, swapped by a slider. The caption has to
+     *  carry BOTH halves and the difference between their numbers, since the
+     *  panels' per-image Dice is not the curve's average. */
     figEfficiency: {
       caption:
-        "Mean Dice against labeled training images, aggregated from the paper’s per-image metrics across every seed and fold. x0-diffusion (red) reaches 0.882 Dice at 16 labels, a score most baselines only match once they’ve seen 32 to 80. SAM is flat because it’s zero-shot and never retrains on the labels at all; ε-diffusion, the same architecture trained on the standard noise-prediction objective instead, stays stuck near 0.23 no matter how many labels it gets.",
+        "Mean Dice against labeled training images, aggregated from the paper’s per-image metrics across every seed and fold. x0-diffusion (red) reaches 0.882 Dice at 16 labels, a score most baselines only match once they’ve seen 32 to 80. SAM is flat because it’s zero-shot and never retrains on the labels at all; ε-diffusion, the same architecture trained on the standard noise-prediction objective instead, stays stuck near 0.23 no matter how many labels it gets. Those lines stop at 80 because that is as far as the per-image metrics go. The panels reach further: move the slider and each one swaps in the mask that model really produced at that budget for image 330, the same angiogram as Figure 1. At 16 labels ViT-DPT calls most of the frame vessel while x0-diffusion already has the tree; by 320 the gap has mostly closed. Each panel’s Dice is computed from the pixels on screen against the benchmark’s ground truth for that one image, so it is not the curve’s average and can land either side of it.",
       xAxisLabel: "labeled images",
+      /** In-chart marker for where the measured polylines stop. The number
+       *  itself is read from the data, so only the words live here. */
+      measuredToPre: "curve measured to ",
+      measuredToPost: " labels",
+      /** The ladder strip: slider, readout, panel labels, aria text. */
+      readoutLabel: "labels",
+      ladderLabel: "budget",
+      ladderAriaPre: "Label budget for the mask panels: ",
+      ladderAriaMid: " labeled images, range ",
+      diceLabel: "Dice",
+      /** Only reachable if a re-export drops a (model, budget) pair; the
+       *  panel says so rather than showing a number it doesn't have. */
+      diceMissing: "not computed",
+      maskAriaPre: "Predicted vessel mask from ",
+      maskAriaMid: " at ",
+      maskAriaPost: " labeled images, Dice ",
       modelLabels: {
         x0diffusion: "x0-diffusion",
         sam: "SAM",

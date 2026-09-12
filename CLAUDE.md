@@ -207,6 +207,10 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   artifact-rendering scripts.
 - Deploy: Vercel, custom domain neelayranjan.dev. Repo is private
   (`NeelayRanjan/portfolio`).
+- **⚠️ `/models/*`, `/ort/*` and `/headshot/*` are served `immutable` for a year**
+  (`next.config.ts`). That makes filenames the cache key: a retrained model or a
+  refreshed export MUST ship under a new filename (and the code path that loads it
+  updated), or returning visitors keep the old bytes until the cache expires.
 - **COOP/COEP headers on every route** (`next.config.ts`): they enable
   SharedArrayBuffer → multithreaded WASM. The draw demo's classifier needs them
   (~1s vs ~17s without); chess doesn't (measured: threads change nothing for a

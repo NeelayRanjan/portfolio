@@ -14,15 +14,29 @@ this file: the Constitution, the Voice, the content facts, and the demo contract
 
 ## Where the redesign stands
 
-Done: brainstorming + decisions (2026-09-11, below), fallback tag `v1`, this file.
+**Built, on the `redesign` branch: all 15 tasks of the implementation plan.** The
+manuscript aesthetic (masthead + reviewer's-ink stamp, Table 1, Figures 1-3 in
+Research, the live demos as Figures 4-5, Figure 6 in Experience, references) is
+the whole of page 1; `/lab` carries the three demos that moved off it (S1-S3);
+v1 is fully deleted from the tree (its tag, `v1`, is still the fallback). The
+five mockup directions, the design spec, and the per-task Vercel previews that
+got it here are done and superseded by what's actually built; this section no
+longer tracks them individually.
 
-Next, in order:
-1. **Five rough mockup directions**, delivered as clickable pages for the owner to
-   pick from or blend: quiet terminal · interactive paper · latent field · swiss
-   dark · mission console. All dark, palette/fonts free per direction.
-2. Design spec to `docs/superpowers/specs/`, owner reviews.
-3. Implementation plan, then build on a `redesign` branch with Vercel previews.
-   Promote to production only on the owner's explicit go.
+**Verification lives in `scripts/verify-redesign.mjs`** (Playwright-Firefox
+against a real `npm run build && npm start`, never the dev server): the desk
+field's motion/reduced-motion/mobile-absence behavior, no horizontal scroll at
+400px on `/` and `/lab`, nothing model-sized in flight before the visitor
+scrolls, the wipe figure's two endpoints actually differing, the flight video
+playing in view and pausing out of it, a drawn stroke producing a real
+auto-label, the chess hint matching validation vector D (`g3 p=0.236`), and the
+JEPA retrieval numbers (seed query 834, the red-border/red-label/cross-mark
+triple-equality). All 12 checks pass against the current branch. Re-run it
+after any change that touches a demo, a figure, or the page shell.
+
+**Status: awaiting the owner's review of the Vercel preview and his explicit go
+to promote `redesign` to `main`.** Nothing here promotes itself — see the
+brief's own rule: hand over the preview URL and stop.
 
 Deadline pressure: polished by ~early November 2026 (MS application season; the
 owner is drafting his SOP against the same facts this site will show).
@@ -178,6 +192,14 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   `node_modules/next/dist/docs/` before writing Next code — this version has
   breaking changes** (see AGENTS.md, included below).
 - Tailwind v4: theme tokens live in CSS `@theme`; there is no `tailwind.config.ts`.
+- **Two monos, on purpose.** `--font-mono` is Spline Sans Mono (measured advance
+  0.559em, `scripts/measure-mono.mjs`) and is the site-wide mono everywhere except
+  the character grids. Those (the trajectory viewer's `AsciiLines`) keep v1's
+  Geist Mono (0.600em) instead, scoped through `lib/grid-font.ts` rather than
+  `--font-mono`: `AsciiLines`' `lineHeight: 0.68` is that 0.6 advance plus its
+  0.08em letter-spacing, an identity derived for Geist Mono specifically, and
+  swapping in Spline's narrower advance without re-deriving it would stretch
+  every digit in the grid. Don't wire the grids to `--font-mono`.
 - Runtime deps are exactly: `chess.js` (owns every chess rule — never hand-roll
   them) and `onnxruntime-web` 1.27 (every model on the page). `playwright` is a
   devDependency (Firefox only installed) for canvas verification and the two

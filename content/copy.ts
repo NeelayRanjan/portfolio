@@ -53,7 +53,10 @@
  * `research`'s three figure sub-keys were renamed to match that task's
  * interface (`wipe`→`figWipe`, `efficiency`→`figEfficiency`,
  * `flight`→`figFlight`) with the three consuming figure components updated
- * to match.
+ * to match. `figEfficiency` has since been replaced outright by `figCdf`
+ * (2026-09-12): Figure 2 is the paper's Dice CDF now, not a label-budget
+ * ladder, so the ladder's `measuredTo*`, `ladder*` and `diceMissing` strings
+ * and its seven-model `modelLabels` map are gone with it.
  */
 export const copy = {
   /** <title>, meta description, and the share-card (OG/Twitter) text. */
@@ -219,39 +222,51 @@ export const copy = {
         "Wipe between the SAM mask and the x0-diffusion mask, cut at ",
       ariaPost: "%",
     },
-    /** Figure 2 — mean Dice vs labeled images, computed from the paper's
-     *  data, plus the label-budget ladder (2026-09-12): three real predicted
-     *  masks for one real image, swapped by a slider. The caption has to
-     *  carry BOTH halves and the difference between their numbers, since the
-     *  panels' per-image Dice is not the curve's average. */
-    figEfficiency: {
+    /**
+     * Figure 2 — the paper's Dice CDF (`external_materials/paper1/img/fig_dice_cdf`),
+     * made pannable (2026-09-12, replacing the label-budget ladder). The
+     * caption carries THREE things the figure can't say on its own: that the
+     * y axis is clipped on purpose, that the cursor is a threshold rather than
+     * the shown image's score, and that the cached masks and the curve are two
+     * different exports. Numbers here are interpolated from `cdf.json` where
+     * they can be; the three shares below 0.5 are quoted in prose because the
+     * sentence reads as a finding, not a readout.
+     */
+    figCdf: {
       caption:
-        "Mean Dice against labeled training images, aggregated from the paper’s per-image metrics across every seed and fold. The axis spaces the label budgets evenly rather than to scale, because they double. x0-diffusion (green, the same green as its panel below) reaches 0.882 Dice at 16 labels, a score most baselines only match once they’ve seen 32 to 80. SAM (red, as in Figure 1) is flat because it’s zero-shot and never retrains on the labels at all; ε-diffusion, the same architecture trained on the standard noise-prediction objective instead, stays stuck near 0.23 no matter how many labels it gets. Those lines stop at 80 because that is as far as the per-image metrics go. The panels reach further: move the slider and each one swaps in the mask that model really produced at that budget for image 330, the same angiogram as Figure 1. At 16 labels ViT-DPT calls most of the frame vessel while x0-diffusion already has the tree; by 320 the gap has mostly closed. Each panel’s Dice is computed from the pixels on screen against the benchmark’s ground truth for that one image, so it is not the curve’s average and can land either side of it.",
-      xAxisLabel: "labeled images",
-      /** In-chart marker for where the measured polylines stop. The number
-       *  itself is read from the data, so only the words live here. */
-      measuredToPre: "curve measured to ",
-      measuredToPost: " labels",
-      /** The ladder strip: slider, readout, panel labels, aria text. */
-      readoutLabel: "labels",
-      ladderLabel: "budget",
-      ladderAriaPre: "Label budget for the mask panels: ",
-      ladderAriaMid: " labeled images, range ",
+        "The distribution behind the mean. Every per-image test Dice at the 16-label budget, pooled over all seeds and folds, so each line is 2,500 predictions: read up from a Dice value and you get the share of predictions that scored below it. The y axis is clipped at 30% because the failure tail is the part worth seeing. At the thin reference line, 0.5 Dice, x0-diffusion (solid green) has put 0.32% of its predictions, SAM (dashed red) 5.4%, and ResNet-UNet (dotted amber) 13.5%. x0-diffusion’s mean is a few points ahead of the baselines; what it almost never does is fail outright. Move the slider to pan the cursor along the Dice axis and the readouts give each model’s exact share below it. Under the chart, one real test image per stop with all three models’ masks over it. The prediction cache holds 10 test images and SAM scores 0.666 to 0.924 on them, so panning right walks toward the images SAM handles better rather than landing on the cursor’s value: every panel prints the Dice computed from the pixels it paints, against the benchmark’s ground truth for that image, so it can land either side of the curve. The ResNet-UNet masks in that cache are rougher than its own line, noise on 5 of those 10 images, because the cache is a separate export from the runs the curve pools. I show the Dice I can compute from what’s on screen rather than the one the table reports.",
+      /** Screen-reader name for the chart itself. The caption is the long form. */
+      chartAria:
+        "Cumulative share of per-image test Dice at 16 labels, for x0-diffusion, SAM and ResNet-UNet",
+      xAxisLabel: "per-image test Dice",
+      yAxisLabel: "cumulative share of predictions",
+      /** Says out loud what the 30% ceiling already does. */
+      clipNote: "y axis clipped at 30%. the tail is the whole finding.",
+      /** The readout row above the slider, wrapped around the cursor value. */
+      sharePre: "share below ",
+      sharePost: " dice",
+      /** Slider: the panel's top-right readout, its label, its aria text. */
+      readoutLabel: "dice",
+      sliderLabel: "dice",
+      sliderAriaPre: "Dice threshold for the cursor and the image panels: ",
+      sliderAriaPost: ", nine stops from 0.10 to 0.90",
+      /** The strip: the bare angiogram column, then one column per model. */
+      angioLabel: "angiogram",
+      angioAltPre: "Pelvic-iliac angiogram from the segmentation benchmark, test image ",
+      imagePre: "test image ",
       diceLabel: "Dice",
-      /** Only reachable if a re-export drops a (model, budget) pair; the
-       *  panel says so rather than showing a number it doesn't have. */
-      diceMissing: "not computed",
       maskAriaPre: "Predicted vessel mask from ",
-      maskAriaMid: " at ",
-      maskAriaPost: " labeled images, Dice ",
+      maskAriaMid: " on test image ",
+      maskAriaPost: ", Dice ",
+      /** The two data scopes, said once in mono under the panels. */
+      scopeNotePre: "curve: every test prediction at ",
+      scopeNoteMid: " labels, ",
+      scopeNotePost:
+        " rows per model. panels: one cached fold-1 run of that same budget, dice computed from the shown pixels.",
       modelLabels: {
         x0diffusion: "x0-diffusion",
-        sam: "SAM",
-        deeplabv3: "DeepLabV3",
+        sam: "SAM (zero-shot)",
         resnet: "ResNet-UNet",
-        vit_base_patch16: "ViT-DPT",
-        hybridresnetvit: "ResNet+ViT hybrid",
-        ediffusion: "ε-diffusion",
       },
     },
     /** MWSCAS credit line: prose sentence plus the formal citation, kept

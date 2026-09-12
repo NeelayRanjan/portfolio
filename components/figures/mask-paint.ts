@@ -1,8 +1,8 @@
 /**
  * Shared mask painting for the research figures (Figure 1's wipe and Figure
- * 2's label-efficiency ladder). Hoisted out of `WipeFigure.tsx` when the
- * ladder needed the same two things: read a theme token as RGB, and recolor a
- * binary mask PNG onto a canvas.
+ * 2's Dice CDF strip). Hoisted out of `WipeFigure.tsx` when the second figure
+ * needed the same two things: read a theme token as RGB, and recolor a binary
+ * mask PNG onto a canvas.
  *
  * Canvas pixel-recoloring, NOT CSS mask-image: mask-image computes correctly
  * but silently fails to paint in this repo's headless Firefox (verified in
@@ -35,27 +35,30 @@ export function readToken(name: MaskToken): Rgb {
 }
 
 /**
- * ⚠️ Polarity is DETECTED, not assumed, and the detector is the IMAGE BORDER.
+ * ⚠️ Polarity is DETECTED, not assumed, and this detector is the IMAGE BORDER.
  *
  * The exported masks do not share a convention. Image 189's SAM mask is
- * black-vessel-on-white while image 330's is white-vessel-on-black, and in the
- * ladder's prediction cache the polarity flips again with the label budget
- * (every mask at 320 labels is black-vessel-on-white, every mask below it is
- * white-vessel-on-black). Hardcoding the polarity painted the entire
+ * black-vessel-on-white while image 330's is white-vessel-on-black, and it
+ * flips per FILE, not per model. Hardcoding the polarity painted the entire
  * background red on the first swap.
  *
  * The border is what tells the two sides apart: background always runs out to
- * the edge of the frame, vessels essentially never do. Measured across the 15
- * ladder masks plus both wipe masks and the ground truth, the border side is
- * the background in all 18.
+ * the edge of the frame, vessels essentially never do. The rule this replaced
+ * was "the vessel is the minority class", which is true of a good prediction
+ * and false of a broken one, so it flips a coin on exactly the mask whose job
+ * is showing a failure.
  *
- * The rule this replaced was "the vessel is the minority class", which is true
- * of a good prediction and false of a broken one: ViT-DPT at 16 labels calls
- * 67.7% of image 330 vessel, so the minority rule painted its complement, on
- * exactly the panel whose job is showing the failure. The two rules agree on
- * all 17 masks where the minority rule is defensible (both wipe masks
- * included, so Figure 1 renders identically), and disagree only where it is
- * wrong.
+ * ⚠️ THE OUTERMOST RING IS NOT ALWAYS ENOUGH, which is why Figure 2 does not
+ * use this function's detector at all. Some cached ResNet-UNet masks carry a
+ * 1-2px white frame artifact around a plainly white vessel tree, and this rule
+ * scores their complement (Dice 0.012 against 0.613 for the vessel side).
+ * `scripts/prepare-research.mjs` runs a stricter version (a ring inset 2% of
+ * the short side, with the model's own majority polarity as the fallback where
+ * that ring is undecided), records its decision per mask in `cdf.json`, and
+ * Figure 2 passes it in as `vesselIsWhite` so the Dice it prints and the pixels
+ * it paints cannot disagree. This detector stays the default for Figure 1,
+ * whose two masks it handles correctly (verified: both read white-vessel under
+ * either rule, so the wipe renders identically).
  */
 function detectVesselIsWhite(px: Uint8ClampedArray, width: number, height: number): boolean {
   let borderWhite = 0;
@@ -77,9 +80,22 @@ function detectVesselIsWhite(px: Uint8ClampedArray, width: number, height: numbe
   return borderTotal > 0 && borderWhite / borderTotal < 0.5;
 }
 
-/** Size `canvas` to `img` and recolor: vessel pixels become `tint` at full
- *  alpha, background pixels become fully transparent. */
-function renderMask(canvas: HTMLCanvasElement, img: HTMLImageElement, tint: Rgb) {
+/**
+ * Size `canvas` to `img` and recolor: vessel pixels become `tint` at full
+ * alpha, background pixels become fully transparent.
+ *
+ * `known` overrides the detector. Figure 2 passes it from `cdf.json`, where
+ * `scripts/prepare-research.mjs` recorded the polarity it SCORED each mask
+ * under, so the Dice printed beside a panel and the pixels inside it cannot
+ * disagree. The detector below stays the default for Figure 1, which has no
+ * such record.
+ */
+function renderMask(
+  canvas: HTMLCanvasElement,
+  img: HTMLImageElement,
+  tint: Rgb,
+  known?: boolean,
+) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   canvas.width = img.naturalWidth;
@@ -87,7 +103,8 @@ function renderMask(canvas: HTMLCanvasElement, img: HTMLImageElement, tint: Rgb)
   ctx.drawImage(img, 0, 0);
   const frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const px = frame.data;
-  const vesselIsWhite = detectVesselIsWhite(px, canvas.width, canvas.height);
+  const vesselIsWhite =
+    known === undefined ? detectVesselIsWhite(px, canvas.width, canvas.height) : known;
   for (let i = 0; i < px.length; i += 4) {
     const on = vesselIsWhite ? px[i] > 127 : px[i] < 127;
     px[i] = tint.r;
@@ -109,16 +126,20 @@ export function paintMask(canvas: HTMLCanvasElement, src: string, tint: Rgb) {
 }
 
 /**
- * Same recolor, onto a DETACHED canvas that the caller can keep. The ladder
- * caches one of these per (model, budget) so panning the slider back is a
+ * Same recolor, onto a DETACHED canvas that the caller can keep. Figure 2
+ * caches one of these per (model, stop) so panning the slider back is a
  * `drawImage`, not a decode.
  */
-export function paintMaskCanvas(src: string, tint: Rgb): Promise<HTMLCanvasElement> {
+export function paintMaskCanvas(
+  src: string,
+  tint: Rgb,
+  vesselIsWhite?: boolean,
+): Promise<HTMLCanvasElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      renderMask(canvas, img, tint);
+      renderMask(canvas, img, tint, vesselIsWhite);
       resolve(canvas);
     };
     img.onerror = () => reject(new Error(`mask failed to load: ${src}`));

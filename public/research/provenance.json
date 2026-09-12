@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-12T19:40:55.100Z",
+  "generatedAt": "2026-09-12T20:29:02.973Z",
   "generator": "scripts/prepare-research.mjs",
   "sources": {
     "csv": "external_materials/paper1/data/all_metrics_combined_long.csv",
@@ -49,235 +49,436 @@
       }
     ]
   },
-  "ladder": {
-    "image": 330,
-    "forced": false,
-    "budgets": [
-      16,
-      32,
-      80,
-      160,
-      320
-    ],
+  "diceCdf": {
+    "fraction": 0.05,
+    "labels": 16,
+    "fold": 1,
     "models": [
       "x0diffusion",
-      "vit_base_patch16",
-      "deeplabv3"
+      "sam",
+      "resnet"
     ],
-    "groundTruth": "benchmarkDataset/masks/330.png",
-    "diceMethod": "2|A∩B|/(|A|+|B|), both binarized at 127, vessel side detected from the image border (background runs to the frame edge), ground truth nearest-neighbor resized onto the mask's grid where the sizes differ",
+    "rowsPerModel": 2500,
+    "curveScope": "every per-image test Dice row at this fraction, all seeds and all folds pooled; the empirical CDF, downsampled to real (dice, share) pairs out of the sorted rows",
+    "sharesBelowHalf": {
+      "x0diffusion": 0.0032,
+      "sam": 0.0544,
+      "resnet": 0.1352
+    },
+    "shareBands": {
+      "x0diffusion": [
+        0,
+        0.02
+      ],
+      "sam": [
+        0.04,
+        0.09
+      ],
+      "resnet": [
+        0.11,
+        0.17
+      ]
+    },
+    "keyModel": "sam",
+    "stopPick": "nearest-with-dedupe on sam's computed Dice over the 10 images the cache holds for all three models at frac0.05_fold1",
+    "candidates": [
+      189,
+      216,
+      233,
+      235,
+      330,
+      377,
+      408,
+      422,
+      434,
+      471
+    ],
+    "polarityVote": {
+      "x0diffusion": true,
+      "sam": null,
+      "resnet": true
+    },
+    "diceMethod": "2|A∩B|/(|A|+|B|), both binarized at 127, vessel side detected from a frame ring inset 2% of the short side (background runs to the frame edge) with the model's own majority polarity as the fallback where that ring is undecided, ground truth nearest-neighbor resized onto the mask's grid where the sizes differ",
     "csvDriftAccepted": true,
-    "csvDriftNote": "The prediction cache is a separate export from the runs all_metrics_combined_long.csv aggregates: deeplabv3's cached masks, and ViT-DPT's at 16 labels, fall outside the spread of every CSV seed for this image. The site shows the computed Dice, which describes the shipped pixels.",
-    "masks": [
+    "csvDriftNote": "The prediction cache is a separate export from the runs all_metrics_combined_long.csv aggregates: ResNet-UNet's 16-label masks are salt-and-pepper noise on 5 of the 10 cached images while the CSV's fold1 seeds for the same images sit at 0.70-0.73, outside the spread of every seed. x0-diffusion (max delta 0.10) and SAM (max 0.14) match, which is what proves the decode, the polarity and the ground-truth resize. The site shows the computed Dice, which describes the shipped pixels.",
+    "stops": [
       {
-        "model": "x0diffusion",
-        "labels": 16,
-        "fraction": 0.05,
-        "dice": 0.8517,
-        "csvDice": 0.9077,
-        "csvSeeds": 4,
-        "delta": 0.056,
-        "maskWidth": 384,
-        "maskHeight": 384,
-        "gtResized": true,
-        "vesselIsWhite": true,
-        "file": "ladder/x0diffusion_16.png"
+        "t": 0.1,
+        "image": 422,
+        "models": {
+          "x0diffusion": {
+            "dice": 0.7808,
+            "csvDice": 0.8797,
+            "csvSeeds": 1,
+            "delta": 0.0989,
+            "vesselIsWhite": true,
+            "ring": 0.102,
+            "ringDecisive": true,
+            "maskWidth": 224,
+            "maskHeight": 224,
+            "gtResized": true
+          },
+          "sam": {
+            "dice": 0.6662,
+            "csvDice": 0.8648,
+            "csvSeeds": 1,
+            "delta": 0.1986,
+            "vesselIsWhite": false,
+            "ring": 0.948,
+            "ringDecisive": true,
+            "maskWidth": 224,
+            "maskHeight": 224,
+            "gtResized": true
+          },
+          "resnet": {
+            "dice": 0.2905,
+            "csvDice": 0.2773,
+            "csvSeeds": 1,
+            "delta": 0.0132,
+            "vesselIsWhite": true,
+            "ring": 0.427,
+            "ringDecisive": false,
+            "maskWidth": 224,
+            "maskHeight": 224,
+            "gtResized": true
+          }
+        }
       },
       {
-        "model": "x0diffusion",
-        "labels": 32,
-        "fraction": 0.1,
-        "dice": 0.8083,
-        "csvDice": 0.9105,
-        "csvSeeds": 4,
-        "delta": 0.1022,
-        "maskWidth": 224,
-        "maskHeight": 224,
-        "gtResized": true,
-        "vesselIsWhite": true,
-        "file": "ladder/x0diffusion_32.png"
+        "t": 0.2,
+        "image": 189,
+        "models": {
+          "x0diffusion": {
+            "dice": 0.8219,
+            "csvDice": 0.8656,
+            "csvSeeds": 3,
+            "delta": 0.0437,
+            "vesselIsWhite": true,
+            "ring": 0.087,
+            "ringDecisive": true,
+            "maskWidth": 224,
+            "maskHeight": 224,
+            "gtResized": true
+          },
+          "sam": {
+            "dice": 0.7058,
+            "csvDice": 0.7744,
+            "csvSeeds": 3,
+            "delta": 0.0686,
+            "vesselIsWhite": false,
+            "ring": 0.938,
+            "ringDecisive": true,
+            "maskWidth": 224,
+            "maskHeight": 224,
+            "gtResized": true
+          },
+          "resnet": {
+            "dice": 0.4532,
+            "csvDice": 0.73,
+            "csvSeeds": 3,
+            "delta": 0.2768,
+            "vesselIsWhite": true,
+            "ring": 0.37,
+            "ringDecisive": false,
+            "maskWidth": 224,
+            "maskHeight": 224,
+            "gtResized": true
+          }
+        }
       },
       {
-        "model": "x0diffusion",
-        "labels": 80,
-        "fraction": 0.25,
-        "dice": 0.8657,
-        "csvDice": 0.9456,
-        "csvSeeds": 4,
-        "delta": 0.0799,
-        "maskWidth": 224,
-        "maskHeight": 224,
-        "gtResized": true,
-        "vesselIsWhite": true,
-        "file": "ladder/x0diffusion_80.png"
+        "t": 0.3,
+        "image": 434,
+        "models": {
+          "x0diffusion": {
+            "dice": 0.89,
+            "csvDice": 0.8323,
+            "csvSeeds": 1,
+            "delta": 0.0577,
+            "vesselIsWhite": true,
+            "ring": 0.086,
+            "ringDecisive": true,
+            "maskWidth": 224,
+            "maskHeight": 224,
+            "gtResized": true
+          },
+          "sam": {
+            "dice": 0.8072,
+            "csvDice": 0.7786,
+            "csvSeeds": 1,
+            "delta": 0.0286,
+            "vesselIsWhite": false,
+            "ring": 0.917,
+            "ringDecisive": true,
+            "maskWidth": 224,
+            "maskHeight": 224,
+            "gtResized": true
+          },
+          "resnet": {
+            "dice": 0.4714,
+            "csvDice": 0.6974,
+            "csvSeeds": 1,
+            "delta": 0.226,
+            "vesselIsWhite": true,
+            "ring": 0.415,
+            "ringDecisive": false,
+            "maskWidth": 224,
+            "maskHeight": 224,
+            "gtResized": true
+          }
+        }
       },
       {
-        "model": "x0diffusion",
-        "labels": 160,
-        "fraction": 0.5,
-        "dice": 0.9245,
-        "csvDice": null,
-        "csvSeeds": 0,
-        "delta": null,
-        "maskWidth": 224,
-        "maskHeight": 224,
-        "gtResized": true,
-        "vesselIsWhite": true,
-        "file": "ladder/x0diffusion_160.png"
+        "t": 0.4,
+        "image": 408,
+        "models": {
+          "x0diffusion": {
+            "dice": 0.8965,
+            "csvDice": 0.9046,
+            "csvSeeds": 1,
+            "delta": 0.0081,
+            "vesselIsWhite": true,
+            "ring": 0.05,
+            "ringDecisive": true,
+            "maskWidth": 384,
+            "maskHeight": 384,
+            "gtResized": true
+          },
+          "sam": {
+            "dice": 0.8112,
+            "csvDice": 0.9487,
+            "csvSeeds": 1,
+            "delta": 0.1375,
+            "vesselIsWhite": true,
+            "ring": 0.054,
+            "ringDecisive": true,
+            "maskWidth": 384,
+            "maskHeight": 384,
+            "gtResized": true
+          },
+          "resnet": {
+            "dice": 0.6675,
+            "csvDice": 0.8362,
+            "csvSeeds": 1,
+            "delta": 0.1687,
+            "vesselIsWhite": true,
+            "ring": 0.037,
+            "ringDecisive": true,
+            "maskWidth": 384,
+            "maskHeight": 384,
+            "gtResized": true
+          }
+        }
       },
       {
-        "model": "x0diffusion",
-        "labels": 320,
-        "fraction": 1,
-        "dice": 0.9204,
-        "csvDice": null,
-        "csvSeeds": 0,
-        "delta": null,
-        "maskWidth": 224,
-        "maskHeight": 224,
-        "gtResized": true,
-        "vesselIsWhite": false,
-        "file": "ladder/x0diffusion_320.png"
+        "t": 0.5,
+        "image": 216,
+        "models": {
+          "x0diffusion": {
+            "dice": 0.8439,
+            "csvDice": 0.7948,
+            "csvSeeds": 1,
+            "delta": 0.0491,
+            "vesselIsWhite": true,
+            "ring": 0.109,
+            "ringDecisive": true,
+            "maskWidth": 224,
+            "maskHeight": 224,
+            "gtResized": true
+          },
+          "sam": {
+            "dice": 0.8141,
+            "csvDice": 0.9092,
+            "csvSeeds": 1,
+            "delta": 0.0951,
+            "vesselIsWhite": false,
+            "ring": 0.953,
+            "ringDecisive": true,
+            "maskWidth": 224,
+            "maskHeight": 224,
+            "gtResized": true
+          },
+          "resnet": {
+            "dice": 0.3751,
+            "csvDice": 0.725,
+            "csvSeeds": 1,
+            "delta": 0.3499,
+            "vesselIsWhite": true,
+            "ring": 0.422,
+            "ringDecisive": false,
+            "maskWidth": 224,
+            "maskHeight": 224,
+            "gtResized": true
+          }
+        }
       },
       {
-        "model": "vit_base_patch16",
-        "labels": 16,
-        "fraction": 0.05,
-        "dice": 0.2903,
-        "csvDice": 0.8614,
-        "csvSeeds": 4,
-        "delta": 0.5711,
-        "maskWidth": 384,
-        "maskHeight": 384,
-        "gtResized": true,
-        "vesselIsWhite": true,
-        "file": "ladder/vit_base_patch16_16.png"
+        "t": 0.6,
+        "image": 471,
+        "models": {
+          "x0diffusion": {
+            "dice": 0.944,
+            "csvDice": null,
+            "csvSeeds": 0,
+            "delta": null,
+            "vesselIsWhite": true,
+            "ring": 0.114,
+            "ringDecisive": true,
+            "maskWidth": 384,
+            "maskHeight": 384,
+            "gtResized": true
+          },
+          "sam": {
+            "dice": 0.8207,
+            "csvDice": null,
+            "csvSeeds": 0,
+            "delta": null,
+            "vesselIsWhite": true,
+            "ring": 0.11,
+            "ringDecisive": true,
+            "maskWidth": 384,
+            "maskHeight": 384,
+            "gtResized": true
+          },
+          "resnet": {
+            "dice": 0.8386,
+            "csvDice": null,
+            "csvSeeds": 0,
+            "delta": null,
+            "vesselIsWhite": true,
+            "ring": 0.156,
+            "ringDecisive": true,
+            "maskWidth": 384,
+            "maskHeight": 384,
+            "gtResized": true
+          }
+        }
       },
       {
-        "model": "vit_base_patch16",
-        "labels": 32,
-        "fraction": 0.1,
-        "dice": 0.7831,
-        "csvDice": 0.8807,
-        "csvSeeds": 4,
-        "delta": 0.0976,
-        "maskWidth": 224,
-        "maskHeight": 224,
-        "gtResized": true,
-        "vesselIsWhite": true,
-        "file": "ladder/vit_base_patch16_32.png"
+        "t": 0.7,
+        "image": 377,
+        "models": {
+          "x0diffusion": {
+            "dice": 0.9053,
+            "csvDice": 0.8585,
+            "csvSeeds": 1,
+            "delta": 0.0468,
+            "vesselIsWhite": true,
+            "ring": 0.083,
+            "ringDecisive": true,
+            "maskWidth": 384,
+            "maskHeight": 384,
+            "gtResized": true
+          },
+          "sam": {
+            "dice": 0.8926,
+            "csvDice": 0.8699,
+            "csvSeeds": 1,
+            "delta": 0.0227,
+            "vesselIsWhite": true,
+            "ring": 0.089,
+            "ringDecisive": true,
+            "maskWidth": 384,
+            "maskHeight": 384,
+            "gtResized": true
+          },
+          "resnet": {
+            "dice": 0.8218,
+            "csvDice": 0.6878,
+            "csvSeeds": 1,
+            "delta": 0.134,
+            "vesselIsWhite": true,
+            "ring": 0.031,
+            "ringDecisive": true,
+            "maskWidth": 384,
+            "maskHeight": 384,
+            "gtResized": true
+          }
+        }
       },
       {
-        "model": "vit_base_patch16",
-        "labels": 80,
-        "fraction": 0.25,
-        "dice": 0.8727,
-        "csvDice": 0.9437,
-        "csvSeeds": 4,
-        "delta": 0.071,
-        "maskWidth": 224,
-        "maskHeight": 224,
-        "gtResized": true,
-        "vesselIsWhite": true,
-        "file": "ladder/vit_base_patch16_80.png"
+        "t": 0.8,
+        "image": 233,
+        "models": {
+          "x0diffusion": {
+            "dice": 0.9272,
+            "csvDice": 0.8792,
+            "csvSeeds": 1,
+            "delta": 0.048,
+            "vesselIsWhite": true,
+            "ring": 0.093,
+            "ringDecisive": true,
+            "maskWidth": 384,
+            "maskHeight": 384,
+            "gtResized": true
+          },
+          "sam": {
+            "dice": 0.9024,
+            "csvDice": 0.8361,
+            "csvSeeds": 1,
+            "delta": 0.0663,
+            "vesselIsWhite": true,
+            "ring": 0.075,
+            "ringDecisive": true,
+            "maskWidth": 384,
+            "maskHeight": 384,
+            "gtResized": true
+          },
+          "resnet": {
+            "dice": 0.8568,
+            "csvDice": 0.6336,
+            "csvSeeds": 1,
+            "delta": 0.2232,
+            "vesselIsWhite": true,
+            "ring": 0.091,
+            "ringDecisive": true,
+            "maskWidth": 384,
+            "maskHeight": 384,
+            "gtResized": true
+          }
+        }
       },
       {
-        "model": "vit_base_patch16",
-        "labels": 160,
-        "fraction": 0.5,
-        "dice": 0.8526,
-        "csvDice": null,
-        "csvSeeds": 0,
-        "delta": null,
-        "maskWidth": 224,
-        "maskHeight": 224,
-        "gtResized": true,
-        "vesselIsWhite": true,
-        "file": "ladder/vit_base_patch16_160.png"
-      },
-      {
-        "model": "vit_base_patch16",
-        "labels": 320,
-        "fraction": 1,
-        "dice": 0.9271,
-        "csvDice": null,
-        "csvSeeds": 0,
-        "delta": null,
-        "maskWidth": 224,
-        "maskHeight": 224,
-        "gtResized": true,
-        "vesselIsWhite": false,
-        "file": "ladder/vit_base_patch16_320.png"
-      },
-      {
-        "model": "deeplabv3",
-        "labels": 16,
-        "fraction": 0.05,
-        "dice": 0.8052,
-        "csvDice": 0.6458,
-        "csvSeeds": 4,
-        "delta": 0.1594,
-        "maskWidth": 384,
-        "maskHeight": 384,
-        "gtResized": true,
-        "vesselIsWhite": true,
-        "file": "ladder/deeplabv3_16.png"
-      },
-      {
-        "model": "deeplabv3",
-        "labels": 32,
-        "fraction": 0.1,
-        "dice": 0.4799,
-        "csvDice": 0.9177,
-        "csvSeeds": 4,
-        "delta": 0.4378,
-        "maskWidth": 224,
-        "maskHeight": 224,
-        "gtResized": true,
-        "vesselIsWhite": true,
-        "file": "ladder/deeplabv3_32.png"
-      },
-      {
-        "model": "deeplabv3",
-        "labels": 80,
-        "fraction": 0.25,
-        "dice": 0.6492,
-        "csvDice": 0.9425,
-        "csvSeeds": 4,
-        "delta": 0.2933,
-        "maskWidth": 224,
-        "maskHeight": 224,
-        "gtResized": true,
-        "vesselIsWhite": true,
-        "file": "ladder/deeplabv3_80.png"
-      },
-      {
-        "model": "deeplabv3",
-        "labels": 160,
-        "fraction": 0.5,
-        "dice": 0.7581,
-        "csvDice": null,
-        "csvSeeds": 0,
-        "delta": null,
-        "maskWidth": 224,
-        "maskHeight": 224,
-        "gtResized": true,
-        "vesselIsWhite": true,
-        "file": "ladder/deeplabv3_160.png"
-      },
-      {
-        "model": "deeplabv3",
-        "labels": 320,
-        "fraction": 1,
-        "dice": 0.8134,
-        "csvDice": null,
-        "csvSeeds": 0,
-        "delta": null,
-        "maskWidth": 224,
-        "maskHeight": 224,
-        "gtResized": true,
-        "vesselIsWhite": false,
-        "file": "ladder/deeplabv3_320.png"
+        "t": 0.9,
+        "image": 330,
+        "models": {
+          "x0diffusion": {
+            "dice": 0.8517,
+            "csvDice": 0.9077,
+            "csvSeeds": 4,
+            "delta": 0.056,
+            "vesselIsWhite": true,
+            "ring": 0.067,
+            "ringDecisive": true,
+            "maskWidth": 384,
+            "maskHeight": 384,
+            "gtResized": true
+          },
+          "sam": {
+            "dice": 0.9221,
+            "csvDice": 0.8316,
+            "csvSeeds": 4,
+            "delta": 0.0905,
+            "vesselIsWhite": true,
+            "ring": 0.052,
+            "ringDecisive": true,
+            "maskWidth": 384,
+            "maskHeight": 384,
+            "gtResized": true
+          },
+          "resnet": {
+            "dice": 0.6127,
+            "csvDice": 0.6322,
+            "csvSeeds": 4,
+            "delta": 0.0195,
+            "vesselIsWhite": true,
+            "ring": 0.068,
+            "ringDecisive": true,
+            "maskWidth": 384,
+            "maskHeight": 384,
+            "gtResized": true
+          }
+        }
       }
     ]
   },

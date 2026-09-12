@@ -556,162 +556,222 @@ async function checkHeadshotSamplesPhoto(browser) {
 }
 
 /* ---------------------------------------------------------------------- */
-/* 12. Figure 2's label-budget ladder                                      */
-/* (components/figures/EfficiencyFigure.tsx + public/research/ladder.json) */
+/* 12. Figure 2's Dice CDF                                                 */
+/* (components/figures/DiceCdfFigure.tsx + public/research/cdf.json)       */
 /* ---------------------------------------------------------------------- */
 
 /**
- * The ladder's claim is that the panel numbers describe the panel pixels, so
- * the check reads both: the Dice text under each panel must equal
- * ladder.json's computed value for that (model, budget), and moving the
- * slider must both change those numbers AND repaint the canvases.
+ * The figure makes three claims that can be checked from outside: the paper's
+ * three curves are really drawn, the share readouts are the numbers the script
+ * computed, and the slider moves the strip rather than just relabeling it.
  *
- * Sampling the canvas dataURL before and after is what separates "the labels
- * changed" from "the masks changed". A slider that only rewrote text would
- * pass a text-only assertion, and that is exactly the wired-to-nothing
- * control the house rules forbid.
+ * Sampling each mask canvas's dataURL before and after the move is what
+ * separates "the labels changed" from "the masks changed". A slider that only
+ * rewrote text would pass a text-only assertion, and that is exactly the
+ * wired-to-nothing control the house rules forbid.
  */
-async function checkEfficiencyLadder(browser) {
-  return withPage(browser, { viewport: { width: 1280, height: 1400 } }, async (page) => {
-    const ladder = await (await fetch(`${BASE}/research/ladder.json`)).json();
-    const first = ladder.budgets[0];
-    const last = ladder.budgets[ladder.budgets.length - 1];
-    const diceFor = (key, labels) =>
-      ladder.models
-        .find((m) => m.key === key)
-        .series.find((s) => s.labels === labels).dice;
+async function checkDiceCdf(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 1600 } }, async (page) => {
+    const cdf = await (await fetch(`${BASE}/research/cdf.json`)).json();
+    const models = cdf.models;
+    const defaultIdx = cdf.stops.findIndex((s) => s.t === 0.3);
+    if (defaultIdx < 0) throw new Error("cdf.json has no 0.3 stop to default to");
+    const otherIdx = cdf.stops.findIndex((s) => s.t === 0.8);
+    if (otherIdx < 0) throw new Error("cdf.json has no 0.8 stop to pan to");
+    const fmtShare = (s) => `${(s * 100).toFixed(s >= 0.1 ? 1 : 2)}%`;
 
     await page.goto(BASE, { waitUntil: "networkidle" });
-    const strip = page.locator("#fig-ladder");
+    const strip = page.locator("#fig-cdf-strip");
     await strip.waitFor({ state: "visible", timeout: 10000 });
     await strip.scrollIntoViewIfNeeded();
-    const slider = page.locator("#ladder-budget");
+    const slider = page.locator("#cdf-dice");
     await slider.waitFor({ state: "attached", timeout: 10000 });
 
-    // Default must be the first budget: the crossover story starts where
-    // x0-diffusion is ahead.
-    if ((await slider.inputValue()) !== "0") {
-      throw new Error(`slider does not default to index 0 (got ${await slider.inputValue()})`);
+    if ((await slider.inputValue()) !== String(defaultIdx)) {
+      throw new Error(
+        `slider does not default to the 0.3 stop (index ${defaultIdx}); got ${await slider.inputValue()}`,
+      );
     }
 
-    // Bounded poll for the panels to have painted at all, then read text.
-    const names = {
-      x0diffusion: "x0-diffusion",
-      vit_base_patch16: "ViT-DPT",
-      deeplabv3: "DeepLabV3",
-    };
+    // 1. Three curve paths, one per model, each with a real polyline.
+    const curveInfo = await page.evaluate(() => {
+      const svg = document.querySelector("#fig-cdf-strip")?.closest("figure")?.querySelector("svg");
+      if (!svg) return null;
+      return [...svg.querySelectorAll("polyline")].map((p) => ({
+        stroke: p.getAttribute("stroke"),
+        dash: p.getAttribute("stroke-dasharray"),
+        pts: (p.getAttribute("points") || "").trim().split(/\s+/).length,
+      }));
+    });
+    if (!curveInfo) throw new Error("no chart svg in Figure 2");
+    if (curveInfo.length !== models.length) {
+      throw new Error(`expected ${models.length} curve polylines, found ${curveInfo.length}`);
+    }
+    for (const [i, c] of curveInfo.entries()) {
+      if (c.pts < 20) throw new Error(`curve ${i} has only ${c.pts} points`);
+    }
+    // One solid, one dashed, one dotted: the paper's own encoding, and the
+    // carrier that survives both colors being indistinguishable.
+    const solid = curveInfo.filter((c) => !c.dash).length;
+    if (solid !== 1) throw new Error(`expected exactly 1 solid curve, found ${solid}`);
+    const dashes = new Set(curveInfo.filter((c) => c.dash).map((c) => c.dash));
+    if (dashes.size !== 2) {
+      throw new Error(`the two non-solid curves share a dash pattern: ${[...dashes].join(" | ")}`);
+    }
+    const strokes = new Set(curveInfo.map((c) => c.stroke));
+    if (strokes.size !== 3) {
+      throw new Error(`curves do not have 3 distinct colors: ${[...strokes].join(", ")}`);
+    }
+
+    // 2. The readouts at the default stop must be cdf.json's numbers.
+    const readShares = () =>
+      page.evaluate(
+        (keys) =>
+          Object.fromEntries(
+            keys.map((k) => [
+              k,
+              document
+                .querySelector(`#fig-cdf-readouts [data-model="${k}"]`)
+                ?.textContent.trim()
+                .replace(/\s+/g, " ") ?? null,
+            ]),
+          ),
+        models,
+      );
+
+    const shares = await readShares();
+    for (const m of models) {
+      const want = fmtShare(cdf.stops[defaultIdx].shares[m]);
+      if (shares[m] === null) throw new Error(`no readout for ${m}`);
+      if (!shares[m].includes(want)) {
+        throw new Error(`readout for ${m} is "${shares[m]}", want share ${want}`);
+      }
+    }
+
+    // 3. Panels: labeled, and carrying the Dice cdf.json computed for the mask
+    //    each one paints. Wait for every mask to have painted first (a fully
+    //    transparent canvas is the pre-paint state).
     const readPanels = async () =>
       strip.evaluate((el) =>
         [...el.children].map((panel) => ({
           text: panel.textContent.trim().replace(/\s+/g, " "),
-          url: panel.querySelector("canvas").toDataURL(),
+          src: panel.querySelector("img").getAttribute("src"),
+          url: panel.querySelector("canvas")?.toDataURL() ?? null,
         })),
       );
 
     await page.waitForFunction(
-      () => {
-        const el = document.querySelector("#fig-ladder");
-        return el && [...el.children].length === 3;
-      },
-      null,
-      { timeout: 10000 },
-    );
-    // Wait for every panel's mask to have painted something (a fully
-    // transparent canvas is the pre-paint state).
-    await page.waitForFunction(
-      () =>
-        [...document.querySelectorAll("#fig-ladder canvas")].every((c) => {
+      (n) => {
+        const el = document.querySelector("#fig-cdf-strip");
+        const canvases = [...document.querySelectorAll("#fig-cdf-strip canvas")];
+        if (!el || el.children.length !== n + 1 || canvases.length !== n) return false;
+        return canvases.every((c) => {
           const g = c.getContext("2d");
           if (!c.width || !c.height) return false;
           const px = g.getImageData(0, 0, c.width, c.height).data;
           for (let i = 3; i < px.length; i += 4) if (px[i] > 0) return true;
           return false;
-        }),
-      null,
+        });
+      },
+      models.length,
       { timeout: 20000 },
     );
 
     const before = await readPanels();
-    for (const [i, key] of Object.keys(names).entries()) {
-      const want = diceFor(key, first).toFixed(3);
-      if (!before[i].text.includes(names[key])) {
-        throw new Error(`panel ${i} is not labeled "${names[key]}": "${before[i].text}"`);
-      }
-      if (!before[i].text.includes(want)) {
-        throw new Error(
-          `panel ${i} (${names[key]}) at ${first} labels shows "${before[i].text}", want Dice ${want}`,
-        );
+    const wantAngio = `/research/${cdf.stops[defaultIdx].angio}`;
+    if (before[0].src !== wantAngio) {
+      throw new Error(`base panel shows ${before[0].src}, want ${wantAngio}`);
+    }
+    for (const [i, m] of models.entries()) {
+      const panel = before[i + 1];
+      const want = cdf.stops[defaultIdx].masks[m].dice.toFixed(3);
+      if (!panel.text.includes(want)) {
+        throw new Error(`panel ${m} shows "${panel.text}", want Dice ${want}`);
       }
     }
 
-    await setRange(slider, ladder.budgets.length - 1);
+    // 4. Moving the slider must swap the angiogram, repaint every mask and
+    //    update every number.
+    await setRange(slider, otherIdx);
     await page.waitForFunction(
-      (want) => document.querySelector("#ladder-budget")?.value === String(want),
-      ladder.budgets.length - 1,
+      (want) => document.querySelector("#cdf-dice")?.value === String(want),
+      otherIdx,
       { timeout: 5000 },
     );
-    // Bounded poll: the new budget's masks have to decode before the canvases
-    // can differ.
     await page.waitForFunction(
       (want) =>
-        [...document.querySelectorAll("#fig-ladder canvas")].every(
+        [...document.querySelectorAll("#fig-cdf-strip canvas")].every(
           (c, i) => c.toDataURL() !== want[i],
         ),
-      before.map((p) => p.url),
+      before.slice(1).map((p) => p.url),
       { timeout: 20000 },
     );
 
     const after = await readPanels();
-    for (const [i, key] of Object.keys(names).entries()) {
-      const want = diceFor(key, last).toFixed(3);
-      if (!after[i].text.includes(want)) {
-        throw new Error(
-          `panel ${i} (${names[key]}) at ${last} labels shows "${after[i].text}", want Dice ${want}`,
-        );
+    const wantAngioAfter = `/research/${cdf.stops[otherIdx].angio}`;
+    if (after[0].src !== wantAngioAfter) {
+      throw new Error(`base panel still shows ${after[0].src}, want ${wantAngioAfter}`);
+    }
+    if (after[0].src === before[0].src) throw new Error("the angiogram did not change");
+    for (const [i, m] of models.entries()) {
+      const want = cdf.stops[otherIdx].masks[m].dice.toFixed(3);
+      if (!after[i + 1].text.includes(want)) {
+        throw new Error(`panel ${m} shows "${after[i + 1].text}", want Dice ${want}`);
       }
-      if (after[i].url === before[i].url) {
-        throw new Error(`panel ${i} (${names[key]}) canvas did not repaint at ${last} labels`);
+      if (after[i + 1].url === before[i + 1].url) {
+        throw new Error(`panel ${m} canvas did not repaint at the ${cdf.stops[otherIdx].t} stop`);
+      }
+    }
+    const sharesAfter = await readShares();
+    for (const m of models) {
+      const want = fmtShare(cdf.stops[otherIdx].shares[m]);
+      if (!sharesAfter[m].includes(want)) {
+        throw new Error(`readout for ${m} is "${sharesAfter[m]}", want share ${want}`);
       }
     }
 
-    // The x axis is categorical, so the cursor must land exactly on a tick at
-    // every stop. A linear axis would miss every tick but the endpoints, and
-    // the miss would be small enough to look like a rendering artifact.
+    // 5. The cursor must land exactly on the threshold it claims, at every
+    //    stop. The x axis is linear over [0, 1], so this is checkable in user
+    //    units against the axis geometry the ticks define.
     const offsets = [];
-    for (let i = 0; i < ladder.budgets.length; i++) {
+    for (let i = 0; i < cdf.stops.length; i++) {
       await setRange(slider, i);
       await page.waitForFunction(
-        (want) => document.querySelector("#ladder-budget")?.value === String(want),
+        (want) => document.querySelector("#cdf-dice")?.value === String(want),
         i,
         { timeout: 5000 },
       );
-      const off = await page.evaluate((labels) => {
-        const svg = document.querySelector("#fig-ladder")?.closest("figure")?.querySelector("svg");
-        const cursor = svg.querySelector("line[stroke-dasharray]");
-        const tick = [...svg.querySelectorAll("text")].find(
-          (t) =>
-            t.getAttribute("text-anchor") === "middle" &&
-            t.textContent.trim() === String(labels),
+      const off = await page.evaluate((t) => {
+        const svg = document.querySelector("#fig-cdf-strip")?.closest("figure")?.querySelector("svg");
+        const cursor = [...svg.querySelectorAll("line[stroke-dasharray]")].find(
+          (l) => l.getAttribute("stroke") === "var(--color-link)",
         );
-        if (!cursor) return "no dashed cursor line in the chart";
-        if (!tick) return `no x tick labeled ${labels}`;
-        return Number(cursor.getAttribute("x1")) - Number(tick.getAttribute("x"));
-      }, ladder.budgets[i]);
+        const ticks = [...svg.querySelectorAll("text")].filter(
+          (n) => n.getAttribute("text-anchor") === "middle" && /^[01]\.\d$/.test(n.textContent.trim()),
+        );
+        const zero = ticks.find((n) => n.textContent.trim() === "0.0");
+        const one = ticks.find((n) => n.textContent.trim() === "1.0");
+        if (!cursor) return "no cursor line in the chart";
+        if (!zero || !one) return "no 0.0/1.0 x ticks to read the axis off";
+        const x0 = Number(zero.getAttribute("x"));
+        const x1 = Number(one.getAttribute("x"));
+        return Number(cursor.getAttribute("x1")) - (x0 + t * (x1 - x0));
+      }, cdf.stops[i].t);
       if (typeof off === "string") throw new Error(off);
       if (Math.abs(off) > 0.01) {
-        throw new Error(
-          `cursor is ${off} user units off the ${ladder.budgets[i]} tick (categorical x should be exact)`,
-        );
+        throw new Error(`cursor is ${off} user units off Dice ${cdf.stops[i].t}`);
       }
       offsets.push(off);
     }
 
     return (
-      `3 panels; ${first} labels ` +
-      Object.keys(names).map((k) => diceFor(k, first).toFixed(3)).join("/") +
-      ` -> ${last} labels ` +
-      Object.keys(names).map((k) => diceFor(k, last).toFixed(3)).join("/") +
-      `; all three canvases repainted; cursor on all ${offsets.length} ticks exactly`
+      `3 curves (1 solid, 2 dash patterns, 3 colors); stop ${cdf.stops[defaultIdx].t} image ` +
+      `${cdf.stops[defaultIdx].image} ` +
+      models.map((m) => cdf.stops[defaultIdx].masks[m].dice.toFixed(3)).join("/") +
+      ` -> stop ${cdf.stops[otherIdx].t} image ${cdf.stops[otherIdx].image} ` +
+      models.map((m) => cdf.stops[otherIdx].masks[m].dice.toFixed(3)).join("/") +
+      `; angiogram swapped, all ${models.length} canvases repainted; shares match cdf.json; ` +
+      `cursor exact at all ${offsets.length} stops`
     );
   });
 }
@@ -728,7 +788,7 @@ const CHECKS = [
   ["no-h-scroll-lab-400", checkNoHorizontalScroll("/lab")],
   ["no-early-heavy-payload-400", checkNoEarlyHeavyPayload],
   ["wipe-endpoints-differ", checkWipeEndpointsDiffer],
-  ["efficiency-ladder", checkEfficiencyLadder],
+  ["dice-cdf", checkDiceCdf],
   ["flight-video-play-pause", checkFlightVideoPlayPause],
   ["draw-stroke-auto-label", checkDrawAutoLabel],
   ["chess-hint-g3", checkChessHint],

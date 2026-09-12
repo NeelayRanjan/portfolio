@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Swarm } from "@/components/ambience/Swarm";
-import { CharField } from "@/components/ambience/CharField";
-import { BootScreen } from "@/components/ambience/BootScreen";
 import { copy } from "@/content/copy";
 
 const geistSans = Geist({
@@ -64,30 +61,10 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <head>
-        {/* Sections start hidden for the scroll reveal; if JS never runs, the
-            observer never fires and the page would be blank. Un-hide them.
+      <head />
 
-            The boot screen is the same class of trap, one step worse: it is an
-            opaque overlay in the server's HTML, so without JS to dismiss it the
-            site is a black rectangle. It is decoration over a page that is fully
-            rendered underneath, so dropping it costs nothing. */}
-        <noscript>
-          <style>{`.reveal { opacity: 1 !important; transform: none !important; }
-                   .boot-screen { display: none !important; }`}</style>
-        </noscript>
-      </head>
       <body className="min-h-full flex flex-col">
-        {/* Both fixed, both behind content, both body children so they span the
-            viewport. CharField sits furthest back (-z-20), the swarm above it. */}
-        <CharField />
-        <Swarm />
         {children}
-        {/* Last child and z-50: it covers the swarm, the field and the page while
-            it runs. Everything above still mounts and starts loading behind it,
-            which is the point — the boot is cover for that work, not a gate on
-            it. */}
-        <BootScreen />
       </body>
     </html>
   );

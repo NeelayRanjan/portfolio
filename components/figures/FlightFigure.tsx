@@ -55,11 +55,13 @@ export function FlightFigure() {
   return (
     <InstrumentFigure n="3" caption={copy.research.figFlight.caption}>
       {/* The source video is a light-background matplotlib map — the one
-          light-mode object on a dark page, which is why it read as out of
-          place. invert + hue-rotate is the standard dark-map treatment: the
-          white ground goes near-black, the burned-in timestamp flips to
-          light text, and the teal flight paths survive the double flip.
-          Presentation only; the committed video's pixels are untouched. */}
+          light-mode object on a dark page. Treatment (owner call: seamless
+          against the panel): full invert + hue-rotate flips the ground to
+          TRUE black and keeps the teal paths, then mix-blend-mode: screen
+          makes black contribute nothing — the ground becomes literally the
+          panel behind it, no border, no visible rectangle; only the flights,
+          state lines and timestamp paint. Presentation only; the committed
+          video's pixels are untouched. */}
       <div className="mx-auto w-full max-w-[680px]">
         <video
           ref={videoRef}
@@ -70,7 +72,7 @@ export function FlightFigure() {
           poster="/research/flight_poster.webp"
           controls={reducedMotion}
           aria-label={copy.research.figFlight.videoAria}
-          className="w-full border border-rule [filter:invert(0.94)_hue-rotate(180deg)_brightness(0.92)_contrast(1.05)]"
+          className="w-full mix-blend-screen [filter:invert(1)_hue-rotate(180deg)]"
         >
           <source src="/research/flight_lm_day.mp4" type="video/mp4" />
         </video>

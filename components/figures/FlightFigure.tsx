@@ -76,7 +76,7 @@ export function FlightFigure() {
           poster="/research/flight_poster.webp"
           controls={reducedMotion}
           aria-label={copy.research.figFlight.videoAria}
-          className="w-full mix-blend-screen [clip-path:inset(2px)] [filter:invert(1)_hue-rotate(37deg)_saturate(1.2)]"
+          className="w-full mix-blend-screen [clip-path:inset(2px)] [filter:invert(1)_hue-rotate(33deg)_saturate(2.1)_brightness(1.05)]"
         >
           <source src="/research/flight_lm_day.mp4" type="video/mp4" />
         </video>

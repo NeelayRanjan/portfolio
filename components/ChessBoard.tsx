@@ -25,11 +25,13 @@ const RANKS = [8, 7, 6, 5, 4, 3, 2, 1];
 const MAX_ALPHA = 0.6;
 
 const TINT: Record<Overlay["tint"], [number, number, number]> = {
-  // The handoff asks for amber on saliency, but the site's palette is one indigo
-  // + one teal and nothing else. Indigo reads as the "hot/attention" accent
-  // everywhere else on the page, so it carries saliency here.
-  saliency: [143, 136, 221],
-  activation: [93, 202, 165],
+  // Literals, not tokens: `background` is built as an rgba() string and a CSS
+  // variable can't carry the alpha these need. Kept in step with the palette by
+  // role — saliency is `--color-link` (#7ba7dc), the "what it saw / what it
+  // would play" accent; activation is `--color-ok` (#63c68c), the engine's own
+  // move map. (v1's indigo/teal pair, re-derived in the warm palette.)
+  saliency: [123, 167, 220],
+  activation: [99, 198, 140],
 };
 
 export type Overlay = {
@@ -63,9 +65,11 @@ export function ChessBoard({
     /**
      * ⚠️ FLUID, AND IT HAS TO BE. This used to be a hard `width: 296px` with the
      * labels sized by hand off `size / 8`. 296 plus the rank gutter is ~314px,
-     * which is wider than the panel on a 320px phone — and TerminalPanel is
-     * `overflow-hidden`, so the h-file was silently cut off rather than scrolled
-     * to. Measured: the panel overflowed by 53px with no way to reach the rest.
+     * which is wider than the panel on a 320px phone — and v1's TerminalPanel
+     * was `overflow-hidden`, so the h-file was silently cut off rather than
+     * scrolled to. Measured: the panel overflowed by 53px with no way to reach
+     * the rest. Still fluid under `InstrumentFigure` for the same reason: the
+     * board must fit its column, not force the sheet to scroll sideways.
      *
      * One grid does the whole job and deletes the pixel math. The board is
      * `1fr` of what's left, its cells are aspect-square, so its height follows
@@ -94,7 +98,7 @@ export function ChessBoard({
         {RANKS.map((r) => (
           <span
             key={r}
-            className="flex items-center justify-end font-mono text-[9px] text-faint"
+            className="flex items-center justify-end font-mono text-[9px] text-mut/60"
           >
             {r}
           </span>
@@ -102,7 +106,7 @@ export function ChessBoard({
       </div>
 
     <div
-      className="grid border border-line font-mono"
+      className="grid border border-rule font-mono"
       style={{ gridTemplateColumns: "repeat(8, minmax(0, 1fr))" }}
     >
       {board.map((row, r) =>
@@ -122,7 +126,7 @@ export function ChessBoard({
               aria-label={`${square}${cell ? ` ${cell.color}${cell.type}` : " empty"}`}
               className={`relative flex aspect-square items-center justify-center text-[26px] leading-none transition-colors ${
                 dark ? "bg-board-dark" : "bg-board-light"
-              } ${isSel ? "outline outline-2 -outline-offset-2 outline-teal" : ""}`}
+              } ${isSel ? "outline outline-2 -outline-offset-2 outline-ok" : ""}`}
             >
               {rgb && heat > 0.01 ? (
                 <span
@@ -137,16 +141,16 @@ export function ChessBoard({
               ) : null}
               {cell ? (
                 <span
-                  className={`relative ${cell.color === "w" ? "text-ink" : "text-indigo"}`}
+                  className={`relative ${cell.color === "w" ? "text-ink" : "text-link"}`}
                 >
                   {GLYPH[cell.type]}
                 </span>
               ) : null}
               {isTarget && !cell ? (
-                <span className="absolute size-1.5 rounded-full bg-teal/60" />
+                <span className="absolute size-1.5 rounded-full bg-ok/60" />
               ) : null}
               {isTarget && cell ? (
-                <span className="absolute inset-0 outline outline-2 -outline-offset-2 outline-teal/50" />
+                <span className="absolute inset-0 outline outline-2 -outline-offset-2 outline-ok/50" />
               ) : null}
             </Cell>
           );
@@ -166,7 +170,7 @@ export function ChessBoard({
         style={{ gridTemplateColumns: "repeat(8, minmax(0, 1fr))" }}
       >
         {FILES.map((f) => (
-          <span key={f} className="text-center font-mono text-[9px] text-faint">
+          <span key={f} className="text-center font-mono text-[9px] text-mut/60">
             {f}
           </span>
         ))}

@@ -311,6 +311,10 @@ export const copy = {
      *  `activations` blocks `lib/chess-protocol.ts` and
      *  `components/ChessActivations.tsx` read. */
     chess: {
+      /** New for the manuscript chrome: v1's panel had no caption, so this one
+       *  is drafted rather than carried over. */
+      figureCaption:
+        "A 553 KB energy-based model running its real int8 weights on your device, roughly 1900–2200 Elo against Stockfish’s limited modes. You are white; click a piece, then a square. The tint on the board is the engine’s own ranking of every legal reply, and “what it saw” swaps the game for the model’s internals laid back onto the squares.",
       cmd: "./entropy_chess",
       bootLines: [
         "energy-based model · 469K params · scores positions, never outputs a move",

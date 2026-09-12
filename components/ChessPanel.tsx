@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess, type Square } from "chess.js";
-import { TerminalPanel } from "./TerminalPanel";
+import { InstrumentFigure } from "./manuscript/InstrumentFigure";
 import { ChessBoard } from "./ChessBoard";
 import { ChessActivations } from "./ChessActivations";
-import { BootLog, useBootSequence } from "./ambience/BootLog";
 import {
   loadChessEngine,
   SEARCH_MODES,
@@ -14,23 +13,8 @@ import {
   type ChessEngine,
   type ScoredMove,
 } from "@/lib/chess-engine";
-import { CommandLine } from "./ambience/CommandLine";
 import { loadChessActivations, type ActivationSet } from "@/lib/chess-activations";
 import { copy } from "@/content/copy";
-
-const CMD_NAME = copy.systems.chess.cmd;
-/**
- * `--sims` here is the budget `let it think` spends, NOT the live sim count.
- *
- * The boot loads the engine; it does not pick a mode. So this line is
- * configuration — what the search will spend when you ask for it — and the title
- * bar carries which mode is actually running. Two facts, two places, neither
- * contradicting the other.
- *
- * ⚠️ Must match what CommandLine renders, flag for flag and in this order.
- */
-const BOOT_CMD = `${CMD_NAME} --model int8 --sims ${THINK_SIMS.default}`;
-const BOOT_LINES = [...copy.systems.chess.bootLines];
 
 /** ~230ms a simulation, measured in Firefox (6.6ms/board x ~35 legal moves). Quote
  *  what's measured in a browser, never the Pi's numbers. */
@@ -50,6 +34,118 @@ const PROMOTIONS = ["q", "r", "b", "n"] as const;
 const PROMO_GLYPH: Record<string, string> = { q: "♛", r: "♜", b: "♝", n: "♞" };
 
 type Pending = { from: Square; to: Square };
+
+/**
+ * `sims` is the budget `let it think` spends, NOT the live sim count.
+ *
+ * Nothing about mounting picks a mode, so this box is configuration — what the
+ * search will spend when you ask for it — and the segmented control beside it
+ * carries which mode is actually running. Two facts, two controls, neither
+ * contradicting the other. (v1 put the number in the boot log's `--sims` flag
+ * and the mode in the panel's title bar, for exactly the same reason.)
+ */
+const SIMS_RANGE = {
+  min: THINK_SIMS.min,
+  max: THINK_SIMS.max,
+  step: THINK_SIMS.step,
+} as const;
+
+/**
+ * Clamp HARD: snap to the grid, then into range. Never pass a raw value through.
+ *
+ * Replicated from v1's `CommandLine.snap`, which died with the terminal chrome —
+ * same six lines, same numbers. Typing `10` landing on 250 is not a rounding
+ * accident, it IS the finding: below ~250 simulations the search returns the same
+ * move as 1-ply argmin, so every value this box accepts is a search that actually
+ * searches. See THINK_SIMS in lib/chess-protocol.ts before widening it.
+ *
+ * The steps here are whole numbers, so there is no decimal round-trip to do (the
+ * draw panel's `snap` needs one for its 0.05 grid).
+ */
+function snapSims(raw: number): number {
+  const stepped = Math.round(raw / SIMS_RANGE.step) * SIMS_RANGE.step;
+  return Math.min(SIMS_RANGE.max, Math.max(SIMS_RANGE.min, stepped));
+}
+
+/**
+ * The one labeled number box. Same clamping, same commit rules as the command
+ * line flag it replaces; only the chrome changed.
+ */
+function SimsField({
+  name,
+  value,
+  disabled,
+  onCommit,
+}: {
+  name: string;
+  value: number;
+  disabled: boolean;
+  onCommit: (v: number) => void;
+}) {
+  /** null = not being edited, so the committed value shows. A draft has to exist
+   *  or a half-typed number would be clamped out from under the visitor. */
+  const [draft, setDraft] = useState<string | null>(null);
+  /**
+   * ⚠️ Escape abandons through a REF, and `setDraft(null)` CANNOT do this job.
+   *
+   * Escape has to blur (the box must let go of the keyboard), and `blur()` fires
+   * `onBlur` synchronously, inside the same event — so the commit that runs is
+   * still this render's closure, where `draft` is the string just typed. A
+   * `setDraft(null)` on the way out is invisible to it. Same pattern, same
+   * reason, as the draw panel's `ParamField`.
+   */
+  const escaped = useRef(false);
+  const text = draft ?? String(value);
+
+  const commit = () => {
+    if (escaped.current) {
+      escaped.current = false;
+      setDraft(null); // show the committed value again, unchanged
+      return;
+    }
+    // No draft means no edit — which matters, because disabling a focused input
+    // blurs it, and a blur must not commit anything on its own.
+    if (draft === null) return;
+    const n = Number(draft);
+    setDraft(null); // snap back to the committed value, edited or not
+    if (draft.trim() === "" || !Number.isFinite(n)) return;
+    const v = snapSims(n);
+    if (v !== value) onCommit(v);
+  };
+
+  return (
+    <label className="flex flex-col gap-1">
+      {/* aria-hidden: the input's own label already names the param and its
+          range, so announcing this would say the word twice. */}
+      <span aria-hidden="true" className="text-mut">
+        {name}
+      </span>
+      <input
+        type="number"
+        value={text}
+        disabled={disabled}
+        min={SIMS_RANGE.min}
+        max={SIMS_RANGE.max}
+        step={SIMS_RANGE.step}
+        inputMode="numeric"
+        spellCheck={false}
+        autoComplete="off"
+        aria-label={`${name}, ${SIMS_RANGE.min} to ${SIMS_RANGE.max}`}
+        onChange={(e) => setDraft(e.target.value.replace(/[^0-9.]/g, "").slice(0, 5))}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur(); // blur commits
+          if (e.key === "Escape") {
+            // Abandon: the flag is what the blur below reads (see `escaped`).
+            escaped.current = true;
+            e.currentTarget.blur();
+          }
+        }}
+        className="w-16 border border-rule bg-desk px-1.5 py-1 text-center font-mono text-[11px] tabular-nums text-ink outline-none transition-colors hover:border-mut focus:border-ok disabled:cursor-not-allowed disabled:opacity-40"
+      />
+    </label>
+  );
+}
 
 /** "e4" -> 36. Rank-8-first row-major, matching ChessBoard's overlay indexing
  *  and the activation export's ordering. */
@@ -90,9 +186,9 @@ function moveMap(ranked: ScoredMove[]): number[] {
  *  rather than as two unrelated hot squares. */
 const HINT_FROM_ALPHA = 0.4;
 
-/** The suggested move as a two-square overlay. Indigo (`saliency`) on purpose:
- *  teal already means "the engine's own move map" on this board, and a hint is a
- *  different claim. One tint, one meaning. */
+/** The suggested move as a two-square overlay. `saliency`, which is now-link
+ *  (#7ba7dc), on purpose: `activation` already means "the engine's own move map"
+ *  on this board, and a hint is a different claim. One tint, one meaning. */
 function hintMap(m: ScoredMove): number[] {
   const out = new Array(64).fill(0);
   out[squareToIndex(m.uci.slice(0, 2))] = HINT_FROM_ALPHA;
@@ -120,10 +216,10 @@ export function ChessPanel() {
   /** 1 ply, or the Pi's real search. Defaults to 1 ply: nobody should land on a
    *  board that takes a minute to answer. */
   const [level, setLevel] = useState(DEFAULT_SEARCH);
-  /** What `let it think` spends, via --sims. Clamped to [250, 500] — see
+  /** What `let it think` spends, via the sims box. Clamped to [250, 500] — see
    *  THINK_SIMS: the floor is the measurement, not a preference. */
   const [thinkSims, setThinkSims] = useState<number>(THINK_SIMS.default);
-  /** Confirms a --sims edit. It configures the NEXT search rather than re-running:
+  /** Confirms a sims edit. It configures the NEXT search rather than re-running:
    *  the engine has already moved, and re-answering a position the board has left
    *  would be a claim about a game that moved on. */
   const [echo, setEcho] = useState<string | null>(null);
@@ -145,12 +241,11 @@ export function ChessPanel() {
   const [hint, setHint] = useState<ScoredMove | null>(null);
   const [hinting, setHinting] = useState(false);
 
-  const boot = useBootSequence(BOOT_CMD, BOOT_LINES);
-  const booted = boot.done;
-
-  // 553KB + the wasm runtime. Lazy: only once the panel has actually booted.
+  // 553KB + the wasm runtime. Lazy, and still lazy: this component is mounted on
+  // scroll-in by `DeferredMount`, which is where v1's boot gate went. So the
+  // first render IS the moment the panel was reached, and there is nothing left
+  // to wait on.
   useEffect(() => {
-    if (!booted) return;
     setLoading(true);
     loadChessEngine()
       .then(setEngine)
@@ -162,7 +257,7 @@ export function ChessPanel() {
     loadChessActivations()
       .then(setActs)
       .catch(() => setActs(null));
-  }, [booted]);
+  }, []);
 
   const game = gameRef.current;
   const sync = useCallback(() => setFen(gameRef.current.fen()), []);
@@ -190,7 +285,8 @@ export function ChessPanel() {
     () => SEARCH_MODES.find((d) => d.id === level) ?? SEARCH_MODES[0],
     [level],
   );
-  /** 0 means argmin. Otherwise it's whatever --sims says, not the mode's default. */
+  /** 0 means argmin. Otherwise it's whatever the sims box says, not the mode's
+   *  default. */
   const sims = mode.sims === 0 ? 0 : thinkSims;
 
   const engineMove = useCallback(async () => {
@@ -342,347 +438,365 @@ export function ChessPanel() {
 
   const ready = engine !== null;
   const busy = thinking || hinting;
-  const status = !booted
-    ? copy.systems.chess.statusBooting
-    : loading
-      ? copy.systems.chess.statusLoading
-      : busy
-        ? // The search runs in a worker, so this counter keeps ticking while the
-          // page stays live. That IS the demo: a frozen tab would prove nothing.
-          progress
-          ? `${copy.systems.chess.statusSearchingPre}${progress.done}/${progress.total}`
-          : copy.systems.chess.statusThinking
-        : outcome
-          ? copy.systems.chess.statusGameOver
-          : ready
-            ? selfPlay
-              ? `${engine.build} · ${copy.systems.chess.statusSelfPlay} · move ${Math.ceil(game.history().length / 2) || 1}`
-              : `${engine.build} · ${game.turn() === "w" ? copy.systems.chess.statusYourMove : copy.systems.chess.statusWaiting}`
-            : copy.systems.chess.statusEnginePending;
+  const status = loading
+    ? copy.systems.chess.statusLoading
+    : busy
+      ? // The search runs in a worker, so this counter keeps ticking while the
+        // page stays live. That IS the demo: a frozen tab would prove nothing.
+        progress
+        ? `${copy.systems.chess.statusSearchingPre}${progress.done}/${progress.total}`
+        : copy.systems.chess.statusThinking
+      : outcome
+        ? copy.systems.chess.statusGameOver
+        : ready
+          ? selfPlay
+            ? `${engine.build} · ${copy.systems.chess.statusSelfPlay} · move ${Math.ceil(game.history().length / 2) || 1}`
+            : `${engine.build} · ${game.turn() === "w" ? copy.systems.chess.statusYourMove : copy.systems.chess.statusWaiting}`
+          : copy.systems.chess.statusEnginePending;
 
   return (
-    <div ref={boot.ref}>
-      <TerminalPanel
-        // Which mode is RUNNING. --sims lives in the boot log and means the
-        // configured budget — showing sims in both places would put two different
-        // numbers under one flag name.
-        label={`${copy.systems.chess.label} --engine ebm --search ${sims === 0 ? "argmin" : "mcts"}`}
-        status={status}
-        notice={
-          booted && err ? (
-            <>
-              <span className="text-indigo">{copy.systems.chess.engineError}</span>: {err}
-            </>
-          ) : null
-        }
-      >
-        <BootLog
-          typed={boot.typed}
-          printed={boot.printed}
-          done={booted}
-          echo={echo}
-          command={
-            <CommandLine
-              name={CMD_NAME}
-              disabled={busy}
-              hint={copy.systems.chess.hint}
-              dirty={thinkSims !== THINK_SIMS.default}
-              onReset={() => {
-                setThinkSims(THINK_SIMS.default);
-                setEcho(null);
-              }}
-              // Order must match BOOT_CMD.
-              items={[
-                // The loader picks the build (fp32 is a fallback), so this is
-                // never a knob. The status bar reports what actually answered.
-                { kind: "frozen", flag: "--model", value: "int8" },
-                {
-                  kind: "param",
-                  flag: "--sims",
-                  value: thinkSims,
-                  min: THINK_SIMS.min,
-                  max: THINK_SIMS.max,
-                  step: THINK_SIMS.step,
-                  int: true,
-                  onCommit: (v) => {
-                    setThinkSims(v);
-                    setEcho(
-                      sims === 0
-                        ? `--sims ${v}${copy.systems.chess.simsEchoWhenThink}`
-                        : `--sims ${v}${copy.systems.chess.simsEchoNextMove}`,
-                    );
-                  },
-                },
-              ]}
-            />
-          }
+    <InstrumentFigure
+      n="5"
+      id="fig-chess"
+      caption={copy.systems.chess.figureCaption}
+      readout={status}
+    >
+      {/* h3, not h2: the page's `<h2>` is the "Live systems" section above. */}
+      {/* pr-40 keeps the heading clear of the figure's absolutely-positioned
+          readout, which runs to ~"searching · 250/250" at its longest. */}
+      <h3 className="mt-1 mb-2 pr-40 text-[17px] font-semibold text-ink">
+        {copy.systems.chess.heading}
+      </h3>
+      <p className="mb-4 max-w-2xl text-[15px] leading-relaxed text-mut">
+        {copy.systems.chess.lede.a}
+      </p>
+      <p className="mb-5 max-w-2xl text-[15px] leading-relaxed text-mut">
+        {copy.systems.chess.lede.b}
+      </p>
+
+      {err ? (
+        <p className="mb-4 font-mono text-[11px] leading-relaxed text-mut/60">
+          <span className="text-red-ink">{copy.systems.chess.engineError}</span>: {err}
+        </p>
+      ) : null}
+
+      {/*
+       * The control row: which search is running, and what it spends.
+       *
+       * Two modes, not a ladder — see chess-protocol.ts for the measurement that
+       * deleted the ladder. Switching mid-game is fine: every move is an
+       * independent search, no tree is carried between them. It applies to its
+       * move, your hint and self-play alike, because they are all one call.
+       *
+       * v1 rendered the mode in the panel's title bar and the number as an
+       * editable `--sims` flag in the boot command. Same two facts, same clamp,
+       * same commit rules; only the chrome changed.
+       */}
+      <div className="mb-2 flex flex-wrap items-end gap-x-5 gap-y-3 font-mono text-[11px]">
+        <div className="flex flex-col gap-1">
+          <span aria-hidden="true" className="text-mut">
+            {copy.systems.chess.searchLabel}
+          </span>
+          <div className="flex" role="group" aria-label={copy.systems.chess.searchLabel}>
+            {SEARCH_MODES.map((d, i) => (
+              <button
+                key={d.id}
+                onClick={() => setLevel(d.id)}
+                disabled={busy}
+                aria-pressed={d.id === level}
+                // -ml-px joins the two into one segmented control; `relative` on
+                // the active half keeps its border painting over its neighbour's
+                // rather than under it.
+                className={`border px-2.5 py-1 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                  i > 0 ? "-ml-px" : ""
+                } ${
+                  d.id === level
+                    ? "relative border-ok text-ok"
+                    : "border-rule text-mut hover:border-mut hover:text-ink"
+                }`}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <SimsField
+          name="sims"
+          value={thinkSims}
+          disabled={busy}
+          onCommit={(v) => {
+            setThinkSims(v);
+            setEcho(
+              sims === 0
+                ? `sims ${v}${copy.systems.chess.simsEchoWhenThink}`
+                : `sims ${v}${copy.systems.chess.simsEchoNextMove}`,
+            );
+          }}
         />
 
-        {!booted ? null : (
+        {/* One slot, two states. The hint retires the moment the number has been
+            touched, and reset takes its place — which is also the only moment
+            reset is worth offering. */}
+        {thinkSims !== THINK_SIMS.default ? (
+          <button
+            onClick={() => {
+              setThinkSims(THINK_SIMS.default);
+              setEcho(null);
+            }}
+            disabled={busy}
+            className="self-end border-b border-dashed border-rule py-1 text-mut transition-colors hover:border-mut hover:text-ink disabled:opacity-40"
+          >
+            {copy.commandLine.reset}
+          </button>
+        ) : (
+          // aria-hidden: the box above is already an exposed labelled control
+          // carrying its own range, so this would only repeat it.
+          <span aria-hidden="true" className="self-end py-1 text-mut/60">
+            {copy.systems.chess.hint}
+          </span>
+        )}
+      </div>
+
+      {/* The confirmation that the number did something. `role="status"`, because
+          the edit configures the NEXT search rather than re-running this one, so
+          nothing else on screen changes to acknowledge it. */}
+      {echo ? (
+        <p role="status" className="mb-2 font-mono text-[11px] text-warm">
+          {echo}
+        </p>
+      ) : null}
+
+      <p className="mb-6 max-w-2xl font-mono text-[11px] leading-relaxed text-mut/60">
+        {sims > 0 ? (
           <>
-            {/* Gated on the export existing. No data -> no toggle, rather than a
-                disabled control advertising something that may never land. */}
-            {acts ? (
-              <div className="mt-6 mb-4 flex flex-wrap gap-2">
-                {(["game", "activations"] as const).map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => setView(v)}
-                    aria-pressed={v === view}
-                    className={`rounded border px-3 py-1.5 font-mono text-xs transition-colors ${
-                      v === view
-                        ? "border-indigo text-indigo"
-                        : "border-line text-muted hover:border-faint hover:text-ink"
-                    }`}
-                  >
-                    {v === "game" ? v : copy.systems.chess.viewSaw}
-                  </button>
-                ))}
+            {sims} {mode.about} · about {aboutTime(sims)} a move.
+            {copy.systems.chess.searchNoteSetPre}
+            <span className="text-ink">{copy.systems.chess.searchNoteSims}</span>
+            {copy.systems.chess.searchNoteRange}
+            {THINK_SIMS.min}
+            {copy.systems.chess.searchNoteTo}
+            {THINK_SIMS.max}
+            {copy.systems.chess.searchNotePiRuns}
+            {THINK_SIMS.max}.
+          </>
+        ) : (
+          <>
+            {mode.about}
+            {copy.systems.chess.searchNoteFloor}
+          </>
+        )}
+      </p>
+
+      {/* Gated on the export existing. No data -> no toggle, rather than a
+          disabled control advertising something that may never land. */}
+      {acts ? (
+        <div className="mb-6 flex flex-wrap gap-2">
+          {(["game", "activations"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              aria-pressed={v === view}
+              className={`border px-3 py-1.5 font-mono text-xs transition-colors ${
+                v === view
+                  ? "border-link text-link"
+                  : "border-rule text-mut hover:border-mut hover:text-ink"
+              }`}
+            >
+              {v === "game" ? v : copy.systems.chess.viewSaw}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {acts && view === "activations" ? (
+        <>
+          <p className="mb-6 max-w-2xl text-[15px] leading-relaxed text-mut">
+            {copy.systems.chess.activationsLede}
+          </p>
+          <ChessActivations data={acts} />
+        </>
+      ) : (
+        <div className="flex flex-wrap items-start gap-8">
+          <div>
+            <ChessBoard
+              fen={fen}
+              selected={selected}
+              targets={legalFrom}
+              onSquare={onSquare}
+              // A hint outranks the move map: two overlays at once would be
+              // two different claims in two colours on one board.
+              overlay={
+                hint
+                  ? { values: hintMap(hint), tint: "saliency" }
+                  : showMap && lastReply
+                    ? { values: moveMap(lastReply.ranked), tint: "activation" }
+                    : null
+              }
+            />
+
+            <p className="mt-4 max-w-[296px] font-mono text-[11px] leading-relaxed text-mut/60">
+              {outcome ? (
+                <span className="text-ok">{outcome}</span>
+              ) : flash ? (
+                <span className="text-red-ink">{flash}</span>
+              ) : game.isCheck() ? (
+                // Warm, not red-ink: `check` is a live game state, not a
+                // mistake. `illegal move` above is the mistake, and red is what
+                // says so in this palette.
+                <span className="text-warm">{copy.systems.chess.check}</span>
+              ) : hint ? (
+                <>
+                  <span className="text-link">{copy.systems.chess.hintPlayPre}{hint.san}</span> · p=
+                  {hint.prior.toFixed(3)} · v={hint.value.toFixed(2)}
+                </>
+              ) : showMap && lastReply ? (
+                <>
+                  <span className="text-ok">{copy.systems.chess.mapCaption}</span>
+                  {copy.systems.chess.mapCaptionTail}
+                </>
+              ) : selfPlay ? (
+                <span className="text-ok">{copy.systems.chess.selfPlayCaption}</span>
+              ) : (
+                copy.systems.chess.boardCaptionIdle
+              )}
+            </p>
+
+            <button
+              onClick={() => setShowMap((v) => !v)}
+              aria-pressed={showMap}
+              className={`mt-4 border px-3 py-1.5 font-mono text-xs transition-colors ${
+                showMap
+                  ? "border-ok text-ok"
+                  : "border-rule text-mut hover:border-mut hover:text-ink"
+              }`}
+            >
+              {copy.systems.chess.moveMap}
+            </button>
+
+            {/* The map is a move preference, not an activation. Saying "its
+                ranking" keeps it distinct from the "what it saw" view, which
+                shows internals. */}
+            <p className="mt-2 max-w-[296px] font-mono text-[11px] leading-relaxed text-mut/60">
+              {lastReply?.mode === "mcts"
+                ? copy.systems.chess.mapNoteMcts
+                : copy.systems.chess.mapNoteArgmin}
+            </p>
+          </div>
+
+          <div className="min-w-[220px] flex-1">
+            {pendingPromo ? (
+              <div className="mb-6">
+                <span className="font-mono text-xs text-mut/60">{copy.systems.chess.promoteTo}</span>
+                <div className="mt-2 flex gap-2">
+                  {PROMOTIONS.map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => play(pendingPromo.from, pendingPromo.to, p)}
+                      className="flex size-10 items-center justify-center border border-rule text-[22px] text-ink transition-colors hover:border-ok hover:text-ok"
+                      aria-label={`${copy.systems.chess.promoteAria} ${p}`}
+                    >
+                      {PROMO_GLYPH[p]}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : null}
 
-            <h2 className="mt-6 mb-2 text-2xl tracking-tight">{copy.systems.chess.heading}</h2>
-            <p className="mb-4 max-w-[54ch] leading-relaxed text-muted">
-              {copy.systems.chess.lede.a}
-            </p>
-            <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
-              {copy.systems.chess.lede.b}
-            </p>
-
-            {acts && view === "activations" ? (
-              <>
-                <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
-                  {copy.systems.chess.activationsLede}
-                </p>
-                <ChessActivations data={acts} />
-              </>
-            ) : (
-              <div className="flex flex-wrap items-start gap-8">
-              <div>
-                <ChessBoard
-                  fen={fen}
-                  selected={selected}
-                  targets={legalFrom}
-                  onSquare={onSquare}
-                  // A hint outranks the move map: two overlays at once would be
-                  // two different claims in two colours on one board.
-                  overlay={
-                    hint
-                      ? { values: hintMap(hint), tint: "saliency" }
-                      : showMap && lastReply
-                        ? { values: moveMap(lastReply.ranked), tint: "activation" }
-                        : null
-                  }
-                />
-
-                <p className="mt-4 max-w-[296px] font-mono text-[11px] leading-relaxed text-faint">
-                  {outcome ? (
-                    <span className="text-teal">{outcome}</span>
-                  ) : flash ? (
-                    <span className="text-indigo">{flash}</span>
-                  ) : game.isCheck() ? (
-                    <span className="text-indigo">{copy.systems.chess.check}</span>
-                  ) : hint ? (
-                    <>
-                      <span className="text-indigo">{copy.systems.chess.hintPlayPre}{hint.san}</span> · p=
-                      {hint.prior.toFixed(3)} · v={hint.value.toFixed(2)}
-                    </>
-                  ) : showMap && lastReply ? (
-                    <>
-                      <span className="text-teal">{copy.systems.chess.mapCaption}</span>
-                      {copy.systems.chess.mapCaptionTail}
-                    </>
-                  ) : selfPlay ? (
-                    <span className="text-teal">{copy.systems.chess.selfPlayCaption}</span>
-                  ) : (
-                    copy.systems.chess.boardCaptionIdle
-                  )}
-                </p>
-
-                <button
-                  onClick={() => setShowMap((v) => !v)}
-                  aria-pressed={showMap}
-                  className={`mt-4 rounded border px-3 py-1.5 font-mono text-xs transition-colors ${
-                    showMap
-                      ? "border-teal text-teal"
-                      : "border-line text-muted hover:border-faint hover:text-ink"
-                  }`}
-                >
-                  {copy.systems.chess.moveMap}
-                </button>
-
-                {/* The map is a move preference, not an activation. Saying "its
-                    ranking" keeps it distinct from the "what it saw" view, which
-                    shows internals. */}
-                <p className="mt-2 max-w-[296px] font-mono text-[11px] leading-relaxed text-faint">
-                  {lastReply?.mode === "mcts"
-                    ? copy.systems.chess.mapNoteMcts
-                    : copy.systems.chess.mapNoteArgmin}
-                </p>
-              </div>
-
-              <div className="min-w-[220px] flex-1">
-                {pendingPromo ? (
-                  <div className="mb-6">
-                    <span className="font-mono text-xs text-faint">{copy.systems.chess.promoteTo}</span>
-                    <div className="mt-2 flex gap-2">
-                      {PROMOTIONS.map((p) => (
-                        <button
-                          key={p}
-                          onClick={() => play(pendingPromo.from, pendingPromo.to, p)}
-                          className="flex size-10 items-center justify-center rounded border border-line text-[22px] text-ink transition-colors hover:border-teal hover:text-teal"
-                          aria-label={`${copy.systems.chess.promoteAria} ${p}`}
-                        >
-                          {PROMO_GLYPH[p]}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-
-                <span className="font-mono text-xs text-faint">
-                  {copy.systems.chess.top3}
-                </span>
-                <div className="mt-2 min-h-[76px] font-mono text-[11px] leading-relaxed">
-                  {lastReply ? (
-                    lastReply.ranked.slice(0, 3).map((m, i) => (
-                      <div key={m.uci} className="flex items-baseline gap-4">
-                        <span className={i === 0 ? "w-10 text-teal" : "w-10 text-muted"}>
-                          {m.san}
-                        </span>
-                        {/* n= is what the search decided, p= is what the model
-                            guessed before it ran. Showing both is the whole point:
-                            where they disagree, that disagreement IS the search. */}
-                        <span className="text-faint">
-                          {m.visits !== undefined ? `n=${m.visits} · ` : ""}p=
-                          {m.prior.toFixed(3)} · v={m.value.toFixed(2)}
-                        </span>
-                      </div>
-                    ))
-                  ) : (
-                    <span className="text-faint">
-                      {ready ? copy.systems.chess.makeMove : copy.systems.chess.loadingEngine}
+            <span className="font-mono text-xs text-mut/60">
+              {copy.systems.chess.top3}
+            </span>
+            <div className="mt-2 min-h-[76px] font-mono text-[11px] leading-relaxed">
+              {lastReply ? (
+                lastReply.ranked.slice(0, 3).map((m, i) => (
+                  <div key={m.uci} className="flex items-baseline gap-4">
+                    <span className={i === 0 ? "w-10 text-ok" : "w-10 text-mut"}>
+                      {m.san}
                     </span>
-                  )}
-                </div>
-                {lastReply ? (
-                  <p className="mt-2 font-mono text-[11px] text-faint">
-                    {lastReply.mode === "mcts"
-                      ? `${lastReply.sims} simulations · ${(lastReply.ms / 1000).toFixed(1)}s`
-                      : `one forward pass · ${Math.round(lastReply.ms)}ms`}
-                  </p>
-                ) : null}
-
-                {/* Two modes, not a ladder — see chess-protocol.ts for the
-                    measurement that deleted the ladder. Switching mid-game is
-                    fine: every move is an independent search, no tree is carried
-                    between them. Applies to its move, your hint and self-play
-                    alike, because they are all one call. */}
-                <div className="mt-6">
-                  <span className="font-mono text-xs text-faint">{copy.systems.chess.searchLabel}</span>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {SEARCH_MODES.map((d) => (
-                      <button
-                        key={d.id}
-                        onClick={() => setLevel(d.id)}
-                        disabled={busy}
-                        aria-pressed={d.id === level}
-                        className={`rounded border px-3 py-1.5 font-mono text-xs transition-colors disabled:opacity-40 ${
-                          d.id === level
-                            ? "border-teal text-teal"
-                            : "border-line text-muted hover:border-faint hover:text-ink"
-                        }`}
-                      >
-                        {d.label}
-                      </button>
-                    ))}
+                    {/* n= is what the search decided, p= is what the model
+                        guessed before it ran. Showing both is the whole point:
+                        where they disagree, that disagreement IS the search. */}
+                    <span className="text-mut/60">
+                      {m.visits !== undefined ? `n=${m.visits} · ` : ""}p=
+                      {m.prior.toFixed(3)} · v={m.value.toFixed(2)}
+                    </span>
                   </div>
-                  <p className="mt-2 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
-                    {sims > 0 ? (
-                      <>
-                        {sims} {mode.about} · about {aboutTime(sims)} a move.
-                        {copy.systems.chess.searchNoteSetPre}
-                        <span className="text-ink">--sims</span>
-                        {copy.systems.chess.searchNoteRange}
-                        {THINK_SIMS.min}
-                        {copy.systems.chess.searchNoteTo}
-                        {THINK_SIMS.max}
-                        {copy.systems.chess.searchNotePiRuns}
-                        {THINK_SIMS.max}.
-                      </>
-                    ) : (
-                      <>
-                        {mode.about}
-                        {copy.systems.chess.searchNoteFloor}
-                      </>
-                    )}
-                  </p>
-                </div>
-
-                {/* flex-wrap: four buttons don't fit one row on a 320px phone,
-                    and the panel is overflow-hidden, so `hint` was cut off the
-                    right edge rather than wrapping under. */}
-                <div className="mt-6 flex flex-wrap gap-2">
-                  <button
-                    onClick={reset}
-                    className="rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-faint hover:text-ink"
-                  >
-                    {copy.systems.chess.newGame}
-                  </button>
-                  <button
-                    onClick={() => setSelfPlay((v) => !v)}
-                    disabled={!ready || Boolean(outcome)}
-                    aria-pressed={selfPlay}
-                    className={`rounded border px-3 py-1.5 font-mono text-xs transition-colors disabled:opacity-40 ${
-                      selfPlay
-                        ? "border-teal text-teal"
-                        : "border-line text-muted hover:border-faint hover:text-ink"
-                    }`}
-                  >
-                    {selfPlay ? copy.systems.chess.stop : copy.systems.chess.engineVsEngine}
-                  </button>
-                  <button
-                    onClick={undo}
-                    disabled={selfPlay || thinking || game.history().length < 2}
-                    className="rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-faint hover:text-ink disabled:opacity-40"
-                  >
-                    {copy.systems.chess.takeBack}
-                  </button>
-                  {/* Only while it's actually your move: asking the engine what
-                      you should play when it isn't your turn is a question about
-                      a position that isn't on the board. */}
-                  <button
-                    onClick={askHint}
-                    disabled={
-                      !ready ||
-                      selfPlay ||
-                      thinking ||
-                      hinting ||
-                      Boolean(outcome) ||
-                      game.turn() !== "w"
-                    }
-                    className="rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-indigo hover:text-indigo disabled:opacity-40"
-                  >
-                    {hinting ? copy.systems.chess.thinking : copy.systems.chess.hintButton}
-                  </button>
-                </div>
-
-                <p className="mt-4 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
-                  <span className="text-indigo">{copy.systems.chess.hintNote.word}</span>
-                  {copy.systems.chess.hintNote.post}
-                </p>
-
-                <p className="mt-6 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
-                  {copy.systems.chess.searchNote.pre}
-                  <span className="text-teal">{copy.systems.chess.searchNote.letItThink}</span>
-                  {copy.systems.chess.searchNote.post}
-                </p>
-              </div>
+                ))
+              ) : (
+                <span className="text-mut/60">
+                  {ready ? copy.systems.chess.makeMove : copy.systems.chess.loadingEngine}
+                </span>
+              )}
             </div>
-            )}
-          </>
-        )}
-      </TerminalPanel>
-    </div>
+            {lastReply ? (
+              <p className="mt-2 font-mono text-[11px] text-mut/60">
+                {lastReply.mode === "mcts"
+                  ? `${lastReply.sims} simulations · ${(lastReply.ms / 1000).toFixed(1)}s`
+                  : `one forward pass · ${Math.round(lastReply.ms)}ms`}
+              </p>
+            ) : null}
+
+            {/* flex-wrap: four buttons don't fit one row on a 320px phone, and
+                v1's panel was overflow-hidden, so `hint` was cut off the right
+                edge rather than wrapping under. */}
+            <div className="mt-6 flex flex-wrap gap-2">
+              <button
+                onClick={reset}
+                className="border border-rule px-3 py-1.5 font-mono text-xs text-mut transition-colors hover:border-mut hover:text-ink"
+              >
+                {copy.systems.chess.newGame}
+              </button>
+              <button
+                onClick={() => setSelfPlay((v) => !v)}
+                disabled={!ready || Boolean(outcome)}
+                aria-pressed={selfPlay}
+                className={`border px-3 py-1.5 font-mono text-xs transition-colors disabled:opacity-40 ${
+                  selfPlay
+                    ? "border-ok text-ok"
+                    : "border-rule text-mut hover:border-mut hover:text-ink"
+                }`}
+              >
+                {selfPlay ? copy.systems.chess.stop : copy.systems.chess.engineVsEngine}
+              </button>
+              <button
+                onClick={undo}
+                disabled={selfPlay || thinking || game.history().length < 2}
+                className="border border-rule px-3 py-1.5 font-mono text-xs text-mut transition-colors hover:border-mut hover:text-ink disabled:opacity-40"
+              >
+                {copy.systems.chess.takeBack}
+              </button>
+              {/* Only while it's actually your move: asking the engine what
+                  you should play when it isn't your turn is a question about
+                  a position that isn't on the board. */}
+              <button
+                onClick={askHint}
+                disabled={
+                  !ready ||
+                  selfPlay ||
+                  thinking ||
+                  hinting ||
+                  Boolean(outcome) ||
+                  game.turn() !== "w"
+                }
+                className="border border-rule px-3 py-1.5 font-mono text-xs text-mut transition-colors hover:border-link hover:text-link disabled:opacity-40"
+              >
+                {hinting ? copy.systems.chess.thinking : copy.systems.chess.hintButton}
+              </button>
+            </div>
+
+            <p className="mt-4 max-w-sm font-mono text-[11px] leading-relaxed text-mut/60">
+              <span className="text-link">{copy.systems.chess.hintNote.word}</span>
+              {copy.systems.chess.hintNote.post}
+            </p>
+
+            <p className="mt-6 max-w-sm font-mono text-[11px] leading-relaxed text-mut/60">
+              {copy.systems.chess.searchNote.pre}
+              <span className="text-ok">{copy.systems.chess.searchNote.letItThink}</span>
+              {copy.systems.chess.searchNote.post}
+            </p>
+          </div>
+        </div>
+      )}
+    </InstrumentFigure>
   );
 }

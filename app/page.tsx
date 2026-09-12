@@ -10,14 +10,15 @@ import { WipeFigure } from "@/components/figures/WipeFigure";
 import { EfficiencyFigure } from "@/components/figures/EfficiencyFigure";
 import { FlightFigure } from "@/components/figures/FlightFigure";
 import { DrawDigit } from "@/components/DrawDigit";
+import { ChessPanel } from "@/components/ChessPanel";
 import { WarmKick } from "@/components/WarmKick";
 import { copy } from "@/content/copy";
 
-// The real page-one assembly (replaces Task 3's smoke content). Figure 4 (the
-// draw demo) now mounts here behind `DeferredMount`; Figure 5 (chess) still
-// takes the `#fig-chess` slot in Task 10. `DrawDigit` owns its own
-// `InstrumentFigure`, and with it the `id="fig-draw"`, so there is no
-// placeholder here for it to fill. Figure numbering, ruled: 1 (the
+// The real page-one assembly (replaces Task 3's smoke content). Figures 4 (the
+// draw demo) and 5 (the chess engine) both mount here behind `DeferredMount`.
+// Each owns its own `InstrumentFigure`, and with it its `id` (`fig-draw`,
+// `fig-chess`), so there are no placeholders here to fill. Figure numbering,
+// ruled: 1 (the
 // wipe), 2 (label efficiency), 3 (the flight day) sit in Research; 4-5 are
 // the live demos; 6 is the Experience mission-row figure.
 //
@@ -87,16 +88,27 @@ export default function Home() {
           </p>
         </Row>
 
-        <div className="grid gap-5 min-[880px]:grid-cols-2">
-          {/* Figure 4 mounts on scroll-in, not at page load: the draw demo
-              pulls a 26MB ONNX model on first stroke and ships its own
-              client bundle, so `DeferredMount` keeps both out of first
-              paint. It replaces v1's boot-log gate, which carried the same
-              job under the typing theatre. */}
+        {/*
+         * SINGLE COLUMN, and that is a measurement, not a preference. These two
+         * figures were briefed as a `md:grid-cols-2` pair; at half the sheet's
+         * width the draw demo's three 280px canvases wrap to one per row and the
+         * chess board loses its move list to a stack. Full-width rows let both
+         * lay out as designed. Stacked rows also stay trivially appendable: a
+         * third figure is one more child, no layout work.
+         *
+         * Each mounts on scroll-in rather than at page load. The draw demo pulls
+         * a 26MB ONNX model on first stroke, the chess panel a 553KB model plus
+         * the ~24MB wasm runtime, and both ship their own client bundle, so
+         * `DeferredMount` keeps all of it out of first paint. It replaces v1's
+         * boot-log gate, which carried the same job under the typing theatre.
+         */}
+        <div className="flex flex-col gap-5">
           <DeferredMount>
             <DrawDigit />
           </DeferredMount>
-          <div id="fig-chess" />
+          <DeferredMount>
+            <ChessPanel />
+          </DeferredMount>
         </div>
 
         <Row>

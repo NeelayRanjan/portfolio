@@ -70,8 +70,8 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
       <div className="flex flex-wrap items-start gap-8">
         <div>
           <ChessBoard fen={position.fen} overlay={overlay} />
-          <p className="mt-4 max-w-[296px] font-mono text-[11px] leading-relaxed text-faint">
-            <span className={mode === "saliency" ? "text-indigo" : "text-teal"}>
+          <p className="mt-4 max-w-[296px] font-mono text-[11px] leading-relaxed text-mut/60">
+            <span className={mode === "saliency" ? "text-link" : "text-ok"}>
               {mode === "saliency" ? C.attribution : `${C.activationPrefix}${layer}`}
               {mode === "activation" && channel !== null ? `${C.channelPrefix}${channel}` : ""}
             </span>
@@ -79,7 +79,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
             {toMoveLabel(position.fen)}
           </p>
           {hottest.length ? (
-            <p className="mt-2 max-w-[296px] font-mono text-[11px] leading-relaxed text-faint">
+            <p className="mt-2 max-w-[296px] font-mono text-[11px] leading-relaxed text-mut/60">
               {C.hottest} <span className="text-ink">{hottest.join(" ")}</span>
             </p>
           ) : null}
@@ -95,10 +95,10 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
                   setChannel(null);
                 }}
                 aria-pressed={m === mode}
-                className={`rounded border px-3 py-1.5 font-mono text-xs transition-colors ${
+                className={`border px-3 py-1.5 font-mono text-xs transition-colors ${
                   m === mode
-                    ? "border-indigo text-indigo"
-                    : "border-line text-muted hover:border-faint hover:text-ink"
+                    ? "border-link text-link"
+                    : "border-rule text-mut hover:border-mut hover:text-ink"
                 }`}
               >
                 {m === "saliency" ? C.attribution : C.layerActivation}
@@ -109,7 +109,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
           {mode === "activation" ? (
             <div className="mb-6">
               {/* Driven by data.layers, never a hardcoded count. */}
-              <label className="font-mono text-xs text-faint" htmlFor="depth">
+              <label className="font-mono text-xs text-mut" htmlFor="depth">
                 {C.depthPrefix}{layer} ({layerIndex + 1}/{data.layers.length})
               </label>
               <input
@@ -122,23 +122,23 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
                   setLayerIndex(Number(e.target.value));
                   setChannel(null);
                 }}
-                className="mt-2 w-full accent-teal"
+                className="mt-2 h-1 w-full accent-link"
               />
-              <p className="mt-2 font-mono text-[11px] leading-relaxed text-faint">
+              <p className="mt-2 font-mono text-[11px] leading-relaxed text-mut/60">
                 {C.shallowToDeep}
               </p>
 
               {channels.length ? (
                 <div className="mt-4">
-                  <span className="font-mono text-xs text-faint">{C.topChannels}</span>
+                  <span className="font-mono text-xs text-mut/60">{C.topChannels}</span>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button
                       onClick={() => setChannel(null)}
                       aria-pressed={channel === null}
-                      className={`rounded border px-2 py-1 font-mono text-[11px] transition-colors ${
+                      className={`border px-2 py-1 font-mono text-[11px] transition-colors ${
                         channel === null
-                          ? "border-teal text-teal"
-                          : "border-line text-muted hover:border-faint hover:text-ink"
+                          ? "border-ok text-ok"
+                          : "border-rule text-mut hover:border-mut hover:text-ink"
                       }`}
                     >
                       {C.mean}
@@ -148,10 +148,10 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
                         key={c.ch}
                         onClick={() => setChannel(c.ch)}
                         aria-pressed={channel === c.ch}
-                        className={`rounded border px-2 py-1 font-mono text-[11px] transition-colors ${
+                        className={`border px-2 py-1 font-mono text-[11px] transition-colors ${
                           channel === c.ch
-                            ? "border-teal text-teal"
-                            : "border-line text-muted hover:border-faint hover:text-ink"
+                            ? "border-ok text-ok"
+                            : "border-rule text-mut hover:border-mut hover:text-ink"
                         }`}
                       >
                         {c.ch}
@@ -159,14 +159,14 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
                     ))}
                   </div>
                   {/* Being straight about this reads as competence, not weakness. */}
-                  <p className="mt-2 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
+                  <p className="mt-2 max-w-sm font-mono text-[11px] leading-relaxed text-mut/60">
                     {C.channelCaveat}
                   </p>
                 </div>
               ) : null}
             </div>
           ) : (
-            <p className="mb-6 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
+            <p className="mb-6 max-w-sm font-mono text-[11px] leading-relaxed text-mut/60">
               {C.saliencyBody}
             </p>
           )}
@@ -175,7 +175,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
               meaningful only against the other candidate moves from one parent, and
               nonsense across positions. eval_white is the value head, comparable
               across positions, already sign-flipped to White. */}
-          <p className="font-mono text-[11px] leading-relaxed text-faint">
+          <p className="font-mono text-[11px] leading-relaxed text-mut/60">
             {C.valueHeadPre}{position.eval_white > 0 ? "+" : ""}
             {position.eval_white.toFixed(2)}{C.valueHeadPost}
             {Math.abs(position.eval_white) < 0.15 ? C.valueHeadLevel : ""}
@@ -186,7 +186,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
       {/* The scenarios, given the room they deserve: the label is the teaching
           moment, not the id. */}
       <div className="mt-8">
-        <span className="font-mono text-xs text-faint">{C.scenarios}</span>
+        <span className="font-mono text-xs text-mut/60">{C.scenarios}</span>
         <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {data.positions.map((p, i) => {
             const active = p.id === position.id;
@@ -195,18 +195,18 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
                 key={p.id}
                 onClick={() => pick(i)}
                 aria-pressed={active}
-                className={`rounded border px-3 py-2.5 text-left transition-colors ${
+                className={`border px-3 py-2.5 text-left transition-colors ${
                   active
-                    ? "border-teal bg-panel-bar"
-                    : "border-line hover:border-faint"
+                    ? "border-ok bg-desk"
+                    : "border-rule hover:border-mut"
                 }`}
               >
                 <span
-                  className={`font-mono text-[11px] ${active ? "text-teal" : "text-muted"}`}
+                  className={`font-mono text-[11px] ${active ? "text-ok" : "text-mut"}`}
                 >
                   {p.id}
                 </span>
-                <span className="mt-1 block text-[13px] leading-snug text-muted">
+                <span className="mt-1 block text-[13px] leading-snug text-mut">
                   {p.label}
                 </span>
               </button>

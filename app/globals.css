@@ -12,6 +12,13 @@
   --color-link: #7ba7dc;
   --color-ok: #63c68c;
   --color-warm: #d9a45b;
+  /* Chess squares. Their own tokens, not panel/paper/rule: every instrument
+     figure on the page uses those, so tuning the board through them would
+     retint the site. Carried over from v1's palette by role, re-derived in the
+     warm one: light really is lighter than dark, and the two sit far enough
+     apart (~16/255) that the pattern reads at a 296px board. */
+  --color-board-light: #2a2620;
+  --color-board-dark: #1a1813;
   --font-serif: var(--font-stix);
   --font-mono: var(--font-spline-mono);
 }

@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "generatedAt": "2026-09-12T03:38:41.321Z",
+  "generator": "scripts/prepare-research.mjs",
+  "sources": {
+    "csv": "external_materials/paper1/data/all_metrics_combined_long.csv",
+    "benchmarkTarball": "external_materials/paper1/data/benchmarkDataset.tar.gz",
+    "predictionsTarball": "external_materials/paper1/data/predictions_cache.tar.gz",
+    "video": "external_materials/nasa/flight_lm_day.mp4"
+  },
+  "wipeImage": {
+    "id": 471,
+    "fraction": 0.05,
+    "diceX0": 0.8653,
+    "diceSam": 0.6494,
+    "diceDelta": 0.2159,
+    "forced": false,
+    "top5Candidates": [
+      {
+        "id": 471,
+        "x0dice": 0.8653,
+        "samdice": 0.6494,
+        "diff": 0.2159
+      },
+      {
+        "id": 189,
+        "x0dice": 0.8657,
+        "samdice": 0.7663,
+        "diff": 0.0994
+      },
+      {
+        "id": 434,
+        "x0dice": 0.8905,
+        "samdice": 0.819,
+        "diff": 0.0715
+      },
+      {
+        "id": 330,
+        "x0dice": 0.9126,
+        "samdice": 0.8444,
+        "diff": 0.0682
+      },
+      {
+        "id": 235,
+        "x0dice": 0.9452,
+        "samdice": 0.8875,
+        "diff": 0.0577
+      }
+    ]
+  },
+  "headline": {
+    "model": "x0diffusion",
+    "fraction": 0.05,
+    "labels": 16,
+    "diceMean": 0.8824,
+    "diceStd": 0.0678,
+    "n": 2500
+  }
+}

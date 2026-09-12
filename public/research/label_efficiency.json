@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "trainSize": 320,
+  "models": {
+    "deeplabv3": [
+      {
+        "fraction": 0.05,
+        "labels": 16,
+        "diceMean": 0.6567,
+        "diceStd": 0.2021,
+        "n": 2500
+      },
+      {
+        "fraction": 0.1,
+        "labels": 32,
+        "diceMean": 0.8948,
+        "diceStd": 0.056,
+        "n": 2500
+      },
+      {
+        "fraction": 0.25,
+        "labels": 80,
+        "diceMean": 0.9198,
+        "diceStd": 0.0505,
+        "n": 2500
+      }
+    ],
+    "ediffusion": [
+      {
+        "fraction": 0.05,
+        "labels": 16,
+        "diceMean": 0.2383,
+        "diceStd": 0.0551,
+        "n": 2500
+      },
+      {
+        "fraction": 0.1,
+        "labels": 32,
+        "diceMean": 0.2316,
+        "diceStd": 0.0599,
+        "n": 2500
+      },
+      {
+        "fraction": 0.25,
+        "labels": 80,
+        "diceMean": 0.2296,
+        "diceStd": 0.057,
+        "n": 2500
+      }
+    ],
+    "hybridresnetvit": [
+      {
+        "fraction": 0.05,
+        "labels": 16,
+        "diceMean": 0.7492,
+        "diceStd": 0.1854,
+        "n": 2500
+      },
+      {
+        "fraction": 0.1,
+        "labels": 32,
+        "diceMean": 0.8303,
+        "diceStd": 0.1731,
+        "n": 2500
+      },
+      {
+        "fraction": 0.25,
+        "labels": 80,
+        "diceMean": 0.8945,
+        "diceStd": 0.1124,
+        "n": 2500
+      }
+    ],
+    "resnet": [
+      {
+        "fraction": 0.05,
+        "labels": 16,
+        "diceMean": 0.7034,
+        "diceStd": 0.1821,
+        "n": 2500
+      },
+      {
+        "fraction": 0.1,
+        "labels": 32,
+        "diceMean": 0.8848,
+        "diceStd": 0.0844,
+        "n": 2500
+      },
+      {
+        "fraction": 0.25,
+        "labels": 80,
+        "diceMean": 0.9233,
+        "diceStd": 0.0587,
+        "n": 2500
+      }
+    ],
+    "sam": [
+      {
+        "fraction": 0.05,
+        "labels": 16,
+        "diceMean": 0.8351,
+        "diceStd": 0.1479,
+        "n": 2500
+      },
+      {
+        "fraction": 0.1,
+        "labels": 32,
+        "diceMean": 0.8351,
+        "diceStd": 0.1479,
+        "n": 2500
+      },
+      {
+        "fraction": 0.25,
+        "labels": 80,
+        "diceMean": 0.8351,
+        "diceStd": 0.1479,
+        "n": 2500
+      }
+    ],
+    "vit_base_patch16": [
+      {
+        "fraction": 0.05,
+        "labels": 16,
+        "diceMean": 0.7912,
+        "diceStd": 0.1313,
+        "n": 2500
+      },
+      {
+        "fraction": 0.1,
+        "labels": 32,
+        "diceMean": 0.8348,
+        "diceStd": 0.1079,
+        "n": 2500
+      },
+      {
+        "fraction": 0.25,
+        "labels": 80,
+        "diceMean": 0.9076,
+        "diceStd": 0.0576,
+        "n": 2500
+      }
+    ],
+    "x0diffusion": [
+      {
+        "fraction": 0.05,
+        "labels": 16,
+        "diceMean": 0.8824,
+        "diceStd": 0.0678,
+        "n": 2500
+      },
+      {
+        "fraction": 0.1,
+        "labels": 32,
+        "diceMean": 0.8831,
+        "diceStd": 0.0681,
+        "n": 2500
+      },
+      {
+        "fraction": 0.25,
+        "labels": 80,
+        "diceMean": 0.9102,
+        "diceStd": 0.0612,
+        "n": 2500
+      }
+    ]
+  }
+}

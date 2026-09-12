@@ -286,8 +286,8 @@ export function DrawDigit() {
    * One object rather than five useStates because a re-run needs to hand
    * generate() the whole set with exactly one field overridden, and five separate
    * setters make that a stale-closure hunt every time. Each of these genuinely
-   * reaches the module and produces a visibly different run — that is the entire
-   * licence for making them editable (see ambience/CommandLine).
+   * reaches the module and produces a visibly different run, that is the entire
+   * licence for making them editable (see the `ParamField` block above).
    */
   const [params, setParams] = useState<RunParams>(DEFAULTS);
   const digit = params.digit;

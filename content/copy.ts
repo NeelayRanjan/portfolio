@@ -14,64 +14,46 @@
  * — it was stale and superseded).
  *
  * Every string here is voice-gated: `node scripts/check-voice.mjs` scans every
- * string literal in this file (except the v1compat block below) for em dashes,
- * en-dash connectors, and CLAUDE.md's banned-word list. Run it after any edit.
+ * string literal in this file for em dashes, en-dash connectors, and
+ * CLAUDE.md's banned-word list. Run it after any edit.
  *
- * WHAT LIVES HERE: headings, ledes, captions, button labels, boot-log lines,
- * terminal command names, notices, prose notes, status words, page metadata,
- * the 404, and the demo labels/blurbs.
+ * WHAT LIVES HERE: headings, ledes, captions, button labels, notices, prose
+ * notes, status words, page metadata, the 404, and the demo labels/blurbs.
  *
  * WHAT DELIBERATELY STAYS INLINE (moving it would change behavior, not just copy):
  *   - `--flag` tokens (`--digit`, `--sims`, …). They are logic identifiers, not
- *     free prose: threaded through `commitParam`, `CommandLine`'s `flag` prop,
- *     and the echo templates, and interwoven with number interpolation in each
- *     panel's `BOOT_CMD`. They must match their param keys; centralizing them
- *     would risk a silent desync and touch the param plumbing.
+ *     free prose: threaded through each panel's own param controls and echo
+ *     templates, and interwoven with number interpolation. They must match
+ *     their param keys; centralizing them would risk a silent desync and
+ *     touch the param plumbing.
  *   - Number-format glue in interpolated readouts (` · `, `p=`, `v=`, `n=`, `/`,
  *     step/timing/percent counters). These are formatting, not sentences.
  *   - aria-labels built from live structural values (`${flag}, ${min} to ${max}`,
  *     the ASCII-grid "… at step N of M" alt text). Static aria-labels ARE here.
  *   - Enum values rendered directly (the `pixel`/`ascii`/`game` button faces are
  *     the state key itself).
- *   - The `neelay@latent:~$` prompt: composed live in `lib/identity.ts` from the
- *     editable username + host, so it's a template, not a literal. (v1compat —
- *     see below; the prompt dies with the boot screen.)
  *   - `content/sample-space.md`, already the external source for that write-up.
  *
  * Strings that were HTML entities in JSX (`&rsquo;`, `&quot;`, `&ndash;`) are the
  * actual Unicode characters here (’ " –), so the render is byte-identical.
  *
- * ⚠️ COMPATIBILITY DURING THE REDESIGN (controller decision, Task 7): v1
- * components still on disk (`components/ambience/*`, `EnergyHero`,
- * `TerminalPanel`, `Section`, `app/not-found.tsx`, `app/layout.tsx`'s metadata)
- * and the demo components carried into the new IA (`DrawDigit`, `ChessPanel`,
- * `ChessActivations`, `DiffusionVisualizer`, `JepaPanel`, `SampleSpace`,
- * `SampleSpaceWriteup`, and their `lib/chess-protocol.ts` / `lib/sample-space.ts`
- * support) all reference `copy.*` keys and must keep compiling as this file
- * restructures. The demo components were mechanically repointed at their new
- * namespace (`copy.sdedit.*` → `copy.systems.draw.*`, `copy.chess.*` →
- * `copy.systems.chess.*`, `copy.diffusion.*` → `copy.lab.diffusion.*`,
- * `copy.jepa.*` → `copy.lab.jepa.*`, `copy.sampleSpace.*` →
- * `copy.lab.sampleSpace.*`) with every leaf key name kept IDENTICAL — the
- * string blocks moved wholesale, nothing in them was rewritten. `research`'s
- * three figure sub-keys were renamed to match this task's interface
- * (`wipe`→`figWipe`, `efficiency`→`figEfficiency`, `flight`→`figFlight`) with
- * the three consuming figure components updated to match.
- *
- * What couldn't be mechanically moved without breaking a v1-only file stays in
- * the v1compat block at the bottom, bounded by the literal marker comments
- * `// v1compat:start` / `// v1compat:end` (scripts/check-voice.mjs skips
- * everything between them — that copy is v1's, not this pass's). It is NOT a
- * nested namespace: `hero`, `boot`, `anchors`, and `commandLine` stay flat
- * top-level keys because `EnergyHero.tsx`, `BootScreen.tsx`, `CommandLine.tsx`
- * and `JepaPanel.tsx` (for `copy.anchors.jepa`) reference them at those exact
- * paths today, and this task's brief is explicit that those files are not to
- * be touched beyond the specified renames. `notFoundV1` is the one exception
- * that needed a NEW name (not a flat `notFound`, which this restructure
- * repoints to new drafted content): `app/not-found.tsx`'s seven references
- * were repointed from `copy.notFound.*` to `copy.notFoundV1.*` — a path edit,
- * not a JSX change, per the brief's own instruction for that file. Do not
- * extend the v1compat block; it deletes with the files that read it (Task 13).
+ * v1's faux-terminal chrome (`components/ambience/*`, `EnergyHero`,
+ * `TerminalPanel`, `Section`, `lib/identity.ts`, `lib/booted.ts`) and the
+ * flat top-level `hero`/`boot`/`anchors`/`notFoundV1` keys that fed it were
+ * deleted in Task 13's sweep, once nothing on either page mounted them any
+ * more. The demo components carried into the new IA (`DrawDigit`,
+ * `ChessPanel`, `ChessActivations`, `DiffusionVisualizer`, `JepaPanel`,
+ * `SampleSpace`, `SampleSpaceWriteup`) were mechanically repointed at their
+ * new namespace earlier (`copy.sdedit.*` → `copy.systems.draw.*`,
+ * `copy.chess.*` → `copy.systems.chess.*`, `copy.diffusion.*` →
+ * `copy.lab.diffusion.*`, `copy.jepa.*` → `copy.lab.jepa.*`,
+ * `copy.sampleSpace.*` → `copy.lab.sampleSpace.*`) with every leaf key name
+ * kept identical, and `copy.commandLine.reset` (the one string those demos'
+ * own reset button still shares) survived the sweep as a flat top-level key.
+ * `research`'s three figure sub-keys were renamed to match that task's
+ * interface (`wipe`→`figWipe`, `efficiency`→`figEfficiency`,
+ * `flight`→`figFlight`) with the three consuming figure components updated
+ * to match.
  */
 export const copy = {
   /** <title>, meta description, and the share-card (OG/Twitter) text. */
@@ -240,14 +222,6 @@ export const copy = {
        *  is drafted rather than carried over. */
       figureCaption:
         "A diffusion model dissolving your handwriting into static and pulling a cleaner digit back out, running its real 26 MB weights on your device. Draw in the left box; the middle panel is the sample as it computes, and the right one is the model’s running guess at the finished digit.",
-      cmd: "./sdedit",
-      bootLines: [
-        "sdedit: partially noise your drawing -> denoise -> your strokes survive",
-        "runtime: onnxruntime-web (webgpu, wasm fallback) · fully client-side",
-        "weights: mnist_x0.onnx (26 MB, lazy on first stroke)",
-      ],
-      label: "sdedit",
-      statusBooting: "booting",
       statusFetching: "fetching weights…",
       statusReady: "ready",
       statusDraw: "draw to load",
@@ -315,14 +289,6 @@ export const copy = {
        *  is drafted rather than carried over. */
       figureCaption:
         "A 553 KB energy-based model running its real int8 weights on your device, roughly 1900–2200 Elo against Stockfish’s limited modes. You are white; click a piece, then a square. The tint on the board is the engine’s own ranking of every legal reply, and “what it saw” swaps the game for the model’s internals laid back onto the squares.",
-      cmd: "./entropy_chess",
-      bootLines: [
-        "energy-based model · 469K params · scores positions, never outputs a move",
-        "int8 quantized to 553 KB · a smaller download than the Pi’s fp32",
-        "onnxruntime-web (wasm) · mcts in a worker · chess.js owns every rule -> ready",
-      ],
-      label: "entropy-chess",
-      statusBooting: "booting",
       statusLoading: "loading 553 KB…",
       statusSearchingPre: "searching · ",
       statusThinking: "thinking…",
@@ -515,15 +481,6 @@ export const copy = {
      *  from v1's `diffusion` namespace (`copy.diffusion.*` →
      *  `copy.lab.diffusion.*`); every leaf key name is unchanged. */
     diffusion: {
-      cmd: "./ascii-diffusion",
-      bootLines: [
-        "resolving trajectory source /diffusion_traj.json",
-        "decoding 10 digits x 32 frames, 28x28 row-major",
-        'warming ascii ramp " .:-=+*#%@" -> ready',
-      ],
-      labelPixel: "continuous-diffusion",
-      labelAscii: "discrete-diffusion",
-      statusBooting: "booting",
       statusLoading: "loading",
       /** New for the manuscript chrome (Task 11): v1's panel had no caption. */
       figureCaption:
@@ -565,18 +522,8 @@ export const copy = {
 
     /** Figure S2 — MAE vs I-JEPA representation comparison. Carried over
      *  wholesale from v1's `jepa` namespace (`copy.jepa.*` →
-     *  `copy.lab.jepa.*`); every leaf key name is unchanged.
-     *  `copy.anchors.jepa` (the scroll anchor `JepaPanel.tsx` also reads) is
-     *  untouched — it lives in the v1compat block below. */
+     *  `copy.lab.jepa.*`); every leaf key name is unchanged. */
     jepa: {
-      cmd: "./jepa",
-      bootLines: [
-        "resolving manifest /jepa/manifest.json",
-        "decoding 4096 embeddings · two encoders, one variable",
-        "loading sprite atlas 3072x3072 -> ready",
-      ],
-      label: "jepa",
-      statusBooting: "booting",
       statusLoading: "loading atlas…",
       heading: "Predicting pixels, or predicting representations",
       lede: {
@@ -624,11 +571,6 @@ export const copy = {
      *  name is unchanged, including the `targets` block `lib/sample-space.ts`
      *  reads. */
     sampleSpace: {
-      cmd: "./sample_space",
-      label: "sample-space --compare ddpm,flow",
-      bootTop: "building 2d target manifold from a closed form",
-      bootBottom: "hand-drawn fields, no weights loaded -> ready",
-      statusBooting: "booting",
       statusIllustrative: "illustrative",
       noticeTag: "illustrative",
       noticeBody:
@@ -667,9 +609,7 @@ export const copy = {
   },
 
   /** The 404 page, restyled to the "reference not found" conceit (spec §2).
-   *  Drafted now; `app/not-found.tsx` still reads the OLD shape from
-   *  `notFoundV1` in the v1compat block below until a later task rebuilds
-   *  the page against this. */
+   *  `app/not-found.tsx` reads this shape directly. */
   notFound: {
     heading: "Reference not found",
     lede:
@@ -684,90 +624,11 @@ export const copy = {
     ],
   },
 
-  // v1compat:start
-  /**
-   * v1compat — consumed only by doomed v1 files; deleted with them in a
-   * later task (Task 13's sweep). Do not extend.
-   *
-   * Kept FLAT (not nested under a wrapper object) because the v1-only files
-   * that read these reference them at exactly these top-level paths today:
-   * `EnergyHero.tsx` (`hero`), `components/ambience/BootScreen.tsx` (`boot`),
-   * `components/ambience/CommandLine.tsx` (`commandLine`), and
-   * `JepaPanel.tsx`'s one remaining v1 reference, the scroll anchor
-   * (`anchors.jepa` — everything else in that file was mechanically moved to
-   * `copy.lab.jepa.*` above). `app/layout.tsx` also reads `hero.tagline` for
-   * the meta description and needed no edit as a result.
-   *
-   * `notFoundV1` is the one entry here under a different name than its v1
-   * key: the new `notFound` above claims that name for the redesigned 404,
-   * so `app/not-found.tsx`'s seven references were repointed from
-   * `copy.notFound.*` to `copy.notFoundV1.*` (a path edit, not a JSX change).
-   *
-   * scripts/check-voice.mjs skips everything between the marker comments
-   * that bound this block.
-   */
-  hero: {
-    name: "Neelay Ranjan",
-    subtext: "energy-based models · diffusion · flight-path generation",
-    tagline:
-      "Generative-modeling researcher. Diffusion for safety-critical, data-scarce domains.",
-    affiliation: "NASA Ames · Regenstrief Institute",
-    caption: {
-      a: "Illustrative Langevin simulation. The name is the ground state of an energy landscape carved from its own letterforms: particles descend into the wells and settle. Impulses repel them",
-      out: "out",
-      b: "; they re-anneal",
-      backIn: "back in",
-      c: ". Drag to pick up a cluster. Hand-built simulation, not a trained model.",
-    },
-    realNote: {
-      pre: "These are real models I trained myself, ",
-      live: "running live in your browser",
-      mid: ". The first demo is the exception: a model this size would mean a 50 MB download the moment you arrive, before anything moved, so it replays real frames I exported instead.",
-    },
-    resumeLabel: "Resume",
-    links: {
-      resumeUrl:
-        "https://docs.google.com/document/d/1Du0NEDaov2tRzY-tWbuN0wrO6xk6SFDi/preview",
-      items: [
-        { label: "GitHub", href: "https://github.com/NeelayRanjan" },
-        { label: "LinkedIn", href: "https://linkedin.com/in/neelayranjan" },
-        { label: "Email", href: "mailto:neelay.ranjan@outlook.com" },
-      ],
-    },
-  },
-
-  boot: {
-    domain: "neelayranjan.dev",
-    sshPrefix: "ssh ",
-    connectLine: "connected · latent",
-    startCmd: "./latent --serve",
-    usernameAria:
-      "the user to connect as. Edit it to use your own name in this page's shell prompts.",
-  },
-
-  anchors: {
-    jepa: "mae vs i-jepa",
-  },
-
+  /** Shared by both live-system panels' "reset" affordance
+   *  (`DrawDigit.tsx`, `ChessPanel.tsx`) — the one slot that swaps between a
+   *  hint and a reset button once a param's been touched. Not nested under
+   *  `systems` because it's the same word for both, not a per-demo string. */
   commandLine: {
     reset: "reset",
   },
-
-  notFoundV1: {
-    shell: "sh",
-    status: "404",
-    catError: ": No such file or directory",
-    ls: "ls ~",
-    sections: [
-      { href: "/#diffusion", name: "diffusion" },
-      { href: "/#draw", name: "draw" },
-      { href: "/#chess", name: "chess" },
-      { href: "/#jepa", name: "jepa" },
-      { href: "/#sample-space", name: "sample-space" },
-    ],
-    heading: "Page not found",
-    lede:
-      "The site is a single page, so there is not much to get lost in beyond a typo. Those five are everything on it. Just imagine some cool demos for me ;)",
-  },
-  // v1compat:end
 } as const;

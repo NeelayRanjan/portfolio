@@ -22,11 +22,6 @@
  *      reliably (rule-of-three's "not just X, but Y" family, "it's not
  *      about X, it's about Y", sentences opening on "Indeed"/"Moreover").
  *
- * The v1compat block (content/copy.ts's old-shape keys, consumed only by
- * doomed v1 files) is excluded outright: it dies with those files, and its
- * strings are v1's, not this pass's to fix. Bounded by the literal markers
- * `// v1compat:start` / `// v1compat:end`, each on its own line.
- *
  * URL-shaped strings (http(s)://, mailto:, or a bare "/path") are skipped
  * for every check: they are not prose, and "references" itself is exactly
  * where these live (résumé/CV/GitHub/ORCID/email links, the /lab route).
@@ -88,32 +83,6 @@ const BANNED_CONSTRUCTIONS = [
 function isUrlLike(value) {
   const v = value.trim();
   return /^(https?:\/\/|mailto:|\/[a-zA-Z0-9])/i.test(v);
-}
-
-/** Cut out the v1compat block: a run of lines between the two literal
- *  marker lines, inclusive. Safe to delete textually because the markers
- *  sit at top-level-property boundaries (see content/copy.ts). */
-function stripV1Compat(source) {
-  // Anchored to a whole line (nothing else on it) so a doc comment that
-  // merely MENTIONS the marker syntax — e.g. this file's own top-of-file
-  // explanation of the convention — can't be mistaken for the real one.
-  const startRe = /^[ \t]*\/\/ v1compat:start[ \t]*$/m;
-  const endRe = /^[ \t]*\/\/ v1compat:end[ \t]*$/m;
-  const startMatch = startRe.exec(source);
-  const endMatch = endRe.exec(source);
-  if (!startMatch || !endMatch) {
-    throw new Error(
-      "check-voice: could not find v1compat:start/end markers (each must be alone " +
-        "on its own line) in copy.ts — either they were removed (fine, once v1 " +
-        "dies) or renamed (fix this script)."
-    );
-  }
-  const start = startMatch.index;
-  const endLineStop = source.indexOf("\n", endMatch.index);
-  return (
-    source.slice(0, start) +
-    source.slice(endLineStop === -1 ? endMatch.index + endMatch[0].length : endLineStop + 1)
-  );
 }
 
 /**
@@ -268,8 +237,7 @@ function checkString(key, value, line) {
 
 function main() {
   const raw = readFileSync(COPY_PATH, "utf8");
-  const scanned = stripV1Compat(raw);
-  const strings = extractStrings(scanned);
+  const strings = extractStrings(raw);
 
   const violations = [];
   for (const { key, value, line } of strings) {
@@ -286,7 +254,7 @@ function main() {
     process.exit(1);
   }
 
-  console.log(`check-voice: passed (${strings.length} string literals scanned, v1compat excluded)`);
+  console.log(`check-voice: passed (${strings.length} string literals scanned)`);
   process.exit(0);
 }
 

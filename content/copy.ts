@@ -204,9 +204,15 @@ export const copy = {
      *  interface (`components/figures/WipeFigure.tsx` updated to match). */
     figWipe: {
       caption:
-        "Real segmentation masks on image 189 from the pelvic-iliac angiography benchmark. x0-diffusion trained on 16 labels; SAM is zero-shot and never trains on any. Drag to compare: x0-diffusion (red) scores 0.866 Dice on this image against SAM’s 0.774.",
+        "Real segmentation masks on image 330 from the pelvic-iliac angiography benchmark. x0-diffusion trained on 16 labels; SAM is zero-shot and never trains on any. Drag to compare: x0-diffusion (green) scores 0.908 Dice on this image against SAM’s 0.832 (red).",
       angiogramAlt:
-        "Pelvic-iliac angiogram, image 189 from the segmentation benchmark",
+        "Pelvic-iliac angiogram, image 330 from the segmentation benchmark",
+      /** On-image legend. Colors chosen by the owner (2026-09-12): green is
+       *  x0's mask, red is SAM's — an explicit override of the spec-era
+       *  "red marks the x0 finding" rule for THIS figure. Color is not the
+       *  only carrier: the legend text and caption name both models. */
+      legendX0: "x0-diffusion",
+      legendSam: "SAM",
       label: "wipe",
       cutLabel: "cut",
       ariaPre:

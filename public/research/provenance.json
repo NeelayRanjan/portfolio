@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-12T03:43:09.726Z",
+  "generatedAt": "2026-09-12T19:24:01.391Z",
   "generator": "scripts/prepare-research.mjs",
   "sources": {
     "csv": "external_materials/paper1/data/all_metrics_combined_long.csv",
@@ -9,13 +9,13 @@
     "video": "external_materials/nasa/flight_lm_day.mp4"
   },
   "wipeImage": {
-    "id": 189,
+    "id": 330,
     "fraction": 0.05,
     "fold": 1,
-    "diceX0": 0.8656,
-    "diceSam": 0.7744,
-    "diceDelta": 0.0912,
-    "forced": false,
+    "diceX0": 0.9077,
+    "diceSam": 0.8316,
+    "diceDelta": 0.0761,
+    "forced": true,
     "top5Candidates": [
       {
         "id": 189,

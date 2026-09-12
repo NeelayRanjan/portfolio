@@ -505,7 +505,7 @@ export const copy = {
         when: "2024 to present",
         who: "Regenstrief Institute",
         what: "x0-diffusion vessel segmentation and a synthetic angiogram pipeline, with Shantanu Dev and Dr. Andrew Gonzalez.",
-        status: "ongoing",
+        status: "active",
       },
       {
         when: "2026",

@@ -48,3 +48,6 @@ next-env.d.ts
 
 # Screenshots for review. Throwaway — delete when done.
 /preview/
+
+# local asset mine for the redesign (45MB, data tarballs); derivatives are built into public/
+/external_materials/

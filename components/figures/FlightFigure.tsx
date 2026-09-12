@@ -60,8 +60,12 @@ export function FlightFigure() {
           TRUE black and keeps the teal paths, then mix-blend-mode: screen
           makes black contribute nothing — the ground becomes literally the
           panel behind it, no border, no visible rectangle; only the flights,
-          state lines and timestamp paint. Presentation only; the committed
-          video's pixels are untouched. */}
+          state lines and timestamp paint. hue-rotate(37deg) lands the
+          inverted teal dots/trails on the warm readout accent while the
+          unsaturated grays (states, timestamp) stay neutral; clip-path
+          inset(2px) shaves the source's own not-quite-white edge row, which
+          survived inversion as a 1px light border. Presentation only; the
+          committed video's pixels are untouched. */}
       <div className="mx-auto w-full max-w-[680px]">
         <video
           ref={videoRef}
@@ -72,7 +76,7 @@ export function FlightFigure() {
           poster="/research/flight_poster.webp"
           controls={reducedMotion}
           aria-label={copy.research.figFlight.videoAria}
-          className="w-full mix-blend-screen [filter:invert(1)_hue-rotate(180deg)]"
+          className="w-full mix-blend-screen [clip-path:inset(2px)] [filter:invert(1)_hue-rotate(37deg)_saturate(1.2)]"
         >
           <source src="/research/flight_lm_day.mp4" type="video/mp4" />
         </video>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { STIX_Two_Text, Spline_Sans_Mono } from "next/font/google";
 import "./globals.css";
 import { copy } from "@/content/copy";
+import { DeskField } from "@/components/manuscript/DeskField";
 
 const stix = STIX_Two_Text({
   variable: "--font-stix",
@@ -64,6 +65,7 @@ export default function RootLayout({
       <head />
 
       <body className="min-h-full flex flex-col font-serif">
+        <DeskField />
         {children}
       </body>
     </html>

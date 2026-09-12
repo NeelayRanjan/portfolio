@@ -146,8 +146,11 @@ export const copy = {
       statusAbsent: "the model isn't deployed, so this is the photo itself",
       statusFailed: "the model didn't load",
     },
-    /** A claim, not decor: this changes when JAMIA's review resolves. */
+    /** A claim, not decor: this changes when JAMIA's review resolves. The
+     *  stamp is also the door to /lab (owner call, 2026-09-12): the sub-line
+     *  below it carries the affordance and links the supplementary page. */
     stamp: "UNDER REVIEW",
+    stampNote: "pending additional materials",
     date: "September 2026",
     links: [
       {

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Row } from "@/components/manuscript/Row";
 import { Stamp } from "@/components/manuscript/Stamp";
 import { HeadshotFigure } from "@/components/figures/HeadshotFigure";
@@ -22,7 +23,15 @@ export function Masthead() {
       rail={
         <div className="flex flex-col items-start gap-3">
           <HeadshotFigure />
-          <Stamp>{t.stamp}</Stamp>
+          {/* The stamp doubles as the way into /lab: the dotted-underlined
+              sub-line is the visible affordance, and the whole cluster is one
+              link so the hit target isn't a 10px line of text. */}
+          <Link href="/lab" className="group inline-block">
+            <Stamp>{t.stamp}</Stamp>
+            <span className="mt-1.5 block font-mono text-[10px] text-mut underline decoration-dotted underline-offset-[3px] transition-colors group-hover:text-red-ink group-hover:decoration-solid">
+              {t.stampNote}
+            </span>
+          </Link>
           <span className="block font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-mut">
             {t.date}
           </span>

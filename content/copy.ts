@@ -141,6 +141,8 @@ export const copy = {
   /** §1 Research: the JAMIA paper, the two computed figures, the MWSCAS
    *  credit, and the NASA arc + flight-day figure. */
   research: {
+    /** The section's `<h2>`, added for Task 8's page assembly. */
+    heading: "Research",
     /** Two paragraphs. Every number matches CLAUDE.md's content facts and
      *  `masthead.abstract` exactly. */
     prose: [
@@ -225,6 +227,8 @@ export const copy = {
 
   /** §2 Live systems: the two demos that stay on page 1. */
   systems: {
+    /** The section's `<h2>`, added for Task 8's page assembly. */
+    heading: "Live systems",
     intro:
       "Both demos below run their real trained weights in your browser. Nothing here is a recording or a mockup.",
 
@@ -407,6 +411,11 @@ export const copy = {
 
   /** §3 Experience: one instrument figure, one mission row per role. */
   experience: {
+    /** The section's `<h2>`, added for Task 8's page assembly. */
+    heading: "Experience",
+    /** Figure 6's caption: the one instrument figure that wraps `MissionRows`. */
+    figureCaption:
+      "Five roles since 2024, most recent first. The lamp is real state, not decoration: green means active now.",
     rows: [
       {
         when: "2026–2027",
@@ -443,6 +452,8 @@ export const copy = {
 
   /** The bibliography: real links, presented as references. */
   references: {
+    /** The section's `<h2>`, added for Task 8's page assembly. */
+    heading: "References",
     items: [
       {
         label:

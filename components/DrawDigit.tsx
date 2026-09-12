@@ -155,10 +155,27 @@ function ParamField({
   /** null = not being edited, so the committed value shows. A draft has to exist
    *  or you could never type "0." on the way to "0.5". */
   const [draft, setDraft] = useState<string | null>(null);
+  /**
+   * ⚠️ Escape abandons through a REF, and `setDraft(null)` CANNOT do this job.
+   *
+   * Escape has to blur (the box must let go of the keyboard), and `blur()` fires
+   * `onBlur` synchronously, inside the same event — so the commit that runs is
+   * still this render's closure, where `draft` is the string just typed. A
+   * `setDraft(null)` on the way out is invisible to it. The old "abandon" branch
+   * therefore committed the value and could kick off the very re-run the visitor
+   * pressed Escape to cancel. A ref is read at blur time rather than captured at
+   * render time, so the commit actually sees it.
+   */
+  const escaped = useRef(false);
   // String(0.6) is "0.6" and String(2) is "2" — snap() already made it exact.
   const text = draft ?? String(value);
 
   const commit = () => {
+    if (escaped.current) {
+      escaped.current = false;
+      setDraft(null); // show the committed value again, unchanged
+      return;
+    }
     // No draft means no edit — which matters, because disabling a focused input
     // blurs it, and a blur must not re-run anything on its own.
     if (draft === null) return;
@@ -192,7 +209,8 @@ function ParamField({
         onKeyDown={(e) => {
           if (e.key === "Enter") e.currentTarget.blur(); // blur commits
           if (e.key === "Escape") {
-            setDraft(null); // abandon, keep the old value
+            // Abandon: the flag is what the blur below reads (see `escaped`).
+            escaped.current = true;
             e.currentTarget.blur();
           }
         }}
@@ -486,15 +504,24 @@ export function DrawDigit() {
    * its own call and forgot would feed the model a photographic negative: no
    * error, just plausible garbage that reads as the diffusion being broken. Add a
    * second call site and you will eventually add that bug.
+   *
+   * ⚠️ THE ECHO IS SET HERE, PAST THE GUARD, AND THAT IS THE POINT. Its callers
+   * used to announce "re-running …" and then call this, which strands the message
+   * forever on every bail below: the `finally` that clears it is never reached, so
+   * the figure's one status line sits on a re-run that never happened. A commit
+   * landing while a classify holds the session is a real, observed case of exactly
+   * that. So the caller hands the message in and only a run that actually starts
+   * ever shows it.
    */
   const generate = useCallback(
-    async (over?: Partial<RunParams>) => {
+    async (over?: Partial<RunParams>, echoMsg?: string) => {
       const canvas = canvasRef.current;
       // classifyingRef, not the `classifying` state: a classify shares the one
       // ORT session, so starting a run on top of it corrupts the session. The
       // button below is disabled while classifying, but commitParam/reset reach
       // here too, so the guard is what actually makes it safe.
       if (!canvas || !model || running || classifyingRef.current) return;
+      if (echoMsg) setEcho(echoMsg);
       setRunning(true);
       try {
         const x0Init = modelSpace(model, canvas);
@@ -536,13 +563,17 @@ export function DrawDigit() {
    * Only re-runs when there IS a run to redo. Changing a number before drawing
    * anything shouldn't invent a run out of nothing — the value just waits for the
    * next `generate`.
+   *
+   * `canRerun` is necessary but NOT sufficient: it is computed from a render's
+   * state, and a classify can begin between that render and this commit. The echo
+   * therefore rides along as an argument rather than being set here, so a run that
+   * `generate` turns away announces nothing. See `generate`.
    */
   const commitParam = useCallback(
     (key: keyof RunParams, flag: string, next: number) => {
       setParams((p) => ({ ...p, [key]: next }));
       if (!canRerun) return;
-      setEcho(`re-running ${flag} ${next}…`);
-      void generate({ [key]: next });
+      void generate({ [key]: next }, `re-running ${flag} ${next}…`);
     },
     [canRerun, generate],
   );
@@ -556,8 +587,7 @@ export function DrawDigit() {
   const reset = useCallback(() => {
     setParams(DEFAULTS);
     if (!canRerun) return;
-    setEcho("re-running with defaults…");
-    void generate(DEFAULTS);
+    void generate(DEFAULTS, "re-running with defaults…");
   }, [canRerun, generate]);
 
   const ready = model !== null;

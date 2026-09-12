@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "res": 128,
+  "channels": 3,
+  "k": 3,
+  "schedule": {
+    "type": "cosine",
+    "T": 1000,
+    "s": 0.008
+  },
+  "steps_default": 25,
+  "t_input": "float32",
+  "output_clamp": true
+}

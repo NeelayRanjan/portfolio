@@ -5,7 +5,9 @@ import { copy } from "@/content/copy";
 
 /**
  * The masthead: paper title, affiliation, and the bio-as-abstract on the
- * left; the rail carries the headshot (if any), the reviewer's-ink stamp,
+ * left; the rail carries the headshot toy (if its bundle is deployed: the
+ * photo there is sampled live by the owner's own diffusion model, see
+ * `components/figures/HeadshotFigure.tsx`), the reviewer's-ink stamp,
  * the date, and the identity links. Mirrors the approved mockup's `header`
  * row (title+affiliation+abstract left; stamp, date, links in the rail).
  *

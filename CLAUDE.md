@@ -29,10 +29,13 @@ field's motion/reduced-motion/mobile-absence behavior, no horizontal scroll at
 400px on `/` and `/lab`, nothing model-sized in flight before the visitor
 scrolls, the wipe figure's two endpoints actually differing, the flight video
 playing in view and pausing out of it, a drawn stroke producing a real
-auto-label, the chess hint matching validation vector D (`g3 p=0.236`), and the
+auto-label, the chess hint matching validation vector D (`g3 p=0.236`), the
 JEPA retrieval numbers (seed query 834, the red-border/red-label/cross-mark
-triple-equality). All 12 checks pass against the current branch. Re-run it
-after any change that touches a demo, a figure, or the page shell.
+triple-equality), and the headshot toy fetching no model at rest and then
+sampling a canvas that really is the owner's photo (mean abs diff at 32x32
+against its own class, versus the other two as controls). All 13 checks pass
+against the current branch. Re-run it after any change that touches a demo, a
+figure, or the page shell.
 
 **Status: awaiting the owner's review of the Vercel preview and his explicit go
 to promote `redesign` to `main`.** Nothing here promotes itself — see the
@@ -43,10 +46,8 @@ owner is drafting his SOP against the same facts this site will show).
 
 **Incoming artifacts to expect.** Do not build UI for them before they exist; gate
 on absence, per the Constitution:
-- **Headshot diffusion bundle** (onnx + meta.json + vendored JS sampler + source
-  photos) — a tiny overfit class-conditional x0 model of the owner's own headshots,
-  being trained in another chat against
-  `docs/handoffs/2026-09-11-headshot-diffusion-handoff.md`. The bio section's toy.
+- ~~Headshot diffusion bundle~~ — **LANDED and integrated 2026-09-12** (the
+  masthead's author photo). See the demo contract below.
 - **x0-vs-SAM raw materials** (source angiogram + separate masks, not screenshots)
   for an interactive comparison slider in the research section.
 - **The flight-day video**: a trained transformer's synthesis of a full day of FAA
@@ -283,6 +284,42 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   corrupts it.** The mutual exclusion runs through `classifyingRef` (synchronous,
   not state). Respect it in any rebuild of this panel.
 
+### Headshot diffusion (the author photo) — page 1's masthead
+- The bio's signature piece: the photo is a live sample, not a file. A
+  deliberately-overfit class-conditional x0 model (1.31M params, 128², cosine
+  T=1000, DDIM-25) of three approved crops. Overfitting is also the safety
+  property: it can only produce faces the owner approved, never a novel one.
+- Pieces: `lib/headshot-diffusion.js` is **vendored verbatim** (all the math:
+  schedule, DDIM step, timestep sequence, clamp) with `lib/headshot-diffusion.d.ts`
+  hand-typed beside it; `lib/headshot-model.ts` owns loading;
+  `components/figures/HeadshotFigure.tsx` is the server gate and
+  `components/figures/HeadshotToy.tsx` the client UI. Pinned by the bundle's own
+  parity test against this repo's ORT: **max|Δ| 6.71e-6**.
+- **Three integrator rules, all silent failures if broken**: the site never
+  passes `t` (module-internal, raw 0..999); `xt` frames are UNBOUNDED and get
+  clamped for display; `x0` and the returned final sample are ALREADY clamped
+  and must not be clamped again.
+- **Nothing model-related is fetched at rest.** The masthead is first paint, so
+  the box is a plain `<img>` until a face is pressed; the first press starts ORT
+  + the weights (`loadHeadshotModel`, memoized, same `onnxruntime-web/webgpu`
+  specifier as draw/chess so the runtime is shared). Deliberately NOT in
+  `lib/warm.ts`: the warm window is spent on the runtime the two big demos share.
+- int8 (1.55 MB) with an fp32 fallback if a runtime rejects the quantized graph,
+  and the readout names which build loaded. Same ruling as chess: losing the
+  "int8" label costs nothing, a dead button costs everything.
+- Gate reads `k` and `res` out of `headshot_meta.json` and checks each class has a
+  served photo, so a retrained export with four photos grows a fourth button with
+  no code change. Canvas backing store is `res` and CSS upscales with DEFAULT
+  smoothing (the opposite of the draw demo's `pixelated` grids) — softness at
+  256px is expected.
+- Every press is fresh noise, so the route differs and the photo doesn't:
+  verified in-browser that two runs of one class are not byte-identical. All
+  controls disable while a run is in flight (`runningRef`, synchronous).
+- Measured in headless Firefox on a production build: 25 steps end to end
+  ~15.5s including the download (a real browser is much faster; quote measured
+  numbers only). Per-photo PSNR from the bundle: 29.3 / 24.0 / 21.1 dB — classes
+  1-2 soften on busy backgrounds and that was approved at the human review gate.
+
 ### Chess (EBM + MCTS) — page 1
 - Architecture: `lib/chess-engine.ts` is a thin worker client (no model);
   `lib/chess-worker.ts` owns the ORT session, encoder and search;
@@ -372,12 +409,18 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 | `public/models/mnist_x0.onnx` | 26 MB | the pixel model, live draw-a-digit |
 | `public/models/chess-int8.onnx` | 553 KB | the chess EBM |
 | `public/models/chess-fp32.onnx` | 1.8 MB | chess fallback |
+| `public/headshot/headshot_int8.onnx` | 1.55 MB | the headshot model, what the browser loads |
+| `public/headshot/headshot.onnx` | 5.29 MB | headshot fp32 fallback |
+| `public/headshot/headshot_meta.json` | 204 B | res/channels/k/schedule/steps — read, never hardcoded |
+| `public/headshot/photos/{0,1,2}.webp` | 17/53/32 KB | the three approved crops, 512², q80, metadata stripped |
 | `public/ort/*` | ~37 MB | onnxruntime-web wasm, vendored, **gitignored**, synced on prebuild |
 
-Expected additions: the headshot diffusion bundle (≤ ~6 MB, see the handoff doc),
-x0-vs-SAM slider assets, the flight-day video. The JEPA bundle is produced by
+Expected additions: x0-vs-SAM slider assets, the flight-day video. The JEPA bundle is produced by
 `export.py` in `~/Documents/embedding_jepa/` and copied verbatim; nothing in this
-repo generates it. Git LFS: settled, not needed (~35 MB tracked binaries).
+repo generates it. `public/headshot/` is copied verbatim out of
+`~/Documents/headshot_diffusion/dist/` (the photos re-encoded to WebP q80 with
+`-map_metadata -1`); the bundle's `vectors/` and `*_128.png` training inputs stay
+out of `public/`. Git LFS: settled, not needed (~42 MB tracked binaries).
 
 ## Known bugs — deferred by owner decision (2026-09-11)
 

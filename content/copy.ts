@@ -88,6 +88,50 @@ export const copy = {
       "the diffusion model behind that paper. I also built a 553 KB chess engine; " +
       "you can play it further down this page. I'm on leave from my AI degree at " +
       "Purdue, applying to master's programs for fall 2027.",
+    /**
+     * The author photo, which is a live diffusion sample rather than a file
+     * (`components/figures/HeadshotFigure.tsx`). Every claim below is checked:
+     * 1.31M params and three source photos come from the bundle's README,
+     * "25 steps" is `steps_default` in `headshot_meta.json`, and "fresh noise
+     * every press" is the module's documented behavior. No latency claim is
+     * made here on purpose: the only numbers measured so far are node-wasm
+     * ones, and CLAUDE.md's rule is to quote what you measure in a real
+     * browser.
+     */
+    headshot: {
+      /** Real alt text, one per class index, describing the actual photo. Used
+       *  by the at-rest <img>; the face buttons get the aria-labels below. */
+      photoAlts: [
+        "Neelay Ranjan on a city street at night, headphones around his neck.",
+        "Neelay Ranjan outdoors, trees behind him.",
+        "Neelay Ranjan in front of the NASA seal.",
+      ],
+      /** Fallback if a retrained export ships more classes than there are alts. */
+      photoAltGeneric: "Neelay Ranjan.",
+      caption:
+        "This photo is sampled, not loaded. I overfit a 1.3M-parameter " +
+        "diffusion model on three photos of me until it memorized them, and " +
+        "pressing a face runs it here in your browser: 25 steps from fresh " +
+        "noise back to that photo. New noise every press, so the route " +
+        "changes and the face doesn't.",
+      /** The canvas's accessible name, plus " 1 of 3" interpolated after it. */
+      canvasAria: "Live diffusion sample of photo",
+      /** Each face button's accessible name: pre + i+1 + mid + count + post. */
+      faceAriaPre: "Sample photo ",
+      faceAriaMid: " of ",
+      faceAriaPost: " with the diffusion model",
+      resample: "resample",
+      resampleAria: "Sample the current photo again from new noise",
+      /** Readout line states. The step counter's "7/25" glue stays inline. */
+      statusRest: "press a face to sample it",
+      statusLoading: "fetching the weights",
+      statusSampling: "sampling",
+      statusDone: "sampled from noise",
+      /** The model files are absent at runtime although the photos are served:
+       *  say so rather than leaving a dead button. */
+      statusAbsent: "the model isn't deployed, so this is the photo itself",
+      statusFailed: "the model didn't load",
+    },
     /** A claim, not decor: this changes when JAMIA's review resolves. */
     stamp: "UNDER REVIEW",
     date: "September 2026",

@@ -433,6 +433,120 @@ async function checkJepaTripleEqualityOnMixedQuery(browser) {
 }
 
 /* ---------------------------------------------------------------------- */
+/* 9. Headshot toy: nothing fetched at rest, then it really samples HIS    */
+/* photo (components/figures/HeadshotToy.tsx, lib/headshot-model.ts)      */
+/* ---------------------------------------------------------------------- */
+
+/**
+ * Mean absolute per-channel difference between the sampled canvas and the
+ * target photo, both downscaled to 32x32 in the page.
+ *
+ * ⚠️ THE THRESHOLD IS CALIBRATED, NOT GUESSED, and the control comparison is
+ * what makes this a proof rather than a smoke test. Measured against a real
+ * production build in headless Firefox: the class-0 sample lands at **6.17**
+ * against its own photo (the bundle's per-photo PSNR for that class is 29.3
+ * dB), while the same sample against the OTHER two photos measures 63.24 and
+ * 89.68. So 20 sits ~3x above the real value and ~3x below the nearest wrong
+ * answer: a sampler that ran the wrong class, a display mapping that inverted,
+ * or a canned animation could not pass it. Fresh noise every press moves the
+ * observed number by only a unit or two.
+ */
+const HEADSHOT_MAD_MAX = 20;
+
+async function checkHeadshotSamplesPhoto(browser) {
+  return withPage(browser, { viewport: { width: 400, height: 800 } }, async (page) => {
+    const urls = [];
+    page.on("request", (req) => urls.push(req.url()));
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await page.waitForTimeout(1500); // catch an idle callback that might still fire
+
+    // At rest the masthead is a plain <img>. The toy sits in first paint, so a
+    // model fetch here would put ~24MB of runtime on the critical path.
+    const early = urls.filter((u) => /\/headshot\/.*\.onnx/.test(u));
+    if (early.length) {
+      throw new Error(`model fetched at rest: ${early.join(", ")}`);
+    }
+
+    const face = page.locator('#headshot-toy button[aria-label^="Sample photo 1"]');
+    await face.waitFor({ state: "visible", timeout: 10000 });
+    await face.scrollIntoViewIfNeeded();
+    await face.click();
+
+    // First press pulls onnxruntime-web + the 1.55MB int8 graph and then runs
+    // 25 forward passes. Measured end to end here at ~15.5s; budget 5 minutes,
+    // because headless Firefox is ~20x slower than a real browser (CLAUDE.md).
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector("#headshot-toy [role=status]")
+          ?.textContent?.includes("sampled from noise"),
+      null,
+      { timeout: 300000 },
+    );
+    const readout = (await page.locator("#headshot-toy [role=status]").textContent()).trim();
+
+    // A GET of one of the two graphs is what proves a model ran at all.
+    if (!urls.some((u) => /\/headshot\/headshot(_int8)?\.onnx/.test(u))) {
+      throw new Error("run completed without ever requesting a model file");
+    }
+
+    const { mad, controls } = await page.evaluate(async () => {
+      const N = 32;
+      // Downscale both through the same 2D path, so any resampling the browser
+      // does applies equally to the sample and to the target.
+      const shrink = (src) => {
+        const c = document.createElement("canvas");
+        c.width = N;
+        c.height = N;
+        const g = c.getContext("2d");
+        g.drawImage(src, 0, 0, N, N);
+        return g.getImageData(0, 0, N, N).data;
+      };
+      const meanAbs = (a, b) => {
+        let sum = 0;
+        let n = 0;
+        for (let i = 0; i < a.length; i += 4) {
+          for (let k = 0; k < 3; k++) {
+            sum += Math.abs(a[i + k] - b[i + k]);
+            n++;
+          }
+        }
+        return sum / n;
+      };
+      const load = async (src) => {
+        const img = new Image();
+        img.src = src;
+        await img.decode();
+        return shrink(img);
+      };
+      const sample = shrink(document.querySelector("#headshot-toy canvas"));
+      const target = await load("/headshot/photos/0.webp");
+      const controls = [];
+      for (const p of ["/headshot/photos/1.webp", "/headshot/photos/2.webp"]) {
+        controls.push(meanAbs(sample, await load(p)));
+      }
+      return { mad: meanAbs(sample, target), controls };
+    });
+
+    if (mad > HEADSHOT_MAD_MAX) {
+      throw new Error(
+        `sampled canvas is ${mad.toFixed(2)} mean abs off photo 0 at 32x32 (limit ${HEADSHOT_MAD_MAX})`,
+      );
+    }
+    // The sample must be closer to its own class than to either other photo,
+    // or "it reconstructed a face" would be passing for "it reconstructed HIS
+    // face, the one the button asked for".
+    if (!controls.every((c) => c > mad)) {
+      throw new Error(
+        `sample is not closest to its own class: own ${mad.toFixed(2)} vs ${controls.map((c) => c.toFixed(2)).join(", ")}`,
+      );
+    }
+
+    return `no model at rest; "${readout}"; MAD 32x32 own ${mad.toFixed(2)} (limit ${HEADSHOT_MAD_MAX}) vs others ${controls.map((c) => c.toFixed(2)).join(", ")}`;
+  });
+}
+
+/* ---------------------------------------------------------------------- */
 /* driver                                                                  */
 /* ---------------------------------------------------------------------- */
 
@@ -449,6 +563,7 @@ const CHECKS = [
   ["chess-hint-g3", checkChessHint],
   ["jepa-seed-query-834", checkJepaSeedQuery834],
   ["jepa-triple-equality-mixed", checkJepaTripleEqualityOnMixedQuery],
+  ["headshot-samples-photo", checkHeadshotSamplesPhoto],
 ];
 
 async function main() {

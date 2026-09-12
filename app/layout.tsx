@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { STIX_Two_Text, Spline_Sans_Mono } from "next/font/google";
 import "./globals.css";
 import { copy } from "@/content/copy";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const stix = STIX_Two_Text({
+  variable: "--font-stix",
   subsets: ["latin"],
-  weight: ["400", "500"],
+  weight: ["400", "600"],
+  style: ["normal", "italic"],
 });
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const splineMono = Spline_Sans_Mono({
+  variable: "--font-spline-mono",
   subsets: ["latin"],
-  weight: ["400"],
+  weight: ["400", "500", "600"],
 });
 
 // A URL, not copy — metadataBase and the canonical OG url. Stays here.
@@ -59,11 +59,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${stix.variable} ${splineMono.variable} h-full antialiased`}
     >
       <head />
 
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col font-serif">
         {children}
       </body>
     </html>

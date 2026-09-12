@@ -1,3 +1,9 @@
+/* Measured (scripts/measure-mono.mjs, 2026-09-11): Spline Sans Mono's advance is
+   0.5590em, not v1 Geist Mono's 0.600em — so the 0.6 + letterSpacing line-height
+   identity this file's AsciiLines comment describes does not hold for it. ASCII
+   grids keep a dedicated mono rather than adopting --font-serif/--font-mono's
+   Spline Sans Mono in Task 11; AsciiLines' metrics stay as measured for the old
+   font and must be re-derived (not just reused) if a mono is ever swapped in here. */
 "use client";
 
 import { useMemo } from "react";

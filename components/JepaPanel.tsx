@@ -415,9 +415,16 @@ export function JepaSection() {
                   locked: this paragraph explains, so it is sans; every label,
                   readout and caveat below is the machine talking, so it is mono. */}
               <p className="mb-4 max-w-[54ch] leading-relaxed text-muted">{C.lede.a}</p>
-              <p className="mb-4 max-w-[54ch] leading-relaxed text-muted">{C.lede.b}</p>
+              {/* Paragraph two, assembled from three pieces: `b` opens it, the
+                  manifest's numbers land mid-sentence, and `scope` closes it.
+                  The whole thing is gated on `m` because the numbers are, and
+                  that is the right coupling — `scope` bounds a claim, so it must
+                  not appear before the claim does. During the short load there
+                  is no metrics line and no retrieval grid either, so there is
+                  nothing on screen for it to qualify. */}
               {m ? (
-                <p className="mb-4 max-w-[54ch] leading-relaxed text-muted">
+                <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
+                  {C.lede.b}
                   {C.lede.cPre}
                   <span className="text-ink">{pct(m.metrics.mae.linear_probe)}</span>
                   {C.lede.cMid1}
@@ -427,9 +434,9 @@ export function JepaSection() {
                   {C.lede.cMid3}
                   <span className="text-ink">{pct(m.metrics.jepa.knn)}</span>
                   {C.lede.cPost}
+                  {C.scope}
                 </p>
               ) : null}
-              <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">{C.scope}</p>
             </>
           )}
 

@@ -403,28 +403,45 @@ export const copy = {
     /** `${n} images · ${dataset} ${split}` — the glue interpolates. */
     heading: "Predicting pixels, or predicting representations",
     /**
-     * Three sans paragraphs plus a scope note. Fragments only where a number
-     * from the manifest interpolates — everything else is whole sentences.
+     * TWO sans paragraphs, and the second one is assembled: `b` opens it, the
+     * metrics interpolate mid-sentence, and `scope` closes it. Fragments exist
+     * only where a manifest number lands — everything else is whole sentences.
+     *
+     * It was four paragraphs (setup / mechanism / metrics / scope) and read as
+     * winding. The cut kept every load-bearing claim: the single-variable
+     * ablation, which variable it is, the numbers, the retrieval consequence
+     * the blocks below demonstrate, and the scope caveat.
      */
     lede: {
-      a: "Two encoders, same architecture, same masking, same optimiser, same schedule, same seed, and the same 65 epochs over the same 100,000 unlabeled STL-10 images. One thing differs. MAE predicts the raw pixels of the hidden patches; I-JEPA predicts their representations, produced by an EMA copy of the encoder itself. Neither one saw a label during pretraining. Labels enter afterwards, only to measure what the frozen features turned out to be worth.",
-      b: "A pixel loss has to account for everything in the image, including the parts that can’t be predicted: texture, background clutter, the exact colour of the sky. Capacity goes there because the loss charges for it. Predicting in latent space lets the target encoder discard that first, so what’s left to predict is structure. It shows up in retrieval. MAE’s nearest neighbours often match the background rather than the subject, so a ship pulls back airplanes and a deer pulls back horses.",
+      a: "Two encoders, same architecture, masking, optimiser, schedule and seed, trained for 65 epochs on the same 100,000 unlabeled STL-10 images. One thing differs. MAE predicts the hidden patches’ pixels; I-JEPA predicts their representations, from an EMA copy of the encoder. A pixel loss has to account for everything in the image, including what can’t be predicted: texture, clutter, the exact colour of the sky. A latent target discards that first and predicts structure instead.",
+      /**
+       * Opens paragraph two and is the bridge into the numbers: pretraining saw
+       * no labels, so the measurement has to be a probe on frozen features. It
+       * sits here rather than at the end of `a` to keep the two paragraphs
+       * near the same length (77 and 66 words) — split the other way it was
+       * 46 against 97, which reads as one short intro and one wall.
+       */
+      b: "Neither saw a label during pretraining. ",
       /** Metrics line. Every number is read from manifest.metrics. */
       cPre: "Frozen features, linear probe: MAE ",
       cMid1: ", I-JEPA ",
       cMid2: ". kNN at k=20: ",
       cMid3: " and ",
       cPost:
-        ". The kNN gap is the wider of the two, and kNN is retrieval: rank everything by cosine similarity and look at what comes back.",
+        ". The kNN gap is the wider one, and kNN is retrieval. MAE’s neighbours often match the background rather than the subject. ",
     },
     /**
      * ⚠️ SCOPE NOTE, and it is not padding. The measured win is on frozen-feature
      * probes and label efficiency. Saying nothing here would let the section read
      * as "latent targets beat pixel targets", which is false for the dense
      * pixel-precise tasks a UNet's skip connections exist to serve.
+     *
+     * It is no longer its own paragraph — it is the last sentence of the second
+     * one, so it sits against the numbers it qualifies rather than trailing them.
+     * Still a separate key on purpose: it is a named piece of honesty, not glue.
      */
     scope:
-      "This is a claim about representation quality and label efficiency. It isn’t a claim that latent-target pretraining beats a UNet at dense, pixel-precise output like segmentation, where skip connections carry exactly the detail a latent target throws away.",
+      "This is a claim about representation quality, not about dense pixel-precise output like segmentation, where a UNet’s skip connections carry exactly the detail a latent target throws away.",
     /**
      * 🔒 THE HONESTY NOTE, and it sits directly under the blocks it qualifies.
      *
@@ -442,7 +459,7 @@ export const copy = {
     /** `Neighbours are top-${k} by cosine similarity…` */
     neighborNotePre: "Neighbours are top-",
     neighborNotePost:
-      " by cosine similarity in the encoder’s full embedding space, computed on the frozen features themselves rather than on any reduction of them.",
+      " by cosine similarity in the encoder’s full embedding space, not in any reduction of it.",
     /** The retrieval view. */
     queryLabel: "query",
     queryCaption: "click any thumbnail to make it the query",

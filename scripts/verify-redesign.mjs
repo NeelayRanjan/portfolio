@@ -674,12 +674,44 @@ async function checkEfficiencyLadder(browser) {
       }
     }
 
+    // The x axis is categorical, so the cursor must land exactly on a tick at
+    // every stop. A linear axis would miss every tick but the endpoints, and
+    // the miss would be small enough to look like a rendering artifact.
+    const offsets = [];
+    for (let i = 0; i < ladder.budgets.length; i++) {
+      await setRange(slider, i);
+      await page.waitForFunction(
+        (want) => document.querySelector("#ladder-budget")?.value === String(want),
+        i,
+        { timeout: 5000 },
+      );
+      const off = await page.evaluate((labels) => {
+        const svg = document.querySelector("#fig-ladder")?.closest("figure")?.querySelector("svg");
+        const cursor = svg.querySelector("line[stroke-dasharray]");
+        const tick = [...svg.querySelectorAll("text")].find(
+          (t) =>
+            t.getAttribute("text-anchor") === "middle" &&
+            t.textContent.trim() === String(labels),
+        );
+        if (!cursor) return "no dashed cursor line in the chart";
+        if (!tick) return `no x tick labeled ${labels}`;
+        return Number(cursor.getAttribute("x1")) - Number(tick.getAttribute("x"));
+      }, ladder.budgets[i]);
+      if (typeof off === "string") throw new Error(off);
+      if (Math.abs(off) > 0.01) {
+        throw new Error(
+          `cursor is ${off} user units off the ${ladder.budgets[i]} tick (categorical x should be exact)`,
+        );
+      }
+      offsets.push(off);
+    }
+
     return (
       `3 panels; ${first} labels ` +
       Object.keys(names).map((k) => diceFor(k, first).toFixed(3)).join("/") +
       ` -> ${last} labels ` +
       Object.keys(names).map((k) => diceFor(k, last).toFixed(3)).join("/") +
-      "; all three canvases repainted"
+      `; all three canvases repainted; cursor on all ${offsets.length} ticks exactly`
     );
   });
 }

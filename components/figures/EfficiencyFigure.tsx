@@ -33,18 +33,34 @@ import ladderData from "@/public/research/ladder.json";
  * benchmark ground truth), never from the CSV's seed means, which describe a
  * different export. They can and do land either side of the curve.
  *
+ * ⚠️ THE X AXIS IS CATEGORICAL, NOT LINEAR, and that was a measurement. The
+ * budgets double (16/32/80/160/320), so on a linear axis the three measured
+ * stops land inside the left fifth, their tick labels pile into one
+ * illegible stack, and the right two thirds of the plot is dead space the
+ * cursor crosses with nothing under it. Equal intervals per stop put 80 at
+ * the middle, which keeps the measured lines' ending visible instead of
+ * crushing it against the y axis. Positions come from the index in
+ * `xValues`, so the cursor lands exactly on a tick at every stop by
+ * construction.
+ *
  * Geometry is derived from the data, not hardcoded, so a re-export changes
  * the chart with no edit here:
- * - x domain spans every `labels` value in the curve AND every ladder budget.
+ * - x stops are every `labels` value in the curve plus every ladder budget.
  * - y domain pads slightly around the real min/max `diceMean`.
  * - y-axis ticks are drawn from the ACTUAL diceMean values in the file
  *   (spread across the sorted unique set), never round numbers a chart
  *   library would invent.
  * - End-of-line labels are placed at each model's last (80-label) point,
- *   then decluttered with a minimum vertical gap so the six baselines
- *   clustered between 0.83 and 0.92 Dice don't overlap into one smear. With
- *   the domain now reaching 320 they sit mid-chart, over empty plot, which
- *   reads as a legend at the exact x where the measurement runs out.
+ *   then decluttered with a minimum vertical gap so the five baselines
+ *   clustered between 0.83 and 0.95 Dice don't overlap into one smear. They
+ *   sit mid-chart, over empty plot, which reads as a legend at the exact x
+ *   where the measurement runs out.
+ *
+ * ⚠️ COLOR MATCHES THE FIGURES AROUND IT, and only two models get any. Green
+ * is x0-diffusion and red is SAM, the same mapping Figure 1's legend and the
+ * mask panels below use. Every other model stays `currentColor`. A chart
+ * where x0 is red while its own panel two inches below is green was the
+ * confusion worth spending the edit on.
  */
 
 type ModelRow = {
@@ -79,13 +95,20 @@ const HEIGHT = 340;
 const MARGIN = { top: 16, right: 40, bottom: 40, left: 40 };
 const PLOT_W = WIDTH - MARGIN.left - MARGIN.right;
 const PLOT_H = HEIGHT - MARGIN.top - MARGIN.bottom;
-const MIN_LABEL_GAP = 13;
+const MIN_LABEL_GAP = 12;
+
+/** The two models whose lines carry a color, and the token each one carries.
+ *  Same mapping as Figure 1's legend and the mask panels below. */
+const LINE_COLORS: Record<string, string> = {
+  x0diffusion: "var(--color-ok)",
+  sam: "var(--color-red-ink)",
+};
+const lineColor = (key: string) => LINE_COLORS[key] ?? "currentColor";
 
 const allRows = modelKeys.flatMap((key) => models[key]);
 const curveX = Array.from(new Set(allRows.map((r) => r.labels))).sort((a, b) => a - b);
 const measuredTo = curveX[curveX.length - 1];
 const xValues = Array.from(new Set([...curveX, ...BUDGETS])).sort((a, b) => a - b);
-const xDomain: [number, number] = [xValues[0], xValues[xValues.length - 1]];
 
 const diceValues = allRows.map((r) => r.diceMean);
 const yMin = Math.min(...diceValues);
@@ -93,10 +116,16 @@ const yMax = Math.max(...diceValues);
 const yPad = (yMax - yMin) * 0.08 || 0.02;
 const yDomain: [number, number] = [Math.max(0, yMin - yPad), Math.min(1, yMax + yPad)];
 
+/**
+ * Categorical x: equal intervals, one per stop in `xValues`. Every value this
+ * is ever called with (a curve row's `labels`, a ladder budget) is in
+ * `xValues` by construction, since `xValues` is their union, so the -1 branch
+ * is unreachable unless a future caller invents a value off the grid.
+ */
 function xScale(labels: number): number {
-  const [min, max] = xDomain;
-  if (max === min) return MARGIN.left + PLOT_W / 2;
-  return MARGIN.left + ((labels - min) / (max - min)) * PLOT_W;
+  const idx = xValues.indexOf(labels);
+  if (idx < 0 || xValues.length === 1) return MARGIN.left + PLOT_W / 2;
+  return MARGIN.left + (idx / (xValues.length - 1)) * PLOT_W;
 }
 
 function yScale(dice: number): number {
@@ -121,6 +150,19 @@ const yTicks = Array.from(
   ),
 ).sort((a, b) => a - b);
 
+/**
+ * End-of-line labels: start at each line's last point, then a single
+ * order-preserving downward pass with `MIN_LABEL_GAP`, and a group shift back
+ * up if the stack runs past the bottom of the plot.
+ *
+ * The five converging lines sit inside ~31px of each other at 80 labels and
+ * six labels need 60px, so some of them MUST move; the property worth keeping
+ * is that the label column's vertical order matches the lines' order, which a
+ * downward pass guarantees and a symmetric spread does not. SAM's label ends
+ * up the furthest from its own line (~29px), and that is the one it costs
+ * least: its line is the only flat one on the chart and both the line and the
+ * label are red, so the color carries the match over the gap.
+ */
 const labelPlacements = modelKeys
   .map((key) => {
     const rows = models[key];
@@ -317,8 +359,10 @@ export function EfficiencyFigure() {
             strokeDasharray="3 3"
           />
 
+          {/* Baselines first, then the two colored lines on top, so neither
+              gets crossed by a mut line drawn after it. */}
           {modelKeys
-            .filter((key) => key !== "x0diffusion")
+            .filter((key) => !(key in LINE_COLORS))
             .map((key) => (
               <polyline
                 key={key}
@@ -329,20 +373,21 @@ export function EfficiencyFigure() {
               />
             ))}
 
-          {models.x0diffusion && (
-            <polyline
-              points={models.x0diffusion
-                .map((r) => `${xScale(r.labels)},${yScale(r.diceMean)}`)
-                .join(" ")}
-              fill="none"
-              stroke="var(--color-red-ink)"
-              strokeWidth={2}
-            />
-          )}
+          {modelKeys
+            .filter((key) => key in LINE_COLORS)
+            .map((key) => (
+              <polyline
+                key={key}
+                points={models[key].map((r) => `${xScale(r.labels)},${yScale(r.diceMean)}`).join(" ")}
+                fill="none"
+                stroke={lineColor(key)}
+                strokeWidth={key === "x0diffusion" ? 2 : 1.5}
+              />
+            ))}
 
           {/* Says out loud what the lines ending mid-axis already shows. */}
           <text
-            x={xScale(measuredTo)}
+            x={xScale(measuredTo) + 6}
             y={MARGIN.top + 8}
             textAnchor="start"
             fill="currentColor"
@@ -356,14 +401,8 @@ export function EfficiencyFigure() {
           {modelKeys.map((key) => {
             const placement = labelByKey.get(key);
             if (!placement) return null;
-            const isHeadline = key === "x0diffusion";
             return (
-              <text
-                key={key}
-                x={placement.x}
-                y={placement.y + 3}
-                fill={isHeadline ? "var(--color-red-ink)" : "currentColor"}
-              >
+              <text key={key} x={placement.x} y={placement.y + 3} fill={lineColor(key)}>
                 {modelLabels[key] ?? key}
               </text>
             );

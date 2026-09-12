@@ -5,60 +5,63 @@ Institute), applying to Fall 2027 MS programs. The site's claim, in every era of
 design, is that **the work is real**: trained models run client-side, nothing is
 faked, and honest numbers beat impressive ones.
 
-**A full redesign is in flight as of 2026-09-11.** The live site ("v1", the
-faux-terminal single-pager) is preserved at git tag `v1`, and its deep design
-documentation is archived verbatim in `docs/v1-design-notes.md`. That file's 🔒
-LOCKED rules bound v1 only; they do not bind the redesign. What binds every era is
-this file: the Constitution, the Voice, the content facts, and the demo contracts
-(the demos carry over).
+**The "framed manuscript" redesign SHIPPED 2026-09-12** and is what production
+serves. The prior site ("v1", the faux-terminal single-pager) is preserved at git
+tag `v1`, its deep design documentation archived verbatim in
+`docs/v1-design-notes.md` — that file's 🔒 LOCKED rules bound v1 only. What binds
+now is this file: the Constitution, the Voice, the content facts, and the
+contracts below.
 
-## Where the redesign stands
+## Current state
 
-**Built, on the `redesign` branch: all 15 tasks of the implementation plan.** The
-manuscript aesthetic (masthead + reviewer's-ink stamp, Table 1, Figures 1-3 in
-Research, the live demos as Figures 4-5, Figure 6 in Experience, references) is
-the whole of page 1; `/lab` carries the three demos that moved off it (S1-S3);
-v1 is fully deleted from the tree (its tag, `v1`, is still the fallback). The
-five mockup directions, the design spec, and the per-task Vercel previews that
-got it here are done and superseded by what's actually built; this section no
-longer tracks them individually.
+**In production at neelayranjan.dev since 2026-09-12** (fast-forward of the
+15-task `redesign` build into `main` after a full verification run; the branch
+is deleted; v1 lives at the tag). Page 1: masthead (title, abstract, the
+live-sampled author photo, the UNDER REVIEW stamp linking `/lab` through a
+"pending additional materials" sub-line, identity links) → Table 1 → Research
+(Figure 1 wipe, Figure 2 Dice CDF, Figure 3 flight map) → the live demos as
+Figures 4–5 → Experience as Figure 6 (NASA and Regenstrief lamps green/active)
+→ References. `/lab` holds S1–S3. Same-day post-launch passes: the wipe moved
+to image 330 with the owner's green-x0/red-SAM legend; Figure 2 rebuilt from a
+budget ladder into the paper's pannable Dice CDF; the flight video's dark-map
+treatment; the owner's STIX-N favicon set; headshots presented
+last-class-first (photo 2 is the default face).
 
-**Verification lives in `scripts/verify-redesign.mjs`** (Playwright-Firefox
-against a real `npm run build && npm start`, never the dev server): the desk
-field's motion/reduced-motion/mobile-absence behavior, no horizontal scroll at
-400px on `/` and `/lab`, nothing model-sized in flight before the visitor
-scrolls, the wipe figure's two endpoints actually differing, the flight video
-playing in view and pausing out of it, a drawn stroke producing a real
-auto-label, the chess hint matching validation vector D (`g3 p=0.236`), the
-JEPA retrieval numbers (seed query 834, the red-border/red-label/cross-mark
-triple-equality), and the headshot toy fetching no model at rest and then
-sampling a canvas that really is the owner's photo (mean abs diff at 32x32
-against its own class, versus the other two as controls). All 13 checks pass
-against the current branch. Re-run it after any change that touches a demo, a
-figure, or the page shell.
+**Verification: `scripts/verify-redesign.mjs`** — 14 named checks,
+Playwright-Firefox against a real `npm run build && npm start` on :3000, never
+the dev server; pass check-name substrings as args to run subsets. Covers the
+desk field (motion / reduced-motion / absent below 880px), no horizontal
+scroll at 400px on both pages, nothing model-sized before scroll, the wipe's
+endpoints, the Dice-CDF slider (curves, readouts vs `cdf.json`, repaint on stop
+change), flight video play/pause, a drawn stroke producing a real auto-label,
+the chess hint matching vector D (`g3 p=0.236`), JEPA seed query 834 plus the
+triple-equality, and the headshot toy (no model fetched at rest; the sampled
+canvas pixel-matches the pressed photo, with the other two photos as asserted
+controls). Run it after any change touching a demo, a figure, or the page
+shell. `scripts/check-voice.mjs` gates every copy.ts edit.
 
-**Status: PROMOTED to production 2026-09-12 at the owner's explicit request**
-(fast-forward of `redesign` into `main` after a full 14/14 verification run).
-Post-launch additions follow the same rule: verify on a prod build, then the
-owner says when anything ships.
+**Open items, roughly in order:**
+1. **The Pi claim needs the owner.** `systems.chess.searchNote.post` says "The
+   Pi gets through its 500 sims in about 2 seconds" — owner-authored in v1,
+   carried on that authority, unsourced in this file (and the browser's own
+   numbers make it look very fast). Confirm or cut; do not soften it into a
+   different unsourced claim.
+2. **arXiv link** (~2026-09-18) swaps into the references when the preprint is
+   live; the owner then creates a Google Scholar profile, which joins the
+   identity links (the link list is data-driven copy).
+3. **A regenerated `predictions_cache`** (more images, real tail cases, runs
+   matching the CSV seeds) would substantially strengthen Figures 1–2 — see
+   the research-figures section for today's limits.
+4. The mobile draw-demo bugs (Known bugs below) are open.
+5. `public/research/label_efficiency.json` is computed, committed, and
+   currently unrendered — free material for a future figure.
+6. Much later: a third headliner demo, a **live network-security honeypot**
+   (exposed Pi, malicious ssh/https logged, LLM-categorized into a live UMAP
+   of attack families). Needs a live-data seam the static site doesn't have;
+   the systems figure column is trivially appendable when it comes.
 
-Deadline pressure: polished by ~early November 2026 (MS application season; the
-owner is drafting his SOP against the same facts this site will show).
-
-**Incoming artifacts to expect.** Do not build UI for them before they exist; gate
-on absence, per the Constitution:
-- ~~Headshot diffusion bundle~~ — **LANDED and integrated 2026-09-12** (the
-  masthead's author photo). See the demo contract below.
-- **x0-vs-SAM raw materials** (source angiogram + separate masks, not screenshots)
-  for an interactive comparison slider in the research section.
-- **The flight-day video**: a trained transformer's synthesis of a full day of FAA
-  flight plans playing out. The experience/NASA section's live artifact.
-- **arXiv link** for the JAMIA-submitted paper (~2026-09-18), then a Google Scholar
-  profile shortly after.
-- Much later, a third headliner demo: a **live network-security honeypot** (exposed
-  Pi, malicious ssh/https logged, LLM-categorized into a live UMAP of attack
-  families). It needs a live-data seam the static site doesn't have. For now the
-  demo layout just stays data-driven enough that a third slot drops in.
+Deadline context: MS application season (materials due ~Nov 2026); the site
+and the owner's SOP tell one story.
 
 ## Mission and audience (settled)
 
@@ -89,17 +92,26 @@ on absence, per the Constitution:
   publications → figure hovers. The owner's rule: "at no point should the user
   just be staring and reading at something."
 - Fallback is the git tag `v1`, nothing more. No legacy subdomain.
-- v1's known bugs are **deferred**, not fixed pre-redesign (see Known bugs).
+- **Figure colour conventions (owner calls, 2026-09-12): green = x0-diffusion**
+  (and true "active" states), **red = SAM** (and reviewer's ink: the stamp, the
+  headline numeral, alerts/misses), **amber (`warm`) = instrument readouts**,
+  the flight blips, ResNet-UNet's dotted curve, **link-blue = hyperlinks** and
+  ViT-DPT where it appears. The spec-era "red marks the x0 finding" rule is
+  dead; the spec file records history, this file records now.
+- The UNDER REVIEW stamp doubles as the `/lab` link; the dotted-underlined
+  "pending additional materials" sub-line carries the affordance.
+- v1's draw-demo bugs survived the re-chrome where the code path survived
+  (see Known bugs) — they are open on the live site.
 - Navigation listings (menus, the 404's directory joke if it survives) track the
   real set of pages — v1 kept its 404 `ls` in step with its sections; keep that
   discipline whatever shape it takes.
 
 ## Content facts — the source of truth for copy
 
-**⚠️ `content/resume-notes.md` is STALE (extracted 2026-07-14). Do not write copy
-from it.** The facts below supersede it; for anything else, read the live Resume/CV
-Google Docs (Drive connector) and ask the owner. Any fact on the resume is cleared
-for publication.
+(`content/resume-notes.md` was stale and was deleted with v1.) The facts below
+are the source of truth; for anything else, read the live Resume/CV Google Docs
+(Drive connector) and ask the owner. Any fact on the resume is cleared for
+publication.
 
 - **First-author paper**: "Bootstrapping surgeon labeling campaigns with
   x0-diffusion: label-efficient vessel segmentation of catheter-based angiograms"
@@ -405,6 +417,46 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   `Math.random`): "same route every time" is the property on display. One click
   spawns the same start in both panels; that shared origin is the comparison.
 
+### The research figures — real-data pipeline (`scripts/prepare-research.mjs`)
+- Hand-run only: its inputs live in the gitignored `external_materials/` (the
+  owner's 45MB asset mine — paper tarballs + metrics CSV, the NASA video, the
+  headshot originals), absent on Vercel. Its outputs in `public/research/` are
+  committed. **Assert-before-write**: the aggregate is computed first and
+  nothing is written if x0diffusion@16-labels drifts from the paper's 0.882
+  (±0.01).
+- **⚠️ `--accept-csv-drift` is required, and it is not a formality**: the
+  baselines' `predictions_cache` is a DIFFERENT training export than the CSV's
+  runs (deeplabv3@32 computes 0.480 on an image whose four CSV seeds all sit
+  above 0.90; x0's cache matches its CSV on all 10 cached images, which is
+  what validates the pipeline itself). Every number the site shows is computed
+  from the exact mask on screen, never a CSV mean; `provenance.json` is the
+  audit trail.
+- **Mask PNG polarity is PER-IMAGE, not a convention** (image 189's SAM mask
+  was black-vessel-on-white, 330's is white-on-black; ViT's 16-label mask
+  calls 67.7% of the frame vessel). The client (`components/figures/
+  mask-paint.ts`) detects by minority side; the script votes per-model with an
+  inset-ring rule and records the decision in `cdf.json`. Hardcoded polarity
+  painted an entire background red once already.
+- **Figure 1 (wipe, `WipeFigure.tsx`)**: image 330 (owner pick; 189 rejected as
+  rough), fold1 16-label masks, x0 green over SAM red with an on-image legend,
+  slider defaults to 50%. The caption's Dice pair is that image's computed
+  values. Rerun: `node scripts/prepare-research.mjs --image N --accept-csv-drift`.
+- **Figure 2 (Dice CDF, `DiceCdfFigure.tsx`)**: curves pooled from the CSV at
+  **fraction 0.05 only** — pooling every fraction inverts the paper's model
+  ordering, and the script's shape gate asserts shares-below-0.5 near
+  0.3/5.4/13.5% (x0/SAM/ResNet) to match the paper's figure. Slider stops
+  t=0.1..0.9 pick the cached image whose SAM dice is NEAREST t; only 10 images
+  exist in the cache (SAM span 0.666–0.924), so low stops cannot land on the
+  cursor's value and the copy says the cursor is a threshold. Panel Dice =
+  computed from the shown pixels.
+- **Figure 3 (flight video, `FlightFigure.tsx`)**: the committed mp4 is
+  untouched; the dark-map look is pure CSS — `invert(1) hue-rotate(33deg)
+  saturate(2.1) brightness(1.05)` lands the blips on the warm token,
+  `mix-blend-mode: screen` makes the inverted-black ground contribute nothing
+  (the map melts into the panel, no border), and `clip-path: inset(2px)`
+  shaves the source's not-quite-white edge row that survived inversion as a
+  1px light border.
+
 ## Model artifacts
 
 | path | size | what |
@@ -422,25 +474,27 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 | `public/headshot/headshot_meta.json` | 204 B | res/channels/k/schedule/steps — read, never hardcoded |
 | `public/headshot/photos/{0,1,2}.webp` | 17/53/32 KB | the three approved crops, 512², q80, metadata stripped |
 | `public/headshot/photos/{0,1,2}_thumb.webp` | ~2 KB each | 96² derivatives for the 44px face buttons (first paint) |
+| `public/research/*` | ~1.7 MB | prepare-research outputs: wipe assets, `cdf/` stops, flight mp4 + poster, `cdf.json`, `label_efficiency.json`, `provenance.json` |
 | `public/ort/*` | ~37 MB | onnxruntime-web wasm, vendored, **gitignored**, synced on prebuild |
 
-Expected additions: x0-vs-SAM slider assets, the flight-day video. The JEPA bundle is produced by
+The JEPA bundle is produced by
 `export.py` in `~/Documents/embedding_jepa/` and copied verbatim; nothing in this
 repo generates it. `public/headshot/` is copied verbatim out of
 `~/Documents/headshot_diffusion/dist/` (the photos re-encoded to WebP q80 with
 `-map_metadata -1`); the bundle's `vectors/` and `*_128.png` training inputs stay
 out of `public/`. Git LFS: settled, not needed (~42 MB tracked binaries).
 
-## Known bugs — deferred by owner decision (2026-09-11)
+## Known bugs — open on the live site
 
-Flagged, diagnosed from code reading, deliberately not fixed yet ("relegate bug
-testing to the end"):
-1. **Mobile: drawing wiped when scrolling to hit generate.** `DrawDigit`'s resize
-   handler re-runs `setup()`, which resets the canvas buffer; mobile scroll
-   collapses the URL bar → viewport height changes → resize fires. Fix shape:
-   re-setup only on width change, or preserve ink across resizes.
-2. **Random occasional page reloads.** Likely mobile tab crashes under memory
-   pressure (26MB model + ORT WASM on the MAIN thread — unlike chess, draw never
-   got a worker); browsers silently reload crashed tabs.
+Inherited from v1's draw demo; both code paths survived the re-chrome intact:
+1. **Mobile: drawing wiped when scrolling to hit generate.** `DrawDigit`'s
+   resize handler re-runs `setup()`, which resets the canvas buffer; mobile
+   scroll collapses the URL bar → viewport height changes → resize fires. Fix
+   shape: re-setup only on WIDTH change, or preserve ink across resizes
+   (`components/DrawDigit.tsx`).
+2. **Occasional mobile page reloads.** The 26MB draw model + ORT run on the
+   MAIN thread (chess got a worker; draw never did); tab crashes under memory
+   pressure reload silently. Fix shape: a draw worker mirroring the chess
+   architecture, or accepting the cost on phones.
 
 @AGENTS.md

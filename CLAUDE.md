@@ -222,9 +222,12 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   1.27's webgpu entry actually fetches; a wrong build 404s and surfaces as the
   useless "no available backend found". If ORT changes what it fetches, the
   network tab names the file — don't guess.
-- `scripts/gen-icons.mjs` and `scripts/gen-og.mjs` are **hand-run, never wired to
-  prebuild** (they need a Playwright browser Vercel's image doesn't have). Their
-  outputs are committed. The OG card screenshots the live hero, so it must be
+- `scripts/gen-icons.py` (fontTools + cairosvg venv; fetches the STIX variable
+  TTF, see its header) and `scripts/gen-og.mjs` (Playwright) are **hand-run,
+  never wired to prebuild** — Vercel's image has neither toolchain. Their
+  outputs are committed. The favicon is the owner's mark (2026-09-12): STIX "N"
+  in ink on the paper tile with stamp-red corner brackets; edit the script's
+  token constants and re-run rather than hand-editing the four app/ icon files. The OG card screenshots the live hero, so it must be
   regenerated when the new hero ships; `metadataBase` in `layout.tsx` is required
   or `/og.png` never resolves in unfurls.
 - The chess worker must stay a literal

@@ -67,6 +67,7 @@ function parseCsv(text) {
   }
   const rows = new Array(lines.length - 1);
   for (let i = 1; i < lines.length; i++) {
+    // Plain split: no field in this export is ever quoted or itself contains a comma.
     const parts = lines[i].split(",");
     rows[i - 1] = {
       image_index: parseInt(parts[idx.image_index], 10),
@@ -201,9 +202,13 @@ function main() {
     fail("No image_index has cached masks for both x0diffusion and sam at frac0.05_fold1.");
   }
 
+  // Ranking must be computed from fold1 rows only: the cached masks we
+  // actually display come from frac0.05_fold1, and averaging in other folds'
+  // CSV rows would rank images by a number that doesn't match what's shown.
   const diceByModelImage = new Map(); // "model|id" -> dice[]
   for (const r of rows) {
     if (r.fraction !== 0.05) continue;
+    if (r.fold !== 1) continue;
     if (r.model !== "x0diffusion" && r.model !== "sam") continue;
     if (!candidateIds.includes(r.image_index)) continue;
     if (Number.isNaN(r.dice)) continue;
@@ -212,7 +217,16 @@ function main() {
     diceByModelImage.get(key).push(r.dice);
   }
 
-  const ranked = candidateIds
+  const usableIds = candidateIds.filter((id) => {
+    const x0arr = diceByModelImage.get(`x0diffusion|${id}`) || [];
+    const samarr = diceByModelImage.get(`sam|${id}`) || [];
+    return x0arr.length > 0 && samarr.length > 0;
+  });
+  if (usableIds.length === 0) {
+    fail("No candidate image has fold1 CSV rows for both x0diffusion and sam at fraction 0.05.");
+  }
+
+  const ranked = usableIds
     .map((id) => {
       const x0arr = diceByModelImage.get(`x0diffusion|${id}`) || [];
       const samarr = diceByModelImage.get(`sam|${id}`) || [];
@@ -222,7 +236,7 @@ function main() {
     })
     .sort((a, b) => b.diff - a.diff);
 
-  console.log("\nTop 5 wipe-image candidates (dice(x0) - dice(sam) @ fraction 0.05):");
+  console.log("\nTop 5 wipe-image candidates (dice(x0) - dice(sam) @ fraction 0.05, fold1 rows only):");
   for (const c of ranked.slice(0, 5)) {
     const sign = c.diff >= 0 ? "+" : "";
     console.log(`  id=${c.id}\tx0=${c.x0dice}\tsam=${c.samdice}\tdiff=${sign}${c.diff}`);
@@ -313,6 +327,7 @@ function main() {
     wipeImage: {
       id: chosen.id,
       fraction: 0.05,
+      fold: 1,
       diceX0: chosen.x0dice,
       diceSam: chosen.samdice,
       diceDelta: chosen.diff,

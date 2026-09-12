@@ -196,5 +196,11 @@ export function DeskField() {
     };
   }, []);
 
-  return <canvas ref={canvasRef} aria-hidden className="fixed inset-0 -z-10" />;
+  return (
+    <canvas
+      ref={canvasRef}
+      aria-hidden
+      className="fixed inset-0 -z-10 pointer-events-none"
+    />
+  );
 }

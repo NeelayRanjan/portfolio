@@ -66,7 +66,8 @@ export const copy = {
       "I build diffusion models for domains where labels are scarce and mistakes " +
       "are expensive: vessel segmentation from 16 labeled angiograms, a chess " +
       "engine that fits in 553 KB, a transformer that synthesizes a day of FAA " +
-      "flight traffic. Two of these run live on this page, in your browser.",
+      "flight traffic. The chess engine runs live on this page, in your browser, " +
+      "next to a separate live diffusion demo where you draw a digit and watch it denoise.",
     ogImageAlt: "Neelay Ranjan, generative-modeling researcher",
   },
 
@@ -148,7 +149,7 @@ export const copy = {
      *  interface (`components/figures/WipeFigure.tsx` updated to match). */
     figWipe: {
       caption:
-        "Real segmentation masks on image 189 from the pelvic-iliac angiography benchmark, both models working from the same 16-label training budget. Drag to compare: x0-diffusion (red) scores 0.866 Dice on this image against SAM’s 0.774.",
+        "Real segmentation masks on image 189 from the pelvic-iliac angiography benchmark. x0-diffusion trained on 16 labels; SAM is zero-shot and never trains on any. Drag to compare: x0-diffusion (red) scores 0.866 Dice on this image against SAM’s 0.774.",
       angiogramAlt:
         "Pelvic-iliac angiogram, image 189 from the segmentation benchmark",
       label: "wipe",
@@ -412,6 +413,12 @@ export const copy = {
         status: "ongoing",
       },
       {
+        when: "2026",
+        who: "MRI birdcage coil",
+        what: "Led the embedded and PCB team; presented as an oral at IEEE MWSCAS 2026.",
+        status: "complete",
+      },
+      {
         when: "2025",
         who: "Davinci Wearables",
         what: "An agentic vision pipeline that estimates nutrition from meal photos, under 15% error.",
@@ -421,12 +428,6 @@ export const copy = {
         when: "2024–2025",
         who: "V2X aircraft-maintenance LLM",
         what: "Led the two-stage RAG design; cut hallucinations from about 40% to about 5%.",
-        status: "complete",
-      },
-      {
-        when: "2026",
-        who: "MRI birdcage coil",
-        what: "Led the embedded and PCB team; presented as an oral at IEEE MWSCAS 2026.",
         status: "complete",
       },
     ],
@@ -469,7 +470,7 @@ export const copy = {
     backLink: "← back to the paper",
     heading: "Supplementary material",
     intro:
-      "Three panels that used to sit on page one. Two run real trained models in your browser; the third is a hand-built illustration of a different sampling method, labeled as such.",
+      "Three panels that used to sit on page one. Two replay real trained models’ output; the third is a hand-built illustration of a different sampling method, labeled as such.",
     s1Intro:
       "Figure S1 plays two trained diffusion models denoising the same ten digits: one in continuous pixel space, one in a discrete, absorbing-state token space.",
     s2Intro:

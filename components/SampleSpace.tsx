@@ -254,7 +254,9 @@ export function SampleSpace() {
         caption={copy.lab.sampleSpace.figureCaption}
         readout={copy.lab.sampleSpace.statusIllustrative}
       >
-      <h2 className="mt-1 mb-2 text-[22px] font-semibold text-ink">
+      {/* pr-28 keeps the heading clear of the figure's absolutely-positioned
+          readout, which is always the static "illustrative" label here. */}
+      <h2 className="mt-1 mb-2 pr-28 text-[22px] font-semibold text-ink">
         {copy.lab.sampleSpace.heading}
       </h2>
       <p className="mb-4 max-w-2xl text-[15px] leading-relaxed text-mut">

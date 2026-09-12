@@ -22,6 +22,6 @@
   --font-serif: var(--font-stix);
   --font-mono: var(--font-spline-mono);
 }
-html { background: var(--color-desk); }
+html { background: var(--color-desk); color-scheme: dark; }
 body { background: transparent; color: var(--color-ink); }
 :focus-visible { outline: 2px solid var(--color-red-ink); outline-offset: 3px; }

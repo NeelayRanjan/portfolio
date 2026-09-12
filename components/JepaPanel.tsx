@@ -387,7 +387,9 @@ export function JepaSection() {
       caption={C.figureCaption}
       readout={ready ? `${m.n.toLocaleString("en-US")} images · ${m.dataset} ${m.split}` : C.statusLoading}
     >
-      <h2 className="mt-1 mb-2 text-[22px] font-semibold text-ink">{C.heading}</h2>
+      {/* pr-52 keeps the heading clear of the figure's absolutely-positioned
+          readout, which runs to ~"4,096 images · stl10 test" at its longest. */}
+      <h2 className="mt-1 mb-2 pr-52 text-[22px] font-semibold text-ink">{C.heading}</h2>
       {/* Sans prose, the site's explanatory register: this paragraph explains,
           so it is serif; every label, readout and caveat below is the machine
           talking, so it stays mono. */}

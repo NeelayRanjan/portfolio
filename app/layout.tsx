@@ -36,8 +36,8 @@ export const metadata: Metadata = {
     description: copy.meta.blurb,
     images: [
       {
-        // A real frame of the live hero, rendered by scripts/gen-og.mjs — the
-        // actual swarm settled into the nameplate, not a mockup of it.
+        // A real frame of the live masthead, rendered by scripts/gen-og.mjs —
+        // a screenshot of the actual page, not a mockup of it.
         url: "/og.png",
         width: 1200,
         height: 630,

@@ -17,8 +17,12 @@ import { copy } from "@/content/copy";
 // when public/jepa/manifest.json is absent, the whole figure (heading and all)
 // renders nothing, so there is no orphaned page furniture here to strand.
 //
-// Section ids keep the v1 slugs (`#diffusion`, `#jepa`, `#sample-space`) so old
-// deep links into page one still land somewhere real.
+// Section ids keep the v1 slugs (`#diffusion`, `#jepa`, `#sample-space`) for
+// continuity, not because they resolve cleanly: v1's links pointed at
+// `/#diffusion` and this page is a different route, and even a link updated to
+// `/lab#diffusion` can land cold on a section whose figure hasn't mounted yet
+// (each one is behind DeferredMount), so the browser has nothing to scroll to.
+// No redirects are built for this; it's a known gap, not a solved one.
 export default function LabPage() {
   return (
     <main className="flex-1 px-4 pb-24">

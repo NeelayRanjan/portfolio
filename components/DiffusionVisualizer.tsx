@@ -194,7 +194,10 @@ export function DiffusionVisualizer() {
         {/* Names the ACTIVE model — pixel is Gaussian (continuous), ascii is
             absorbing-state (discrete). That distinction is the whole reason
             this is one component with a toggle, not two panels. */}
-        <h2 className="mt-1 mb-2 text-[22px] font-semibold text-ink">
+        {/* pr-56 keeps the heading clear of the figure's absolutely-positioned
+            readout, which runs to "196/392 masked · step 16/32" at its longest
+            (the ascii mode's readout; the longest of any figure on the page). */}
+        <h2 className="mt-1 mb-2 pr-56 text-[22px] font-semibold text-ink">
           {mode === "ascii" ? copy.lab.diffusion.headingDiscrete : copy.lab.diffusion.headingContinuous}
         </h2>
         <p className="mb-5 max-w-2xl text-[15px] leading-relaxed text-mut">

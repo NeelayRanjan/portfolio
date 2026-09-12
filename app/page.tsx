@@ -71,9 +71,11 @@ export default function Home() {
           </p>
         </Row>
 
-        <p className="text-[15px] leading-relaxed text-mut">
-          {copy.research.nasaProse}
-        </p>
+        <Row>
+          <p className="text-[15px] leading-relaxed text-mut">
+            {copy.research.nasaProse}
+          </p>
+        </Row>
         <FlightFigure />
 
         <Row>

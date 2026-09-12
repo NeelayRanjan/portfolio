@@ -581,4 +581,51 @@ export const copy = {
   commandLine: {
     reset: "reset",
   },
+
+  /**
+   * The three research figures (Task 6 of the redesign): the wipe comparison,
+   * the label-efficiency chart, and the flight-synthesis video. New
+   * top-level namespace, added without touching any v1 key above — a later
+   * task restructures this whole file to the v2 IA.
+   */
+  research: {
+    /** Figure 1 — real masks on a real angiogram, drag-to-compare. */
+    wipe: {
+      caption:
+        "Real segmentation masks on image 189 from the pelvic-iliac angiography benchmark, both models working from the same 16-label training budget. Drag to compare: x0-diffusion (red) scores 0.866 Dice on this image against SAM’s 0.774.",
+      angiogramAlt:
+        "Pelvic-iliac angiogram, image 189 from the segmentation benchmark",
+      /** Visible text next to the range input. */
+      label: "wipe",
+      /** The mono readout: `${cutLabel} ${n}%`. */
+      cutLabel: "cut",
+      /** aria-label fragments: pre + `${n}` + post. */
+      ariaPre:
+        "Wipe between the SAM mask and the x0-diffusion mask, cut at ",
+      ariaPost: "%",
+    },
+    /** Figure 2 — mean Dice vs labeled images, computed from the paper's data. */
+    efficiency: {
+      caption:
+        "Mean Dice against labeled training images, aggregated from the paper’s per-image metrics across every seed and fold. x0-diffusion (red) reaches 0.882 Dice at 16 labels, a score most baselines only match once they’ve seen 32 to 80. SAM is flat because it’s zero-shot and never retrains on the labels at all; ε-diffusion, the same architecture trained on the standard noise-prediction objective instead, stays stuck near 0.23 no matter how many labels it gets.",
+      xAxisLabel: "labeled images",
+      /** Model keys (from label_efficiency.json) to their chart labels. */
+      modelLabels: {
+        x0diffusion: "x0-diffusion",
+        sam: "SAM",
+        deeplabv3: "DeepLabV3",
+        resnet: "ResNet",
+        vit_base_patch16: "ViT-B/16",
+        hybridresnetvit: "hybrid resnet+vit",
+        ediffusion: "ε-diffusion",
+      },
+    },
+    /** Figure 3 — the flight-plan synthesis video. */
+    flight: {
+      caption:
+        "A trained transformer’s synthesis of a full day of FAA flight plans, generating trajectories at the density of real historical air traffic, roughly 44,000 flights. Every path in this clip is synthetic; none of it is recorded ATC data.",
+      videoAria:
+        "A trained transformer’s synthesis of a day of FAA flight plans, looping video",
+    },
+  },
 } as const;

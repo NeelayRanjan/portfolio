@@ -2,18 +2,22 @@ import { Sheet } from "@/components/manuscript/Sheet";
 import { Row, Note } from "@/components/manuscript/Row";
 import { Masthead } from "@/components/manuscript/Masthead";
 import { InstrumentFigure } from "@/components/manuscript/InstrumentFigure";
+import { DeferredMount } from "@/components/manuscript/DeferredMount";
 import { StatBand } from "@/components/manuscript/StatBand";
 import { MissionRows } from "@/components/manuscript/MissionRows";
 import { References } from "@/components/manuscript/References";
 import { WipeFigure } from "@/components/figures/WipeFigure";
 import { EfficiencyFigure } from "@/components/figures/EfficiencyFigure";
 import { FlightFigure } from "@/components/figures/FlightFigure";
+import { DrawDigit } from "@/components/DrawDigit";
 import { WarmKick } from "@/components/WarmKick";
 import { copy } from "@/content/copy";
 
-// The real page-one assembly (replaces Task 3's smoke content). Static
-// sections only: Figures 4 and 5 (the draw and chess demos) mount into
-// `#fig-draw` / `#fig-chess` in Tasks 9-10. Figure numbering, ruled: 1 (the
+// The real page-one assembly (replaces Task 3's smoke content). Figure 4 (the
+// draw demo) now mounts here behind `DeferredMount`; Figure 5 (chess) still
+// takes the `#fig-chess` slot in Task 10. `DrawDigit` owns its own
+// `InstrumentFigure`, and with it the `id="fig-draw"`, so there is no
+// placeholder here for it to fill. Figure numbering, ruled: 1 (the
 // wipe), 2 (label efficiency), 3 (the flight day) sit in Research; 4-5 are
 // the live demos; 6 is the Experience mission-row figure.
 //
@@ -84,7 +88,14 @@ export default function Home() {
         </Row>
 
         <div className="grid gap-5 min-[880px]:grid-cols-2">
-          <div id="fig-draw" />
+          {/* Figure 4 mounts on scroll-in, not at page load: the draw demo
+              pulls a 26MB ONNX model on first stroke and ships its own
+              client bundle, so `DeferredMount` keeps both out of first
+              paint. It replaces v1's boot-log gate, which carried the same
+              job under the typing theatre. */}
+          <DeferredMount>
+            <DrawDigit />
+          </DeferredMount>
           <div id="fig-chess" />
         </div>
 

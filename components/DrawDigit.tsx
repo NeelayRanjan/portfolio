@@ -1,9 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { TerminalPanel } from "./TerminalPanel";
-import { BootLog, useBootSequence } from "./ambience/BootLog";
-import { CommandLine } from "./ambience/CommandLine";
+import { InstrumentFigure } from "./manuscript/InstrumentFigure";
 import type { AsciiDiffusion } from "@/lib/ascii-diffusion";
 import { classifyDrawing } from "@/lib/classify";
 import {
@@ -15,8 +13,6 @@ import {
   type AsciiFrame,
 } from "@/lib/draw-model";
 import { copy } from "@/content/copy";
-
-const CMD_NAME = copy.systems.draw.cmd;
 
 /**
  * The model's output as an actual 28x28 grayscale image, not the ASCII ramp.
@@ -81,12 +77,12 @@ type RunParams = {
 };
 
 /**
- * The params' defaults, and the command the boot types, from one source.
+ * The params' defaults. Order here is the order on screen.
  *
- * ⚠️ These must agree exactly. The boot TYPES `BOOT_CMD` as plain text, then
- * CommandLine swaps real inputs in on top of it once the typing lands. If the two
- * disagree by so much as a decimal, the line visibly rewrites itself at the
- * handover. Order here is the order on screen.
+ * (v1 also built the boot log's typed command line out of this object, because a
+ * disagreement of one decimal made the line visibly rewrite itself when the real
+ * inputs swapped in. There is no typed line any more — the controls are just
+ * controls — so this is only the defaults and the reset target now.)
  */
 const DEFAULTS: RunParams = {
   digit: 7,
@@ -112,10 +108,99 @@ const RANGES = {
   digit: { min: 0, max: 9, step: 1, int: true },
 };
 
-const BOOT_CMD =
-  `${CMD_NAME} --digit ${DEFAULTS.digit} --strength ${DEFAULTS.strength}` +
-  ` --steps ${DEFAULTS.steps} --guidance ${DEFAULTS.guidance} --dissolve ${DEFAULTS.dissolve}`;
-const BOOT_LINES = [...copy.systems.draw.bootLines];
+type Range = { min: number; max: number; step: number; int?: boolean };
+
+/** Order on screen. The `key` is also the param's visible name and the word the
+ *  re-run echo says, so there is no second list to keep in step. */
+const FIELDS: { key: keyof RunParams; range: Range }[] = [
+  { key: "digit", range: RANGES.digit },
+  { key: "strength", range: RANGES.strength },
+  { key: "steps", range: RANGES.steps },
+  { key: "guidance", range: RANGES.guidance },
+  { key: "dissolve", range: RANGES.dissolve },
+];
+
+const decimalsOf = (step: number) => (String(step).split(".")[1] ?? "").length;
+
+/**
+ * Clamp HARD: snap to the grid, then into range. Never pass a raw value through.
+ *
+ * Replicated from v1's `CommandLine.snap`, which died with the terminal chrome.
+ * The toFixed round-trip is not decoration — `Math.round(0.6 / 0.05) * 0.05` is
+ * 0.6000000000000001, which would print as exactly that.
+ */
+function snap(r: Range, raw: number): number {
+  const stepped = Math.round(raw / r.step) * r.step;
+  const clamped = Math.min(r.max, Math.max(r.min, stepped));
+  return Number(clamped.toFixed(decimalsOf(r.step)));
+}
+
+/**
+ * One labeled number box. Same clamping, same commit rules as the command line
+ * it replaces; only the chrome changed.
+ */
+function ParamField({
+  name,
+  value,
+  range,
+  disabled,
+  onCommit,
+}: {
+  name: string;
+  value: number;
+  range: Range;
+  disabled: boolean;
+  onCommit: (v: number) => void;
+}) {
+  /** null = not being edited, so the committed value shows. A draft has to exist
+   *  or you could never type "0." on the way to "0.5". */
+  const [draft, setDraft] = useState<string | null>(null);
+  // String(0.6) is "0.6" and String(2) is "2" — snap() already made it exact.
+  const text = draft ?? String(value);
+
+  const commit = () => {
+    // No draft means no edit — which matters, because disabling a focused input
+    // blurs it, and a blur must not re-run anything on its own.
+    if (draft === null) return;
+    const n = Number(draft);
+    setDraft(null); // snap back to the committed value, edited or not
+    if (draft.trim() === "" || !Number.isFinite(n)) return;
+    const v = snap(range, n);
+    if (v !== value) onCommit(v);
+  };
+
+  return (
+    <label className="flex flex-col gap-1">
+      {/* aria-hidden: the input's own label already names the param and its
+          range, so announcing this would say the word twice. */}
+      <span aria-hidden="true" className="text-mut">
+        {name}
+      </span>
+      <input
+        type="number"
+        value={text}
+        disabled={disabled}
+        min={range.min}
+        max={range.max}
+        step={range.step}
+        inputMode={range.int ? "numeric" : "decimal"}
+        spellCheck={false}
+        autoComplete="off"
+        aria-label={`${name}, ${range.min} to ${range.max}`}
+        onChange={(e) => setDraft(e.target.value.replace(/[^0-9.]/g, "").slice(0, 5))}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur(); // blur commits
+          if (e.key === "Escape") {
+            setDraft(null); // abandon, keep the old value
+            e.currentTarget.blur();
+          }
+        }}
+        className="w-16 border border-rule bg-desk px-1.5 py-1 text-center font-mono text-[11px] tabular-nums text-ink outline-none transition-colors hover:border-mut focus:border-ok disabled:cursor-not-allowed disabled:opacity-40"
+      />
+    </label>
+  );
+}
 
 /**
  * Pen width as a fraction of canvas width. THIS IS THE FEATURE'S FAILURE MODE.
@@ -134,7 +219,11 @@ const BOOT_LINES = [...copy.systems.draw.bootLines];
 const PEN_FRAC = 0.1;
 const DIGITS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 const INK = "#ffffff";
-const PAPER = "#080a12";
+/** `--color-desk`, the darkest ground in the palette. A literal, not a token:
+ *  `ctx.fillStyle` silently ignores a CSS variable. (v1's #080a12 was the same
+ *  role in the old palette; either is ~0 luminance, so the model's input is
+ *  unchanged either way — `normalizeCanvas` sees near-black paper.) */
+const PAPER = "#0c0b09";
 /**
  * We draw white ink on near-black paper. The module's normalizeCanvas defaults to
  * `inkIsHigh: false` — dark ink on light paper — and inverts, so without this the
@@ -164,6 +253,10 @@ function fitness(scores: number[]): number[] {
 /** Alpha ceiling for a label's tint. Above ~0.3 the winning cell reads as
  *  "selected" and starts fighting the picker's real selected state. */
 const FIT_ALPHA = 0.28;
+/** `--color-warm` (#d9a45b) as rgb, for the fit tint. Warm amber is what this
+ *  palette uses for a live readout, and it is NOT the picker's selected colour
+ *  (`--color-ok`), so the model's opinion and your choice stay separable. */
+const FIT_RGB = "217, 164, 91";
 
 export function DrawDigit() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -180,7 +273,8 @@ export function DrawDigit() {
    */
   const [params, setParams] = useState<RunParams>(DEFAULTS);
   const digit = params.digit;
-  /** The echo under the boot log: proof the number you typed did something. */
+  /** The figure's readout while a re-run is in flight: proof the number you
+   *  typed did something. (v1 printed this under the boot log.) */
   const [echo, setEcho] = useState<string | null>(null);
   /**
    * Reconstruction error per label, 0-9, and how decisive the winner was.
@@ -213,9 +307,6 @@ export function DrawDigit() {
   const probed = useRef(false);
   const classifyTimer = useRef(0);
 
-  const boot = useBootSequence(BOOT_CMD, BOOT_LINES);
-  const booted = boot.done;
-
   // autoPick is async; read the flag through a ref so a hand-pick mid-classify
   // isn't clobbered by a stale closure.
   const autoLabelRef = useRef(autoLabel);
@@ -246,8 +337,9 @@ export function DrawDigit() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [model]);
 
+  // The component itself is now mounted on scroll-in by `DeferredMount`, so
+  // there is no boot gate left to wait on: the canvas exists on first render.
   useEffect(() => {
-    if (!booted) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -279,7 +371,7 @@ export function DrawDigit() {
       window.removeEventListener("resize", onResize);
       window.clearTimeout(t);
     };
-  }, [booted, clearTo]);
+  }, [clearTo]);
 
   /**
    * The drawing, in the space the model actually works in.
@@ -469,279 +561,291 @@ export function DrawDigit() {
   }, [canRerun, generate]);
 
   const ready = model !== null;
-  const status = !booted
-    ? copy.systems.draw.statusBooting
-    : running && frame
-      ? `${frame.phase} ${frame.step + 1}/${frame.total}`
-      : loading
-        ? copy.systems.draw.statusFetching
-        : ready
-          ? copy.systems.draw.statusReady
-          : copy.systems.draw.statusDraw;
+  const status = running && frame
+    ? `${frame.phase} ${frame.step + 1}/${frame.total}`
+    : loading
+      ? copy.systems.draw.statusFetching
+      : ready
+        ? copy.systems.draw.statusReady
+        : copy.systems.draw.statusDraw;
 
   return (
-    <div ref={boot.ref}>
-      <TerminalPanel
-        label={`${copy.systems.draw.label} --digit ${digit} --strength ${DEFAULT_STRENGTH}`}
-        status={status}
-        notice={
-          booted && loadErr ? (
-            <>
-              <span className="text-indigo">{copy.systems.draw.loadFailed}</span>: {loadErr}
-            </>
-          ) : null
-        }
-      >
-        <BootLog
-          typed={boot.typed}
-          printed={boot.printed}
-          done={booted}
-          echo={echo}
-          command={
-            <CommandLine
-              name={CMD_NAME}
-              disabled={running}
-              dirty={dirty}
-              hint={copy.systems.draw.hint}
-              onReset={reset}
-              // Order must match BOOT_CMD, or the line rewrites at the handover.
-              items={[
-                { kind: "param", flag: "--digit", value: params.digit, ...RANGES.digit,
-                  onCommit: (v) => {
-                    setAutoLabel(false); // typing a label is picking one
-                    commitParam("digit", "--digit", v);
-                  } },
-                { kind: "param", flag: "--strength", value: params.strength, ...RANGES.strength,
-                  onCommit: (v) => commitParam("strength", "--strength", v) },
-                { kind: "param", flag: "--steps", value: params.steps, ...RANGES.steps,
-                  onCommit: (v) => commitParam("steps", "--steps", v) },
-                { kind: "param", flag: "--guidance", value: params.guidance, ...RANGES.guidance,
-                  onCommit: (v) => commitParam("guidance", "--guidance", v) },
-                { kind: "param", flag: "--dissolve", value: params.dissolve, ...RANGES.dissolve,
-                  onCommit: (v) => commitParam("dissolve", "--dissolve", v) },
-              ]}
-            />
-          }
-        />
+    <InstrumentFigure
+      n="4"
+      id="fig-draw"
+      caption={copy.systems.draw.figureCaption}
+      // The echo outranks the status while it exists: it is the confirmation
+      // that the number you just typed did something, and `role="status"` is
+      // what announces it. v1 printed it under the boot log for the same reason.
+      readout={echo ? <span role="status">{echo}</span> : status}
+    >
+      {/* h3, not h2: the page's `<h2>` is the "Live systems" section above. */}
+      <h3 className="mt-1 mb-2 pr-24 text-[17px] font-semibold text-ink">
+        {copy.systems.draw.heading}
+      </h3>
+      <p className="mb-5 text-[15px] leading-relaxed text-mut">
+        {copy.systems.draw.lede.pre}
+        <span className="text-ink">{copy.systems.draw.lede.tech}</span>
+        {copy.systems.draw.lede.post}
+      </p>
 
-        {!booted ? null : (
-          <>
-            <h2 className="mt-6 mb-2 text-2xl tracking-tight">{copy.systems.draw.heading}</h2>
-            <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
-              {copy.systems.draw.lede.pre}
-              <span className="text-ink">{copy.systems.draw.lede.tech}</span>
-              {copy.systems.draw.lede.post}
-            </p>
+      {loadErr ? (
+        <p className="mb-4 font-mono text-[11px] leading-relaxed text-mut/60">
+          <span className="text-red-ink">{copy.systems.draw.loadFailed}</span>: {loadErr}
+        </p>
+      ) : null}
 
-            <div className="flex flex-wrap items-start gap-6">
-              <figure>
-                <canvas
-                  ref={canvasRef}
-                  onPointerDown={onDown}
-                  onPointerMove={onMove}
-                  onPointerUp={onUp}
-                  onPointerCancel={onUp}
-                  // touch-none or a touch drag scrolls the page instead of
-                  // drawing. Safe here: a small box, not the full-width hero.
-                  className="aspect-square w-[280px] max-w-full cursor-crosshair touch-none rounded border border-line"
-                  aria-label={`${copy.systems.draw.canvasAria} ${digit}`}
-                  role="img"
-                />
-                <figcaption className="mt-4 w-[280px] max-w-full font-mono text-[11px] leading-relaxed text-faint">
-                  {copy.systems.draw.canvasCaption}
-                </figcaption>
-              </figure>
-
-              <figure>
-                <div className="flex aspect-square w-[280px] max-w-full items-center justify-center overflow-hidden rounded border border-line">
-                  {frame ? (
-                    // xt, not x0: xt IS the effect — drawing, then static, then
-                    // digit. x0 during the dissolve is just the drawing held
-                    // still, so rendering it would hide the dissolve entirely.
-                    <PixelGrid
-                      data={frame.xt}
-                      version={frame.step}
-                      label={`${frame.phase} frame ${frame.step + 1} of ${frame.total}`}
-                    />
-                  ) : (
-                    <span className="px-6 text-center font-mono text-[11px] leading-relaxed text-faint">
-                      {loading
-                        ? copy.systems.draw.resultFetching
-                        : ready
-                          ? copy.systems.draw.resultReady
-                          : copy.systems.draw.resultDraw}
-                    </span>
-                  )}
-                </div>
-                <figcaption className="mt-4 w-[280px] max-w-full font-mono text-[11px] leading-relaxed text-faint">
-                  {frame ? (
-                    <>
-                      <span className={frame.phase === "dissolve" ? "text-ink" : "text-teal"}>
-                        {frame.phase}
-                      </span>{" "}
-                      · {frame.step + 1}/{frame.total}
-                      {frame.phase === "dissolve"
-                        ? copy.systems.draw.resultForward
-                        : copy.systems.draw.resultRunning}
-                    </>
-                  ) : (
-                    copy.systems.draw.resultCaptionIdle
-                  )}
-                </figcaption>
-              </figure>
-
-              {/*
-               * x̂₀ — what the model thinks the finished digit is, at this step.
-               *
-               * ⚠️ This does NOT contradict "render xt, not x0" (see this file's
-               * header and CLAUDE.md §2b). That ruling is about which to show when
-               * there is only ONE panel: x0 alone hides the dissolve, because
-               * during the forward half it is just the drawing held still. With
-               * both panels up, that stillness becomes the point — x̂₀ sits frozen
-               * for the whole dissolve and starts moving the instant the denoise
-               * begins, which is the model switching on, visibly. §2 shows the
-               * same pair for the same reason.
-               */}
-              <figure>
-                <div className="flex aspect-square w-[280px] max-w-full items-center justify-center overflow-hidden rounded border border-line">
-                  {frame ? (
-                    <PixelGrid
-                      data={frame.x0}
-                      version={frame.step}
-                      label={`the model's guess at the finished digit, step ${frame.step + 1} of ${frame.total}`}
-                    />
-                  ) : (
-                    <span className="px-6 text-center font-mono text-[11px] leading-relaxed text-faint">
-                      {copy.systems.draw.x0Placeholder}
-                    </span>
-                  )}
-                </div>
-                <figcaption className="mt-4 w-[280px] max-w-full font-mono text-[11px] leading-relaxed text-faint">
-                  {frame ? (
-                    <>
-                      <span className="text-ink">{copy.systems.draw.x0Label}</span>
-                      {copy.systems.draw.x0CaptionPre}
-                      {frame.phase === "dissolve"
-                        ? copy.systems.draw.x0Held
-                        : copy.systems.draw.x0Repredicted}
-                    </>
-                  ) : (
-                    copy.systems.draw.x0CaptionIdle
-                  )}
-                </figcaption>
-              </figure>
-            </div>
-
-            <div className="mt-6 flex flex-wrap items-center gap-2">
-              <span className="mr-1 font-mono text-xs text-faint">
-                {copy.systems.draw.label_}
-                {autoLabel ? (
-                  <span className="ml-2 text-teal">
-                    {classifying ? copy.systems.draw.labelGuessing : model ? copy.systems.draw.labelAuto : ""}
-                  </span>
-                ) : (
-                  <span className="ml-2 text-indigo">{copy.systems.draw.labelYours}</span>
-                )}
-              </span>
-              {DIGITS.map((d) => {
-                // Real model output, not decoration: how well label d explains
-                // the strokes, relative to the other nine.
-                const f = fits ? fits[d] : null;
-                return (
-                  <button
-                    key={d}
-                    onClick={() => {
-                      setAutoLabel(false); // their pick wins from here
-                      // Same path as editing --digit in the command line: the two
-                      // are one control shown twice and must not drift apart.
-                      commitParam("digit", "--digit", d);
-                    }}
-                    aria-pressed={d === digit}
-                    // ⚠️ The tint is NOT the only carrier of this information.
-                    // Colour alone would put the whole classifier behind seeing
-                    // it, so the fit goes in the accessible name too.
-                    aria-label={
-                      f === null
-                        ? `${d}`
-                        : `${d}${copy.systems.draw.fitAriaMid}${Math.round(f * 100)}${copy.systems.draw.fitAriaPost}`
-                    }
-                    className={`relative size-8 rounded border font-mono text-sm transition-colors ${
-                      d === digit
-                        ? "border-teal text-teal"
-                        : "border-line text-muted hover:border-faint hover:text-ink"
-                    }`}
-                    // Teal, because on this page teal already means "the model's
-                    // own read". Backgrounds only: the border stays the picker's,
-                    // so the model's opinion and your choice never contest the
-                    // same pixels.
-                    style={
-                      f !== null
-                        ? { background: `rgba(93, 202, 165, ${(f * FIT_ALPHA).toFixed(3)})` }
-                        : undefined
-                    }
-                  >
-                    {d}
-                  </button>
-                );
-              })}
-
-              <button
-                onClick={clear}
-                disabled={!hasInk || running}
-                className="ml-auto rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-faint hover:text-ink disabled:opacity-40"
-              >
-                {copy.systems.draw.clear}
-              </button>
-              <button
-                // Not `onClick={generate}`: that hands the MouseEvent to `over`,
-                // which spreads straight into the model's options.
-                onClick={() => void generate()}
-                // classifying is in here too: the classifier and generate share
-                // the one ORT session, and hitting generate mid-guess used to
-                // run both at once and brick the demo.
-                disabled={!ready || !hasInk || running || classifying}
-                title={
-                  !ready
-                    ? copy.systems.draw.generateHint
-                    : classifying
-                      ? copy.systems.draw.predictingHint
-                      : undefined
-                }
-                className="rounded border border-teal/60 px-3 py-1.5 font-mono text-xs text-teal transition-colors hover:border-teal disabled:cursor-not-allowed disabled:border-line disabled:text-faint"
-              >
-                {running
-                  ? copy.systems.draw.sampling
-                  : classifying
-                    ? copy.systems.draw.predicting
-                    : copy.systems.draw.generate}
-              </button>
-            </div>
-
-            <p className="mt-4 max-w-2xl font-mono text-[11px] leading-relaxed text-faint">
-              {copy.systems.draw.classify.a}
-              {fit ? (
-                <>
-                  {copy.systems.draw.classify.bPre}
-                  <span className="text-teal">{copy.systems.draw.classify.teal}</span>
-                  {copy.systems.draw.classify.bPost}
-                  <span className="text-ink">
-                    {fit.margin < 0.1
-                      ? copy.systems.draw.classify.coinFlip
-                      : fit.margin < 0.25
-                        ? copy.systems.draw.classify.nearThing
-                        : copy.systems.draw.classify.notClose}
-                  </span>
-                  {copy.systems.draw.classify.cMid}
-                </>
-              ) : null}
-              {copy.systems.draw.classify.cPre}
-              <span className="text-indigo">{copy.systems.draw.classify.four}</span>
-              {copy.systems.draw.classify.cPost}
-            </p>
-
-          </>
+      {/*
+       * The sampler's params, as controls.
+       *
+       * THE RULE they earn: a param is editable only if changing it produces a
+       * real, corresponding change. All five reach `generate()` and every one of
+       * them visibly alters the run, which is the whole licence for the boxes.
+       * v1 rendered these as the boot command's editable flags; the clamping,
+       * the commit rules and the re-run path are unchanged, only the chrome is.
+       */}
+      <div className="mb-6 flex flex-wrap items-end gap-x-4 gap-y-3 font-mono text-[11px]">
+        {FIELDS.map(({ key, range }) => (
+          <ParamField
+            key={key}
+            name={key}
+            value={params[key]}
+            range={range}
+            disabled={running}
+            onCommit={(v) => {
+              if (key === "digit") setAutoLabel(false); // typing a label is picking one
+              commitParam(key, key, v);
+            }}
+          />
+        ))}
+        {/* One slot, two states. The hint retires the moment you've used it, and
+            reset takes its place — which is also the only moment reset is worth
+            offering. */}
+        {dirty ? (
+          <button
+            onClick={reset}
+            disabled={running}
+            className="self-end border-b border-dashed border-rule py-1 text-mut transition-colors hover:border-mut hover:text-ink disabled:opacity-40"
+          >
+            {copy.commandLine.reset}
+          </button>
+        ) : (
+          // aria-hidden: every box above is already an exposed labelled control
+          // carrying its own range, so this would only repeat them.
+          <span aria-hidden="true" className="self-end py-1 text-mut/60">
+            {copy.systems.draw.hint}
+          </span>
         )}
-      </TerminalPanel>
-    </div>
+      </div>
+
+
+      <div className="flex flex-wrap items-start gap-6">
+        <figure>
+          <canvas
+            ref={canvasRef}
+            onPointerDown={onDown}
+            onPointerMove={onMove}
+            onPointerUp={onUp}
+            onPointerCancel={onUp}
+            // touch-none or a touch drag scrolls the page instead of
+            // drawing. Safe here: a small box, not the full-width hero.
+            className="aspect-square w-[280px] max-w-full cursor-crosshair touch-none border border-rule"
+            aria-label={`${copy.systems.draw.canvasAria} ${digit}`}
+            role="img"
+          />
+          <figcaption className="mt-4 w-[280px] max-w-full font-mono text-[11px] leading-relaxed text-mut/60">
+            {copy.systems.draw.canvasCaption}
+          </figcaption>
+        </figure>
+
+        <figure>
+          <div className="flex aspect-square w-[280px] max-w-full items-center justify-center overflow-hidden border border-rule">
+            {frame ? (
+              // xt, not x0: xt IS the effect — drawing, then static, then
+              // digit. x0 during the dissolve is just the drawing held
+              // still, so rendering it would hide the dissolve entirely.
+              <PixelGrid
+                data={frame.xt}
+                version={frame.step}
+                label={`${frame.phase} frame ${frame.step + 1} of ${frame.total}`}
+              />
+            ) : (
+              <span className="px-6 text-center font-mono text-[11px] leading-relaxed text-mut/60">
+                {loading
+                  ? copy.systems.draw.resultFetching
+                  : ready
+                    ? copy.systems.draw.resultReady
+                    : copy.systems.draw.resultDraw}
+              </span>
+            )}
+          </div>
+          <figcaption className="mt-4 w-[280px] max-w-full font-mono text-[11px] leading-relaxed text-mut/60">
+            {frame ? (
+              <>
+                <span className={frame.phase === "dissolve" ? "text-ink" : "text-ok"}>
+                  {frame.phase}
+                </span>{" "}
+                · {frame.step + 1}/{frame.total}
+                {frame.phase === "dissolve"
+                  ? copy.systems.draw.resultForward
+                  : copy.systems.draw.resultRunning}
+              </>
+            ) : (
+              copy.systems.draw.resultCaptionIdle
+            )}
+          </figcaption>
+        </figure>
+
+        {/*
+         * x̂₀ — what the model thinks the finished digit is, at this step.
+         *
+         * ⚠️ This does NOT contradict "render xt, not x0" (see this file's
+         * header and CLAUDE.md §2b). That ruling is about which to show when
+         * there is only ONE panel: x0 alone hides the dissolve, because
+         * during the forward half it is just the drawing held still. With
+         * both panels up, that stillness becomes the point — x̂₀ sits frozen
+         * for the whole dissolve and starts moving the instant the denoise
+         * begins, which is the model switching on, visibly.
+         */}
+        <figure>
+          <div className="flex aspect-square w-[280px] max-w-full items-center justify-center overflow-hidden border border-rule">
+            {frame ? (
+              <PixelGrid
+                data={frame.x0}
+                version={frame.step}
+                label={`the model's guess at the finished digit, step ${frame.step + 1} of ${frame.total}`}
+              />
+            ) : (
+              <span className="px-6 text-center font-mono text-[11px] leading-relaxed text-mut/60">
+                {copy.systems.draw.x0Placeholder}
+              </span>
+            )}
+          </div>
+          <figcaption className="mt-4 w-[280px] max-w-full font-mono text-[11px] leading-relaxed text-mut/60">
+            {frame ? (
+              <>
+                <span className="text-ink">{copy.systems.draw.x0Label}</span>
+                {copy.systems.draw.x0CaptionPre}
+                {frame.phase === "dissolve"
+                  ? copy.systems.draw.x0Held
+                  : copy.systems.draw.x0Repredicted}
+              </>
+            ) : (
+              copy.systems.draw.x0CaptionIdle
+            )}
+          </figcaption>
+        </figure>
+      </div>
+
+      <div className="mt-6 flex flex-wrap items-center gap-2">
+        <span className="mr-1 font-mono text-xs text-mut/60">
+          {copy.systems.draw.label_}
+          {autoLabel ? (
+            <span className="ml-2 text-ok">
+              {classifying ? copy.systems.draw.labelGuessing : model ? copy.systems.draw.labelAuto : ""}
+            </span>
+          ) : (
+            <span className="ml-2 text-link">{copy.systems.draw.labelYours}</span>
+          )}
+        </span>
+        {DIGITS.map((d) => {
+          // Real model output, not decoration: how well label d explains
+          // the strokes, relative to the other nine.
+          const f = fits ? fits[d] : null;
+          return (
+            <button
+              key={d}
+              onClick={() => {
+                setAutoLabel(false); // their pick wins from here
+                // Same path as editing the `digit` box above: the two are one
+                // control shown twice and must not drift apart.
+                commitParam("digit", "digit", d);
+              }}
+              aria-pressed={d === digit}
+              // ⚠️ The tint is NOT the only carrier of this information.
+              // Colour alone would put the whole classifier behind seeing
+              // it, so the fit goes in the accessible name too.
+              aria-label={
+                f === null
+                  ? `${d}`
+                  : `${d}${copy.systems.draw.fitAriaMid}${Math.round(f * 100)}${copy.systems.draw.fitAriaPost}`
+              }
+              className={`relative size-8 border font-mono text-sm transition-colors ${
+                d === digit
+                  ? "border-ok text-ok"
+                  : "border-rule text-mut hover:border-mut hover:text-ink"
+              }`}
+              // Warm amber, which on this page means a live readout off the
+              // model. Backgrounds only: the border stays the picker's, so
+              // the model's opinion and your choice never contest the same
+              // pixels — which is also why the tint is not `--color-ok`.
+              style={
+                f !== null
+                  ? { background: `rgba(${FIT_RGB}, ${(f * FIT_ALPHA).toFixed(3)})` }
+                  : undefined
+              }
+            >
+              {d}
+            </button>
+          );
+        })}
+
+        <button
+          onClick={clear}
+          disabled={!hasInk || running}
+          className="ml-auto border border-rule px-3 py-1.5 font-mono text-xs text-mut transition-colors hover:border-mut hover:text-ink disabled:opacity-40"
+        >
+          {copy.systems.draw.clear}
+        </button>
+        <button
+          // Not `onClick={generate}`: that hands the MouseEvent to `over`,
+          // which spreads straight into the model's options.
+          onClick={() => void generate()}
+          // classifying is in here too: the classifier and generate share
+          // the one ORT session, and hitting generate mid-guess used to
+          // run both at once and brick the demo.
+          disabled={!ready || !hasInk || running || classifying}
+          title={
+            !ready
+              ? copy.systems.draw.generateHint
+              : classifying
+                ? copy.systems.draw.predictingHint
+                : undefined
+          }
+          className="border border-ok/60 px-3 py-1.5 font-mono text-xs text-ok transition-colors hover:border-ok disabled:cursor-not-allowed disabled:border-rule disabled:text-mut/60"
+        >
+          {running
+            ? copy.systems.draw.sampling
+            : classifying
+              ? copy.systems.draw.predicting
+              : copy.systems.draw.generate}
+        </button>
+      </div>
+
+      <p className="mt-4 max-w-2xl font-mono text-[11px] leading-relaxed text-mut/60">
+        {copy.systems.draw.classify.a}
+        {fit ? (
+          <>
+            {copy.systems.draw.classify.bPre}
+            {/* The word names the colour the visitor is looking at, so the
+                span's class and `copy.systems.draw.classify.teal` have to
+                agree with the fit tint above. */}
+            <span className="text-warm">{copy.systems.draw.classify.teal}</span>
+            {copy.systems.draw.classify.bPost}
+            <span className="text-ink">
+              {fit.margin < 0.1
+                ? copy.systems.draw.classify.coinFlip
+                : fit.margin < 0.25
+                  ? copy.systems.draw.classify.nearThing
+                  : copy.systems.draw.classify.notClose}
+            </span>
+            {copy.systems.draw.classify.cMid}
+          </>
+        ) : null}
+        {copy.systems.draw.classify.cPre}
+        <span className="text-link">{copy.systems.draw.classify.four}</span>
+        {copy.systems.draw.classify.cPost}
+      </p>
+    </InstrumentFigure>
   );
 }

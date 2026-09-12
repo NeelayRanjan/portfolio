@@ -236,6 +236,10 @@ export const copy = {
      *  `sdedit` namespace (`copy.sdedit.*` → `copy.systems.draw.*`); every
      *  leaf key name is unchanged. */
     draw: {
+      /** New for the manuscript chrome: v1's panel had no caption, so this one
+       *  is drafted rather than carried over. */
+      figureCaption:
+        "A diffusion model dissolving your handwriting into static and pulling a cleaner digit back out, running its real 26 MB weights on your device. Draw in the left box; the middle panel is the sample as it computes, and the right one is the model’s running guess at the finished digit.",
       cmd: "./sdedit",
       bootLines: [
         "sdedit: partially noise your drawing -> denoise -> your strokes survive",
@@ -285,7 +289,11 @@ export const copy = {
       classify: {
         a: "The model is class-conditional, so it needs a label. That guess comes from the diffusion model itself. It predicts the finished digit under all ten labels from identical seeds, and whichever best matches your strokes wins. No second classifier model required. ",
         bPre: "The ",
-        teal: "teal",
+        /** ⚠️ The key name is v1's (leaf names were carried over wholesale), the
+         *  VALUE is not: the fit tint moved from teal to the manuscript's warm
+         *  amber, and this word names the colour a visitor is looking at. If the
+         *  tint ever changes hue again, this string changes with it. */
+        teal: "amber",
         bPost: " behind each label is that score, so you can see the rankings per categorical. This one was ",
         coinFlip: "practically a coin flip",
         nearThing: "a bit unsure",

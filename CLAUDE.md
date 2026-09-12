@@ -413,6 +413,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 | `public/headshot/headshot.onnx` | 5.29 MB | headshot fp32 fallback |
 | `public/headshot/headshot_meta.json` | 204 B | res/channels/k/schedule/steps — read, never hardcoded |
 | `public/headshot/photos/{0,1,2}.webp` | 17/53/32 KB | the three approved crops, 512², q80, metadata stripped |
+| `public/headshot/photos/{0,1,2}_thumb.webp` | ~2 KB each | 96² derivatives for the 44px face buttons (first paint) |
 | `public/ort/*` | ~37 MB | onnxruntime-web wasm, vendored, **gitignored**, synced on prebuild |
 
 Expected additions: x0-vs-SAM slider assets, the flight-day video. The JEPA bundle is produced by

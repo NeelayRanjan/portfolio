@@ -108,13 +108,24 @@ export const copy = {
       ],
       /** Fallback if a retrained export ships more classes than there are alts. */
       photoAltGeneric: "Neelay Ranjan.",
-      caption:
-        "This photo is sampled, not loaded. I overfit a 1.3M-parameter " +
-        "diffusion model on three photos of me until it memorized them, and " +
-        "pressing a face runs it here in your browser: 25 steps from fresh " +
-        "noise back to that photo. New noise every press, so the route " +
-        "changes and the face doesn't.",
-      /** The canvas's accessible name, plus " 1 of 3" interpolated after it. */
+      /**
+       * ⚠️ THE FIRST SENTENCE SWAPS WITH THE STATE, and that is a correctness
+       * fix, not a flourish. At rest the box really is the loaded file, so
+       * "this photo is sampled, not loaded" was false for every visitor who
+       * never pressed anything. The body is shared, so the two states can't
+       * drift apart.
+       */
+      captionLeadRest: "Right now that's the photo file itself. ",
+      captionLeadSampled: "This photo is sampled, not loaded. ",
+      captionBody:
+        "I overfit a 1.3M-parameter diffusion model on three photos of me " +
+        "until it memorized them, and pressing a face runs it here in your " +
+        "browser: 25 steps from fresh noise back to that photo. New noise " +
+        "every press, so the route changes and the face doesn't.",
+      /** The canvas's accessible name: this, " 1 of 3", then the photo's own
+       *  alt text. The alt has to ride along or a screen-reader user loses the
+       *  description of what the author looks like the moment the canvas
+       *  replaces the <img>, permanently. */
       canvasAria: "Live diffusion sample of photo",
       /** Each face button's accessible name: pre + i+1 + mid + count + post. */
       faceAriaPre: "Sample photo ",

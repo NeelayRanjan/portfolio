@@ -29,6 +29,15 @@ const nextConfig: NextConfig = {
         source: "/ort/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
+      {
+        // The headshot bundle: the two graphs, the meta, and the source crops.
+        // Same deal as /models, and it carries the same obligation: these are
+        // immutable by CONVENTION, not by content hash, so a retrained export
+        // has to land under new filenames (meta included) or a returning
+        // visitor keeps last year's weights.
+        source: "/headshot/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
     ];
   },
 };

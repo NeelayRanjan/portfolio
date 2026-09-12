@@ -157,8 +157,14 @@ export function HeadshotToy({
         paint(final, m.meta.channels, false);
         setPainted(true);
       } catch {
-        // A failed run says so on the readout line; the photo stays.
+        // ⚠️ `painted` has to go back to false, not just `failed` to true. A run
+        // that dies mid-sampling after an earlier successful one would
+        // otherwise leave whatever frame it got to (quite possibly raw noise)
+        // on screen, still labelled as a sample of the photo. Reverting to the
+        // real <img> is the honest state: the readout says the run failed, and
+        // what you see is the photo itself again.
         setFailed(true);
+        setPainted(false);
       } finally {
         runningRef.current = false;
         setRunning(false);
@@ -168,14 +174,25 @@ export function HeadshotToy({
   );
 
   const altOf = (i: number) => t.photoAlts[i] ?? t.photoAltGeneric;
-  const status = failed
+  /**
+   * The part of the readout that is ANNOUNCED: terminal states only.
+   *
+   * ⚠️ The step counter is deliberately NOT in here. It ticks 25 times a run,
+   * and a live region carrying it interrupts a screen reader 25 times per
+   * press to read a number that was never the point. ChessPanel sets the
+   * precedent: its `role="status"` carries the settled echo, not the search's
+   * progress. Empty string while sampling, so the span stays mounted (a live
+   * region inserted with its text already in place is unreliably announced)
+   * and the finish is what speaks.
+   */
+  const liveStatus = failed
     ? t.statusFailed
     : absent
       ? t.statusAbsent
       : loading
         ? t.statusLoading
-        : running && step
-          ? `${t.statusSampling} ${step.i}/${step.n}`
+        : running
+          ? ""
           : painted
             ? `${t.statusDone} · ${model?.build ?? ""}`
             : t.statusRest;
@@ -203,7 +220,10 @@ export function HeadshotToy({
           height={res}
           hidden={!painted}
           role="img"
-          aria-label={`${t.canvasAria} ${photos.indexOf(sel) + 1}${t.faceAriaMid}${photos.length}`}
+          // The photo's own alt text rides along. Without it, the description
+          // of what the author actually looks like is gone the moment the
+          // canvas takes over, and it never comes back.
+          aria-label={`${t.canvasAria} ${photos.indexOf(sel) + 1}${t.faceAriaMid}${photos.length}. ${altOf(sel)}`}
           className="absolute inset-0 h-full w-full"
         />
       </div>
@@ -222,11 +242,16 @@ export function HeadshotToy({
               i === sel ? "border-ok" : "border-rule hover:border-mut"
             }`}
           >
-            {/* alt="": the button's own aria-label names it, and the face is
+            {/* The 96px derivative, not the 512² crop: these are 44px boxes,
+                three of them, in first paint. The full-size files stay for the
+                main display only.
+                alt="": the button's own aria-label names it, and the face is
                 already described by the big photo's alt above. */}
             <img
-              src={`/headshot/photos/${i}.webp`}
+              src={`/headshot/photos/${i}_thumb.webp`}
               alt=""
+              width={96}
+              height={96}
               className="h-full w-full object-cover"
             />
           </button>
@@ -241,20 +266,28 @@ export function HeadshotToy({
         </button>
       </div>
 
-      {/* The readout. `role="status"` because it is the confirmation that the
-          press did something: the step counter is the only proof the model is
-          running rather than a file loading. */}
+      {/* The readout, in two halves for one reason: what gets ANNOUNCED and
+          what merely ticks. `role="status"` carries the settled state; the step
+          counter is aria-hidden beside it, because it is the visual proof the
+          model is running rather than something a screen reader needs 25 times
+          a press. */}
       <p
-        role="status"
         className={`mt-2 font-mono text-[10px] leading-relaxed ${
           failed ? "text-red-ink" : running || painted ? "text-warm" : "text-mut/60"
         }`}
       >
-        {status}
+        <span role="status">{liveStatus}</span>
+        {running && step ? (
+          <span aria-hidden="true">{`${t.statusSampling} ${step.i}/${step.n}`}</span>
+        ) : null}
       </p>
 
       <figcaption className="mt-2 font-mono text-[10px] leading-relaxed text-mut/60">
-        {t.caption}
+        {/* True in both states: at rest the box IS the loaded file, and saying
+            otherwise before anyone has pressed anything would be the one kind
+            of claim this whole section exists to avoid making. */}
+        {painted ? t.captionLeadSampled : t.captionLeadRest}
+        {t.captionBody}
       </figcaption>
     </figure>
   );

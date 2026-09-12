@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AsciiGrid, AsciiLines } from "./AsciiGrid";
-import { TerminalPanel } from "./TerminalPanel";
-import { BootLog, useBootSequence } from "./ambience/BootLog";
-import { CommandLine } from "./ambience/CommandLine";
+import { InstrumentFigure } from "./manuscript/InstrumentFigure";
+import { Note } from "./manuscript/Row";
 import {
   GRID_WIDTH,
   lerpReshape,
@@ -21,28 +20,20 @@ import { copy } from "@/content/copy";
 
 type Mode = "pixel" | "ascii";
 
-const CMD_NAME = copy.lab.diffusion.cmd;
 /**
- * ⚠️ ONLY `--digit` IS LIVE HERE, AND THIS PANEL IS THE TRAP.
+ * ⚠️ ONLY THE DIGIT IS LIVE HERE, AND THIS FIGURE IS THE TRAP.
  *
- * §2b's sdedit runs a model, so every flag on it genuinely re-samples. This one
- * PLAYS A PRECOMPUTED TRAJECTORY — the frames are baked into diffusion_traj.json
- * and there is no model on the page to re-run. `--digit` works because all 10
- * digits are in the file. `--steps` and `--schedule` are properties of the export
- * itself, so they are frozen: verified against the file, the distinct frame count
- * across all 10 digits is [32], exactly one step count. There is nothing to snap
- * a typed value to.
- *
- * So they render as plain text with no input, no underline, no hover. The visible
- * difference between them and `--digit` is the point: it says which numbers are
- * real controls and which are facts about a file. Do NOT let --steps look
- * interactive. A new export with multiple step counts is the only thing that
- * changes this ruling, and re-running that check is the only way to know.
+ * Figure S2b's SDEdit (the draw-a-digit demo, page 1) runs a real model, so
+ * every one of its params genuinely re-samples. This one PLAYS A PRECOMPUTED
+ * TRAJECTORY — the frames are baked into diffusion_traj.json, and there is no
+ * model on the page to re-run. The digit picker works because all 10 digits
+ * are in the file. Steps and schedule are properties of the export itself:
+ * verified against the file, the distinct frame count across all 10 digits is
+ * [32], exactly one step count. There is nothing to snap a typed value to, so
+ * they render as plain text (`copy.lab.diffusion.frozenNote`) rather than a
+ * control. A new export with multiple step counts is the only thing that
+ * changes this ruling.
  */
-// Command name from copy; the --flags stay inline (they're structural, and must
-// match what CommandLine renders — see copy.ts).
-const BOOT_CMD = `${copy.lab.diffusion.cmd} --digit 7 --steps 32 --schedule cosine`;
-const BOOT_LINES = [...copy.lab.diffusion.bootLines];
 
 /** Milliseconds per stored frame. Playback interpolates within this. */
 const STEP_MS = 190;
@@ -54,6 +45,7 @@ const END_DWELL_MS = 750;
 const DIGITS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
 export function DiffusionVisualizer() {
+  const rootRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<TrajectorySet | null>(null);
   const [ascii, setAscii] = useState<AsciiTrajSet | null>(null);
   /** Default pixel: it's the proven one. ascii is opt-in. */
@@ -66,14 +58,9 @@ export function DiffusionVisualizer() {
   const [playing, setPlaying] = useState(true);
   const [visible, setVisible] = useState(false);
 
-  const boot = useBootSequence(BOOT_CMD, BOOT_LINES);
-  const rootRef = boot.ref;
-  const booted = boot.done;
-
-  // The trajectory file is ~230KB gzipped — don't spend that on page load, and
-  // don't spend it until the boot log says we're fetching it either.
+  // The component itself is mounted on scroll-in by DeferredMount (app/lab),
+  // so there is no boot gate left to wait on: fetch on first render.
   useEffect(() => {
-    if (!booted) return;
     loadTrajectories()
       .then(setData)
       .catch((e: Error) => setError(e.message));
@@ -81,9 +68,10 @@ export function DiffusionVisualizer() {
     loadAsciiTraj()
       .then(setAscii)
       .catch((e: Error) => setError(e.message));
-  }, [booted]);
+  }, []);
 
-  // Separate from the boot gate: this one toggles, to pause playback off-screen.
+  // Pause playback off-screen — separate from the mount above, which already
+  // happened once by the time this figure exists at all.
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
@@ -92,14 +80,14 @@ export function DiffusionVisualizer() {
     });
     io.observe(el);
     return () => io.disconnect();
-  }, [rootRef]);
+  }, []);
 
   const pixelFrames = data?.byDigit[digit] ?? null;
   const asciiFrames = ascii?.byDigit[digit] ?? null;
   const frames: unknown[] | null = mode === "ascii" ? asciiFrames : pixelFrames;
   const total = frames?.length ?? 0;
 
-  // Continuous playback. Paused off-screen so a scrolled-past panel costs nothing.
+  // Continuous playback. Paused off-screen so a scrolled-past figure costs nothing.
   useEffect(() => {
     if (!playing || !frames || !visible) return;
     const end = frames.length - 1;
@@ -186,87 +174,45 @@ export function DiffusionVisualizer() {
   const shownStep = Math.min(Math.floor(pos) + 1, total);
   const progress = total > 1 ? pos / (total - 1) : 0;
 
+  const readout = total
+    ? mode === "ascii" && asciiLines
+      ? `${asciiLines.masked}/${asciiLines.cells} masked · step ${shownStep}/${total}`
+      : `step ${String(shownStep).padStart(2, "0")}/${total}`
+    : copy.lab.diffusion.statusLoading;
+
   return (
-    // Section owns the id and scroll offset; this ref only drives the lazy load.
     <div ref={rootRef}>
-      <TerminalPanel
-        label={`${mode === "ascii" ? copy.lab.diffusion.labelAscii : copy.lab.diffusion.labelPixel} --digit ${digit}`}
-        status={
-          !booted
-            ? copy.lab.diffusion.statusBooting
-            : total
-              ? mode === "ascii" && asciiLines
-                ? `${asciiLines.masked}/${asciiLines.cells} masked · step ${shownStep}/${total}`
-                : `step ${String(shownStep).padStart(2, "0")}/${total}`
-              : copy.lab.diffusion.statusLoading
-        }
-        notice={
-          booted && isPlaceholder ? (
-            <>
-              <span className="text-indigo">{copy.lab.diffusion.notice.tag}</span>
-              {copy.lab.diffusion.notice.body}
-              <span className="text-muted">{copy.lab.diffusion.notice.path}</span>
-              {copy.lab.diffusion.notice.tail}
-            </>
-          ) : null
-        }
+      <p className="mb-6 max-w-2xl text-[15px] leading-relaxed text-mut">
+        {copy.lab.s1Intro}
+      </p>
+      <InstrumentFigure
+        n="S1"
+        id="diffusion"
+        caption={copy.lab.diffusion.figureCaption}
+        readout={readout}
       >
-        <BootLog
-          typed={boot.typed}
-          printed={boot.printed}
-          done={booted}
-          command={
-            <CommandLine
-              name={CMD_NAME}
-              // Order must match BOOT_CMD, or the line rewrites at the handover.
-              items={[
-                {
-                  kind: "param",
-                  flag: "--digit",
-                  value: Number(digit),
-                  min: 0,
-                  max: 9,
-                  step: 1,
-                  int: true,
-                  onCommit: (v) => pick(String(v)),
-                },
-                // Baked into the export, not knobs. See the ruling above.
-                { kind: "frozen", flag: "--steps", value: "32" },
-                { kind: "frozen", flag: "--schedule", value: "cosine" },
-              ]}
-              // NOT "edit any number": only --digit is live here, and the two
-              // beside it are baked into the export.
-              hint={copy.lab.diffusion.hint}
-              dirty={digit !== "7"}
-              onReset={() => pick("7")}
-            />
-          }
-        />
+        {/* Names the ACTIVE model — pixel is Gaussian (continuous), ascii is
+            absorbing-state (discrete). That distinction is the whole reason
+            this is one component with a toggle, not two panels. */}
+        <h2 className="mt-1 mb-2 text-[22px] font-semibold text-ink">
+          {mode === "ascii" ? copy.lab.diffusion.headingDiscrete : copy.lab.diffusion.headingContinuous}
+        </h2>
+        <p className="mb-5 max-w-2xl text-[15px] leading-relaxed text-mut">
+          {mode === "ascii" ? copy.lab.diffusion.ledeAscii : copy.lab.diffusion.ledePixel}
+        </p>
 
-        {!booted ? null : (
-          <>
-            {/* Names the ACTIVE model, which the teal anchor ("reverse process")
-                deliberately does not — the anchor says where you are, this says
-                what is running. It is also where the copy makes the distinction
-                the two models actually have: pixel is Gaussian (continuous),
-                ascii is absorbing-state (discrete). Never repeat the anchor. */}
-            <h2 className="mt-6 mb-2 text-2xl tracking-tight">
-              {mode === "ascii" ? copy.lab.diffusion.headingDiscrete : copy.lab.diffusion.headingContinuous}
-            </h2>
-            {mode === "ascii" ? (
-              <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
-                {copy.lab.diffusion.ledeAscii}
-              </p>
-            ) : (
-              <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
-                {copy.lab.diffusion.ledePixel}
-              </p>
-            )}
-          </>
-        )}
+        {isPlaceholder ? (
+          <div className="mb-4">
+            <Note tag={copy.lab.diffusion.notice.tag}>
+              {copy.lab.diffusion.notice.body}
+              {copy.lab.diffusion.notice.path}
+              {copy.lab.diffusion.notice.tail}
+            </Note>
+          </div>
+        ) : null}
 
-        <div className={`mb-4 flex flex-wrap items-center gap-2 ${booted ? "" : "hidden"}`}>
-          <span className="mr-1 font-mono text-xs text-faint">{copy.lab.diffusion.modelLabel}</span>
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <span className="mr-1 font-mono text-xs text-mut/60">{copy.lab.diffusion.modelLabel}</span>
           {(["pixel", "ascii"] as Mode[]).map((m) => {
             // ascii is gated on the file being present, not stubbed.
             const ready = m === "pixel" || ascii !== null;
@@ -281,12 +227,12 @@ export function DiffusionVisualizer() {
                 disabled={!ready}
                 aria-pressed={m === mode}
                 title={ready ? undefined : copy.lab.diffusion.asciiUnavailable}
-                className={`rounded border px-3 py-1.5 font-mono text-xs transition-colors ${
+                className={`border px-3 py-1.5 font-mono text-xs transition-colors ${
                   m === mode
-                    ? "border-indigo text-indigo"
+                    ? "border-link text-link"
                     : ready
-                      ? "border-line text-muted hover:border-faint hover:text-ink"
-                      : "cursor-not-allowed border-line/50 text-faint/40"
+                      ? "border-rule text-mut hover:border-mut hover:text-ink"
+                      : "cursor-not-allowed border-rule/50 text-mut/40"
                 }`}
               >
                 {m}
@@ -295,8 +241,10 @@ export function DiffusionVisualizer() {
           })}
         </div>
 
-        <div className={`mb-6 flex flex-wrap items-center gap-2 ${booted ? "" : "hidden"}`}>
-          <span className="mr-1 font-mono text-xs text-faint">{copy.lab.diffusion.digitLabel}</span>
+        <p className="mb-6 font-mono text-[11px] text-mut/60">{copy.lab.diffusion.frozenNote}</p>
+
+        <div className="mb-6 flex flex-wrap items-center gap-2">
+          <span className="mr-1 font-mono text-xs text-mut/60">{copy.lab.diffusion.digitLabel}</span>
           {DIGITS.map((d) => {
             const available =
               mode === "ascii" ? Boolean(ascii?.byDigit[d]) : !data || Boolean(data.byDigit[d]);
@@ -306,12 +254,12 @@ export function DiffusionVisualizer() {
                 onClick={() => pick(d)}
                 disabled={!available}
                 aria-pressed={d === digit}
-                className={`size-8 rounded border font-mono text-sm transition-colors ${
+                className={`size-8 border font-mono text-sm transition-colors ${
                   d === digit
-                    ? "border-teal text-teal"
+                    ? "border-ok text-ok"
                     : available
-                      ? "border-line text-muted hover:border-faint hover:text-ink"
-                      : "cursor-not-allowed border-line/50 text-faint/40"
+                      ? "border-rule text-mut hover:border-mut hover:text-ink"
+                      : "cursor-not-allowed border-rule/50 text-mut/40"
                 }`}
               >
                 {d}
@@ -322,7 +270,7 @@ export function DiffusionVisualizer() {
           <button
             onClick={() => setPlaying((p) => !p)}
             disabled={!frames}
-            className="ml-auto rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-faint hover:text-ink disabled:opacity-40"
+            className="ml-auto border border-rule px-3 py-1.5 font-mono text-xs text-mut transition-colors hover:border-mut hover:text-ink disabled:opacity-40"
           >
             {playing ? copy.lab.diffusion.pause : copy.lab.diffusion.play}
           </button>
@@ -332,22 +280,25 @@ export function DiffusionVisualizer() {
               setPlaying(true);
             }}
             disabled={!frames}
-            className="rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-faint hover:text-ink disabled:opacity-40"
+            className="border border-rule px-3 py-1.5 font-mono text-xs text-mut transition-colors hover:border-mut hover:text-ink disabled:opacity-40"
           >
             {copy.lab.diffusion.replay}
           </button>
         </div>
 
-        {!booted ? null : error ? (
-          <p className="py-16 text-center font-mono text-xs text-indigo">
-            {copy.lab.diffusion.errorPrefix}{error}
+        {error ? (
+          <p className="py-16 text-center font-mono text-xs text-red-ink">
+            {copy.lab.diffusion.errorPrefix}
+            {error}
           </p>
         ) : missing ? (
-          <p className="py-16 text-center font-mono text-xs text-faint">
-            {copy.lab.diffusion.missingPre}{digit}{copy.lab.diffusion.missingPost}
+          <p className="py-16 text-center font-mono text-xs text-mut/60">
+            {copy.lab.diffusion.missingPre}
+            {digit}
+            {copy.lab.diffusion.missingPost}
           </p>
         ) : !grids && !asciiLines ? (
-          <p className="py-16 text-center font-mono text-xs text-faint">
+          <p className="py-16 text-center font-mono text-xs text-mut/60">
             {copy.lab.diffusion.loadingTrajectories}
           </p>
         ) : (
@@ -370,8 +321,8 @@ export function DiffusionVisualizer() {
                   label={`Noisy state x_t at step ${shownStep} of ${total}`}
                 />
               )}
-              <figcaption className="text-center font-mono text-[11px] text-faint">
-                <span className="text-muted">{copy.lab.diffusion.xtLabel}</span> ·{" "}
+              <figcaption className="text-center font-mono text-[11px] text-mut/60">
+                <span className="text-mut">{copy.lab.diffusion.xtLabel}</span> ·{" "}
                 {mode === "ascii" ? copy.lab.diffusion.xtCommitted : copy.lab.diffusion.xtNoisy}
               </figcaption>
             </figure>
@@ -392,8 +343,8 @@ export function DiffusionVisualizer() {
                   label={`Predicted clean image x-hat-0 at step ${shownStep} of ${total}`}
                 />
               )}
-              <figcaption className="text-center font-mono text-[11px] text-faint">
-                <span className="text-teal">{copy.lab.diffusion.x0Label}</span> ·{" "}
+              <figcaption className="text-center font-mono text-[11px] text-mut/60">
+                <span className="text-ok">{copy.lab.diffusion.x0Label}</span> ·{" "}
                 {mode === "ascii" ? copy.lab.diffusion.x0Guess : copy.lab.diffusion.x0Predicted}
               </figcaption>
             </figure>
@@ -401,19 +352,16 @@ export function DiffusionVisualizer() {
         )}
 
         <div
-          className={`mt-6 h-px w-full bg-line ${booted ? "" : "hidden"}`}
+          className="mt-6 h-px w-full bg-rule"
           role="progressbar"
           aria-valuemin={0}
           aria-valuemax={total || 1}
           aria-valuenow={shownStep}
           aria-label={copy.lab.diffusion.progressAria}
         >
-          <div
-            className="h-px bg-teal"
-            style={{ width: `${progress * 100}%` }}
-          />
+          <div className="h-px bg-ok" style={{ width: `${progress * 100}%` }} />
         </div>
-      </TerminalPanel>
+      </InstrumentFigure>
     </div>
   );
 }

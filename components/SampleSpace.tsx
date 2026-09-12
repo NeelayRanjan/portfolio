@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { TerminalPanel } from "./TerminalPanel";
-import { BootLog, useBootSequence } from "./ambience/BootLog";
-import { CommandLine } from "./ambience/CommandLine";
+import { InstrumentFigure } from "./manuscript/InstrumentFigure";
+import { Note } from "./manuscript/Row";
 import {
   DDPM_STEPS,
   DEFAULT_TARGET,
@@ -19,23 +18,15 @@ import {
 } from "@/lib/sample-space";
 import { copy } from "@/content/copy";
 
-const CMD_NAME = copy.lab.sampleSpace.cmd;
 /**
- * `--target` is genuinely live; `--compare` is not.
+ * `--target` is genuinely live; `--compare` never was.
  *
- * The ruling for this panel is "may change the animation, must not imply weights
- * re-ran". Swapping the manifold is exactly that: it's hand-drawn 2D geometry, so
- * there is nothing to re-train and nothing to fake — the panel stays as real (and
- * as illustrative) as it was. `--compare ddpm,flow` is frozen because both fields
- * are the entire comparison; there is no third field to switch to.
+ * The ruling for this figure is "may change the animation, must not imply
+ * weights re-ran". Swapping the manifold is exactly that: it's hand-drawn 2D
+ * geometry, so there is nothing to re-train and nothing to fake — the figure
+ * stays as real (and as illustrative) as it was. `ddpm,flow` is frozen because
+ * both panels ARE the entire comparison; there is no third field to switch to.
  */
-const BOOT_CMD = `${CMD_NAME} --target ${DEFAULT_TARGET} --compare ddpm,flow`;
-const BOOT_LINES = [
-  copy.lab.sampleSpace.bootTop,
-  // Interpolates the step-count constants, so it's a template, not static copy.
-  `ddpm: ${DDPM_STEPS} stochastic steps · flow: ${FLOW_STEPS} deterministic steps`,
-  copy.lab.sampleSpace.bootBottom,
-];
 
 /** How long a trajectory takes to draw, and how long it lingers before fading. */
 const DRAW_MS = 1500;
@@ -56,8 +47,8 @@ type Trail = {
 export type PanelHandle = { spawn: (start: Vec) => void };
 
 const TINT: Record<Kind, string> = {
-  ddpm: "143, 136, 221", // indigo — stochastic
-  flow: "93, 202, 165", // teal — deterministic
+  ddpm: "123, 167, 220", // --color-link — stochastic
+  flow: "99, 198, 140", // --color-ok — deterministic
 };
 
 function SamplePanel({
@@ -117,12 +108,11 @@ function SamplePanel({
     };
 
     const drawManifold = () => {
-      ctx.fillStyle = "#080a12";
+      ctx.fillStyle = "#0c0b09"; // --color-desk
       ctx.fillRect(0, 0, w, h);
-      // The target-distribution backdrop. Was 0.28 muted grey and washed out in
-      // bright light; lighter and more opaque so it reads as a cloud without
-      // competing with the accent-coloured trails on top.
-      ctx.fillStyle = "rgba(148, 156, 183, 0.5)";
+      // The target-distribution backdrop: light and opaque enough to read as a
+      // cloud without competing with the accent-coloured trails on top.
+      ctx.fillStyle = "rgba(154, 148, 138, 0.5)"; // --color-mut
       for (const p of manifoldRef.current) {
         ctx.fillRect(p.x * w - 0.7, p.y * h - 0.7, 1.4, 1.4);
       }
@@ -226,7 +216,7 @@ function SamplePanel({
         const r = e.currentTarget.getBoundingClientRect();
         onPick({ x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height });
       }}
-      className="block aspect-[4/3] w-full cursor-crosshair rounded border border-line"
+      className="block aspect-[4/3] w-full cursor-crosshair border border-rule"
       aria-hidden="true"
     />
   );
@@ -236,8 +226,6 @@ export function SampleSpace() {
   const ddpmRef = useRef<PanelHandle | null>(null);
   const flowRef = useRef<PanelHandle | null>(null);
   const [target, setTarget] = useState<TargetId>(DEFAULT_TARGET);
-  const boot = useBootSequence(BOOT_CMD, BOOT_LINES);
-  const booted = boot.done;
   const shape = TARGETS.find((t) => t.id === target) ?? TARGETS[0];
 
   // One start feeds both panels — that shared origin is the whole comparison.
@@ -246,91 +234,94 @@ export function SampleSpace() {
     flowRef.current?.spawn(start);
   }, []);
 
+  // The component itself is mounted on scroll-in by DeferredMount (app/lab),
+  // so this runs the moment the figure exists — no boot gate to wait on.
   useEffect(() => {
-    if (!booted) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     spawn(sampleStart(Math.random));
     const id = setInterval(() => spawn(sampleStart(Math.random)), SPAWN_EVERY_MS);
     return () => clearInterval(id);
-  }, [booted, spawn]);
+  }, [spawn]);
 
   return (
-    <div ref={boot.ref}>
-      <TerminalPanel
-        label={copy.lab.sampleSpace.label}
-        status={booted ? copy.lab.sampleSpace.statusIllustrative : copy.lab.sampleSpace.statusBooting}
-        notice={
-          booted ? (
-            <>
-              <span className="text-indigo">{copy.lab.sampleSpace.noticeTag}</span>
-              {copy.lab.sampleSpace.noticeBody}
-            </>
-          ) : null
-        }
+    <>
+      <p className="mb-6 max-w-2xl text-[15px] leading-relaxed text-mut">
+        {copy.lab.s3Intro}
+      </p>
+      <InstrumentFigure
+        n="S3"
+        id="sample-space"
+        caption={copy.lab.sampleSpace.figureCaption}
+        readout={copy.lab.sampleSpace.statusIllustrative}
       >
-        <BootLog
-          typed={boot.typed}
-          printed={boot.printed}
-          done={booted}
-          command={
-            <CommandLine
-              name={CMD_NAME}
-              hint={copy.lab.sampleSpace.hint}
-              dirty={target !== DEFAULT_TARGET}
-              onReset={() => setTarget(DEFAULT_TARGET)}
-              // Order must match BOOT_CMD.
-              items={[
-                {
-                  kind: "choice",
-                  flag: "--target",
-                  value: target,
-                  options: TARGETS.map((t) => ({ value: t.id, label: t.label })),
-                  onCommit: (v) => setTarget(v as TargetId),
-                },
-                // Both fields ARE the comparison; there's no third to switch to.
-                { kind: "frozen", flag: "--compare", value: "ddpm,flow" },
-              ]}
-            />
-          }
-        />
+      <h2 className="mt-1 mb-2 text-[22px] font-semibold text-ink">
+        {copy.lab.sampleSpace.heading}
+      </h2>
+      <p className="mb-4 max-w-2xl text-[15px] leading-relaxed text-mut">
+        {copy.lab.sampleSpace.lede.pre}
+        <span className="text-ink">{copy.lab.sampleSpace.lede.target}</span>
+        {copy.lab.sampleSpace.lede.post}
+      </p>
 
-        {!booted ? null : (
-          <>
-            <h2 className="mt-6 mb-2 text-2xl tracking-tight">{copy.lab.sampleSpace.heading}</h2>
-            <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
-              {copy.lab.sampleSpace.lede.pre}
-              <span className="text-ink">{copy.lab.sampleSpace.lede.target}</span>
-              {copy.lab.sampleSpace.lede.post}
-            </p>
+      <div className="mb-6 max-w-2xl">
+        <Note tag={copy.lab.sampleSpace.noticeTag}>{copy.lab.sampleSpace.noticeBody}</Note>
+      </div>
 
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <figure>
-                <SamplePanel kind="ddpm" target={target} handleRef={ddpmRef} onPick={spawn} />
-                <figcaption className="mt-4 font-mono text-[11px] text-faint">
-                  <span className="text-indigo">{copy.lab.sampleSpace.ddpmLabel}</span>
-                  {copy.lab.sampleSpace.ddpmCaptionPre}
-                  {DDPM_STEPS}
-                  {copy.lab.sampleSpace.ddpmCaptionPost}
-                </figcaption>
-              </figure>
+      {/*
+       * The target manifold, as a labeled segmented control — same state, same
+       * behaviour as the boot command's `--target` select it replaces: picking a
+       * new shape clears every live trail (see the effect above) and it's still
+       * hand-drawn 2D geometry, so switching it never implies a model re-ran.
+       */}
+      <div className="mb-6 flex flex-col gap-1 font-mono text-[11px]">
+        <span aria-hidden="true" className="text-mut">
+          {copy.lab.sampleSpace.targetLabel}
+        </span>
+        <div className="flex flex-wrap" role="group" aria-label={copy.lab.sampleSpace.targetLabel}>
+          {TARGETS.map((t, i) => (
+            <button
+              key={t.id}
+              onClick={() => setTarget(t.id)}
+              aria-pressed={t.id === target}
+              className={`border px-2.5 py-1 transition-colors ${i > 0 ? "-ml-px" : ""} ${
+                t.id === target
+                  ? "relative border-ok text-ok"
+                  : "border-rule text-mut hover:border-mut hover:text-ink"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-              <figure>
-                <SamplePanel kind="flow" target={target} handleRef={flowRef} onPick={spawn} />
-                <figcaption className="mt-4 font-mono text-[11px] text-faint">
-                  <span className="text-teal">{copy.lab.sampleSpace.flowLabel}</span>
-                  {copy.lab.sampleSpace.flowCaptionPre}
-                  {FLOW_STEPS}
-                  {copy.lab.sampleSpace.flowCaptionPost}
-                </figcaption>
-              </figure>
-            </div>
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <figure>
+          <SamplePanel kind="ddpm" target={target} handleRef={ddpmRef} onPick={spawn} />
+          <figcaption className="mt-4 font-mono text-[11px] text-mut/60">
+            <span className="text-link">{copy.lab.sampleSpace.ddpmLabel}</span>
+            {copy.lab.sampleSpace.ddpmCaptionPre}
+            {DDPM_STEPS}
+            {copy.lab.sampleSpace.ddpmCaptionPost}
+          </figcaption>
+        </figure>
 
-            <p className="mt-4 font-mono text-[11px] text-faint">
-              {copy.lab.sampleSpace.targetCaptionPre}{shape.blurb}
-            </p>
-          </>
-        )}
-      </TerminalPanel>
-    </div>
+        <figure>
+          <SamplePanel kind="flow" target={target} handleRef={flowRef} onPick={spawn} />
+          <figcaption className="mt-4 font-mono text-[11px] text-mut/60">
+            <span className="text-ok">{copy.lab.sampleSpace.flowLabel}</span>
+            {copy.lab.sampleSpace.flowCaptionPre}
+            {FLOW_STEPS}
+            {copy.lab.sampleSpace.flowCaptionPost}
+          </figcaption>
+        </figure>
+      </div>
+
+      <p className="mt-4 font-mono text-[11px] text-mut/60">
+        {copy.lab.sampleSpace.targetCaptionPre}
+        {shape.blurb}
+      </p>
+      </InstrumentFigure>
+    </>
   );
 }

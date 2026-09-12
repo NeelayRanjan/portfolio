@@ -499,6 +499,8 @@ export const copy = {
 
   /** /lab — "Supplementary material": the three demos that left page 1. */
   lab: {
+    /** Above the heading, a link back to the main page. */
+    backLink: "← back to the paper",
     heading: "Supplementary material",
     intro:
       "Three panels that used to sit on page one. Two run real trained models in your browser; the third is a hand-built illustration of a different sampling method, labeled as such.",
@@ -523,6 +525,12 @@ export const copy = {
       labelAscii: "discrete-diffusion",
       statusBooting: "booting",
       statusLoading: "loading",
+      /** New for the manuscript chrome (Task 11): v1's panel had no caption. */
+      figureCaption:
+        "Two trained diffusion models on the same ten digits: a 6.47M-parameter pixel model that denoises from static, and a 1.28M-parameter model that unmasks ascii cells one at a time and never revises one once committed. Only the digit is a live control here; the step count and schedule are properties of the export.",
+      /** Sits next to the frozen steps/schedule, which render as plain text
+       *  rather than a control. See the ⚠️ comment above BOOT_CMD. */
+      frozenNote: "Baked into the export: only the digit is live.",
       notice: {
         tag: "placeholder data",
         body: ". These frames are synthetic, not output from a trained model: a bitmap digit run through a hand-rolled noising schedule, played backwards. Real trajectories drop into ",
@@ -605,6 +613,9 @@ export const copy = {
       ariaSetQuery: ". Set as query.",
       ariaQueryPre: "query image, class ",
       errorPrefix: "could not load the representation bundle: ",
+      /** New for the manuscript chrome (Task 11): v1's panel had no caption. */
+      figureCaption:
+        "Two vision encoders' answers to the same query image, drawn straight from the export: no model runs in your browser here. Click any thumbnail, including a result, to make it the new query.",
     },
 
     /** Figure S3 — sample-space DDPM vs flow matching (illustrative).
@@ -621,11 +632,17 @@ export const copy = {
       statusIllustrative: "illustrative",
       noticeTag: "illustrative",
       noticeBody:
-        ". Hand-drawn fields on a 2D toy distribution. No model weights are loaded or run here.",
+        "Hand-drawn fields on a 2D toy distribution. No model weights are loaded or run here.",
       heading: "Stochastic vs deterministic",
+      /** New for the manuscript chrome (Task 11): v1's panel had no caption. */
+      figureCaption:
+        "A hand-built illustration, not a trained model: the same start and target run through a stochastic 40-step path and a deterministic 9-step path. Switch the target shape or click a panel to launch a new trajectory.",
+      /** Label over the target segmented control, replacing the boot
+       *  command's `--target` select. */
+      targetLabel: "target",
       lede: {
         pre: "The same target, the same starting point, two ways of getting there. Click either panel to launch a trajectory from that point. Both panels run the same start, so the routes are directly comparable. Switch ",
-        target: "--target",
+        target: "target",
         post: " above to run the same comparison over a different shape: the spiral makes the step-count gap easiest to see, because the routes are long enough to watch.",
       },
       ddpmLabel: "DDPM",

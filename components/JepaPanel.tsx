@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Section } from "./Section";
-import { TerminalPanel } from "./TerminalPanel";
-import { BootLog, useBootSequence } from "./ambience/BootLog";
+import { InstrumentFigure } from "./manuscript/InstrumentFigure";
+import { Note } from "./manuscript/Row";
 import {
   loadJepaManifest,
   loadJepaSprites,
@@ -20,9 +19,7 @@ const C = copy.lab.jepa;
  * MAE vs I-JEPA: what two encoders retrieve for the same query.
  *
  * NOTHING RUNS HERE. Both encoders were pretrained offline; this renders their
- * exported neighbours and probe numbers. That is why the boot log says
- * "resolving manifest" rather than "loading weights", and why there is no
- * editable param in the command line: see the ruling below.
+ * exported neighbours and probe numbers.
  *
  * ⚠️ THERE WAS A SECOND TAB, "embeddings", AND IT IS GONE ON PURPOSE. It drew the
  * two UMAP fits as canvas scatters with a class highlighter. Don't rebuild it
@@ -34,22 +31,18 @@ const C = copy.lab.jepa;
  * separate-fits honesty note comes back with it.
  *
  * ⚠️ NEITHER ENCODER IS COLOUR-CODED, AND THAT IS DELIBERATE. The obvious move is
- * MAE indigo / I-JEPA teal, the way §3 tints DDPM and flow. It cannot work here:
- * indigo already carries the load-bearing signal in this section, which is "this
- * neighbour's class differs from the query's". Tinting the MAE row indigo would
- * put the section's one meaningful colour on the row where it fires most often,
- * and the marking would read as branding instead of a result. Encoders are told
- * apart by their labels; colour is reserved for what the data says.
+ * MAE / I-JEPA in the two accent colours. It cannot work here: red is already
+ * this figure's one load-bearing signal ("this neighbour's class differs from the
+ * query's"). Tinting one encoder's whole block would put a second colour claim on
+ * the block that fails most often, and it would read as branding rather than a
+ * result. Encoders are told apart by their labels; colour is reserved for what
+ * the data says. (The numeric metrics further down get the same equal
+ * treatment for the same reason — both encoders' numbers are plain ink.)
  *
- * `--compare mae,ijepa` and `--dataset stl10` are both FROZEN, so this panel
- * passes no `command` to BootLog and the typed line simply stands. Per the
- * editable-param rule: the bundle holds exactly one dataset and exactly two
- * encoders, so neither flag has a second value to take. The query IS live, but
- * its control is clicking a thumbnail, which is a better control than a box that
- * accepts 0..4095.
+ * The query IS live, but its control is clicking a thumbnail, not a text box —
+ * `--compare mae,ijepa` and `--dataset stl10` were always frozen, since the
+ * bundle holds exactly one dataset and exactly two encoders.
  */
-const BOOT_CMD = `${C.cmd} --compare mae,ijepa --dataset stl10`;
-const BOOT_LINES = [...C.bootLines];
 
 const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
 
@@ -85,13 +78,9 @@ function Thumb({
 }) {
   const style = spriteCell(m, index);
   /**
-   * ⚠️ RED IS THE THIRD ACCENT AND IT IS DELIBERATE (`--color-miss`, globals.css).
-   * It overrides the site's two-accent rule for exactly this: a neighbour whose
-   * class differs from the query's. Indigo held this job first and could not do
-   * it — indigo already means inert x̂₀, DDPM, a hint overlay and the CharField,
-   * never anything negative, so it read as a highlight on the row that was
-   * failing. Don't quietly put it back on palette grounds; read the Aesthetic
-   * section of CLAUDE.md, which now records the exception and its scope.
+   * ⚠️ RED IS THE SITE'S ONE RESERVED THIRD COLOUR AND IT IS DELIBERATE
+   * (`--color-red-ink`). It means exactly one thing on this page: a neighbour
+   * whose class differs from the query's.
    *
    * ⚠️ AN OUTLINE, NOT AN OPACITY VEIL. Dimming wrong-class neighbours was tried
    * and reverted: a 0/8 block is eight dimmed photos, and the whole finding lives
@@ -108,8 +97,8 @@ function Thumb({
    * survives in the caption, which is what keeps the mark legible to anyone who
    * cannot separate the hues.
    */
-  const border = differs ? "border-miss" : "border-line";
-  const box = `block w-full overflow-hidden rounded border-2 ${border} ${className}`;
+  const border = differs ? "border-red-ink" : "border-rule";
+  const box = `block w-full overflow-hidden border-2 ${border} ${className}`;
   const inner = <span aria-hidden="true" className="block aspect-square w-full" style={style} />;
 
   if (!onPick) {
@@ -126,14 +115,14 @@ function Thumb({
       aria-label={ariaLabel}
       /**
        * ⚠️ HOVER IS A RING, NOT A BORDER COLOUR, and this was a real bug caught in
-       * the browser. It used to be `hover:border-teal`, which OVERRODE
-       * `border-miss` — so pointing at a failed neighbour turned it teal and made
-       * it look like a hit, on the one control whose entire job is saying it
-       * missed. The border carries data here, so it can't also carry pointer
-       * feedback. A ring is a box-shadow: it sits outside the border, costs no
-       * layout, and leaves the state colour alone.
+       * the browser. It used to override the border colour directly, which turned
+       * a failed neighbour's border ok on hover and made it look like a hit, on
+       * the one control whose entire job is saying it missed. The border carries
+       * data here, so it can't also carry pointer feedback. A ring is a
+       * box-shadow: it sits outside the border, costs no layout, and leaves the
+       * state colour alone.
        */
-      className={`${box} transition-shadow hover:ring-2 hover:ring-teal`}
+      className={`${box} transition-shadow hover:ring-2 hover:ring-ok`}
     >
       {inner}
     </button>
@@ -178,9 +167,9 @@ function NeighborBlock({
     <div>
       <div className="mb-2 flex flex-wrap items-baseline gap-x-2 font-mono text-[11px]">
         <span className="text-ink">{name}</span>
-        <span className="text-faint">{target}</span>
+        <span className="text-mut/60">{target}</span>
         {/* The readout the whole block exists to produce. */}
-        <span className="ml-auto text-muted">
+        <span className="ml-auto text-mut">
           {hits}/{m.k}
           {C.samePost}
         </span>
@@ -199,14 +188,14 @@ function NeighborBlock({
                 index={j}
                 onPick={onPick}
                 differs={differs}
-                // ⚠️ The indigo outline is NOT the only carrier of "wrong class".
+                // ⚠️ The red outline is NOT the only carrier of "wrong class".
                 // Same rule as the draw panel's fit tint: colour alone puts the
                 // finding behind seeing it.
                 ariaLabel={`${m.classes[m.labels[j]]}${differs ? C.ariaDiffers : C.ariaSame}${C.ariaSetQuery}`}
               />
               <figcaption
                 className={`mt-1 truncate font-mono text-[10px] ${
-                  differs ? "text-miss" : "text-muted"
+                  differs ? "text-red-ink" : "text-mut"
                 }`}
               >
                 {/* The cross, so the mismatch survives being read as text and not
@@ -252,7 +241,7 @@ function Retrieval({
           />
         </div>
         <figcaption className="mt-2 font-mono text-[11px]">
-          <span className="text-faint">{C.queryLabel}</span>{" "}
+          <span className="text-mut/60">{C.queryLabel}</span>{" "}
           <span className="text-ink">{m.classes[m.labels[query]]}</span>
         </figcaption>
       </figure>
@@ -264,11 +253,11 @@ function Retrieval({
           neighbour and the two would compete. */}
       <div className="mx-auto mt-8 max-w-2xl">
         <div className="mb-2 flex items-baseline gap-2 font-mono text-[11px]">
-          <span className="text-faint">{C.presetsLabel}</span>
+          <span className="text-mut/60">{C.presetsLabel}</span>
           <button
             type="button"
             onClick={random}
-            className="ml-auto rounded border border-line px-3 py-1.5 font-mono text-xs text-muted transition-colors hover:border-faint hover:text-ink"
+            className="ml-auto border border-rule px-3 py-1.5 font-mono text-xs text-mut transition-colors hover:border-mut hover:text-ink"
           >
             {C.random}
           </button>
@@ -280,12 +269,12 @@ function Retrieval({
               m={m}
               index={i}
               onPick={onPick}
-              className={i === query ? "!border-teal" : ""}
+              className={i === query ? "!border-ok" : ""}
               ariaLabel={`${m.classes[m.labels[i]]}${C.ariaSetQuery}`}
             />
           ))}
         </div>
-        <p className="mt-2 font-mono text-[10px] text-faint">{C.queryCaption}</p>
+        <p className="mt-2 font-mono text-[10px] text-mut/60">{C.queryCaption}</p>
       </div>
 
       {/* The two answers, adjacent. See NeighborBlock for why this is not two
@@ -310,65 +299,62 @@ function Retrieval({
       </div>
 
       {m.meanPurity ? (
-        <p className="mt-6 font-mono text-[11px] text-faint">
+        <p className="mt-6 font-mono text-[11px] text-mut/60">
           {C.meanPurityPre}
           {m.n.toLocaleString("en-US")}
           {C.meanPurityMid}
-          <span className="text-muted">{pct(m.meanPurity.mae)}</span>
+          {/* Equal treatment for both numbers — see the file header on why
+              neither encoder gets its own accent colour. */}
+          <span className="text-ink">{pct(m.meanPurity.mae)}</span>
           {C.meanPurityMid2}
-          <span className="text-teal">{pct(m.meanPurity.jepa)}</span>
+          <span className="text-ink">{pct(m.meanPurity.jepa)}</span>
           {C.meanPurityPost}
         </p>
       ) : null}
 
-      {/* 🔒 HONESTY NOTE. Sits with the blocks it qualifies.
-          There were two. The other one said the two UMAP maps were separate fits,
-          and it went when the scatter tab did — a caveat about panels that are no
-          longer on the page is noise. ⚠️ It has to come back with the tab.
-          `max-w-xl` and NOT the sans measure: this is mono, where `ch` really is
-          one character, so the locked `max-w-[54ch]` rule (which over-counts by
-          ~30% in proportional type and is written for sans prose) does not apply.
-          Chess's mono notes cap at max-w-sm for the same reason. */}
-      <p className="mt-2 max-w-xl font-mono text-[11px] leading-relaxed text-faint">
-        {C.neighborNotePre}
-        {m.k}
-        {C.neighborNotePost}
-      </p>
+      {/* 🔒 HONESTY NOTE. There were two. The other one said the two UMAP maps
+          were separate fits, and it went when the scatter tab did — a caveat
+          about panels that are no longer on the page is noise. ⚠️ It has to come
+          back with the tab. */}
+      <div className="mt-4 max-w-xl">
+        <Note tag="note">
+          {C.neighborNotePre}
+          {m.k}
+          {C.neighborNotePost}
+        </Note>
+      </div>
     </div>
   );
 }
 
-/* ---- the section --------------------------------------------------------- */
+/* ---- the figure ------------------------------------------------------------ */
 
 export function JepaSection() {
-  const boot = useBootSequence(BOOT_CMD, BOOT_LINES);
-  const booted = boot.done;
   const [m, setM] = useState<JepaManifest | null>(null);
-  /** True once we know an artifact is missing. Drops the whole section. */
+  /** True once we know an artifact is missing. Drops the whole figure. */
   const [gated, setGated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState<number | null>(null);
 
   /**
-   * Lazy, and gated on the boot the way every other panel is. ~4.1 MB sits
-   * behind this (a 483 KB manifest and a 3.6 MB atlas), so it must not be in
-   * flight during first paint. The IntersectionObserver in useBootSequence is
-   * what defers it; the boot lines are what fill the wait.
+   * Lazy, and this component is mounted on scroll-in by `DeferredMount` (app/lab),
+   * so a plain mount-only effect is the deferral — no boot gate needed here.
+   * ~4.1 MB sits behind this (a 483 KB manifest and a 3.6 MB atlas), so it must
+   * not be in flight before the figure is reached.
    *
    * Deliberately NOT added to lib/warm.ts's preload window. That window is spent
    * on onnxruntime-web, which two demos share and which costs 24 MB; adding 4 MB
-   * of atlas to the same idle callback would compete with it for a section
-   * several screens further down.
+   * of atlas to the same idle callback would compete with it for a figure several
+   * screens further down.
    */
   useEffect(() => {
-    if (!booted) return;
     let alive = true;
     loadJepaManifest()
       .then(async (manifest) => {
         if (!alive) return;
         if (!manifest) return setGated(true);
         // The atlas gates too: neighbour rows of empty squares would be a worse
-        // lie than no section, since the demo IS the pictures.
+        // lie than no figure, since the demo IS the pictures.
         const img = await loadJepaSprites(manifest.spriteUrl);
         if (!alive) return;
         if (!img) return setGated(true);
@@ -379,79 +365,70 @@ export function JepaSection() {
     return () => {
       alive = false;
     };
-  }, [booted]);
+  }, []);
 
   const pick = useCallback((i: number) => setQuery(i), []);
 
-  // Artifacts absent: no section at all, no anchor, no placeholder. This is why
-  // the component owns its own <Section> instead of page.tsx wrapping it —
-  // otherwise the teal scroll marker would survive its own panel.
+  // Artifacts absent: no figure at all, no heading, no placeholder. This is why
+  // the component returns null around its own InstrumentFigure instead of
+  // page.tsx wrapping one — otherwise the heading would survive its own panel.
   if (gated) return null;
 
   const ready = m !== null && query !== null;
 
   return (
-    <Section id="jepa" label={copy.anchors.jepa}>
-      <div ref={boot.ref}>
-        <TerminalPanel
-          // `--query N` follows live state, the way §2's title bar carries
-          // `--digit N`. It replaced `--view confusions`, which named a toggle
-          // that no longer exists and so said nothing.
-          label={ready ? `${C.label} --query ${query}` : C.label}
-          status={
-            !booted
-              ? C.statusBooting
-              : ready
-                ? `${m.n.toLocaleString("en-US")} images · ${m.dataset} ${m.split}`
-                : C.statusLoading
-          }
-        >
-          <BootLog typed={boot.typed} printed={boot.printed} done={booted} />
+    <>
+      <p className="mb-6 max-w-2xl text-[15px] leading-relaxed text-mut">
+        {copy.lab.s2Intro}
+      </p>
+      <InstrumentFigure
+        n="S2"
+      id="jepa"
+      caption={C.figureCaption}
+      readout={ready ? `${m.n.toLocaleString("en-US")} images · ${m.dataset} ${m.split}` : C.statusLoading}
+    >
+      <h2 className="mt-1 mb-2 text-[22px] font-semibold text-ink">{C.heading}</h2>
+      {/* Sans prose, the site's explanatory register: this paragraph explains,
+          so it is serif; every label, readout and caveat below is the machine
+          talking, so it stays mono. */}
+      <p className="mb-4 max-w-2xl text-[15px] leading-relaxed text-mut">{C.lede.a}</p>
+      {/* Paragraph two, assembled from three pieces: `b` opens it, the
+          manifest's numbers land mid-sentence. It's gated on `m` because the
+          numbers are: during the short load there is nothing on screen for it
+          to qualify. */}
+      {m ? (
+        <>
+          <p className="mb-6 max-w-2xl text-[15px] leading-relaxed text-mut">
+            {C.lede.b}
+            {C.lede.cPre}
+            <span className="text-ink">{pct(m.metrics.mae.linear_probe)}</span>
+            {C.lede.cMid1}
+            <span className="text-ink">{pct(m.metrics.jepa.linear_probe)}</span>
+            {C.lede.cMid2}
+            <span className="text-ink">{pct(m.metrics.mae.knn)}</span>
+            {C.lede.cMid3}
+            <span className="text-ink">{pct(m.metrics.jepa.knn)}</span>
+            {C.lede.cPost}
+          </p>
+          {/* `scope` bounds a claim, so it must not appear before the claim
+              does — gated on `m` along with the numbers above it. */}
+          <div className="mb-6 max-w-2xl">
+            <Note tag="scope">{C.scope}</Note>
+          </div>
+        </>
+      ) : null}
 
-          {!booted ? null : (
-            <>
-              <h2 className="mt-6 mb-2 text-2xl tracking-tight">{C.heading}</h2>
-              {/* Sans prose, capped at the site's measure. The mono/sans split is
-                  locked: this paragraph explains, so it is sans; every label,
-                  readout and caveat below is the machine talking, so it is mono. */}
-              <p className="mb-4 max-w-[54ch] leading-relaxed text-muted">{C.lede.a}</p>
-              {/* Paragraph two, assembled from three pieces: `b` opens it, the
-                  manifest's numbers land mid-sentence, and `scope` closes it.
-                  The whole thing is gated on `m` because the numbers are, and
-                  that is the right coupling — `scope` bounds a claim, so it must
-                  not appear before the claim does. During the short load there
-                  is no metrics line and no retrieval grid either, so there is
-                  nothing on screen for it to qualify. */}
-              {m ? (
-                <p className="mb-8 max-w-[54ch] leading-relaxed text-muted">
-                  {C.lede.b}
-                  {C.lede.cPre}
-                  <span className="text-ink">{pct(m.metrics.mae.linear_probe)}</span>
-                  {C.lede.cMid1}
-                  <span className="text-ink">{pct(m.metrics.jepa.linear_probe)}</span>
-                  {C.lede.cMid2}
-                  <span className="text-ink">{pct(m.metrics.mae.knn)}</span>
-                  {C.lede.cMid3}
-                  <span className="text-ink">{pct(m.metrics.jepa.knn)}</span>
-                  {C.lede.cPost}
-                  {C.scope}
-                </p>
-              ) : null}
-            </>
-          )}
-
-          {!booted ? null : error ? (
-            <p className="py-16 text-center font-mono text-xs text-indigo">
-              {C.errorPrefix}
-              {error}
-            </p>
-          ) : !ready ? (
-            <p className="py-16 text-center font-mono text-xs text-faint">{C.statusLoading}</p>
-          ) : (
-            <Retrieval m={m} query={query} onPick={pick} />
-          )}
-        </TerminalPanel>
-      </div>
-    </Section>
+      {error ? (
+        <p className="py-16 text-center font-mono text-xs text-red-ink">
+          {C.errorPrefix}
+          {error}
+        </p>
+      ) : !ready ? (
+        <p className="py-16 text-center font-mono text-xs text-mut/60">{C.statusLoading}</p>
+      ) : (
+        <Retrieval m={m} query={query} onPick={pick} />
+      )}
+      </InstrumentFigure>
+    </>
   );
 }

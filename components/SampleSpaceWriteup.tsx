@@ -30,7 +30,7 @@ function inline(text: string, keyBase: string): ReactNode[] {
       );
     } else {
       out.push(
-        <em key={`${keyBase}-i${i}`} className="text-muted italic">
+        <em key={`${keyBase}-i${i}`} className="text-mut italic">
           {token.slice(1, -1)}
         </em>,
       );
@@ -51,9 +51,9 @@ export function SampleSpaceWriteup() {
     .filter(Boolean);
 
   return (
-    <div className="mt-12 max-w-[54ch] border-l border-line pl-6">
+    <div className="mt-8 max-w-2xl border-l border-rule pl-6">
       {paragraphs.map((p, i) => (
-        <p key={i} className="mb-4 leading-relaxed text-muted last:mb-0">
+        <p key={i} className="mb-4 text-[15px] leading-relaxed text-mut last:mb-0">
           {inline(p, `p${i}`)}
         </p>
       ))}

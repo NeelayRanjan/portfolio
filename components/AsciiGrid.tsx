@@ -2,11 +2,17 @@
    0.5590em, not v1 Geist Mono's 0.600em — so the 0.6 + letterSpacing line-height
    identity this file's AsciiLines comment describes does not hold for it. ASCII
    grids keep a dedicated mono rather than adopting --font-serif/--font-mono's
-   Spline Sans Mono in Task 11; AsciiLines' metrics stay as measured for the old
-   font and must be re-derived (not just reused) if a mono is ever swapped in here. */
+   Spline Sans Mono.
+   RESOLVED (Task 11): `lib/grid-font.ts` loads Geist Mono via next/font/google,
+   scoped to AsciiLines' rows only (its `className`, applied below, not the
+   site's `font-mono` utility) — not a new dependency, next bundles the font.
+   AsciiLines' metrics (lineHeight 0.68 = 0.6 advance + 0.08em letterSpacing)
+   stay exactly as measured for Geist Mono, because that is the font rendering
+   them again. Swap the grid font and re-derive lineHeight, don't just reuse it. */
 "use client";
 
 import { useMemo } from "react";
+import { gridMono } from "@/lib/grid-font";
 
 /** Intensity ramp, darkest -> brightest. Index = round(v * (len - 1)). */
 export const RAMP = " .:-=+*#%@";
@@ -27,8 +33,10 @@ export type AsciiGridProps = {
 
 const TINTS: Record<NonNullable<AsciiGridProps["tint"]>, string> = {
   ink: "var(--color-ink)",
-  indigo: "var(--color-indigo)",
-  teal: "var(--color-teal)",
+  // The v1 tokens these named are gone; remapped to the manuscript palette by
+  // role rather than renamed, since callers still pass "indigo"/"teal".
+  indigo: "var(--color-link)",
+  teal: "var(--color-ok)",
 };
 
 /**
@@ -112,7 +120,10 @@ export function AsciiLines({
 }: AsciiLinesProps) {
   return (
     <div
-      className={`select-none font-mono ${className}`}
+      // gridMono.className, not the `font-mono` utility: the grids need Geist
+      // Mono's measured metrics, not the site's Spline Sans Mono. See the
+      // comment at the top of this file.
+      className={`select-none ${gridMono.className} ${className}`}
       style={{
         fontSize: `${Math.max(11, fontSize)}px`,
         lineHeight,

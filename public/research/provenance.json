@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-13T07:02:43.486Z",
+  "generatedAt": "2026-09-13T07:23:08.973Z",
   "generator": "scripts/prepare-research.mjs",
   "sources": {
     "csv": "external_materials/paper1/data/all_metrics_combined_long.csv",
@@ -577,6 +577,7 @@
     "image": 114,
     "models": [
       "x0diffusion",
+      "sam",
       "resnet"
     ],
     "fractions": [
@@ -652,6 +653,39 @@
         "delta": 0.0122,
         "vesselIsWhite": false,
         "ring": 0.926,
+        "ringDecisive": true,
+        "width": 384,
+        "height": 384,
+        "gtResized": true
+      },
+      "sam|0.05": {
+        "dice": 0.9192,
+        "csvDice": 0.9329,
+        "delta": 0.0137,
+        "vesselIsWhite": false,
+        "ring": 0.928,
+        "ringDecisive": true,
+        "width": 384,
+        "height": 384,
+        "gtResized": true
+      },
+      "sam|0.1": {
+        "dice": 0.9192,
+        "csvDice": 0.9329,
+        "delta": 0.0137,
+        "vesselIsWhite": false,
+        "ring": 0.928,
+        "ringDecisive": true,
+        "width": 384,
+        "height": 384,
+        "gtResized": true
+      },
+      "sam|0.25": {
+        "dice": 0.9192,
+        "csvDice": 0.9329,
+        "delta": 0.0137,
+        "vesselIsWhite": false,
+        "ring": 0.928,
         "ringDecisive": true,
         "width": 384,
         "height": 384,

@@ -8,12 +8,13 @@ import effData from "@/public/research/label_efficiency.json";
 
 /**
  * Figure 1 — the label-efficiency sweep (2026-09-12, replacing the wipe):
- * mean test Dice vs label budget for all seven models in
+ * mean test Dice vs label budget from
  * `public/research/label_efficiency.json`, which `scripts/prepare-research.mjs`
  * pools from the paper's own metrics CSV (2,500 per-image predictions per
- * point: all seeds, all folds, all 100 test images). This is the graph the
- * site's headline number lives in: 0.882 is the x0-diffusion point at 16
- * labels.
+ * point: all seeds, all folds, all 100 test images). Six of the json's seven
+ * models are drawn — see the ε-diffusion note on MODELS below. This is the
+ * graph the site's headline number lives in: 0.882 is the x0-diffusion point
+ * at 16 labels.
  *
  * One control, the same pattern as Figure 2: a slider that snaps between the
  * three budgets the paper ran (16 / 32 / 80 labels). The cursor line, the
@@ -57,7 +58,13 @@ type ModelKey = keyof typeof effData.models;
 const t = copy.research.figLabelEff;
 
 /** Display order: descending mean at the smallest budget, so the legend reads
- *  top-to-bottom the way the left edge of the chart does. */
+ *  top-to-bottom the way the left edge of the chart does.
+ *
+ *  ⚠️ ε-DIFFUSION IS DELIBERATELY NOT DISPLAYED (owner call, 2026-09-13): its
+ *  flat ~0.23 line pinned the y axis to zero and squashed the 0.65-0.95 band
+ *  where every difference lives. It stays in the json (the data record) and
+ *  the caption discloses the omission with its number, so nothing is hidden,
+ *  just not drawn. Y_MIN below exists because of this call. */
 const MODELS: ModelKey[] = [
   "x0diffusion",
   "sam",
@@ -65,7 +72,6 @@ const MODELS: ModelKey[] = [
   "hybridresnetvit",
   "resnet",
   "deeplabv3",
-  "ediffusion",
 ];
 
 /** The budgets, off the file. Every model must carry the same ones — a
@@ -81,7 +87,9 @@ const SERIES_POINTS: Record<ModelKey, Point[]> = Object.fromEntries(
   }),
 ) as Record<ModelKey, Point[]>;
 
-/** Line style per model. Figure 2's three series keep exactly its styles. */
+/** Line style per model. Figure 2's three series keep exactly its styles.
+ *  (ε-diffusion's entry is unused while it stays off the chart; it is kept so
+ *  the Record stays total over the json's keys.) */
 const SERIES: Record<ModelKey, { color: string; dash?: string; width: number }> = {
   x0diffusion: { color: "var(--color-ok)", width: 2 },
   sam: { color: "var(--color-red-ink)", dash: "7 4", width: 1.6 },
@@ -108,9 +116,11 @@ const STRIP: Strip | null = (() => {
   }
   return s;
 })();
-/** Mask tint per strip model: the model's own series hue. */
+/** Mask tint per strip model: the model's own series hue (Figure 2's trio,
+ *  Figure 2's exact tints). */
 const STRIP_TINTS: Record<string, MaskToken> = {
   x0diffusion: "--color-ok",
+  sam: "--color-red-ink",
   resnet: "--color-warm",
 };
 
@@ -129,10 +139,14 @@ const LOG_MIN = Math.log(BUDGETS[0]);
 const LOG_SPAN = Math.log(BUDGETS[BUDGETS.length - 1]) - LOG_MIN;
 const xScale = (labels: number) =>
   MARGIN.left + X_PAD + ((Math.log(labels) - LOG_MIN) / LOG_SPAN) * (PLOT_W - 2 * X_PAD);
-const yScale = (dice: number) => MARGIN.top + (1 - dice) * PLOT_H;
+/** The axis floor. 0.4 clears every displayed mean AND every one-σ whisker
+ *  (the lowest is DeepLabV3's 0.657 − 0.202 = 0.455 at 16 labels), so nothing
+ *  on screen is clipped; only the never-drawn ε-diffusion lives below it. */
+const Y_MIN = 0.4;
+const yScale = (dice: number) => MARGIN.top + ((1 - dice) / (1 - Y_MIN)) * PLOT_H;
 const bottomEdge = MARGIN.top + PLOT_H;
 
-const Y_TICKS = [0, 0.2, 0.4, 0.6, 0.8, 1];
+const Y_TICKS = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1];
 
 /**
  * One strip column: the angiogram, optionally one model's mask over it at the
@@ -351,7 +365,7 @@ export function LabelEfficiencyFigure() {
             const p = at(m);
             const x = cursorX + (i - (MODELS.length - 1) / 2) * 6;
             const yTop = yScale(Math.min(1, p.diceMean + p.diceStd));
-            const yBot = yScale(Math.max(0, p.diceMean - p.diceStd));
+            const yBot = yScale(Math.max(Y_MIN, p.diceMean - p.diceStd));
             return (
               <g key={m} data-whisker={m} stroke={SERIES[m].color} strokeOpacity={0.75}>
                 <line x1={x} x2={x} y1={yTop} y2={yBot} strokeWidth={1.1} />
@@ -361,12 +375,12 @@ export function LabelEfficiencyFigure() {
             );
           })}
 
-          {/* Legend, line sample + name. Sits in the mid-right band the data
-              leaves empty: past 32 labels every trained series is above 0.8
-              and ε-diffusion is near 0.23. */}
+          {/* Legend, line sample + name. Sits in the lower-right band the
+              data leaves empty: past 32 labels every displayed series is
+              above 0.8, and nothing else reaches down here. */}
           {MODELS.map((m, i) => {
             const x = MARGIN.left + PLOT_W * 0.56;
-            const y = yScale(0.68) + i * 14;
+            const y = yScale(0.7) + i * 14;
             return (
               <g key={m}>
                 <line
@@ -448,10 +462,13 @@ export function LabelEfficiencyFigure() {
       </label>
 
       {/* The strip: one real angiogram, then each model's mask at the
-          selected budget — the crossover in pixels. Gated on the json block. */}
+          selected budget — the crossover in pixels. SAM's mask is genuinely
+          the same file at every budget (zero-shot; the pipeline deduped it),
+          so that panel not changing under the slider is the data, not a bug.
+          Gated on the json block. */}
       {STRIP ? (
         <>
-          <div id="fig-eff-strip" className="mt-6 grid grid-cols-3 gap-4">
+          <div id="fig-eff-strip" className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
             <StripPanel budgetIdx={idx} model={null} />
             {STRIP.models.map((m) => (
               <StripPanel key={m} budgetIdx={idx} model={m} />

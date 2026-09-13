@@ -571,10 +571,16 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   inset-ring rule and records the decision in `cdf.json`. Hardcoded polarity
   painted an entire background red once already.
 - **Figure 1 (label-efficiency sweep, `LabelEfficiencyFigure.tsx`)** — replaced
-  the wipe 2026-09-12, owner's call. Mean±std test Dice vs label budget for all
-  seven models, EVERYTHING read from `label_efficiency.json` (budgets,
-  fractions, train size, means, stds); a regenerated export changes the figure
-  with no code edit. Contracts: the x axis is LOG-spaced with inner padding
+  the wipe 2026-09-12, owner's call. Mean±std test Dice vs label budget,
+  EVERYTHING read from `label_efficiency.json` (budgets, fractions, train
+  size, means, stds); a regenerated export changes the figure with no code
+  edit. **Six of the json's seven models are drawn: ε-diffusion is left off
+  the chart AND the readouts (owner call, 2026-09-13)** — its flat ~0.23
+  pinned the y axis to zero and squashed the working range, so the axis floor
+  is 0.4 (clears every displayed mean and whisker; nothing drawn is clipped)
+  and the caption discloses the omission with its number. It stays in the
+  json, and the verify check asserts the hidden-model contract from both
+  sides. Contracts: the x axis is LOG-spaced with inner padding
   (endpoint budgets on the axes hid the cursor and clipped the whiskers —
   screenshot-verified); one-σ whiskers render at the selected budget only and
   are DODGED horizontally (seven at one x smear into a line); the lead/trail
@@ -585,12 +591,17 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   system; default stop = 16 labels, where the claim lives. **The strip**
   (2026-09-13): one real angiogram (image 114, picked by a transparent rule
   recorded in provenance — x0's worst budget ≥ 0.85, then max ResNet gain
-  lo→hi) with x0's (green) and ResNet-UNet's (amber) masks following the
-  budget slider — ResNet goes 0.141 → 0.806 → 0.934 while x0 sits at ~0.92
-  throughout, the crossover in pixels. Gated on the json's `strip` block;
-  polarity comes RECORDED from the file; panel Dice is computed from the
-  shipped bytes (ResNet's panels reproduce their CSV rows at Δ0.000);
-  `--eff-image N` overrides the pick. The WIPE'S ASSETS (`angiogram.webp`,
+  lo→hi; SAM plays no part in the pick) with Figure 2's trio following the
+  budget slider — x0 (green) sits at ~0.92 throughout, SAM (red) is ONE
+  zero-shot mask at every budget, ResNet-UNet (amber) goes 0.141 → 0.806 →
+  0.934, the crossover in pixels. ⚠️ SAM's re-exported masks are
+  byte-identical across the fractions, so the pipeline DEDUPES BY PIXEL
+  CONTENT and every budget references one file: "same file" MEANS "same
+  pixels", the client cache never repaints it, and the verify check asserts
+  both directions (deduped panel must NOT change, per-budget panels must).
+  Gated on the json's `strip` block; polarity comes RECORDED from the file;
+  panel Dice is computed from the shipped bytes (ResNet's panels reproduce
+  their CSV rows at Δ0.000); `--eff-image N` overrides the pick. The WIPE'S ASSETS (`angiogram.webp`,
   `mask_x0.png`, `mask_sam.png`) are still written by prepare-research and
   still committed, just unrendered — `WipeFigure.tsx` lives in git history if
   it ever returns, and `mask-paint.ts`'s border detector survives as a

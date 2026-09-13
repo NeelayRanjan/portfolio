@@ -169,6 +169,7 @@
     "angio": "eff/a114.webp",
     "models": [
       "x0diffusion",
+      "sam",
       "resnet"
     ],
     "budgets": [
@@ -179,6 +180,13 @@
           "x0diffusion": {
             "file": "eff/x0diffusion_16.png",
             "dice": 0.9171,
+            "vesselIsWhite": false,
+            "width": 384,
+            "height": 384
+          },
+          "sam": {
+            "file": "eff/sam_16.png",
+            "dice": 0.9192,
             "vesselIsWhite": false,
             "width": 384,
             "height": 384
@@ -203,6 +211,13 @@
             "width": 384,
             "height": 384
           },
+          "sam": {
+            "file": "eff/sam_16.png",
+            "dice": 0.9192,
+            "vesselIsWhite": false,
+            "width": 384,
+            "height": 384
+          },
           "resnet": {
             "file": "eff/resnet_32.png",
             "dice": 0.8063,
@@ -219,6 +234,13 @@
           "x0diffusion": {
             "file": "eff/x0diffusion_80.png",
             "dice": 0.9289,
+            "vesselIsWhite": false,
+            "width": 384,
+            "height": 384
+          },
+          "sam": {
+            "file": "eff/sam_16.png",
+            "dice": 0.9192,
             "vesselIsWhite": false,
             "width": 384,
             "height": 384

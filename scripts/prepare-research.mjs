@@ -947,19 +947,23 @@ function main() {
 
   // ---- Step 5c: Figure 1's STRIP ----
   //
-  // One test image, TWO models' masks at ALL THREE budgets, so the sweep's
-  // crossover is visible in pixels while the slider moves: x0-diffusion (the
-  // line that starts high and stays there) against ResNet-UNet (the baseline
-  // the computed gap sentence names at 80 labels, and the amber mask tint
-  // Figure 2 already established).
+  // One test image, Figure 2's trio of models at ALL THREE budgets, so the
+  // sweep's crossover is visible in pixels while the slider moves:
+  // x0-diffusion (the line that starts high and stays there), SAM (zero-shot
+  // — its one mask never changes with the budget, which IS its story) and
+  // ResNet-UNet (the baseline the computed gap sentence names at 80 labels).
+  // SAM joined 2026-09-13 at the owner's ask; its re-exported masks are
+  // byte-identical across the fractions (run once, copied), so the emit
+  // below dedupes by pixel content and every budget references one file.
   //
   // The image is RANKED FROM THE CSV (seed1/fold1, the rows describing these
   // exact masks), then the shipped panels' Dice is computed from the staged
   // bytes and gated against those same rows — the pick and the proof are two
   // separate steps on purpose. Rule: among images with every needed mask,
   // require x0's worst budget ≥ 0.85 (its flatness IS its story), then take
-  // the largest ResNet gain from the smallest budget to the largest.
-  const EFF_MODELS = ["x0diffusion", "resnet"];
+  // the largest ResNet gain from the smallest budget to the largest. SAM
+  // deliberately plays no part in the pick.
+  const EFF_MODELS = ["x0diffusion", "sam", "resnet"];
   const EFF_FRACTIONS = (modelsOut.x0diffusion || []).map((r) => r.fraction);
   if (EFF_FRACTIONS.length < 2) fail("Fewer than 2 fractions in the CSV; the strip needs a sweep.");
 
@@ -1039,6 +1043,7 @@ function main() {
       }
       effPanels.set(`${model}|${f}`, {
         stagedFile: dest,
+        buf, // kept for the content dedupe at emit time (SAM repeats)
         dice,
         csvDice: round(csvDice),
         delta,
@@ -1072,8 +1077,10 @@ function main() {
     fail(
       "ASSERTION FAILED: Figure 1 strip Dice drifts past 0.15 from the seed1/fold1 CSV rows:\n  " +
         effDrifted.join("\n  ") +
-        "\n\nThese masks ARE those runs, so this is a pipeline bug until proven otherwise. " +
-        "Check polarity, the ground-truth resize and the image id. Nothing written.",
+        "\n\nFor the deterministic models these masks ARE those runs, so that is a pipeline " +
+        "bug until proven otherwise (check polarity, the GT resize, the image id). SAM is the " +
+        "known stochastic exception — see the drift bullet above — and --accept-csv-drift is " +
+        "how a human says the table was read. Nothing written.",
     );
   }
 
@@ -1094,14 +1101,27 @@ function main() {
   ]);
   effBytes += fs.statSync(path.join(OUT_DIR, effAngio)).size;
 
+  // Content dedupe: a budget whose mask pixels are identical to an earlier
+  // budget's (SAM: all three) references the earlier file instead of shipping
+  // copies — and downstream (the client cache, the verify script's repaint
+  // assertion) can read "same file" as "same pixels".
+  const effEmitted = new Map(); // model -> [{ buf, file }]
   const effBudgets = EFF_FRACTIONS.map((f) => {
     const masks = {};
     const labels = Math.round(f * TRAIN_SIZE);
     for (const model of EFF_MODELS) {
       const e = effPanels.get(`${model}|${f}`);
-      const file = `eff/${model}_${labels}.png`;
-      fs.copyFileSync(e.stagedFile, path.join(OUT_DIR, file));
-      effBytes += fs.statSync(path.join(OUT_DIR, file)).size;
+      const prior = (effEmitted.get(model) || []).find((p) => Buffer.compare(p.buf, e.buf) === 0);
+      let file;
+      if (prior) {
+        file = prior.file;
+      } else {
+        file = `eff/${model}_${labels}.png`;
+        fs.copyFileSync(e.stagedFile, path.join(OUT_DIR, file));
+        effBytes += fs.statSync(path.join(OUT_DIR, file)).size;
+        if (!effEmitted.has(model)) effEmitted.set(model, []);
+        effEmitted.get(model).push({ buf: e.buf, file });
+      }
       masks[model] = {
         file,
         dice: e.dice,
@@ -1112,7 +1132,14 @@ function main() {
     }
     return { fraction: f, labels, masks };
   });
-  console.log(`  strip assets: 1 angiogram + ${EFF_MODELS.length * EFF_FRACTIONS.length} masks, ${(effBytes / 1024).toFixed(1)} KB total`);
+  for (const model of EFF_MODELS) {
+    const n = (effEmitted.get(model) || []).length;
+    if (n < EFF_FRACTIONS.length) {
+      console.log(`  ${model}: identical pixels across budgets, ${n} file(s) emitted for ${EFF_FRACTIONS.length}`);
+    }
+  }
+  const emittedCount = [...effEmitted.values()].reduce((a, v) => a + v.length, 0);
+  console.log(`  strip assets: 1 angiogram + ${emittedCount} masks, ${(effBytes / 1024).toFixed(1)} KB total`);
 
   const effStrip = {
     image: chosenEff.id,

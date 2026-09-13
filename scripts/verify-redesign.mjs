@@ -224,7 +224,15 @@ async function checkLabelEfficiency(browser) {
   return withPage(browser, { viewport: { width: 1280, height: 1400 } }, async (page) => {
     // The SERVED file is the reference, same rule as the Dice-CDF check.
     const eff = await (await fetch(`${BASE}/research/label_efficiency.json`)).json();
-    const models = Object.keys(eff.models);
+    // ε-diffusion stays in the json but off the chart (owner call,
+    // 2026-09-13): its flat ~0.23 squashed the range. The figure displays
+    // every OTHER model, and this list is what the readout/series asserts
+    // run over.
+    const EFF_HIDDEN = new Set(["ediffusion"]);
+    const models = Object.keys(eff.models).filter((m) => !EFF_HIDDEN.has(m));
+    if (models.length === Object.keys(eff.models).length) {
+      throw new Error("expected ediffusion in the served json (the hidden-model contract moved?)");
+    }
     const budgets = eff.models.x0diffusion.map((p) => p.labels);
     const lastIdx = budgets.length - 1;
 
@@ -399,22 +407,37 @@ async function checkLabelEfficiency(browser) {
       throw new Error("whiskers did not move with the slider");
     }
 
-    // 4. The strip must follow the budget: every mask canvas repaints and
-    //    every printed Dice becomes the last budget's. The crossover is
+    // 4. The strip must follow the budget: every mask canvas whose FILE
+    //    changes repaints, and every printed Dice becomes the last budget's.
+    //    SAM's mask is the same deduped file at every budget (zero-shot; the
+    //    pipeline's content dedupe makes "same file" mean "same pixels"), so
+    //    its canvas must NOT change — asserted both ways. The crossover is
     //    pixel-visible here (ResNet noise at 16, caught up at 80) — asserted
     //    via the numbers, which are computed from those pixels.
+    const sameFile = stripModels.map(
+      (m) => eff.strip.budgets[0].masks[m].file === eff.strip.budgets[lastIdx].masks[m].file,
+    );
+    if (!sameFile.some(Boolean) || sameFile.every(Boolean)) {
+      throw new Error(
+        `expected a mix of per-budget and deduped strip masks, got sameFile=[${sameFile.join(",")}]`,
+      );
+    }
     await page.waitForFunction(
-      (want) =>
+      ({ want, same }) =>
         [...document.querySelectorAll("#fig-eff-strip canvas")].every(
-          (c, i) => c.toDataURL() !== want[i],
+          (c, i) => (same[i] ? true : c.toDataURL() !== want[i]),
         ),
-      panelsBefore.slice(1).map((p) => p.url),
+      { want: panelsBefore.slice(1).map((p) => p.url), same: sameFile },
       { timeout: 20000 },
     );
     const panelsAfter = await assertPanels(lastIdx);
-    for (const [k] of stripModels.entries()) {
-      if (panelsAfter[k + 1].url === panelsBefore[k + 1].url) {
-        throw new Error(`strip panel ${stripModels[k]} did not repaint at ${budgets[lastIdx]} labels`);
+    for (const [k, m] of stripModels.entries()) {
+      const changed = panelsAfter[k + 1].url !== panelsBefore[k + 1].url;
+      if (sameFile[k] && changed) {
+        throw new Error(`strip panel ${m} repainted although its mask file never changed`);
+      }
+      if (!sameFile[k] && !changed) {
+        throw new Error(`strip panel ${m} did not repaint at ${budgets[lastIdx]} labels`);
       }
     }
 

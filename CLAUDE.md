@@ -334,15 +334,20 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   the model's OWN meta. There is deliberately **no 256 int8** — the bundle
   quantized it, measured 34.8 / 30.5 / 32.5 dB PSNR against the fp32 samples,
   missed its own ≥35 dB gate on class 1 and discarded the artifact.
-- **Budget policy** (`wantsPrimary()` in `lib/headshot-model.ts`): the 256 only
-  when `crossOriginIsolated` AND `hardwareConcurrency >= 4` AND
-  `(min-width: 768px)` AND not `saveData` AND not (`deviceMemory` present and
-  < 4) — house rule, **absent means unknown, not no**, so only a present-and-bad
-  value vetoes. That is a preference ORDER; **presence probes decide**: HEAD on
-  both families first, and whichever is actually served wins, so a half-uploaded
-  deploy gets the family it has rather than a gate. `build` is `"256" |
-  "128 int8" | "128"` and the readout prints it — every fallback in the chain
-  updates the label, so it can never lie.
+- **Budget policy** (`wantsPrimary()` in `lib/headshot-model.ts`): the 256 when
+  `crossOriginIsolated` AND `hardwareConcurrency >= 4` AND not `saveData` AND
+  not a known-bad `effectiveType` AND not (`deviceMemory` present and < 4);
+  otherwise the 128 family, int8 first with fp32 fallback on session failure.
+  **No viewport gate, deliberately** (owner call, 2026-09-13): phones render
+  the photo at DPR 2-3, so the 256 matters most there, and this is a
+  user-pressed 5.3 MB, not the warm window's background 24 MB — capability
+  vetoes carry the decision, and **absent means unknown, not no** (only a
+  present-and-bad value vetoes). The policy is a preference ORDER; **presence
+  probes decide**: HEAD on both families first, and whichever is actually
+  served wins, so a half-uploaded deploy gets the family it has rather than a
+  gate. `build` is `"256" | "128 int8" | "128"` and the readout prints it —
+  every fallback in the chain updates the label, so it can never lie.
+
 - **Everything lives under `/headshot/v2/`.** `/headshot/:path*` is immutable
   for a year and the v2 bundle changed the weights, the metas AND the photo
   bytes, so the whole set moved rather than being overwritten. The v1 files are

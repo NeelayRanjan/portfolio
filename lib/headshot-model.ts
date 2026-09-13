@@ -119,13 +119,19 @@ function wantsPrimary(): boolean {
   const nav = globalThis.navigator as
     | (Navigator & {
         deviceMemory?: number;
-        connection?: { saveData?: boolean };
+        connection?: { saveData?: boolean; effectiveType?: string };
       })
     | undefined;
   if (!nav) return false;
   if ((nav.hardwareConcurrency ?? 0) < 4) return false;
-  if (!globalThis.matchMedia?.("(min-width: 768px)").matches) return false;
+  // No viewport gate, deliberately (owner call, 2026-09-13): phones render the
+  // photo at DPR 2-3, so the 256 matters MOST there, and unlike the warm
+  // window's 24 MB background download this is a user-pressed 5.3 MB. The
+  // capability vetoes below carry the decision instead; a modern phone passes
+  // them, a low-end or data-constrained one doesn't. Absent still means
+  // unknown, not no (the connection APIs are Chrome-only).
   if (nav.connection?.saveData) return false;
+  if (nav.connection?.effectiveType && nav.connection.effectiveType !== "4g") return false;
   if (nav.deviceMemory !== undefined && nav.deviceMemory < 4) return false;
   return true;
 }

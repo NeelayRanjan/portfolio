@@ -56,7 +56,11 @@
  * to match. `figEfficiency` has since been replaced outright by `figCdf`
  * (2026-09-12): Figure 2 is the paper's Dice CDF now, not a label-budget
  * ladder, so the ladder's `measuredTo*`, `ladder*` and `diceMissing` strings
- * and its seven-model `modelLabels` map are gone with it.
+ * and its seven-model `modelLabels` map are gone with it. Later the same
+ * day `figWipe` was replaced by `figLabelEff` (the owner's call): Figure 1
+ * is the label-efficiency sweep over `label_efficiency.json` now, and the
+ * wipe's component and strings are gone (the wipe ASSETS stay in
+ * `public/research/`, unrendered).
  */
 export const copy = {
   /** <title>, meta description, and the share-card (OG/Twitter) text. */
@@ -219,25 +223,54 @@ export const copy = {
     /** Rail note beside the prose. */
     scopeNote:
       "The claim lives at 16 labels. Hand the baselines 80 and some of them catch up.",
-    /** Figure 1 — real masks on a real angiogram, drag-to-compare. Carried
-     *  over from Task 6 unchanged, renamed from `wipe` to match this task's
-     *  interface (`components/figures/WipeFigure.tsx` updated to match). */
-    figWipe: {
+    /**
+     * Figure 1 — the label-efficiency sweep (2026-09-12, replacing the wipe;
+     * the owner's call, built on Figure 2's slider-and-readout pattern). All
+     * numbers live in `public/research/label_efficiency.json` and the
+     * component reads every one from the file; the caption quotes only the
+     * standing content facts (0.882 at 16) plus values the figure itself
+     * displays. The lead/trail sentence under the readouts is COMPUTED per
+     * budget: x0 leads at 16 and trails from 32 on, and that flip is the
+     * finding, so the trail wording below is as load-bearing as the lead.
+     * "Same architecture on the noise objective" for ε-diffusion comes from
+     * the retired ladder figure's caption, which the owner approved.
+     */
+    figLabelEff: {
       caption:
-        "Real segmentation masks on image 330 from the pelvic-iliac angiography benchmark. x0-diffusion trained on 16 labels; SAM is zero-shot and never trains on any. Drag to compare: x0-diffusion (green) scores 0.908 Dice on this image against SAM’s 0.832 (red).",
-      angiogramAlt:
-        "Pelvic-iliac angiogram, image 330 from the segmentation benchmark",
-      /** On-image legend. Colors chosen by the owner (2026-09-12): green is
-       *  x0's mask, red is SAM's — an explicit override of the spec-era
-       *  "red marks the x0 finding" rule for THIS figure. Color is not the
-       *  only carrier: the legend text and caption name both models. */
-      legendX0: "x0-diffusion",
-      legendSam: "SAM",
-      label: "wipe",
-      cutLabel: "cut",
-      ariaPre:
-        "Wipe between the SAM mask and the x0-diffusion mask, cut at ",
-      ariaPost: "%",
+        "The graph behind the headline number. Each point is one model’s mean test Dice at one label budget, pooled over every seed and fold, 2,500 predictions per point; whiskers mark one standard deviation at the budget the slider selects. At 16 labeled angiograms x0-diffusion sits at 0.882 and the nearest baseline is SAM at 0.835, which is zero-shot and never trains on labels, so its line is flat. Slide right and the trained baselines climb: DeepLabV3 catches up at 32 labels, and by 80 it and ResNet-UNet edge ahead. That crossover is the claim, label efficiency rather than peak accuracy. ε-diffusion, the same architecture trained to predict the noise instead of the clean mask, stays near 0.23 Dice at every budget.",
+      /** Screen-reader name for the chart itself. The caption is the long form. */
+      chartAria:
+        "Mean test Dice against label budget for x0-diffusion and six baselines",
+      xAxisLabel: "labeled training angiograms",
+      yAxisLabel: "mean test Dice",
+      /** Mono note under the chart; the budgets and train size are read from
+       *  the file and spliced between these pieces. */
+      logNotePre: "x axis is log-spaced. budgets ",
+      logNoteAnd: " and ",
+      logNotePost: " labels of the ",
+      logNoteEnd: " training images.",
+      /** The readout row above the slider, wrapped around the cursor value. */
+      meanPre: "mean dice at ",
+      meanPost: " labels, ±1 std dev",
+      /** The computed lead/trail sentence. */
+      gapLeadPre: "x0-diffusion leads the closest baseline, ",
+      gapTrailPre: "x0-diffusion trails the best baseline, ",
+      gapMid: ", by ",
+      gapPost: " dice.",
+      /** Slider: the panel's top-right readout, its label, its aria text. */
+      readoutLabel: "labels",
+      sliderLabel: "labels",
+      sliderAriaPre: "Label budget for the whiskers and readouts: ",
+      sliderAriaPost: " labeled angiograms",
+      modelLabels: {
+        x0diffusion: "x0-diffusion",
+        sam: "SAM (zero-shot)",
+        vit_base_patch16: "ViT-B/16",
+        hybridresnetvit: "hybrid ResNet+ViT",
+        resnet: "ResNet-UNet",
+        deeplabv3: "DeepLabV3",
+        ediffusion: "ε-diffusion",
+      },
     },
     /**
      * Figure 2 — the paper's Dice CDF (`external_materials/paper1/img/fig_dice_cdf`),
@@ -311,7 +344,7 @@ export const copy = {
     noteBars: [
       {
         tag: "data",
-        body: "The angiogram and both masks come from the public pelvic-iliac angiography benchmark, so publishing these frames is clean.",
+        body: "Figure 1 pools the paper's own metrics export: 2,500 per-image predictions behind every point. The frames in Figure 2 come from the public pelvic-iliac benchmark, so publishing them is clean.",
       },
       {
         tag: "credit",

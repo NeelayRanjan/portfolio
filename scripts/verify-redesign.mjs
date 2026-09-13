@@ -21,7 +21,7 @@
  * Each check is a small, independently named async function so a future
  * session can import and rerun a subset instead of the whole suite. Pass
  * check names (or substrings) as CLI args to run only those:
- *   node scripts/verify-redesign.mjs desk wipe
+ *   node scripts/verify-redesign.mjs desk label
  * With no args, every check runs. PASS/FAIL prints per check as it
  * finishes; the process exits 1 if anything failed.
  *
@@ -87,8 +87,8 @@ async function scrollUntilAttached(page, selector, { maxScrolls = 20, step = 700
 /* ---------------------------------------------------------------------- */
 
 /** The desk field is the sole direct-child canvas of <body> (see
- *  app/layout.tsx); every other canvas on the page (the wipe figure's mask,
- *  the draw demo's pixel grids) lives inside <main>. */
+ *  app/layout.tsx); every other canvas on the page (the Dice CDF strip's
+ *  masks, the draw demo's pixel grids) lives inside <main>. */
 const DESK_CANVAS = "body > canvas";
 
 async function deskFieldAnimatesAt1280(browser) {
@@ -189,7 +189,9 @@ async function checkNoEarlyHeavyPayload(browser) {
 }
 
 /* ---------------------------------------------------------------------- */
-/* 4. Wipe endpoints differ (Figure 1, components/figures/WipeFigure.tsx) */
+/* 4. Label-efficiency sweep (Figure 1,                                   */
+/* components/figures/LabelEfficiencyFigure.tsx +                         */
+/* public/research/label_efficiency.json)                                 */
 /* ---------------------------------------------------------------------- */
 
 /** Set a range input's value via the native setter (so React's onChange,
@@ -205,35 +207,153 @@ async function setRange(locator, value) {
   }, value);
 }
 
-async function checkWipeEndpointsDiffer(browser) {
+/** What the site's copy calls each series. Kept in step with
+ *  `copy.research.figLabelEff.modelLabels`; the check fails loudly if a name
+ *  drifts, which is the point. */
+const EFF_LABELS = {
+  x0diffusion: "x0-diffusion",
+  sam: "SAM (zero-shot)",
+  vit_base_patch16: "ViT-B/16",
+  hybridresnetvit: "hybrid ResNet+ViT",
+  resnet: "ResNet-UNet",
+  deeplabv3: "DeepLabV3",
+  ediffusion: "ε-diffusion",
+};
+
+async function checkLabelEfficiency(browser) {
   return withPage(browser, { viewport: { width: 1280, height: 1400 } }, async (page) => {
+    // The SERVED file is the reference, same rule as the Dice-CDF check.
+    const eff = await (await fetch(`${BASE}/research/label_efficiency.json`)).json();
+    const models = Object.keys(eff.models);
+    const budgets = eff.models.x0diffusion.map((p) => p.labels);
+    const lastIdx = budgets.length - 1;
+
     await page.goto(BASE, { waitUntil: "networkidle" });
-    const slider = page.locator("#wipe-cut");
+    const slider = page.locator("#eff-labels");
     await slider.waitFor({ state: "attached", timeout: 10000 });
+
+    // 1. Chart structure: one polyline per model in the file, plus one whisker
+    //    group per model at the cursor.
     const figure = page.locator("figure").filter({ has: slider });
-    const maskBox = figure.locator("div.relative.aspect-square").first();
-    await maskBox.waitFor({ state: "visible", timeout: 10000 });
-
-    await setRange(slider, 0);
-    await page.waitForFunction(
-      () => document.querySelector("#wipe-cut")?.value === "0",
-      null,
-      { timeout: 5000 },
-    );
-    const shotA = await maskBox.screenshot();
-
-    await setRange(slider, 100);
-    await page.waitForFunction(
-      () => document.querySelector("#wipe-cut")?.value === "100",
-      null,
-      { timeout: 5000 },
-    );
-    const shotB = await maskBox.screenshot();
-
-    if (Buffer.compare(shotA, shotB) === 0) {
-      throw new Error("screenshots at cut=0 and cut=100 are byte-identical");
+    const svg = figure.locator("svg").first();
+    await svg.waitFor({ state: "visible", timeout: 10000 });
+    const lines = await svg.locator("polyline").count();
+    if (lines !== models.length) {
+      throw new Error(`${lines} series polylines, want ${models.length}`);
     }
-    return `screenshots differ (${shotA.length}B vs ${shotB.length}B)`;
+    const whiskers = await svg.locator("g[data-whisker]").count();
+    if (whiskers !== models.length) {
+      throw new Error(`${whiskers} whisker groups, want ${models.length}`);
+    }
+
+    const readReadouts = () =>
+      page.evaluate(() => {
+        const out = {};
+        for (const el of document.querySelectorAll("#fig-eff-readouts [data-model]")) {
+          out[el.dataset.model] = el.textContent;
+        }
+        return { models: out, gap: document.querySelector("#fig-eff-gap")?.textContent ?? "" };
+      });
+
+    /** The cursor must sit exactly on the selected budget's x tick (the axis
+     *  is log-spaced, so the tick text is the only honest reference). */
+    const cursorOffset = (budget) =>
+      page.evaluate((b) => {
+        const svgEl = document
+          .querySelector("#fig-eff-readouts")
+          ?.closest("figure")
+          ?.querySelector("svg");
+        const cursor = svgEl?.querySelector("line[data-cursor]");
+        const tick = [...svgEl.querySelectorAll("text")].find(
+          (n) => n.getAttribute("text-anchor") === "middle" && n.textContent.trim() === String(b),
+        );
+        if (!cursor) return "no data-cursor line in the chart";
+        if (!tick) return `no x tick labeled ${b}`;
+        return Number(cursor.getAttribute("x1")) - Number(tick.getAttribute("x"));
+      }, budget);
+
+    /** The expected lead/trail sentence, computed from the file the way the
+     *  component computes it. The sign flip across budgets is the figure's
+     *  finding, so it is asserted, not just displayed. */
+    const expectGap = (i) => {
+      const x0 = eff.models.x0diffusion[i].diceMean;
+      const best = models
+        .filter((m) => m !== "x0diffusion")
+        .reduce((a, b) => (eff.models[a][i].diceMean >= eff.models[b][i].diceMean ? a : b));
+      const delta = x0 - eff.models[best][i].diceMean;
+      return {
+        verb: delta >= 0 ? "leads" : "trails",
+        name: EFF_LABELS[best],
+        value: Math.abs(delta).toFixed(3),
+      };
+    };
+
+    const assertStop = async (i) => {
+      const { models: rows, gap } = await readReadouts();
+      for (const m of models) {
+        const p = eff.models[m][i];
+        const want = `${p.diceMean.toFixed(3)} ±${p.diceStd.toFixed(3)}`;
+        if (!rows[m]?.includes(want)) {
+          throw new Error(`readout for ${m} at ${budgets[i]} labels is "${rows[m]}", want "${want}"`);
+        }
+        if (!rows[m].includes(EFF_LABELS[m])) {
+          throw new Error(`readout for ${m} does not carry the label "${EFF_LABELS[m]}"`);
+        }
+      }
+      const g = expectGap(i);
+      if (!gap.includes(g.verb) || !gap.includes(g.name) || !gap.includes(g.value)) {
+        throw new Error(
+          `gap sentence at ${budgets[i]} labels is "${gap}", want ${g.verb} / ${g.name} / ${g.value}`,
+        );
+      }
+      const off = await cursorOffset(budgets[i]);
+      if (typeof off === "string") throw new Error(off);
+      if (Math.abs(off) > 0.01) {
+        throw new Error(`cursor is ${off} user units off the ${budgets[i]}-label tick`);
+      }
+      return g;
+    };
+
+    // 2. Default stop: the smallest budget, where the claim lives. x0 must
+    //    LEAD here — if the file ever says otherwise the site's headline is
+    //    in trouble, and this is where that surfaces.
+    const g0 = await assertStop(0);
+    if (g0.verb !== "leads") {
+      throw new Error(`x0 does not lead at ${budgets[0]} labels — the headline claim broke`);
+    }
+
+    // 3. Pan to the largest budget: every readout, the whiskers and the
+    //    sentence must follow, and the sentence must FLIP to trails (the
+    //    crossover in the committed data).
+    const whiskerXBefore = await svg
+      .locator("g[data-whisker] line")
+      .first()
+      .getAttribute("x1");
+    await setRange(slider, lastIdx);
+    await page.waitForFunction(
+      (want) => document.querySelector("#eff-labels")?.value === String(want),
+      lastIdx,
+      { timeout: 5000 },
+    );
+    const gLast = await assertStop(lastIdx);
+    if (gLast.verb !== "trails") {
+      throw new Error(
+        `expected the trail flip at ${budgets[lastIdx]} labels (data says the baselines pass x0 there)`,
+      );
+    }
+    const whiskerXAfter = await svg
+      .locator("g[data-whisker] line")
+      .first()
+      .getAttribute("x1");
+    if (whiskerXBefore === whiskerXAfter) {
+      throw new Error("whiskers did not move with the slider");
+    }
+
+    return (
+      `${models.length} series; at ${budgets[0]} labels x0 ${g0.verb} ${g0.name} by ${g0.value}; ` +
+      `at ${budgets[lastIdx]} x0 ${gLast.verb} ${gLast.name} by ${gLast.value}; ` +
+      `readouts match label_efficiency.json at both stops; cursor exact; whiskers track the slider`
+    );
   });
 }
 
@@ -959,7 +1079,7 @@ const CHECKS = [
   ["no-h-scroll-home-400", checkNoHorizontalScroll("/")],
   ["no-h-scroll-lab-400", checkNoHorizontalScroll("/lab")],
   ["no-early-heavy-payload-400", checkNoEarlyHeavyPayload],
-  ["wipe-endpoints-differ", checkWipeEndpointsDiffer],
+  ["label-efficiency", checkLabelEfficiency],
   ["dice-cdf", checkDiceCdf],
   ["flight-video-play-pause", checkFlightVideoPlayPause],
   ["draw-stroke-auto-label", checkDrawAutoLabel],

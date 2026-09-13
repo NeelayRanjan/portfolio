@@ -6,7 +6,7 @@ import { DeferredMount } from "@/components/manuscript/DeferredMount";
 import { StatBand } from "@/components/manuscript/StatBand";
 import { MissionRows } from "@/components/manuscript/MissionRows";
 import { References } from "@/components/manuscript/References";
-import { WipeFigure } from "@/components/figures/WipeFigure";
+import { LabelEfficiencyFigure } from "@/components/figures/LabelEfficiencyFigure";
 import { DiceCdfFigure } from "@/components/figures/DiceCdfFigure";
 import { FlightFigure } from "@/components/figures/FlightFigure";
 import { DrawDigit } from "@/components/DrawDigit";
@@ -18,9 +18,9 @@ import { copy } from "@/content/copy";
 // draw demo) and 5 (the chess engine) both mount here behind `DeferredMount`.
 // Each owns its own `InstrumentFigure`, and with it its `id` (`fig-draw`,
 // `fig-chess`), so there are no placeholders here to fill. Figure numbering,
-// ruled: 1 (the
-// wipe), 2 (the Dice CDF), 3 (the flight day) sit in Research; 4-5 are
-// the live demos; 6 is the Experience mission-row figure.
+// ruled: 1 (the label-efficiency sweep), 2 (the Dice CDF), 3 (the flight
+// day) sit in Research; 4-5 are the live demos; 6 is the Experience
+// mission-row figure.
 //
 // The 16px page gutter is owned here (`px-4` on `main`), not by `Sheet` —
 // `Sheet` only clamps its own inline padding once already inside the
@@ -58,7 +58,7 @@ export default function Home() {
         </Row>
 
         <Row rail={<Note tag={noteData.tag}>{noteData.body}</Note>}>
-          <WipeFigure />
+          <LabelEfficiencyFigure />
         </Row>
 
         <Row rail={<Note tag={noteCredit.tag}>{noteCredit.body}</Note>}>

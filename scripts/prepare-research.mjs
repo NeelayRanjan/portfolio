@@ -34,8 +34,10 @@
 //      benchmark ground truth for the exact bytes shipped. The curve's shape
 //      is asserted against the paper's figure before anything is written.
 //   6. Writes label_efficiency.json, cdf.json and provenance.json.
-//      (label_efficiency.json feeds no figure today; it is real computed data
-//      kept for a future one.)
+//      (label_efficiency.json is Figure 1, the label-efficiency sweep, since
+//      2026-09-12. The wipe assets from step 4 are written but unrendered
+//      since the sweep replaced the wipe figure the same day; they stay real
+//      and current in case the wipe returns.)
 
 import { execFileSync, execSync } from "node:child_process";
 import fs from "node:fs";

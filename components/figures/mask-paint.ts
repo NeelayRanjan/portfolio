@@ -1,7 +1,7 @@
 /**
- * Shared mask painting for the research figures (Figure 1's wipe and Figure
- * 2's Dice CDF strip). Hoisted out of `WipeFigure.tsx` when the second figure
- * needed the same two things: read a theme token as RGB, and recolor a binary
+ * Mask painting for the research figures (today: Figure 2's Dice CDF strip;
+ * originally hoisted out of the retired wipe figure, whose `paintMask`
+ * entry point left with it): read a theme token as RGB, and recolor a binary
  * mask PNG onto a canvas.
  *
  * Canvas pixel-recoloring, NOT CSS mask-image: mask-image computes correctly
@@ -56,9 +56,8 @@ export function readToken(name: MaskToken): Rgb {
  * the short side, with the model's own majority polarity as the fallback where
  * that ring is undecided), records its decision per mask in `cdf.json`, and
  * Figure 2 passes it in as `vesselIsWhite` so the Dice it prints and the pixels
- * it paints cannot disagree. This detector stays the default for Figure 1,
- * whose two masks it handles correctly (verified: both read white-vessel under
- * either rule, so the wipe renders identically).
+ * it paints cannot disagree. This detector survives only as the fallback for a
+ * caller that has no recorded polarity to pass.
  */
 function detectVesselIsWhite(px: Uint8ClampedArray, width: number, height: number): boolean {
   let borderWhite = 0;
@@ -87,8 +86,7 @@ function detectVesselIsWhite(px: Uint8ClampedArray, width: number, height: numbe
  * `known` overrides the detector. Figure 2 passes it from `cdf.json`, where
  * `scripts/prepare-research.mjs` recorded the polarity it SCORED each mask
  * under, so the Dice printed beside a panel and the pixels inside it cannot
- * disagree. The detector below stays the default for Figure 1, which has no
- * such record.
+ * disagree. The detector is only the fallback for a caller with no record.
  */
 function renderMask(
   canvas: HTMLCanvasElement,
@@ -113,16 +111,6 @@ function renderMask(
     px[i + 3] = on ? 255 : 0;
   }
   ctx.putImageData(frame, 0, 0);
-}
-
-/**
- * Recolor a binary mask PNG onto an existing canvas. Fire-and-forget: the
- * paint lands whenever the image decodes.
- */
-export function paintMask(canvas: HTMLCanvasElement, src: string, tint: Rgb) {
-  const img = new Image();
-  img.onload = () => renderMask(canvas, img, tint);
-  img.src = src;
 }
 
 /**

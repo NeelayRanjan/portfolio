@@ -19,20 +19,25 @@ contracts below.
 is deleted; v1 lives at the tag). Page 1: masthead (title, abstract, the
 live-sampled author photo, the UNDER REVIEW stamp linking `/lab` through a
 "pending additional materials" sub-line, identity links) → Table 1 → Research
-(Figure 1 wipe, Figure 2 Dice CDF, Figure 3 flight map) → the live demos as
-Figures 4–5 → Experience as Figure 6 (NASA and Regenstrief lamps green/active)
-→ References. `/lab` holds S1–S3. Same-day post-launch passes: the wipe moved
-to image 330 with the owner's green-x0/red-SAM legend; Figure 2 rebuilt from a
-budget ladder into the paper's pannable Dice CDF; the flight video's dark-map
-treatment; the owner's STIX-N favicon set; headshots presented
-last-class-first (photo 2 is the default face).
+(Figure 1 label-efficiency sweep, Figure 2 Dice CDF, Figure 3 flight map) →
+the live demos as Figures 4–5 → Experience as Figure 6 (NASA and Regenstrief
+lamps green/active) → References. `/lab` holds S1–S3. Same-day post-launch
+passes: Figure 2 rebuilt from a budget ladder into the paper's pannable Dice
+CDF; the flight video's dark-map treatment; the owner's STIX-N favicon set;
+headshots presented last-class-first (photo 2 is the default face). The wipe
+(originally Figure 1, moved to image 330 with the green-x0/red-SAM legend) was
+then REPLACED by the label-efficiency sweep at the owner's direction; its
+component and copy are gone, its assets stay (see the figure section).
 
 **Verification: `scripts/verify-redesign.mjs`** — 14 named checks,
 Playwright-Firefox against a real `npm run build && npm start` on :3000, never
 the dev server; pass check-name substrings as args to run subsets. Covers the
 desk field (motion / reduced-motion / absent below 880px), no horizontal
-scroll at 400px on both pages, nothing model-sized before scroll, the wipe's
-endpoints, the Dice-CDF slider (curves, readouts vs `cdf.json`, repaint on stop
+scroll at 400px on both pages, nothing model-sized before scroll, the
+label-efficiency sweep (readouts and the computed lead/trail sentence vs the
+SERVED `label_efficiency.json` at the first and last budgets, including the
+x0-leads→x0-trails flip, cursor exactly on the budget tick, whiskers tracking
+the slider), the Dice-CDF slider (curves, readouts vs `cdf.json`, repaint on stop
 change), flight video play/pause, a drawn stroke producing a real auto-label,
 the chess hint matching vector D (`g3 p=0.236`), JEPA seed query 834 plus the
 triple-equality, and the headshot toy (no model fetched at rest; the sampled
@@ -42,10 +47,13 @@ fetched; the second press must match ITS photo and must run STRICTLY FEWER
 steps than the first, which is the structural proof the morph happened — the
 "morphed" wording alone is the site agreeing with itself; photo URLs are
 derived from the pressed thumb, so the versioned bundle directory can move
-without touching the check). ⚠️ That check runs at 400px, so the loader's
-budget hands it the 128 fallback — the 256 primary has its own hand-run script,
-**`scripts/verify-headshot-256.mjs`** (same prod build on :3000; drives the
-site's vendored module against the SERVED bytes). Run the suite after any
+without touching the check). Since the viewport gate was removed from
+`wantsPrimary()` (2026-09-13), that check gets whichever family the machine's
+capabilities grant — the 256 on the dev machine, and the check's label↔graph
+assertion covers either honestly. The 256+morph path still has its own
+hand-run script, **`scripts/verify-headshot-256.mjs`** (same prod build on
+:3000; drives the site's vendored module in node against the SERVED bytes,
+with MAD thresholds the browser check doesn't carry). Run the suite after any
 change touching a demo, a figure, or the page shell.
 `scripts/check-voice.mjs` gates every copy.ts edit.
 
@@ -67,9 +75,7 @@ change touching a demo, a figure, or the page shell.
    forward-noising branch is unpinned vendored math. Ask the model owner for an
    init+strength case in `vectors/`.
 5. The mobile draw-demo bugs (Known bugs below) are open.
-6. `public/research/label_efficiency.json` is computed, committed, and
-   currently unrendered — free material for a future figure.
-7. Much later: a third headliner demo, a **live network-security honeypot**
+6. Much later: a third headliner demo, a **live network-security honeypot**
    (exposed Pi, malicious ssh/https logged, LLM-categorized into a live UMAP
    of attack families). Needs a live-data seam the static site doesn't have;
    the systems figure column is trivially appendable when it comes.
@@ -102,9 +108,9 @@ and the owner's SOP tell one story.
   seam; every word gets rewritten.
 - **Interactivity bar**: prose sections stay readable — no forced gimmicks — but
   every text section carries one real-work artifact beside it: bio → headshot
-  diffusion toy · research → x0-vs-SAM slider · experience → flight-day video ·
-  publications → figure hovers. The owner's rule: "at no point should the user
-  just be staring and reading at something."
+  diffusion toy · research → the label-budget sweep and the Dice-CDF pan ·
+  experience → flight-day video · publications → figure hovers. The owner's
+  rule: "at no point should the user just be staring and reading at something."
 - Fallback is the git tag `v1`, nothing more. No legacy subdomain.
 - **Figure colour conventions (owner calls, 2026-09-12): green = x0-diffusion**
   (and true "active" states), **red = SAM** (and reviewer's ink: the stamp, the
@@ -538,10 +544,23 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   mask-paint.ts`) detects by minority side; the script votes per-model with an
   inset-ring rule and records the decision in `cdf.json`. Hardcoded polarity
   painted an entire background red once already.
-- **Figure 1 (wipe, `WipeFigure.tsx`)**: image 330 (owner pick; 189 rejected as
-  rough), fold1 16-label masks, x0 green over SAM red with an on-image legend,
-  slider defaults to 50%. The caption's Dice pair is that image's computed
-  values. Rerun: `node scripts/prepare-research.mjs --image N --accept-csv-drift`.
+- **Figure 1 (label-efficiency sweep, `LabelEfficiencyFigure.tsx`)** — replaced
+  the wipe 2026-09-12, owner's call. Mean±std test Dice vs label budget for all
+  seven models, EVERYTHING read from `label_efficiency.json` (budgets,
+  fractions, train size, means, stds); a regenerated export changes the figure
+  with no code edit. Contracts: the x axis is LOG-spaced with inner padding
+  (endpoint budgets on the axes hid the cursor and clipped the whiskers —
+  screenshot-verified); one-σ whiskers render at the selected budget only and
+  are DODGED horizontally (seven at one x smear into a line); the lead/trail
+  sentence is COMPUTED per budget and flips at 32 labels (x0 leads only at 16 —
+  that flip is the finding, never "fix" it); SAM's flat line is the data (the
+  CSV replicates its zero-shot rows at every fraction, verified identical);
+  x0/SAM/ResNet keep Figure 2's exact color+dash so the two figures read as one
+  system; default stop = 16 labels, where the claim lives. The WIPE'S ASSETS
+  (`angiogram.webp`, `mask_x0.png`, `mask_sam.png`) are still written by
+  prepare-research and still committed, just unrendered — `WipeFigure.tsx`
+  lives in git history if it ever returns, and `mask-paint.ts`'s border
+  detector survives as a fallback only.
 - **Figure 2 (Dice CDF, `DiceCdfFigure.tsx`)**: curves pooled from the CSV at
   **fraction 0.05 only** — pooling every fraction inverts the paper's model
   ordering, and the script's shape gate asserts shares-below-0.5 near
@@ -577,7 +596,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 | `public/headshot/v2/headshot128_meta.json` | 204 B | res 128 |
 | `public/headshot/v2/photos/{0,1,2}.webp` | 18/57/36 KB | the three approved crops, 512², q80, metadata stripped |
 | `public/headshot/v2/photos/{0,1,2}_thumb.webp` | ~2 KB each | 96² derivatives for the 44px face buttons (first paint) |
-| `public/research/*` | ~1.7 MB | prepare-research outputs: wipe assets, `cdf/` stops, flight mp4 + poster, `cdf.json`, `label_efficiency.json`, `provenance.json` |
+| `public/research/*` | ~1.7 MB | prepare-research outputs: `label_efficiency.json` (Figure 1), `cdf/` stops + `cdf.json` (Figure 2), flight mp4 + poster, wipe assets (unrendered), `provenance.json` |
 | `public/ort/*` | ~37 MB | onnxruntime-web wasm, vendored, **gitignored**, synced on prebuild |
 
 The JEPA bundle is produced by

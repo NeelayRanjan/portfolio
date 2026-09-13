@@ -89,8 +89,8 @@ export const copy = {
       "review at JAMIA. At NASA Ames I work on airspace coordination and a " +
       "synthetic dataset for air traffic control speech; at Regenstrief I trained " +
       "the diffusion model behind that paper. I also built a 553 KB chess engine; " +
-      "you can play it further down this page. I'm on leave from my AI degree at " +
-      "Purdue, applying to master's programs for fall 2027.",
+      "you can play it further down this page. I'm on a gap semester from my AI " +
+      "degree at Purdue, applying to master's programs for fall 2027.",
     /**
      * The author photo, which is a live diffusion sample rather than a file
      * (`components/figures/HeadshotFigure.tsx`). Every claim below is checked:

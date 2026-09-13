@@ -67,6 +67,20 @@ export function HeadshotToy({
    *  for good: the final frame IS the sampled photo, so there is nothing to
    *  revert to. */
   const [painted, setPainted] = useState(false);
+  /**
+   * The last COMPLETED run's final sample, kept as transition seed material
+   * (v2 module only). Rules that keep it honest:
+   *   - written only after a run resolves (a failed run clears it — morphing
+   *     out of a half-noised frame would be a lie about what's on screen);
+   *   - both directions are defensive copies: the module gets `.slice()` in
+   *     case it mutates its input, and stores `.slice()` of what it returned;
+   *   - length-checked against the current res before use, so a future
+   *     res-changing bundle swap can never feed a stale-sized buffer.
+   */
+  const lastFinalRef = useRef<{ cls: number; data: Float32Array } | null>(null);
+  /** Which story the finished run gets to claim in the readout: "sampled from
+   *  noise" and "morphed from the last sample" are different true sentences. */
+  const [wasMorph, setWasMorph] = useState(false);
 
   /**
    * One frame onto the 128px canvas.
@@ -110,13 +124,31 @@ export function HeadshotToy({
    * DrawDigit documents for its param commits.)
    */
   const run = useCallback(
-    async (idx: number) => {
+    async (idx: number, opts?: { fresh?: boolean }) => {
       if (runningRef.current) return;
       runningRef.current = true;
       setSel(idx);
       setRunning(true);
       setFailed(false);
       setStep(null);
+      /**
+       * Transition or from-noise? Cross-class presses morph (v2 module only);
+       * everything else is from-noise ON PURPOSE:
+       *   - the first press proves the model samples at all (the demo's thesis);
+       *   - `resample` keeps its meaning, "new noise, same photo, different
+       *     route" (opts.fresh);
+       *   - a same-class face press is just resample by another button.
+       */
+      const prev = lastFinalRef.current;
+      // model?.canMorph: on the very first press the model isn't loaded yet,
+      // which is fine — there is no prev to morph from either.
+      const morph =
+        (model?.canMorph ?? false) &&
+        !opts?.fresh &&
+        prev !== null &&
+        prev.cls !== idx &&
+        prev.data.length === 3 * res * res;
+      setWasMorph(morph);
       try {
         let m = model;
         if (!m) {
@@ -139,6 +171,10 @@ export function HeadshotToy({
           ort: m.ort,
           meta: m.meta,
           classIdx: idx,
+          // Transition seed (v2 only; v1 never reaches here with morph=true).
+          // The module gets its own copy; `strength` is deliberately omitted
+          // so the module's tuned default applies.
+          ...(morph && prev ? { init: prev.data.slice() } : {}),
           // No `steps`: the module falls back to meta.steps_default, which is
           // the export's own number rather than one picked here.
           onFrame: ({ xt, step: i, total }) => {
@@ -156,6 +192,7 @@ export function HeadshotToy({
         // photo and is painted WITHOUT a second clamp.
         paint(final, m.meta.channels, false);
         setPainted(true);
+        lastFinalRef.current = { cls: idx, data: final.slice() };
       } catch {
         // ⚠️ `painted` has to go back to false, not just `failed` to true. A run
         // that dies mid-sampling after an earlier successful one would
@@ -165,12 +202,13 @@ export function HeadshotToy({
         // what you see is the photo itself again.
         setFailed(true);
         setPainted(false);
+        lastFinalRef.current = null; // never morph out of a dead run's frame
       } finally {
         runningRef.current = false;
         setRunning(false);
       }
     },
-    [model, paint],
+    [model, paint, res],
   );
 
   const altOf = (i: number) => t.photoAlts[i] ?? t.photoAltGeneric;
@@ -194,7 +232,7 @@ export function HeadshotToy({
         : running
           ? ""
           : painted
-            ? `${t.statusDone} · ${model?.build ?? ""}`
+            ? `${wasMorph ? t.statusMorphed : t.statusDone} · ${model?.build ?? ""}`
             : t.statusRest;
 
   return (
@@ -257,7 +295,7 @@ export function HeadshotToy({
           </button>
         ))}
         <button
-          onClick={() => void run(sel)}
+          onClick={() => void run(sel, { fresh: true })}
           disabled={running}
           aria-label={t.resampleAria}
           className="border border-rule px-2 py-1 font-mono text-[10px] text-mut transition-colors hover:border-mut hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
@@ -287,7 +325,10 @@ export function HeadshotToy({
             otherwise before anyone has pressed anything would be the one kind
             of claim this whole section exists to avoid making. */}
         {painted ? t.captionLeadSampled : t.captionLeadRest}
-        {t.captionBody}
+        {/* Capability is known once the model loads, which is always before
+            any cross-class press could morph — the from-noise body stays true
+            right up to the swap. */}
+        {model?.canMorph ? t.captionBodyMorph : t.captionBody}
       </figcaption>
     </figure>
   );

@@ -60,7 +60,29 @@ export declare function cosineAlphasCumprod(
   s?: number,
 ): Float64Array;
 
+/**
+ * Module capability flag. v1 (the current 128 bundle) does NOT export this —
+ * it reads as `undefined`. The v2 module (shipping with the 256 bundle, or
+ * earlier on its own) exports `2`. ⚠️ THE FLAG IS THE ONLY SAFE CAPABILITY
+ * TEST: v1's generate() silently IGNORES unknown options, so passing `init`
+ * to it would run a full from-noise sample while the UI claims a morph.
+ * Never feature-detect by passing the option.
+ */
+export declare const MODULE_VERSION: number | undefined;
+
 export interface HeadshotGenerateOptions {
+  /**
+   * v2 ONLY (gate on MODULE_VERSION >= 2). Transition mode: the currently
+   * displayed sample, [1,3,res,res] planar C-order in [-1,1]. The module
+   * forward-noises it to t = round(strength·(T−1)) and runs the normal
+   * conditioned descent from there; steps (and onFrame count) scale down,
+   * `total` tells the real count. Hand the module a COPY — the site keeps its
+   * own buffer.
+   */
+  init?: Float32Array | null;
+  /** v2 ONLY, only meaningful with `init`. 0..1; module default 0.55. The site
+   *  deliberately does not pass it: the module's default is the tuned one. */
+  strength?: number | null;
   /**
    * A live onnxruntime-web `InferenceSession` for the headshot graph.
    *

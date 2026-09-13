@@ -32,6 +32,15 @@ export type HeadshotModel = {
   ort: typeof import("onnxruntime-web/webgpu");
   build: HeadshotBuild;
   /**
+   * Whether the vendored sampler supports transition mode (init/strength),
+   * read off its MODULE_VERSION export at load time. v1 exports none and
+   * SILENTLY IGNORES unknown generate() options, so this flag — never
+   * option-passing — is the only safe capability test: feeding `init` to v1
+   * would run a full from-noise sample while the UI claims a morph. Flips to
+   * true the moment the v2 module file replaces lib/headshot-diffusion.js.
+   */
+  canMorph: boolean;
+  /**
    * The vendored sampler, handed out with the session so the component has
    * exactly one thing to await. Dynamically imported here for the same reason
    * the runtime is: neither belongs in the main bundle, and the masthead is
@@ -92,10 +101,15 @@ export function loadHeadshotModel(): Promise<HeadshotModel | null> {
     const hasFp32 = await served(MODEL_FP32_URL);
     if (!hasInt8 && !hasFp32) return null;
 
-    const [{ generate }, ort] = await Promise.all([
+    const [mod, ort] = await Promise.all([
       import("./headshot-diffusion.js"),
       import("onnxruntime-web/webgpu"),
     ]);
+    const { generate } = mod;
+    // Index access, not a named import: the binding doesn't exist in v1, and
+    // bundlers reject a missing NAMED export at build time.
+    const canMorph =
+      (((mod as Record<string, unknown>).MODULE_VERSION as number | undefined) ?? 1) >= 2;
     // ORT fetches its wasm at runtime, so it needs a served path. Vendored into
     // public/ort/ by scripts/sync-ort.mjs — never a CDN.
     ort.env.wasm.wasmPaths = "/ort/";
@@ -116,14 +130,14 @@ export function loadHeadshotModel(): Promise<HeadshotModel | null> {
     if (hasInt8) {
       try {
         const session = await ort.InferenceSession.create(MODEL_INT8_URL, opts);
-        return { meta, session, ort, generate, build: "int8" as const };
+        return { meta, session, ort, generate, canMorph, build: "int8" as const };
       } catch (err) {
         if (!hasFp32) throw err;
         console.warn("headshot: int8 session failed, falling back to fp32", err);
       }
     }
     const session = await ort.InferenceSession.create(MODEL_FP32_URL, opts);
-    return { meta, session, ort, generate, build: "fp32" as const };
+    return { meta, session, ort, generate, canMorph, build: "fp32" as const };
   })().catch((err) => {
     cache = null; // let a later press retry rather than caching the failure
     throw err;

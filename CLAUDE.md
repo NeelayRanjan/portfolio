@@ -335,6 +335,24 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 - Every press is fresh noise, so the route differs and the photo doesn't:
   verified in-browser that two runs of one class are not byte-identical. All
   controls disable while a run is in flight (`runningRef`, synchronous).
+- **Transition mode (built 2026-09-12, dormant until the v2 module lands).**
+  The site is fully wired for SDEdit-style morphs: a cross-class press hands
+  the previous COMPLETED run's final sample back as `init` and the module
+  forward-noises it partway and descends into the new photo. Rules, all in
+  code already: capability = the vendored module exporting `MODULE_VERSION
+  >= 2`, read at load time via index access (⚠️ v1 silently IGNORES unknown
+  generate() options, so option-passing is never the test; and a static named
+  import of the flag fails the v1 build — Turbopack bind-checks it);
+  first-press and `resample` and same-class presses stay from-noise (the
+  demo's thesis + resample's meaning); init only from a completed run
+  (failures clear it), defensive `.slice()` both directions, length-checked
+  against `res`; `strength` is never passed (module default rules); the
+  readout and caption swap to morph wording only when capable, so no state
+  ever overclaims. When the v2 module file replaces `lib/headshot-diffusion.js`
+  everything lights up with zero site edits — but demand its TRANSITION parity
+  vector (init+strength case) in `vectors/` first; the forward-noising branch
+  is unpinned vendored math until then. The verify check already exercises a
+  second press and passes under both module versions.
 - Measured in headless Firefox on a production build: 25 steps end to end
   ~15.5s including the download (a real browser is much faster; quote measured
   numbers only). Per-photo PSNR from the bundle: 29.3 / 24.0 / 21.1 dB — classes

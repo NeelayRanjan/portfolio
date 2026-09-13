@@ -125,6 +125,16 @@ export const copy = {
         "until it memorized them, and pressing a face runs it here in your " +
         "browser: 25 steps from fresh noise back to that photo. New noise " +
         "every press, so the route changes and the face doesn't.",
+      /** The v2-module variant (rendered only when the vendored sampler
+       *  supports transitions): presses after the first morph the on-screen
+       *  picture instead of restarting from noise, so the body has to say
+       *  that or the old "new noise every press" line goes false. */
+      captionBodyMorph:
+        "I overfit a 1.3M-parameter diffusion model on three photos of me " +
+        "until it memorized them. A press runs it here in your browser: the " +
+        "first sample climbs out of fresh noise, and after that pressing a " +
+        "different face partially re-noises the picture on screen and pulls " +
+        "the new photo out of it. resample starts over from noise.",
       /** The canvas's accessible name: this, " 1 of 3", then the photo's own
        *  alt text. The alt has to ride along or a screen-reader user loses the
        *  description of what the author looks like the moment the canvas
@@ -141,6 +151,10 @@ export const copy = {
       statusLoading: "fetching the weights",
       statusSampling: "sampling",
       statusDone: "sampled from noise",
+      /** v2 transition mode only: a cross-class press re-noised the on-screen
+       *  picture partway and denoised it into the new photo. Distinct from
+       *  statusDone because "sampled from noise" would be false for that run. */
+      statusMorphed: "morphed from the last sample",
       /** The model files are absent at runtime although the photos are served:
        *  say so rather than leaving a dead button. */
       statusAbsent: "the model isn't deployed, so this is the photo itself",

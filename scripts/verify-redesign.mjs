@@ -484,15 +484,17 @@ async function checkHeadshotSamplesPhoto(browser) {
     // First press pulls onnxruntime-web + the 1.55MB int8 graph and then runs
     // 25 forward passes. Measured end to end here at ~15.5s; budget 5 minutes,
     // because headless Firefox is ~20x slower than a real browser (CLAUDE.md).
+    const DONE_RE = /sampled from noise|morphed from the last sample/;
     await page.waitForFunction(
       () =>
-        document
-          .querySelector("#headshot-toy [role=status]")
-          ?.textContent?.includes("sampled from noise"),
+        /sampled from noise|morphed from the last sample/.test(
+          document.querySelector("#headshot-toy [role=status]")?.textContent ?? "",
+        ),
       null,
       { timeout: 300000 },
     );
     const readout = (await page.locator("#headshot-toy [role=status]").textContent()).trim();
+    if (!DONE_RE.test(readout)) throw new Error(`unexpected terminal readout: ${readout}`);
 
     // A GET of one of the two graphs is what proves a model ran at all.
     if (!urls.some((u) => /\/headshot\/headshot(_int8)?\.onnx/.test(u))) {
@@ -551,7 +553,72 @@ async function checkHeadshotSamplesPhoto(browser) {
       );
     }
 
-    return `no model at rest; "${readout}"; MAD 32x32 own ${mad.toFixed(2)} (limit ${HEADSHOT_MAD_MAX}) vs others ${controls.map((c) => c.toFixed(2)).join(", ")}`;
+    // Second press, different face: the new class must win on the canvas.
+    // Version-agnostic on purpose: under the v1 module this is a second
+    // from-noise run; under v2 it is a transition seeded by the first run's
+    // final — either way the end state is the pressed photo, which is the
+    // property that matters. The readout under v2 additionally says "morphed"
+    // (reported, not asserted, so the check passes both module versions).
+    const face2 = page.locator('#headshot-toy button[aria-label^="Sample photo 2"]');
+    const thumb2 = await face2.locator("img").getAttribute("src");
+    const cls2 = Number(/photos\/(\d+)_thumb/.exec(thumb2 ?? "")?.[1] ?? NaN);
+    if (!Number.isInteger(cls2) || cls2 === cls) {
+      throw new Error(`could not derive a distinct second class (got ${cls2} vs ${cls})`);
+    }
+    await face2.click();
+    await page.waitForFunction(
+      () => {
+        const s = document.querySelector("#headshot-toy [role=status]")?.textContent ?? "";
+        return /sampling/.test(s) === false && /sampled from noise|morphed from the last sample/.test(s);
+      },
+      null,
+      { timeout: 300000 },
+    );
+    // Small settle: the terminal readout lands in the same commit as the final
+    // paint, but give the canvas one frame anyway.
+    await page.waitForTimeout(200);
+    const readout2 = (await page.locator("#headshot-toy [role=status]").textContent()).trim();
+    const second = await page.evaluate(async (cls2) => {
+      const N = 32;
+      const shrink = (src) => {
+        const c = document.createElement("canvas");
+        c.width = N; c.height = N;
+        const g = c.getContext("2d");
+        g.drawImage(src, 0, 0, N, N);
+        return g.getImageData(0, 0, N, N).data;
+      };
+      const meanAbs = (a, b) => {
+        let sum = 0, n = 0;
+        for (let i = 0; i < a.length; i += 4)
+          for (let k = 0; k < 3; k++) { sum += Math.abs(a[i + k] - b[i + k]); n++; }
+        return sum / n;
+      };
+      const load = async (src) => {
+        const img = new Image();
+        img.src = src;
+        await img.decode();
+        return shrink(img);
+      };
+      const sample = shrink(document.querySelector("#headshot-toy canvas"));
+      const target = await load(`/headshot/photos/${cls2}.webp`);
+      const controls = [];
+      for (const i of [0, 1, 2].filter((i) => i !== cls2)) {
+        controls.push(meanAbs(sample, await load(`/headshot/photos/${i}.webp`)));
+      }
+      return { mad: meanAbs(sample, target), controls };
+    }, cls2);
+    if (second.mad > HEADSHOT_MAD_MAX) {
+      throw new Error(
+        `after second press, canvas is ${second.mad.toFixed(2)} off photo ${cls2} (limit ${HEADSHOT_MAD_MAX})`,
+      );
+    }
+    if (!second.controls.every((c) => c > second.mad)) {
+      throw new Error(
+        `second press not closest to its own class: own ${second.mad.toFixed(2)} vs ${second.controls.map((c) => c.toFixed(2)).join(", ")}`,
+      );
+    }
+
+    return `no model at rest; "${readout}"; MAD own ${mad.toFixed(2)} vs others ${controls.map((c) => c.toFixed(2)).join(", ")}; 2nd press ("${readout2}") MAD own ${second.mad.toFixed(2)} vs ${second.controls.map((c) => c.toFixed(2)).join(", ")}`;
   });
 }
 

@@ -33,13 +33,16 @@ import cdfData from "@/public/research/cdf.json";
  * Red is SAM here because red is SAM in Figure 1; nothing on this page reads
  * red as "bad".
  *
- * ⚠️ THE CURSOR IS A THRESHOLD, NOT THE SHOWN IMAGE'S SCORE. The prediction
- * cache holds 10 test images and SAM scores 0.666 to 0.924 on them, so there is
- * no cached image at 0.1 Dice to show at the 0.1 stop. The script picks by
- * nearest-with-dedupe on SAM's computed Dice, which over those 10 comes out
- * rank-ordered, so panning right walks toward images SAM handles better. Every
- * panel prints its own computed number and the caption says which is which.
- * Don't retitle the strip as "images at this Dice".
+ * ⚠️ THE CURSOR IS STILL A THRESHOLD, NOT THE SHOWN IMAGE'S SCORE, though
+ * since the 2026-09-13 re-source it is a close one: the strip draws on the
+ * test_predictions re-export (all 100 test images, seed-1/fold-1), and the
+ * script picks per stop by nearest-with-dedupe on SAM's computed Dice, so a
+ * 0.3 stop shows an image scoring near 0.3, genuine failures included. Every
+ * panel prints its own computed number. Don't retitle the strip as "images
+ * AT this Dice" — nearest is nearest. And note SAM's caveat: its inference is
+ * stochastic, so the re-exported masks are a fresh draw that can score off
+ * the CSV's recorded row (root-caused in scripts/prepare-research.mjs; the
+ * trained models reproduce their rows, ResNet-UNet to the fourth decimal).
  *
  * ⚠️ THE ANGIOGRAM IS SHIPPED SQUASHED TO THE MASK'S SQUARE, so the panels use
  * a plain stretched <img> and NOT `object-cover`. The prediction pipeline

@@ -28,6 +28,10 @@ headshots presented last-class-first (photo 2 is the default face). The wipe
 (originally Figure 1, moved to image 330 with the green-x0/red-SAM legend) was
 then REPLACED by the label-efficiency sweep at the owner's direction; its
 component and copy are gone, its assets stay (see the figure section).
+2026-09-13: the owner dropped `test_pred.zip` (the full seed-1/fold-1
+re-export) and both research figures re-sourced from it — Figure 2's stops
+now land on genuine failures across all 100 test images, and Figure 1 grew
+its mask strip (x0 vs ResNet-UNet across the budgets, image 114).
 
 **Verification: `scripts/verify-redesign.mjs`** — 14 named checks,
 Playwright-Firefox against a real `npm run build && npm start` on :3000, never
@@ -37,7 +41,8 @@ scroll at 400px on both pages, nothing model-sized before scroll, the
 label-efficiency sweep (readouts and the computed lead/trail sentence vs the
 SERVED `label_efficiency.json` at the first and last budgets, including the
 x0-leads→x0-trails flip, cursor exactly on the budget tick, whiskers tracking
-the slider), the Dice-CDF slider (curves, readouts vs `cdf.json`, repaint on stop
+the slider, and the strip's panels carrying the json's Dice and repainting per
+budget), the Dice-CDF slider (curves, readouts vs `cdf.json`, repaint on stop
 change), flight video play/pause, a drawn stroke producing a real auto-label,
 the chess hint matching vector D (`g3 p=0.236`), JEPA seed query 834 plus the
 triple-equality, and the headshot toy (no model fetched at rest; the sampled
@@ -66,16 +71,13 @@ change touching a demo, a figure, or the page shell.
 2. **arXiv link** (~2026-09-18) swaps into the references when the preprint is
    live; the owner then creates a Google Scholar profile, which joins the
    identity links (the link list is data-driven copy).
-3. **A regenerated `predictions_cache`** (more images, real tail cases, runs
-   matching the CSV seeds) would substantially strengthen Figures 1–2 — see
-   the research-figures section for today's limits.
-4. **A transition parity vector for the headshot bundle.** The morph is live on
+3. **A transition parity vector for the headshot bundle.** The morph is live on
    the site, but `test_parity.mjs` pins only the from-noise path; its
    `init+strength` case is a structural smoke (step count + finiteness), so the
    forward-noising branch is unpinned vendored math. Ask the model owner for an
    init+strength case in `vectors/`.
-5. The mobile draw-demo bugs (Known bugs below) are open.
-6. Much later: a third headliner demo, a **live network-security honeypot**
+4. The mobile draw-demo bugs (Known bugs below) are open.
+5. Much later: a third headliner demo, a **live network-security honeypot**
    (exposed Pi, malicious ssh/https logged, LLM-categorized into a live UMAP
    of attack families). Needs a live-data seam the static site doesn't have;
    the systems figure column is trivially appendable when it comes.
@@ -526,18 +528,42 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 
 ### The research figures — real-data pipeline (`scripts/prepare-research.mjs`)
 - Hand-run only: its inputs live in the gitignored `external_materials/` (the
-  owner's 45MB asset mine — paper tarballs + metrics CSV, the NASA video, the
-  headshot originals), absent on Vercel. Its outputs in `public/research/` are
-  committed. **Assert-before-write**: the aggregate is computed first and
-  nothing is written if x0diffusion@16-labels drifts from the paper's 0.882
-  (±0.01).
-- **⚠️ `--accept-csv-drift` is required, and it is not a formality**: the
-  baselines' `predictions_cache` is a DIFFERENT training export than the CSV's
-  runs (deeplabv3@32 computes 0.480 on an image whose four CSV seeds all sit
-  above 0.90; x0's cache matches its CSV on all 10 cached images, which is
-  what validates the pipeline itself). Every number the site shows is computed
-  from the exact mask on screen, never a CSV mean; `provenance.json` is the
-  audit trail.
+  owner's asset mine — paper tarballs + metrics CSV + the `test_predictions/`
+  re-export, the NASA video, the headshot originals), absent on Vercel. Its
+  outputs in `public/research/` are committed. **Assert-before-write**: the
+  aggregate is computed first and nothing is written if x0diffusion@16-labels
+  drifts from the paper's 0.882 (±0.01).
+- **The mask source is `test_predictions/`** (owner-dropped 2026-09-12 as
+  `test_pred.zip`, which is BASE64-ENCODED zip text — `base64 -d` first): a
+  re-run of the paper's seed-1/fold-1 runs, every model, every fraction, all
+  100 test images, each run dir carrying `per_image_metrics.csv` whose
+  `dice_recorded` equals the long CSV's rows exactly (the script asserts all
+  100 on every load). The old 10-image `predictions_cache.tar.gz` is read only
+  for the retired wipe's assets.
+- **⚠️ THE LONG CSV'S `image_index` IS NOT THE IMAGE ID.** Two disjoint
+  numbering spaces (0 of 100 coincide) that collide on 13 of 100 values; mask
+  filenames, benchmark files and ground truths are ID space, the CSV is INDEX
+  space, and `per_image_metrics.csv` is the bridge. A filename-to-CSV join
+  cross-matched image 5 to index 5 and shipped someone else's number before
+  the drift gate caught it. This same wrong join is also what produced the
+  RETRACTED 2026-09-12 "the cache is a separate export" diagnosis: x0's and
+  SAM's tight per-image spreads made the wrong join look like agreement, and
+  ResNet's wide spread made it look like drift. Every CSV join goes through
+  the bridge; the wipe's legacy ranking is the one knowing exception (commented
+  in the script, retired figure, its caption numbers were always pixel-computed).
+- **⚠️ `--accept-csv-drift` is still required, and now it means exactly one
+  thing (root-caused 2026-09-13): SAM.** The export is a re-run, and SAM's
+  inference is stochastic — the long CSV itself scores one image 0.196 under
+  one seed and 0.475 under another — so its re-exported masks are fresh draws
+  (measured |computed−recorded| up to 0.46 on hard images). The deterministic
+  models reproduce their recorded rows from raw pixels: ResNet-UNet at Δ0.000
+  on every panel, x0-diffusion within 0.02, which is the standing proof the
+  decode, polarity and GT resize are right. Every number the site shows is
+  computed from the exact mask on screen, never a CSV cell; `provenance.json`
+  is the audit trail. Two export oddities, documented in the script: each
+  `run_metadata.json`'s own `dice_mean` is garbage (its scorer read the wrong
+  side; trust `dice_recorded`), and ε-diffusion's masks score far above its
+  recorded ~0.23 (unexplained, never displayed).
 - **Mask PNG polarity is PER-IMAGE, not a convention** (image 189's SAM mask
   was black-vessel-on-white, 330's is white-on-black; ViT's 16-label mask
   calls 67.7% of the frame vessel). The client (`components/figures/
@@ -556,19 +582,29 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   that flip is the finding, never "fix" it); SAM's flat line is the data (the
   CSV replicates its zero-shot rows at every fraction, verified identical);
   x0/SAM/ResNet keep Figure 2's exact color+dash so the two figures read as one
-  system; default stop = 16 labels, where the claim lives. The WIPE'S ASSETS
-  (`angiogram.webp`, `mask_x0.png`, `mask_sam.png`) are still written by
-  prepare-research and still committed, just unrendered — `WipeFigure.tsx`
-  lives in git history if it ever returns, and `mask-paint.ts`'s border
-  detector survives as a fallback only.
+  system; default stop = 16 labels, where the claim lives. **The strip**
+  (2026-09-13): one real angiogram (image 114, picked by a transparent rule
+  recorded in provenance — x0's worst budget ≥ 0.85, then max ResNet gain
+  lo→hi) with x0's (green) and ResNet-UNet's (amber) masks following the
+  budget slider — ResNet goes 0.141 → 0.806 → 0.934 while x0 sits at ~0.92
+  throughout, the crossover in pixels. Gated on the json's `strip` block;
+  polarity comes RECORDED from the file; panel Dice is computed from the
+  shipped bytes (ResNet's panels reproduce their CSV rows at Δ0.000);
+  `--eff-image N` overrides the pick. The WIPE'S ASSETS (`angiogram.webp`,
+  `mask_x0.png`, `mask_sam.png`) are still written by prepare-research and
+  still committed, just unrendered — `WipeFigure.tsx` lives in git history if
+  it ever returns, and `mask-paint.ts`'s border detector survives as a
+  fallback only.
 - **Figure 2 (Dice CDF, `DiceCdfFigure.tsx`)**: curves pooled from the CSV at
   **fraction 0.05 only** — pooling every fraction inverts the paper's model
   ordering, and the script's shape gate asserts shares-below-0.5 near
   0.3/5.4/13.5% (x0/SAM/ResNet) to match the paper's figure. Slider stops
-  t=0.1..0.9 pick the cached image whose SAM dice is NEAREST t; only 10 images
-  exist in the cache (SAM span 0.666–0.924), so low stops cannot land on the
-  cursor's value and the copy says the cursor is a threshold. Panel Dice =
-  computed from the shown pixels.
+  t=0.1..0.9 pick the image whose SAM dice is NEAREST t over all 100
+  re-exported test images (SAM span 0.258–0.932 since the 2026-09-13
+  re-source), so stops land close to the cursor, real failures included — but
+  the cursor is still a threshold, and the copy keeps saying so. Panel Dice =
+  computed from the shown pixels (SAM's are a fresh stochastic draw; see the
+  drift bullet above).
 - **Figure 3 (flight video, `FlightFigure.tsx`)**: the committed mp4 is
   untouched; the dark-map look is pure CSS — `invert(1) hue-rotate(33deg)
   saturate(2.1) brightness(1.05)` lands the blips on the warm token,
@@ -596,7 +632,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 | `public/headshot/v2/headshot128_meta.json` | 204 B | res 128 |
 | `public/headshot/v2/photos/{0,1,2}.webp` | 18/57/36 KB | the three approved crops, 512², q80, metadata stripped |
 | `public/headshot/v2/photos/{0,1,2}_thumb.webp` | ~2 KB each | 96² derivatives for the 44px face buttons (first paint) |
-| `public/research/*` | ~1.7 MB | prepare-research outputs: `label_efficiency.json` (Figure 1), `cdf/` stops + `cdf.json` (Figure 2), flight mp4 + poster, wipe assets (unrendered), `provenance.json` |
+| `public/research/*` | ~1.7 MB | prepare-research outputs: `label_efficiency.json` + `eff/` strip (Figure 1), `cdf/` stops + `cdf.json` (Figure 2), flight mp4 + poster, wipe assets (unrendered), `provenance.json` |
 | `public/ort/*` | ~37 MB | onnxruntime-web wasm, vendored, **gitignored**, synced on prebuild |
 
 The JEPA bundle is produced by

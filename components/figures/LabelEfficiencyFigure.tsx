@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { InstrumentFigure } from "@/components/manuscript/InstrumentFigure";
+import { paintMaskCanvas, readToken, type MaskToken } from "@/components/figures/mask-paint";
 import { copy } from "@/content/copy";
 import effData from "@/public/research/label_efficiency.json";
 
@@ -38,6 +39,16 @@ import effData from "@/public/research/label_efficiency.json";
  * dash pattern and a named legend entry, and the three hues Figure 2 already
  * assigned (green x0, dashed red SAM, dotted amber ResNet-UNet) are kept
  * identical here so the two figures read as one system.
+ *
+ * THE STRIP (added 2026-09-13, from the test_predictions re-export): one real
+ * test angiogram with x0-diffusion's and ResNet-UNet's masks at the SELECTED
+ * budget, so the crossover is visible in pixels while the slider moves. Data
+ * and rules come from `strip` in the json (image pick rule and per-panel
+ * audit in provenance.json): polarity is the RECORDED `vesselIsWhite`, the
+ * Dice is computed from the exact shipped bytes, tints are each model's
+ * series hue, and the whole strip is gated on the block's presence, so an
+ * older json without it renders the chart alone. Painted canvases are cached
+ * per file, same as Figure 2's panels.
  */
 
 type Point = { fraction: number; labels: number; diceMean: number; diceStd: number; n: number };
@@ -81,6 +92,28 @@ const SERIES: Record<ModelKey, { color: string; dash?: string; width: number }> 
   ediffusion: { color: "var(--color-mut)", dash: "1.6 3.2", width: 1.2 },
 };
 
+/** The strip block, gated on presence and shape (an older json has none). */
+type StripMask = { file: string; dice: number; vesselIsWhite: boolean; width: number; height: number };
+type Strip = {
+  image: number;
+  angio: string;
+  models: string[];
+  budgets: { fraction: number; labels: number; masks: Record<string, StripMask> }[];
+};
+const STRIP: Strip | null = (() => {
+  const s = (effData as { strip?: Strip }).strip;
+  if (!s || !Array.isArray(s.budgets)) return null;
+  if (s.budgets.length !== BUDGETS.length || s.budgets.some((b, i) => b.labels !== BUDGETS[i])) {
+    throw new Error("label_efficiency.json: strip budgets disagree with the chart's budgets");
+  }
+  return s;
+})();
+/** Mask tint per strip model: the model's own series hue. */
+const STRIP_TINTS: Record<string, MaskToken> = {
+  x0diffusion: "--color-ok",
+  resnet: "--color-warm",
+};
+
 const WIDTH = 680;
 const HEIGHT = 320;
 const MARGIN = { top: 12, right: 18, bottom: 44, left: 48 };
@@ -100,6 +133,89 @@ const yScale = (dice: number) => MARGIN.top + (1 - dice) * PLOT_H;
 const bottomEdge = MARGIN.top + PLOT_H;
 
 const Y_TICKS = [0, 0.2, 0.4, 0.6, 0.8, 1];
+
+/**
+ * One strip column: the angiogram, optionally one model's mask over it at the
+ * selected budget, and the Dice computed for those exact pixels. The painted
+ * canvas is cached per mask file, so sliding back is a `drawImage`, not a
+ * fresh decode (Figure 2's pattern).
+ */
+function StripPanel({ budgetIdx, model }: { budgetIdx: number; model: string | null }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cache = useRef(new Map<string, HTMLCanvasElement>());
+  const strip = STRIP as Strip;
+  const mask = model ? strip.budgets[budgetIdx].masks[model] : null;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !mask || !model) return;
+    let live = true;
+
+    const blit = (painted: HTMLCanvasElement) => {
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      canvas.width = painted.width;
+      canvas.height = painted.height;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(painted, 0, 0);
+    };
+
+    const cached = cache.current.get(mask.file);
+    if (cached) {
+      blit(cached);
+      return;
+    }
+
+    // Clear first: the previous budget's mask must not linger under this
+    // budget's number while the new PNG decodes.
+    const ctx = canvas.getContext("2d");
+    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    paintMaskCanvas(`/research/${mask.file}`, readToken(STRIP_TINTS[model]), mask.vesselIsWhite)
+      .then((painted) => {
+        cache.current.set(mask.file, painted);
+        if (live) blit(painted);
+      })
+      .catch(() => {
+        /* The panel stays the plain angiogram: an absent mask shows nothing
+           rather than something invented. */
+      });
+
+    return () => {
+      live = false;
+    };
+  }, [mask, model]);
+
+  const name = model ? t.modelLabels[model as ModelKey] : t.angioLabel;
+
+  return (
+    <div>
+      <div className="relative aspect-square w-full overflow-hidden border border-rule bg-panel">
+        {/* Stretched, not cropped: the masks are registered to the squashed
+            frame, same ruling as Figure 2's panels. */}
+        <img
+          src={`/research/${strip.angio}`}
+          alt={model ? "" : `${t.angioAltPre}${strip.image}`}
+          aria-hidden={model ? true : undefined}
+          className="absolute inset-0 h-full w-full"
+        />
+        {mask && model ? (
+          <canvas
+            ref={canvasRef}
+            role="img"
+            aria-label={`${t.maskAriaPre}${t.modelLabels[model as ModelKey]}${t.maskAriaMid}${strip.budgets[budgetIdx].labels}${t.maskAriaPost}${mask.dice.toFixed(3)}`}
+            className="absolute inset-0 h-full w-full"
+          />
+        ) : null}
+      </div>
+      <div className="mt-2 font-mono text-[11px] leading-tight text-mut">
+        <span style={model ? { color: SERIES[model as ModelKey].color } : undefined}>{name}</span>
+        <br />
+        {mask ? `${t.diceLabel} ${mask.dice.toFixed(3)}` : `${t.imagePre}${strip.image}`}
+      </div>
+    </div>
+  );
+}
 
 export function LabelEfficiencyFigure() {
   // Default to the smallest budget: the paper's claim lives at 16 labels.
@@ -330,6 +446,24 @@ export function LabelEfficiencyFigure() {
           className="h-1 flex-1 accent-link"
         />
       </label>
+
+      {/* The strip: one real angiogram, then each model's mask at the
+          selected budget — the crossover in pixels. Gated on the json block. */}
+      {STRIP ? (
+        <>
+          <div id="fig-eff-strip" className="mt-6 grid grid-cols-3 gap-4">
+            <StripPanel budgetIdx={idx} model={null} />
+            {STRIP.models.map((m) => (
+              <StripPanel key={m} budgetIdx={idx} model={m} />
+            ))}
+          </div>
+          <p className="mt-3 font-mono text-[10.5px] leading-relaxed text-mut">
+            {t.stripNotePre}
+            {labels}
+            {t.stripNotePost}
+          </p>
+        </>
+      ) : null}
     </InstrumentFigure>
   );
 }

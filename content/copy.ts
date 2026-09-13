@@ -237,7 +237,7 @@ export const copy = {
      */
     figLabelEff: {
       caption:
-        "The graph behind the headline number. Each point is one model’s mean test Dice at one label budget, pooled over every seed and fold, 2,500 predictions per point; whiskers mark one standard deviation at the budget the slider selects. At 16 labeled angiograms x0-diffusion sits at 0.882 and the nearest baseline is SAM at 0.835, which is zero-shot and never trains on labels, so its line is flat. Slide right and the trained baselines climb: DeepLabV3 catches up at 32 labels, and by 80 it and ResNet-UNet edge ahead. That crossover is the claim, label efficiency rather than peak accuracy. ε-diffusion, the same architecture trained to predict the noise instead of the clean mask, stays near 0.23 Dice at every budget.",
+        "The graph behind the headline number. Each point is one model’s mean test Dice at one label budget, pooled over every seed and fold, 2,500 predictions per point; whiskers mark one standard deviation at the budget the slider selects. At 16 labeled angiograms x0-diffusion sits at 0.882 and the nearest baseline is SAM at 0.835, which is zero-shot and never trains on labels, so its line is flat. Slide right and the trained baselines climb: DeepLabV3 catches up at 32 labels, and by 80 it and ResNet-UNet edge ahead. That crossover is the claim, label efficiency rather than peak accuracy. ε-diffusion, the same architecture trained to predict the noise instead of the clean mask, stays near 0.23 Dice at every budget. Under the chart, one real test angiogram with x0-diffusion’s and ResNet-UNet’s masks at the selected budget: at 16 labels ResNet-UNet returns noise on it, by 80 it has caught up, and x0-diffusion barely moves. Each panel prints the Dice computed from the exact pixels it paints.",
       /** Screen-reader name for the chart itself. The caption is the long form. */
       chartAria:
         "Mean test Dice against label budget for x0-diffusion and six baselines",
@@ -260,8 +260,19 @@ export const copy = {
       /** Slider: the panel's top-right readout, its label, its aria text. */
       readoutLabel: "labels",
       sliderLabel: "labels",
-      sliderAriaPre: "Label budget for the whiskers and readouts: ",
+      sliderAriaPre: "Label budget for the whiskers, readouts and mask panels: ",
       sliderAriaPost: " labeled angiograms",
+      /** The strip: the bare angiogram column, then one column per model. */
+      angioLabel: "angiogram",
+      angioAltPre: "Pelvic-iliac angiogram from the segmentation benchmark, test image ",
+      imagePre: "test image ",
+      diceLabel: "Dice",
+      maskAriaPre: "Predicted vessel mask from ",
+      maskAriaMid: " trained on ",
+      maskAriaPost: " labels, Dice ",
+      /** Mono note under the strip, wrapped around the live budget. */
+      stripNotePre: "masks: the seed-1, fold-1 run at ",
+      stripNotePost: " labels. dice computed from the shown pixels.",
       modelLabels: {
         x0diffusion: "x0-diffusion",
         sam: "SAM (zero-shot)",
@@ -284,7 +295,7 @@ export const copy = {
      */
     figCdf: {
       caption:
-        "The distribution behind the mean. Every per-image test Dice at the 16-label budget, pooled over all seeds and folds, so each line is 2,500 predictions: read up from a Dice value and you get the share of predictions that scored below it. The y axis is clipped at 30% because the failure tail is the part worth seeing. At the thin reference line, 0.5 Dice, x0-diffusion (solid green) has put 0.32% of its predictions, SAM (dashed red) 5.4%, and ResNet-UNet (dotted amber) 13.5%. x0-diffusion’s mean is a few points ahead of the baselines; what it almost never does is fail outright. Move the slider to pan the cursor along the Dice axis and the readouts give each model’s exact share below it. Under the chart, one real test image per stop with all three models’ masks over it. The prediction cache holds 10 test images and SAM scores 0.666 to 0.924 on them, so panning right walks toward the images SAM handles better rather than landing on the cursor’s value: every panel prints the Dice computed from the pixels it paints, against the benchmark’s ground truth for that image, so it can land either side of the curve. The ResNet-UNet masks in that cache are rougher than its own line, noise on 5 of those 10 images, because the cache is a separate export from the runs the curve pools. I show the Dice I can compute from what’s on screen rather than the one the table reports.",
+        "The distribution behind the mean. Every per-image test Dice at the 16-label budget, pooled over all seeds and folds, so each line is 2,500 predictions: read up from a Dice value and you get the share of predictions that scored below it. The y axis is clipped at 30% because the failure tail is the part worth seeing. At the thin reference line, 0.5 Dice, x0-diffusion (solid green) has put 0.32% of its predictions, SAM (dashed red) 5.4%, and ResNet-UNet (dotted amber) 13.5%. x0-diffusion’s mean is a few points ahead of the baselines; what it almost never does is fail outright. Move the slider to pan the cursor along the Dice axis and the readouts give each model’s exact share below it. Under the chart, one real test image per stop with all three models’ masks over it, drawn from a re-run of the paper’s seed-1 runs that covers all 100 test images, so each stop lands on an image whose SAM Dice sits near the cursor, real failures included. Every panel prints the Dice computed from the pixels it paints, against the benchmark’s ground truth for that image. The trained models reproduce their recorded runs from those pixels, ResNet-UNet to the fourth decimal; SAM’s inference is stochastic, so its masks here are a fresh draw that can score off its recorded row, and the number shown is the one the shown pixels earn.",
       /** Screen-reader name for the chart itself. The caption is the long form. */
       chartAria:
         "Cumulative share of per-image test Dice at 16 labels, for x0-diffusion, SAM and ResNet-UNet",
@@ -312,7 +323,7 @@ export const copy = {
       scopeNotePre: "curve: every test prediction at ",
       scopeNoteMid: " labels, ",
       scopeNotePost:
-        " rows per model. panels: one cached fold-1 run of that same budget, dice computed from the shown pixels.",
+        " rows per model. panels: the seed-1, fold-1 re-run of that same budget, dice computed from the shown pixels.",
       modelLabels: {
         x0diffusion: "x0-diffusion",
         sam: "SAM (zero-shot)",

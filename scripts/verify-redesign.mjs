@@ -255,6 +255,54 @@ async function checkLabelEfficiency(browser) {
         return { models: out, gap: document.querySelector("#fig-eff-gap")?.textContent ?? "" };
       });
 
+    // Strip helpers. The strip is data in the SERVED json, so its absence is
+    // a failure, not a skip: the deploy would be missing Figure 1's panels.
+    if (!eff.strip || !Array.isArray(eff.strip.budgets)) {
+      throw new Error("label_efficiency.json has no strip block — Figure 1's panels are gone");
+    }
+    const stripModels = eff.strip.models;
+    const readPanels = () =>
+      page.evaluate(() => {
+        return [...document.querySelectorAll("#fig-eff-strip > div")].map((panel) => ({
+          text: panel.querySelector(".font-mono")?.textContent ?? "",
+          url: panel.querySelector("canvas")?.toDataURL() ?? null,
+        }));
+      });
+    const waitPainted = () =>
+      page.waitForFunction(
+        (want) => {
+          const canvases = [...document.querySelectorAll("#fig-eff-strip canvas")];
+          if (canvases.length !== want) return false;
+          return canvases.every((c) => {
+            const g = c.getContext("2d");
+            if (!c.width || !c.height) return false;
+            const px = g.getImageData(0, 0, c.width, c.height).data;
+            for (let i = 3; i < px.length; i += 4) if (px[i] > 0) return true;
+            return false;
+          });
+        },
+        stripModels.length,
+        { timeout: 20000 },
+      );
+    const assertPanels = async (i) => {
+      const panels = await readPanels();
+      if (panels.length !== stripModels.length + 1) {
+        throw new Error(`${panels.length} strip panels, want ${stripModels.length + 1}`);
+      }
+      if (!panels[0].text.includes(String(eff.strip.image))) {
+        throw new Error(`base panel says "${panels[0].text}", want test image ${eff.strip.image}`);
+      }
+      for (const [k, m] of stripModels.entries()) {
+        const want = eff.strip.budgets[i].masks[m].dice.toFixed(3);
+        if (!panels[k + 1].text.includes(want)) {
+          throw new Error(
+            `strip panel ${m} at ${budgets[i]} labels says "${panels[k + 1].text}", want Dice ${want}`,
+          );
+        }
+      }
+      return panels;
+    };
+
     /** The cursor must sit exactly on the selected budget's x tick (the axis
      *  is log-spaced, so the tick text is the only honest reference). */
     const cursorOffset = (budget) =>
@@ -321,6 +369,8 @@ async function checkLabelEfficiency(browser) {
     if (g0.verb !== "leads") {
       throw new Error(`x0 does not lead at ${budgets[0]} labels — the headline claim broke`);
     }
+    await waitPainted();
+    const panelsBefore = await assertPanels(0);
 
     // 3. Pan to the largest budget: every readout, the whiskers and the
     //    sentence must follow, and the sentence must FLIP to trails (the
@@ -349,10 +399,37 @@ async function checkLabelEfficiency(browser) {
       throw new Error("whiskers did not move with the slider");
     }
 
+    // 4. The strip must follow the budget: every mask canvas repaints and
+    //    every printed Dice becomes the last budget's. The crossover is
+    //    pixel-visible here (ResNet noise at 16, caught up at 80) — asserted
+    //    via the numbers, which are computed from those pixels.
+    await page.waitForFunction(
+      (want) =>
+        [...document.querySelectorAll("#fig-eff-strip canvas")].every(
+          (c, i) => c.toDataURL() !== want[i],
+        ),
+      panelsBefore.slice(1).map((p) => p.url),
+      { timeout: 20000 },
+    );
+    const panelsAfter = await assertPanels(lastIdx);
+    for (const [k] of stripModels.entries()) {
+      if (panelsAfter[k + 1].url === panelsBefore[k + 1].url) {
+        throw new Error(`strip panel ${stripModels[k]} did not repaint at ${budgets[lastIdx]} labels`);
+      }
+    }
+
     return (
       `${models.length} series; at ${budgets[0]} labels x0 ${g0.verb} ${g0.name} by ${g0.value}; ` +
       `at ${budgets[lastIdx]} x0 ${gLast.verb} ${gLast.name} by ${gLast.value}; ` +
-      `readouts match label_efficiency.json at both stops; cursor exact; whiskers track the slider`
+      `readouts match label_efficiency.json at both stops; cursor exact; whiskers track the slider; ` +
+      `strip image ${eff.strip.image}: ` +
+      stripModels
+        .map(
+          (m) =>
+            `${m} ${eff.strip.budgets[0].masks[m].dice.toFixed(3)} -> ${eff.strip.budgets[lastIdx].masks[m].dice.toFixed(3)}`,
+        )
+        .join(", ") +
+      `, panels repainted`
     );
   });
 }

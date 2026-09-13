@@ -2,6 +2,7 @@
   "version": 1,
   "fraction": 0.05,
   "labels": 16,
+  "seed": 1,
   "fold": 1,
   "models": [
     "x0diffusion",
@@ -2437,7 +2438,7 @@
   "stops": [
     {
       "t": 0.1,
-      "image": 422,
+      "image": 199,
       "angio": "cdf/a10.webp",
       "shares": {
         "x0diffusion": 0.002,
@@ -2447,30 +2448,30 @@
       "masks": {
         "x0diffusion": {
           "file": "cdf/x0diffusion_10.png",
-          "dice": 0.7808,
-          "vesselIsWhite": true,
-          "width": 224,
-          "height": 224
+          "dice": 0.8613,
+          "vesselIsWhite": false,
+          "width": 384,
+          "height": 384
         },
         "sam": {
           "file": "cdf/sam_10.png",
-          "dice": 0.6662,
+          "dice": 0.2584,
           "vesselIsWhite": false,
-          "width": 224,
-          "height": 224
+          "width": 384,
+          "height": 384
         },
         "resnet": {
           "file": "cdf/resnet_10.png",
-          "dice": 0.2905,
-          "vesselIsWhite": true,
-          "width": 224,
-          "height": 224
+          "dice": 0.6411,
+          "vesselIsWhite": false,
+          "width": 384,
+          "height": 384
         }
       }
     },
     {
       "t": 0.2,
-      "image": 189,
+      "image": 5,
       "angio": "cdf/a20.webp",
       "shares": {
         "x0diffusion": 0.002,
@@ -2480,30 +2481,30 @@
       "masks": {
         "x0diffusion": {
           "file": "cdf/x0diffusion_20.png",
-          "dice": 0.8219,
-          "vesselIsWhite": true,
-          "width": 224,
-          "height": 224
+          "dice": 0.8687,
+          "vesselIsWhite": false,
+          "width": 384,
+          "height": 384
         },
         "sam": {
           "file": "cdf/sam_20.png",
-          "dice": 0.7058,
+          "dice": 0.3152,
           "vesselIsWhite": false,
-          "width": 224,
-          "height": 224
+          "width": 384,
+          "height": 384
         },
         "resnet": {
           "file": "cdf/resnet_20.png",
-          "dice": 0.4532,
-          "vesselIsWhite": true,
-          "width": 224,
-          "height": 224
+          "dice": 0.4543,
+          "vesselIsWhite": false,
+          "width": 384,
+          "height": 384
         }
       }
     },
     {
       "t": 0.3,
-      "image": 434,
+      "image": 196,
       "angio": "cdf/a30.webp",
       "shares": {
         "x0diffusion": 0.002,
@@ -2513,30 +2514,30 @@
       "masks": {
         "x0diffusion": {
           "file": "cdf/x0diffusion_30.png",
-          "dice": 0.89,
-          "vesselIsWhite": true,
-          "width": 224,
-          "height": 224
+          "dice": 0.9394,
+          "vesselIsWhite": false,
+          "width": 384,
+          "height": 384
         },
         "sam": {
           "file": "cdf/sam_30.png",
-          "dice": 0.8072,
+          "dice": 0.463,
           "vesselIsWhite": false,
-          "width": 224,
-          "height": 224
+          "width": 384,
+          "height": 384
         },
         "resnet": {
           "file": "cdf/resnet_30.png",
-          "dice": 0.4714,
-          "vesselIsWhite": true,
-          "width": 224,
-          "height": 224
+          "dice": 0.7594,
+          "vesselIsWhite": false,
+          "width": 384,
+          "height": 384
         }
       }
     },
     {
       "t": 0.4,
-      "image": 408,
+      "image": 155,
       "angio": "cdf/a40.webp",
       "shares": {
         "x0diffusion": 0.002,
@@ -2546,22 +2547,22 @@
       "masks": {
         "x0diffusion": {
           "file": "cdf/x0diffusion_40.png",
-          "dice": 0.8965,
-          "vesselIsWhite": true,
+          "dice": 0.8747,
+          "vesselIsWhite": false,
           "width": 384,
           "height": 384
         },
         "sam": {
           "file": "cdf/sam_40.png",
-          "dice": 0.8112,
-          "vesselIsWhite": true,
+          "dice": 0.5387,
+          "vesselIsWhite": false,
           "width": 384,
           "height": 384
         },
         "resnet": {
           "file": "cdf/resnet_40.png",
-          "dice": 0.6675,
-          "vesselIsWhite": true,
+          "dice": 0.5285,
+          "vesselIsWhite": false,
           "width": 384,
           "height": 384
         }
@@ -2569,7 +2570,7 @@
     },
     {
       "t": 0.5,
-      "image": 216,
+      "image": 383,
       "angio": "cdf/a50.webp",
       "shares": {
         "x0diffusion": 0.0032,
@@ -2579,30 +2580,30 @@
       "masks": {
         "x0diffusion": {
           "file": "cdf/x0diffusion_50.png",
-          "dice": 0.8439,
-          "vesselIsWhite": true,
-          "width": 224,
-          "height": 224
+          "dice": 0.8384,
+          "vesselIsWhite": false,
+          "width": 384,
+          "height": 384
         },
         "sam": {
           "file": "cdf/sam_50.png",
-          "dice": 0.8141,
+          "dice": 0.5435,
           "vesselIsWhite": false,
-          "width": 224,
-          "height": 224
+          "width": 384,
+          "height": 384
         },
         "resnet": {
           "file": "cdf/resnet_50.png",
-          "dice": 0.3751,
-          "vesselIsWhite": true,
-          "width": 224,
-          "height": 224
+          "dice": 0.753,
+          "vesselIsWhite": false,
+          "width": 384,
+          "height": 384
         }
       }
     },
     {
       "t": 0.6,
-      "image": 471,
+      "image": 405,
       "angio": "cdf/a60.webp",
       "shares": {
         "x0diffusion": 0.004,
@@ -2612,22 +2613,22 @@
       "masks": {
         "x0diffusion": {
           "file": "cdf/x0diffusion_60.png",
-          "dice": 0.944,
-          "vesselIsWhite": true,
+          "dice": 0.9176,
+          "vesselIsWhite": false,
           "width": 384,
           "height": 384
         },
         "sam": {
           "file": "cdf/sam_60.png",
-          "dice": 0.8207,
-          "vesselIsWhite": true,
+          "dice": 0.6116,
+          "vesselIsWhite": false,
           "width": 384,
           "height": 384
         },
         "resnet": {
           "file": "cdf/resnet_60.png",
-          "dice": 0.8386,
-          "vesselIsWhite": true,
+          "dice": 0.5848,
+          "vesselIsWhite": false,
           "width": 384,
           "height": 384
         }
@@ -2635,7 +2636,7 @@
     },
     {
       "t": 0.7,
-      "image": 377,
+      "image": 80,
       "angio": "cdf/a70.webp",
       "shares": {
         "x0diffusion": 0.01,
@@ -2645,22 +2646,22 @@
       "masks": {
         "x0diffusion": {
           "file": "cdf/x0diffusion_70.png",
-          "dice": 0.9053,
-          "vesselIsWhite": true,
+          "dice": 0.8997,
+          "vesselIsWhite": false,
           "width": 384,
           "height": 384
         },
         "sam": {
           "file": "cdf/sam_70.png",
-          "dice": 0.8926,
-          "vesselIsWhite": true,
+          "dice": 0.7004,
+          "vesselIsWhite": false,
           "width": 384,
           "height": 384
         },
         "resnet": {
           "file": "cdf/resnet_70.png",
-          "dice": 0.8218,
-          "vesselIsWhite": true,
+          "dice": 0.5948,
+          "vesselIsWhite": false,
           "width": 384,
           "height": 384
         }
@@ -2668,7 +2669,7 @@
     },
     {
       "t": 0.8,
-      "image": 233,
+      "image": 13,
       "angio": "cdf/a80.webp",
       "shares": {
         "x0diffusion": 0.0716,
@@ -2678,22 +2679,22 @@
       "masks": {
         "x0diffusion": {
           "file": "cdf/x0diffusion_80.png",
-          "dice": 0.9272,
-          "vesselIsWhite": true,
+          "dice": 0.8502,
+          "vesselIsWhite": false,
           "width": 384,
           "height": 384
         },
         "sam": {
           "file": "cdf/sam_80.png",
-          "dice": 0.9024,
-          "vesselIsWhite": true,
+          "dice": 0.8016,
+          "vesselIsWhite": false,
           "width": 384,
           "height": 384
         },
         "resnet": {
           "file": "cdf/resnet_80.png",
-          "dice": 0.8568,
-          "vesselIsWhite": true,
+          "dice": 0.6111,
+          "vesselIsWhite": false,
           "width": 384,
           "height": 384
         }
@@ -2701,7 +2702,7 @@
     },
     {
       "t": 0.9,
-      "image": 330,
+      "image": 280,
       "angio": "cdf/a90.webp",
       "shares": {
         "x0diffusion": 0.5448,
@@ -2711,22 +2712,22 @@
       "masks": {
         "x0diffusion": {
           "file": "cdf/x0diffusion_90.png",
-          "dice": 0.8517,
-          "vesselIsWhite": true,
+          "dice": 0.924,
+          "vesselIsWhite": false,
           "width": 384,
           "height": 384
         },
         "sam": {
           "file": "cdf/sam_90.png",
-          "dice": 0.9221,
-          "vesselIsWhite": true,
+          "dice": 0.9004,
+          "vesselIsWhite": false,
           "width": 384,
           "height": 384
         },
         "resnet": {
           "file": "cdf/resnet_90.png",
-          "dice": 0.6127,
-          "vesselIsWhite": true,
+          "dice": 0.6458,
+          "vesselIsWhite": false,
           "width": 384,
           "height": 384
         }

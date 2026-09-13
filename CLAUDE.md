@@ -35,7 +35,11 @@ its mask strip (x0, SAM and ResNet-UNet across the budgets, image 333).
 Same day: the masthead h1 split into the name at display size and the thesis
 line smaller beneath it (`titleName` / `titleTagline`), and the OG card was
 regenerated (`gen-og.mjs` now frames the top of the page; its old scroll-to-
-Table-1 logic cut the name off once the headshot rail grew).
+Table-1 logic cut the name off once the headshot rail grew). Also 2026-09-13:
+Figure 1's strip image became 333 (x0 must visibly beat SAM at 16 labels),
+its whiskers went faint, chess moved ahead of draw, Vercel Web Analytics was
+wired (see Stack), and the headline framing became "generative modeling"
+(title, tagline, share blurb; OG card regenerated to match).
 
 **Verification: `scripts/verify-redesign.mjs`** — 15 named checks,
 Playwright-Firefox against a real `npm run build && npm start` on :3000, never
@@ -82,8 +86,13 @@ change touching a demo, a figure, or the page shell.
    `init+strength` case is a structural smoke (step count + finiteness), so the
    forward-noising branch is unpinned vendored math. Ask the model owner for an
    init+strength case in `vectors/`.
-4. The mobile draw-demo bugs (Known bugs below) are open.
-5. Much later: a third headliner demo, a **live network-security honeypot**
+4. **Enable Web Analytics in the Vercel dashboard** (owner step; the site side
+   shipped 2026-09-13). Until it's on, production's `/_vercel/insights/script.js`
+   404s and nothing records. Then confirm the plan ingests custom events: an
+   empty Events tab after real clicks means it doesn't. The Vercel connector in
+   this environment reports zero teams, so neither can be checked from here.
+5. The mobile draw-demo bugs (Known bugs below) are open.
+6. Much later: a third headliner demo, a **live network-security honeypot**
    (exposed Pi, malicious ssh/https logged, LLM-categorized into a live UMAP
    of attack families). Needs a live-data seam the static site doesn't have;
    the systems figure column is trivially appendable when it comes.
@@ -96,6 +105,10 @@ and the owner's SOP tell one story.
 - Audience: industry recruiters AND masters admissions committees. **Admissions
   wins conflicts.** Visitor actions that matter, in order: open the resume, read
   the paper.
+- **Public framing is "generative modeling" (owner call, 2026-09-13)**: the page
+  title, the masthead tagline and the share blurb all say generative modeling,
+  not diffusion. Diffusion stays the concrete specialty in the body copy and the
+  figures; don't revert the headline framing to "diffusion".
 - Takeaway to leave: specializes in diffusion modeling, with wide range around it
   (aerospace, medical, embedded), competent and current in the field.
 - **The site and the owner's SOP tell one story.** Admissions readers will see
@@ -290,8 +303,9 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   never wired to prebuild** — Vercel's image has neither toolchain. Their
   outputs are committed. The favicon is the owner's mark (2026-09-12): STIX "N"
   in ink on the paper tile with stamp-red corner brackets; edit the script's
-  token constants and re-run rather than hand-editing the four app/ icon files. The OG card screenshots the live hero, so it must be
-  regenerated when the new hero ships; `metadataBase` in `layout.tsx` is required
+  token constants and re-run rather than hand-editing the four app/ icon files. The OG card screenshots the TOP of the live page
+  (name, tagline, abstract, headshot rail; it refuses to write a card whose h1
+  is outside the frame), so re-run it after ANY masthead copy or layout change; `metadataBase` in `layout.tsx` is required
   or `/og.png` never resolves in unfurls.
 - The chess worker must stay a literal
   `new Worker(new URL("./chess-worker.ts", import.meta.url), { type: "module" })`
@@ -461,8 +475,10 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   same gate).
 - **The 256 + morph path has its own hand-run script:
   `node scripts/verify-headshot-256.mjs`** against the same prod build on :3000.
-  It exists because the Playwright check's 400px viewport always lands on the
-  128, so nothing else in the repo ever touches the primary. It drives the
+  It was written when the Playwright check's 400px viewport always landed on
+  the 128; since the viewport gate was removed the browser check usually gets
+  the 256 too, but this script still carries the MAD thresholds and runs the
+  primary regardless of the machine's capabilities. It drives the
   site's vendored module against the SERVED bytes (fetched from the running
   server, not read off disk) and asserts: full step count from noise, the
   destination class winning decisively over both controls on both runs, and the

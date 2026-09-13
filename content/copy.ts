@@ -65,12 +65,12 @@
 export const copy = {
   /** <title>, meta description, and the share-card (OG/Twitter) text. */
   meta: {
-    title: "Neelay Ranjan · diffusion for data-scarce, safety-critical systems",
+    title: "Neelay Ranjan · Generative modeling for data-scarce, safety-critical systems",
     siteName: "neelayranjan.dev",
     /** The unfurl description. Concrete, because a share card is the one place a
      *  recruiter or admissions reader sees before deciding whether to click. */
     blurb:
-      "I build diffusion models for domains where labels are scarce and mistakes " +
+      "I build generative models for domains where labels are scarce and mistakes " +
       "are expensive: vessel segmentation from 16 labeled angiograms, a chess " +
       "engine that fits in 553 KB, a transformer that synthesizes a day of FAA " +
       "flight traffic. The chess engine runs live on this page, in your browser, " +
@@ -86,7 +86,7 @@ export const copy = {
      *  Both live inside the single h1, so the page title reads as before. */
     titleName: "Neelay Ranjan",
     titleTagline:
-      "Diffusion models for domains where labels are scarce and mistakes are expensive.",
+      "Generative modeling for domains where labels are scarce and mistakes are expensive.",
     affiliation: "NASA Ames Research Center · Regenstrief Institute · Purdue University",
     /** ~80 words, first person. Numbers here are load-bearing: keep them in
      *  sync with `research.prose` and CLAUDE.md's content facts. */

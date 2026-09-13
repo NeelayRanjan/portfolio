@@ -500,13 +500,49 @@ async function checkHeadshotSamplesPhoto(browser) {
     // a hardcoded prefix would have this check comparing the canvas against a
     // 404 the day that moves.
     const photoUrl = (i) => thumbSrc.replace(/\d+_thumb\.webp$/, `${i}.webp`);
+
+    /**
+     * Watch the readout's step counter for the duration of a press and keep the
+     * largest `n` it reported.
+     *
+     * ⚠️ THIS IS THE STRUCTURAL EVIDENCE FOR THE MORPH. The "morphed from the
+     * last sample" wording is the site's own boolean talking about itself: a
+     * stale re-vendor with a forgotten `MODULE_SUPPORTS_TRANSITIONS` flip would
+     * run a full from-noise sample and still print it. The step TOTAL comes
+     * from the module (`onFrame`'s `total`), and transition mode filters the
+     * schedule down (~14 of 25 at the default strength), so a second press with
+     * a smaller total is proof the init branch actually ran.
+     *
+     * A MutationObserver rather than polling: the counter ticks once per model
+     * step and an interval sampler could miss the run entirely on a fast
+     * machine. Installed BEFORE the click, read after the run settles.
+     */
+    const watchSteps = () =>
+      page.evaluate(() => {
+        const status = document.querySelector("#headshot-toy [role=status]");
+        const p = status?.parentElement;
+        if (!p) throw new Error("readout paragraph not found");
+        window.__hsTotals = [];
+        const read = () => {
+          const m = /(\d+)\s*\/\s*(\d+)/.exec(p.textContent ?? "");
+          if (m) window.__hsTotals.push(Number(m[2]));
+        };
+        window.__hsObs?.disconnect();
+        window.__hsObs = new MutationObserver(read);
+        window.__hsObs.observe(p, { childList: true, characterData: true, subtree: true });
+        read();
+      });
+    const maxTotal = () =>
+      page.evaluate(() => (window.__hsTotals.length ? Math.max(...window.__hsTotals) : 0));
+
     await face.scrollIntoViewIfNeeded();
+    await watchSteps();
     await face.click();
 
-    // First press pulls onnxruntime-web + the 1.55MB int8 graph and then runs
-    // 25 forward passes. Measured end to end here at ~15.5s; budget 5 minutes,
-    // because headless Firefox is ~20x slower than a real browser (CLAUDE.md).
-    const DONE_RE = /sampled from noise|morphed from the last sample/;
+    // First press pulls onnxruntime-web + this device's graph and then runs the
+    // meta's full step count. Measured end to end here at ~15s; budget 5
+    // minutes, because headless Firefox is ~20x slower than a real browser
+    // (CLAUDE.md).
     await page.waitForFunction(
       () =>
         /sampled from noise|morphed from the last sample/.test(
@@ -516,16 +552,43 @@ async function checkHeadshotSamplesPhoto(browser) {
       { timeout: 300000 },
     );
     const readout = (await page.locator("#headshot-toy [role=status]").textContent()).trim();
-    if (!DONE_RE.test(readout)) throw new Error(`unexpected terminal readout: ${readout}`);
+    // The FIRST press can only be from-noise: there is no previous sample to
+    // morph out of, so "morphed" here would be the readout lying outright.
+    if (!/sampled from noise/.test(readout)) {
+      throw new Error(`first press should report a from-noise sample, got: ${readout}`);
+    }
+    const steps1 = await maxTotal();
+    if (steps1 < 2) throw new Error(`first press reported ${steps1} steps`);
 
     // A GET of one of the shipped graphs is what proves a model ran at all.
-    // Path-agnostic, and the name is reported: which family this device got
-    // (256 primary or 128 fallback) is a runtime budget decision.
+    // Path-agnostic: which family this device got (256 primary or 128 fallback)
+    // is a runtime budget decision, so the NAME is read off the wire and then
+    // checked against the readout's build label.
     const graphs = gets.filter((u) => /\/headshot\/.*\.onnx/.test(u));
     if (graphs.length === 0) {
       throw new Error("run completed without ever requesting a model file");
     }
-    const graph = graphs[0].split("/").pop();
+    const graph = graphs[graphs.length - 1].split("/").pop();
+    /**
+     * "The label never lies", tested in the browser rather than trusted.
+     *
+     * The readout prints `build`, which the loader sets beside whichever
+     * session it actually created — including after an int8→fp32 or 256→128
+     * fallback. The only way to catch a label that stopped tracking the graph
+     * is to compare it against the file the network actually fetched.
+     */
+    const EXPECTED_GRAPH = {
+      "256": "headshot256.onnx",
+      "128 int8": "headshot128_int8.onnx",
+      "128": "headshot128.onnx",
+    };
+    const label = Object.keys(EXPECTED_GRAPH).find((b) => readout.endsWith(`· ${b}`));
+    if (!label) {
+      throw new Error(`readout carries no known build label: ${readout}`);
+    }
+    if (graph !== EXPECTED_GRAPH[label]) {
+      throw new Error(`readout says "${label}" but the browser fetched ${graph}`);
+    }
 
     const { mad, controls } = await page.evaluate(async ({ own, others }) => {
       const N = 32;
@@ -579,13 +642,14 @@ async function checkHeadshotSamplesPhoto(browser) {
       );
     }
 
-    // Second press, different face: it must MORPH, and the new class must win
-    // on the canvas. The morph half is asserted rather than reported now that
-    // the vendored module is v2 and the capability is permanent — a readout
-    // saying "sampled from noise" here would mean the transition path went
-    // quiet (a stale vendored module, a cleared seed buffer, a length mismatch
-    // between the two model families), which is exactly the silent regression
-    // that shipping a from-noise run under a morph label would hide.
+    // Second press, different face: the new class must win on the canvas, and
+    // the run must really be a TRANSITION. Two assertions, and only the second
+    // is evidence:
+    //   - the readout says "morphed", which is the site agreeing with itself;
+    //   - the module's own step total drops (~14 of 25), which no from-noise
+    //     run can fake. A stale vendored module with a forgotten capability
+    //     flip would pass the first and fail the second, which is exactly the
+    //     silent regression worth catching.
     const face2 = page.locator('#headshot-toy button[aria-label^="Sample photo 2"]');
     const thumb2 = await face2.locator("img").getAttribute("src");
     const cls2 = Number(/photos\/(\d+)_thumb/.exec(thumb2 ?? "")?.[1] ?? NaN);
@@ -593,12 +657,15 @@ async function checkHeadshotSamplesPhoto(browser) {
     if (!Number.isInteger(cls2) || cls2 === cls) {
       throw new Error(`could not derive a distinct second class (got ${cls2} vs ${cls})`);
     }
+    await watchSteps();
     await face2.click();
+    // The step counter lives in a separate aria-hidden span, so [role=status]
+    // itself is empty for the whole run and its terminal text is unambiguous.
     await page.waitForFunction(
-      () => {
-        const s = document.querySelector("#headshot-toy [role=status]")?.textContent ?? "";
-        return /sampling/.test(s) === false && /sampled from noise|morphed from the last sample/.test(s);
-      },
+      () =>
+        /sampled from noise|morphed from the last sample/.test(
+          document.querySelector("#headshot-toy [role=status]")?.textContent ?? "",
+        ),
       null,
       { timeout: 300000 },
     );
@@ -608,6 +675,13 @@ async function checkHeadshotSamplesPhoto(browser) {
     const readout2 = (await page.locator("#headshot-toy [role=status]").textContent()).trim();
     if (!/morphed from the last sample/.test(readout2)) {
       throw new Error(`second press did not morph: "${readout2}"`);
+    }
+    // The structural half: the module ran fewer steps than a full descent.
+    const steps2 = await maxTotal();
+    if (!(steps2 > 0 && steps2 < steps1)) {
+      throw new Error(
+        `second press ran ${steps2} steps against the first press's ${steps1}: a transition runs a strict subset of the schedule, so this was a from-noise run wearing a morph label`,
+      );
     }
     const second = await page.evaluate(async ({ own, others }) => {
       const N = 32;
@@ -649,7 +723,7 @@ async function checkHeadshotSamplesPhoto(browser) {
       );
     }
 
-    return `no model at rest; loaded ${graph}; "${readout}"; MAD own ${mad.toFixed(2)} vs others ${controls.map((c) => c.toFixed(2)).join(", ")}; 2nd press ("${readout2}") MAD own ${second.mad.toFixed(2)} vs ${second.controls.map((c) => c.toFixed(2)).join(", ")}`;
+    return `no model at rest; "${readout}" matches the fetched ${graph}; ${steps1} steps, MAD own ${mad.toFixed(2)} vs others ${controls.map((c) => c.toFixed(2)).join(", ")}; 2nd press ("${readout2}") ran ${steps2} of ${steps1} steps, MAD own ${second.mad.toFixed(2)} vs ${second.controls.map((c) => c.toFixed(2)).join(", ")}`;
   });
 }
 

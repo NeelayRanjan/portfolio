@@ -37,13 +37,17 @@ change), flight video play/pause, a drawn stroke producing a real auto-label,
 the chess hint matching vector D (`g3 p=0.236`), JEPA seed query 834 plus the
 triple-equality, and the headshot toy (no model fetched at rest; the sampled
 canvas pixel-matches the pressed photo, with the other two photos as asserted
-controls; the second press must report a MORPH and match ITS photo; photo URLs
-are derived from the pressed thumb, so the versioned bundle directory can move
+controls; the readout's build label must match the graph the browser actually
+fetched; the second press must match ITS photo and must run STRICTLY FEWER
+steps than the first, which is the structural proof the morph happened — the
+"morphed" wording alone is the site agreeing with itself; photo URLs are
+derived from the pressed thumb, so the versioned bundle directory can move
 without touching the check). ⚠️ That check runs at 400px, so the loader's
-budget hands it the 128 fallback — the 256 primary is exercised out of band
-(the forced node run recorded in the headshot section). Run it after any change
-touching a demo, a figure, or the page shell. `scripts/check-voice.mjs` gates
-every copy.ts edit.
+budget hands it the 128 fallback — the 256 primary has its own hand-run script,
+**`scripts/verify-headshot-256.mjs`** (same prod build on :3000; drives the
+site's vendored module against the SERVED bytes). Run the suite after any
+change touching a demo, a figure, or the page shell.
+`scripts/check-voice.mjs` gates every copy.ts edit.
 
 **Open items, roughly in order:**
 1. **The Pi claim needs the owner.** `systems.chess.searchNote.post` says "The
@@ -403,24 +407,34 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   ran a strict subset of the steps (14/25) and returned finite numbers. Nothing
   compares the forward-noising against a reference. Keep demanding a real
   init+strength vector in `vectors/`; until then the site's evidence is
-  behavioural (the morph lands on the destination photo, measured below).
+  behavioural: the morph lands on the destination photo AND runs a strict
+  subset of the steps, both asserted (browser + node, measured below).
 - Measured on a production build, headless Firefox (~20x slower than a real
   browser; quote measured numbers only): the whole check, download + 25 steps +
-  a 14-step morph, ~15s. Node wasm 4 threads: **107 ms/step at 256** (25 steps
-  ≈ 2.7s), **29 ms/step at 128**. Per-photo PSNR from the bundle, DDIM-25 from
+  a 14-step morph, ~15s. Node wasm 4 threads: **~100-107 ms/step at 256** (25
+  steps ≈ 2.6s), **29 ms/step at 128**. (The bundle README's 91.8 ms/step is the
+  model repo's own measurement on its machine through `tools/time_wasm.mjs`;
+  these are this repo's ORT on this machine, re-measured per run and a little
+  slower. Neither is a browser number.) Per-photo PSNR from the bundle, DDIM-25 from
   fresh noise (the bundle's own numbers): **256 → 21.0 / 27.4 / 18.0 dB** (below target on classes 0 and 2;
   likeness sharp on all three, and the human gate accepted that photo 2's
   sampled face reads slightly leaner and lighter than the target); **128 → 29.3
   / 24.0 / 21.1 dB** (classes 1-2 soften on busy backgrounds, approved at the
   same gate).
-- **The 256 + morph path, measured out of band** (2026-09-12, node wasm driving
-  the site's vendored module against the SERVED `public/headshot/v2/` bytes,
-  because the Playwright check's 400px viewport always lands on the 128): 25
-  steps from noise into class 2 at 107 ms/step, mean abs 8.91/255 against that
-  class's 256 training input (PSNR 22.0 dB) versus 90.3 and 88.5 against the
-  other two; then a morph seeded by that sample into class 0 ran **14 of 25
-  steps** and landed at mean abs 12.12 (PSNR 19.9 dB) versus 64.1 and 88.6. Redo
-  that run whenever the bundle or the loader's policy changes.
+- **The 256 + morph path has its own hand-run script:
+  `node scripts/verify-headshot-256.mjs`** against the same prod build on :3000.
+  It exists because the Playwright check's 400px viewport always lands on the
+  128, so nothing else in the repo ever touches the primary. It drives the
+  site's vendored module against the SERVED bytes (fetched from the running
+  server, not read off disk) and asserts: full step count from noise, the
+  destination class winning decisively over both controls on both runs, and the
+  morph running strictly fewer steps. **Re-run it whenever the bundle is
+  re-vendored, `wantsPrimary()`'s policy changes, or `headshot-diffusion.js`
+  moves.** Recorded 2026-09-12, four runs: from noise into class 2, always 25
+  steps at ~100-104 ms/step; the morph into class 0 always **14 of 25 steps**;
+  own-class mean abs 9.3-13.0 /255 (PSNR 19.7-22.4 dB) while the nearest wrong
+  photo never came under 64. Fresh noise every run, so those numbers move — the
+  script's own threshold comment carries the calibration.
 
 ### Chess (EBM + MCTS) — page 1
 - Architecture: `lib/chess-engine.ts` is a thin worker client (no model);

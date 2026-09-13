@@ -165,8 +165,8 @@
     ]
   },
   "strip": {
-    "image": 114,
-    "angio": "eff/a114.webp",
+    "image": 333,
+    "angio": "eff/a333.webp",
     "models": [
       "x0diffusion",
       "sam",
@@ -179,21 +179,21 @@
         "masks": {
           "x0diffusion": {
             "file": "eff/x0diffusion_16.png",
-            "dice": 0.9171,
+            "dice": 0.9284,
             "vesselIsWhite": false,
             "width": 384,
             "height": 384
           },
           "sam": {
             "file": "eff/sam_16.png",
-            "dice": 0.9192,
+            "dice": 0.842,
             "vesselIsWhite": false,
             "width": 384,
             "height": 384
           },
           "resnet": {
             "file": "eff/resnet_16.png",
-            "dice": 0.141,
+            "dice": 0.4176,
             "vesselIsWhite": false,
             "width": 384,
             "height": 384
@@ -206,21 +206,21 @@
         "masks": {
           "x0diffusion": {
             "file": "eff/x0diffusion_32.png",
-            "dice": 0.917,
+            "dice": 0.918,
             "vesselIsWhite": false,
             "width": 384,
             "height": 384
           },
           "sam": {
             "file": "eff/sam_16.png",
-            "dice": 0.9192,
+            "dice": 0.842,
             "vesselIsWhite": false,
             "width": 384,
             "height": 384
           },
           "resnet": {
             "file": "eff/resnet_32.png",
-            "dice": 0.8063,
+            "dice": 0.8841,
             "vesselIsWhite": false,
             "width": 384,
             "height": 384
@@ -233,21 +233,21 @@
         "masks": {
           "x0diffusion": {
             "file": "eff/x0diffusion_80.png",
-            "dice": 0.9289,
+            "dice": 0.9079,
             "vesselIsWhite": false,
             "width": 384,
             "height": 384
           },
           "sam": {
             "file": "eff/sam_16.png",
-            "dice": 0.9192,
+            "dice": 0.842,
             "vesselIsWhite": false,
             "width": 384,
             "height": 384
           },
           "resnet": {
             "file": "eff/resnet_80.png",
-            "dice": 0.9339,
+            "dice": 0.9466,
             "vesselIsWhite": false,
             "width": 384,
             "height": 384

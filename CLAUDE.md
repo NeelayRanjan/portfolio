@@ -20,7 +20,7 @@ is deleted; v1 lives at the tag). Page 1: masthead (title, abstract, the
 live-sampled author photo, the UNDER REVIEW stamp linking `/lab` through a
 "pending additional materials" sub-line, identity links) → Table 1 → Research
 (Figure 1 label-efficiency sweep, Figure 2 Dice CDF, Figure 3 flight map) →
-the live demos as Figures 4–5 → Experience as Figure 6 (NASA and Regenstrief
+the live demos as Figures 4–5 (chess, then draw — swapped 2026-09-13 at the owner's call, the `n` props swapped with them) → Experience as Figure 6 (NASA and Regenstrief
 lamps green/active) → References. `/lab` holds S1–S3. Same-day post-launch
 passes: Figure 2 rebuilt from a budget ladder into the paper's pannable Dice
 CDF; the flight video's dark-map treatment; the owner's STIX-N favicon set;
@@ -31,7 +31,11 @@ component and copy are gone, its assets stay (see the figure section).
 2026-09-13: the owner dropped `test_pred.zip` (the full seed-1/fold-1
 re-export) and both research figures re-sourced from it — Figure 2's stops
 now land on genuine failures across all 100 test images, and Figure 1 grew
-its mask strip (x0 vs ResNet-UNet across the budgets, image 114).
+its mask strip (x0, SAM and ResNet-UNet across the budgets, image 333).
+Same day: the masthead h1 split into the name at display size and the thesis
+line smaller beneath it (`titleName` / `titleTagline`), and the OG card was
+regenerated (`gen-og.mjs` now frames the top of the page; its old scroll-to-
+Table-1 logic cut the name off once the headshot rail grew).
 
 **Verification: `scripts/verify-redesign.mjs`** — 14 named checks,
 Playwright-Firefox against a real `npm run build && npm start` on :3000, never
@@ -583,18 +587,25 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   sides. Contracts: the x axis is LOG-spaced with inner padding
   (endpoint budgets on the axes hid the cursor and clipped the whiskers —
   screenshot-verified); one-σ whiskers render at the selected budget only and
-  are DODGED horizontally (seven at one x smear into a line); the lead/trail
+  are DODGED horizontally (seven at one x smear into a line) and drawn FAINT
+  (stroke-opacity 0.28, owner call 2026-09-13: at full strength they fought
+  the lines; the exact ±σ lives in the readout row); the lead/trail
   sentence is COMPUTED per budget and flips at 32 labels (x0 leads only at 16 —
   that flip is the finding, never "fix" it); SAM's flat line is the data (the
   CSV replicates its zero-shot rows at every fraction, verified identical);
   x0/SAM/ResNet keep Figure 2's exact color+dash so the two figures read as one
   system; default stop = 16 labels, where the claim lives. **The strip**
-  (2026-09-13): one real angiogram (image 114, picked by a transparent rule
-  recorded in provenance — x0's worst budget ≥ 0.85, then max ResNet gain
-  lo→hi; SAM plays no part in the pick) with Figure 2's trio following the
-  budget slider — x0 (green) sits at ~0.92 throughout, SAM (red) is ONE
-  zero-shot mask at every budget, ResNet-UNet (amber) goes 0.141 → 0.806 →
-  0.934, the crossover in pixels. ⚠️ SAM's re-exported masks are
+  (2026-09-13): one real angiogram (image 333, picked by a transparent rule
+  recorded in provenance — x0's worst budget ≥ 0.85 AND x0 ahead of SAM by
+  ≥ `EFF_SAM_MARGIN` (0.03) at the smallest budget (owner call: the 16-label
+  frame must show x0 winning; the first pick, 114, had SAM a hair ahead), then
+  max ResNet gain lo→hi) with Figure 2's trio following the budget slider —
+  x0 (green) 0.928 → 0.908, SAM (red) ONE zero-shot mask at 0.842 at every
+  budget, ResNet-UNet (amber) 0.418 → 0.884 → 0.947, the crossover in
+  pixels. The margin exists because SAM's panel is a stochastic re-draw that
+  can score a few points off its recorded row (333: recorded 0.884, computed
+  0.842), and a HARD, flag-proof gate asserts the COMPUTED x0 > SAM lead
+  before anything is written. ⚠️ SAM's re-exported masks are
   byte-identical across the fractions, so the pipeline DEDUPES BY PIXEL
   CONTENT and every budget references one file: "same file" MEANS "same
   pixels", the client cache never repaints it, and the verify check asserts

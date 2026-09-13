@@ -15,7 +15,7 @@ import { WarmKick } from "@/components/WarmKick";
 import { copy } from "@/content/copy";
 
 // The real page-one assembly (replaces Task 3's smoke content). Figures 4 (the
-// draw demo) and 5 (the chess engine) both mount here behind `DeferredMount`.
+// chess engine) and 5 (the draw demo) both mount here behind `DeferredMount`.
 // Each owns its own `InstrumentFigure`, and with it its `id` (`fig-draw`,
 // `fig-chess`), so there are no placeholders here to fill. Figure numbering,
 // ruled: 1 (the label-efficiency sweep), 2 (the Dice CDF), 3 (the flight
@@ -104,12 +104,15 @@ export default function Home() {
          * `DeferredMount` keeps all of it out of first paint. It replaces v1's
          * boot-log gate, which carried the same job under the typing theatre.
          */}
+        {/* Chess before draw (owner call, 2026-09-13; the figure numbers in
+            each component swapped with them, so numbering stays in page
+            order). */}
         <div className="flex flex-col gap-5">
           <DeferredMount>
-            <DrawDigit />
+            <ChessPanel />
           </DeferredMount>
           <DeferredMount>
-            <ChessPanel />
+            <DrawDigit />
           </DeferredMount>
         </div>
 

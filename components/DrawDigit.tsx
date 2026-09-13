@@ -601,7 +601,7 @@ export function DrawDigit() {
 
   return (
     <InstrumentFigure
-      n="4"
+      n="5"
       id="fig-draw"
       caption={copy.systems.draw.figureCaption}
       // The echo outranks the status while it exists: it is the confirmation

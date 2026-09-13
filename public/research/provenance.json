@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-09-13T07:23:08.973Z",
+  "generatedAt": "2026-09-13T20:39:44.678Z",
   "generator": "scripts/prepare-research.mjs",
   "sources": {
     "csv": "external_materials/paper1/data/all_metrics_combined_long.csv",
@@ -574,7 +574,7 @@
     ]
   },
   "effStrip": {
-    "image": 114,
+    "image": 333,
     "models": [
       "x0diffusion",
       "sam",
@@ -586,139 +586,149 @@
       0.25
     ],
     "forced": false,
-    "pickRule": "ranked from the CSV's seed1/fold1 rows (the rows describing these exact masks): require min over budgets of x0-diffusion's Dice >= 0.85, then maximize ResNet-UNet's gain from the smallest budget to the largest; Dice shipped is computed from the staged bytes and gated within 0.15 of those CSV rows",
+    "pickRule": "ranked from the CSV's seed1/fold1 rows (the rows describing these exact masks): require min over budgets of x0-diffusion's Dice >= 0.85 AND x0 >= SAM + 0.03 at the smallest budget (the margin absorbs SAM's stochastic re-draw), then maximize ResNet-UNet's gain from the smallest budget to the largest; Dice shipped is computed from the staged bytes, gated within 0.15 of those CSV rows, and the computed x0-beats-SAM lead is asserted before writing",
     "top5Candidates": [
-      {
-        "id": 114,
-        "x0Min": 0.9049,
-        "resnetLo": 0.1413,
-        "resnetHi": 0.9338,
-        "gain": 0.7926
-      },
-      {
-        "id": 40,
-        "x0Min": 0.8899,
-        "resnetLo": 0.2577,
-        "resnetHi": 0.9372,
-        "gain": 0.6796
-      },
-      {
-        "id": 48,
-        "x0Min": 0.8781,
-        "resnetLo": 0.2773,
-        "resnetHi": 0.931,
-        "gain": 0.6537
-      },
-      {
-        "id": 299,
-        "x0Min": 0.8763,
-        "resnetLo": 0.3557,
-        "resnetHi": 0.9408,
-        "gain": 0.5851
-      },
       {
         "id": 333,
         "x0Min": 0.9093,
+        "x0Lo": 0.925,
+        "samLo": 0.8841,
         "resnetLo": 0.4171,
         "resnetHi": 0.9466,
         "gain": 0.5295
+      },
+      {
+        "id": 141,
+        "x0Min": 0.87,
+        "x0Lo": 0.8913,
+        "samLo": 0.8257,
+        "resnetLo": 0.4712,
+        "resnetHi": 0.9317,
+        "gain": 0.4604
+      },
+      {
+        "id": 5,
+        "x0Min": 0.8675,
+        "x0Lo": 0.8675,
+        "samLo": 0.4158,
+        "resnetLo": 0.4542,
+        "resnetHi": 0.8883,
+        "gain": 0.4341
+      },
+      {
+        "id": 397,
+        "x0Min": 0.8992,
+        "x0Lo": 0.9272,
+        "samLo": 0.8901,
+        "resnetLo": 0.5533,
+        "resnetHi": 0.9495,
+        "gain": 0.3962
+      },
+      {
+        "id": 80,
+        "x0Min": 0.887,
+        "x0Lo": 0.8954,
+        "samLo": 0.8477,
+        "resnetLo": 0.5951,
+        "resnetHi": 0.941,
+        "gain": 0.3459
       }
     ],
     "panels": {
       "x0diffusion|0.05": {
-        "dice": 0.9171,
-        "csvDice": 0.9074,
-        "delta": 0.0097,
+        "dice": 0.9284,
+        "csvDice": 0.925,
+        "delta": 0.0034,
         "vesselIsWhite": false,
-        "ring": 0.901,
+        "ring": 0.928,
         "ringDecisive": true,
         "width": 384,
         "height": 384,
         "gtResized": true
       },
       "x0diffusion|0.1": {
-        "dice": 0.917,
-        "csvDice": 0.9049,
-        "delta": 0.0121,
+        "dice": 0.918,
+        "csvDice": 0.9189,
+        "delta": 0.0009,
         "vesselIsWhite": false,
-        "ring": 0.922,
+        "ring": 0.933,
         "ringDecisive": true,
         "width": 384,
         "height": 384,
         "gtResized": true
       },
       "x0diffusion|0.25": {
-        "dice": 0.9289,
-        "csvDice": 0.9167,
-        "delta": 0.0122,
+        "dice": 0.9079,
+        "csvDice": 0.9093,
+        "delta": 0.0014,
         "vesselIsWhite": false,
-        "ring": 0.926,
+        "ring": 0.931,
         "ringDecisive": true,
         "width": 384,
         "height": 384,
         "gtResized": true
       },
       "sam|0.05": {
-        "dice": 0.9192,
-        "csvDice": 0.9329,
-        "delta": 0.0137,
+        "dice": 0.842,
+        "csvDice": 0.8841,
+        "delta": 0.0421,
         "vesselIsWhite": false,
-        "ring": 0.928,
+        "ring": 0.958,
         "ringDecisive": true,
         "width": 384,
         "height": 384,
         "gtResized": true
       },
       "sam|0.1": {
-        "dice": 0.9192,
-        "csvDice": 0.9329,
-        "delta": 0.0137,
+        "dice": 0.842,
+        "csvDice": 0.8841,
+        "delta": 0.0421,
         "vesselIsWhite": false,
-        "ring": 0.928,
+        "ring": 0.958,
         "ringDecisive": true,
         "width": 384,
         "height": 384,
         "gtResized": true
       },
       "sam|0.25": {
-        "dice": 0.9192,
-        "csvDice": 0.9329,
-        "delta": 0.0137,
+        "dice": 0.842,
+        "csvDice": 0.8841,
+        "delta": 0.0421,
         "vesselIsWhite": false,
-        "ring": 0.928,
+        "ring": 0.958,
         "ringDecisive": true,
         "width": 384,
         "height": 384,
         "gtResized": true
       },
       "resnet|0.05": {
-        "dice": 0.141,
-        "csvDice": 0.1413,
-        "delta": 0.0003,
+        "dice": 0.4176,
+        "csvDice": 0.4171,
+        "delta": 0.0005,
         "vesselIsWhite": false,
-        "ring": 0.755,
+        "ring": 0.704,
         "ringDecisive": true,
         "width": 384,
         "height": 384,
         "gtResized": true
       },
       "resnet|0.1": {
-        "dice": 0.8063,
-        "csvDice": 0.8062,
+        "dice": 0.8841,
+        "csvDice": 0.8842,
         "delta": 0.0001,
         "vesselIsWhite": false,
-        "ring": 0.952,
+        "ring": 0.893,
         "ringDecisive": true,
         "width": 384,
         "height": 384,
         "gtResized": true
       },
       "resnet|0.25": {
-        "dice": 0.9339,
-        "csvDice": 0.9338,
-        "delta": 0.0001,
+        "dice": 0.9466,
+        "csvDice": 0.9466,
+        "delta": 0,
         "vesselIsWhite": false,
-        "ring": 0.925,
+        "ring": 0.92,
         "ringDecisive": true,
         "width": 384,
         "height": 384,

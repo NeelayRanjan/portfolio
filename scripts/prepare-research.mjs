@@ -960,10 +960,19 @@ function main() {
   // exact masks), then the shipped panels' Dice is computed from the staged
   // bytes and gated against those same rows — the pick and the proof are two
   // separate steps on purpose. Rule: among images with every needed mask,
-  // require x0's worst budget ≥ 0.85 (its flatness IS its story), then take
-  // the largest ResNet gain from the smallest budget to the largest. SAM
-  // deliberately plays no part in the pick.
+  // require x0's worst budget ≥ 0.85 (its flatness IS its story) AND x0 ahead
+  // of SAM at the smallest budget by ≥ EFF_SAM_MARGIN (owner call,
+  // 2026-09-13: the strip's 16-label frame must show x0 winning; the first
+  // pick, image 114, had SAM a hair ahead), then take the largest ResNet gain
+  // from the smallest budget to the largest.
+  //
+  // ⚠️ The margin is not decoration: SAM's panel is a stochastic re-draw
+  // whose computed Dice moves a few points off its recorded row, so a
+  // paper-thin recorded lead can invert on screen. 0.03 held for image 333
+  // (recorded lead 0.041 → computed lead survived); if the computed gate
+  // below ever fails, raise the margin rather than hand-picking by score.
   const EFF_MODELS = ["x0diffusion", "sam", "resnet"];
+  const EFF_SAM_MARGIN = 0.03;
   const EFF_FRACTIONS = (modelsOut.x0diffusion || []).map((r) => r.fraction);
   if (EFF_FRACTIONS.length < 2) fail("Fewer than 2 fractions in the CSV; the strip needs a sweep.");
 
@@ -993,21 +1002,36 @@ function main() {
   const effRanked = effCandidates
     .map((id) => {
       const x0 = EFF_FRACTIONS.map((f) => recordedById("x0diffusion", f).get(id));
+      const sLo = recordedById("sam", fLo).get(id);
       const rLo = recordedById("resnet", fLo).get(id);
       const rHi = recordedById("resnet", fHi).get(id);
-      if (x0.some((v) => v === undefined) || rLo === undefined || rHi === undefined) return null;
-      return { id, x0Min: round(Math.min(...x0)), resnetLo: round(rLo), resnetHi: round(rHi), gain: round(rHi - rLo) };
+      if (x0.some((v) => v === undefined) || sLo === undefined || rLo === undefined || rHi === undefined) return null;
+      return {
+        id,
+        x0Min: round(Math.min(...x0)),
+        x0Lo: round(x0[0]),
+        samLo: round(sLo),
+        resnetLo: round(rLo),
+        resnetHi: round(rHi),
+        gain: round(rHi - rLo),
+      };
     })
-    .filter((c) => c !== null && c.x0Min >= 0.85)
+    .filter((c) => c !== null && c.x0Min >= 0.85 && c.x0Lo >= c.samLo + EFF_SAM_MARGIN)
     .sort((a, b) => b.gain - a.gain || a.id - b.id);
   if (effRanked.length === 0) {
-    fail("No Figure 1 strip candidate passes the x0Min >= 0.85 rule; loosen it by hand if the export changed.");
+    fail(
+      `No Figure 1 strip candidate passes x0Min >= 0.85 AND x0@lo >= sam@lo + ${EFF_SAM_MARGIN}; ` +
+        "loosen a rule by hand if the export changed.",
+    );
   }
 
-  console.log("\nTop 5 Figure 1 strip candidates (ResNet gain lo->hi budget, x0 min >= 0.85, seed1/fold1 CSV):");
+  console.log(
+    `\nTop 5 Figure 1 strip candidates (ResNet gain lo->hi budget; x0 min >= 0.85; ` +
+      `x0 >= sam + ${EFF_SAM_MARGIN} at ${Math.round(fLo * TRAIN_SIZE)} labels; seed1/fold1 CSV):`,
+  );
   for (const c of effRanked.slice(0, 5)) {
     console.log(
-      `  id=${c.id}\tx0min=${c.x0Min}\tresnet ${c.resnetLo} -> ${c.resnetHi}\tgain=+${c.gain}`,
+      `  id=${c.id}\tx0min=${c.x0Min}\tx0@lo=${c.x0Lo} vs sam ${c.samLo}\tresnet ${c.resnetLo} -> ${c.resnetHi}\tgain=+${c.gain}`,
     );
   }
   const chosenEff =
@@ -1056,6 +1080,20 @@ function main() {
       });
     }
   }
+  // The reason the margin exists: the DISPLAYED numbers must show x0 ahead of
+  // SAM at the smallest budget (the owner's ask), and the displayed numbers
+  // are computed, not recorded. Hard gate, not flag-bypassable.
+  const x0LoComputed = effPanels.get(`x0diffusion|${fLo}`).dice;
+  const samLoComputed = effPanels.get(`sam|${fLo}`).dice;
+  if (x0LoComputed <= samLoComputed) {
+    fail(
+      `ASSERTION FAILED: computed strip Dice at the smallest budget has SAM (${samLoComputed}) ` +
+        `at or above x0-diffusion (${x0LoComputed}) on image ${chosenEff.id}. SAM's stochastic ` +
+        `re-draw ate the recorded margin; raise EFF_SAM_MARGIN or pick another candidate with ` +
+        "--eff-image. Nothing written.",
+    );
+  }
+
   const effSides = new Set([...effPanels.values()].flatMap((e) => [e.width, e.height]));
   if (effSides.size !== 1) {
     fail(`Figure 1 strip masks disagree on size (${[...effSides].join(", ")}); the shared angiogram square needs one.`);
@@ -1248,9 +1286,11 @@ function main() {
       forced: forcedEffImage !== null,
       pickRule:
         "ranked from the CSV's seed1/fold1 rows (the rows describing these exact masks): " +
-        "require min over budgets of x0-diffusion's Dice >= 0.85, then maximize ResNet-UNet's " +
-        "gain from the smallest budget to the largest; Dice shipped is computed from the " +
-        "staged bytes and gated within 0.15 of those CSV rows",
+        "require min over budgets of x0-diffusion's Dice >= 0.85 AND x0 >= SAM + " +
+        `${EFF_SAM_MARGIN} at the smallest budget (the margin absorbs SAM's stochastic ` +
+        "re-draw), then maximize ResNet-UNet's gain from the smallest budget to the " +
+        "largest; Dice shipped is computed from the staged bytes, gated within 0.15 of " +
+        "those CSV rows, and the computed x0-beats-SAM lead is asserted before writing",
       top5Candidates: effRanked.slice(0, 5),
       panels: Object.fromEntries(
         [...effPanels.entries()].map(([key, e]) => [

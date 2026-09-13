@@ -360,14 +360,17 @@ export function LabelEfficiencyFigure() {
               seven at every budget is fog. Dodged horizontally in legend
               order (all seven share one x otherwise and smear into a single
               vertical line, seen in the first screenshot pass) and clamped to
-              the plot: DeepLabV3's ±0.20 at 16 labels stays inside the axes. */}
+              the plot: DeepLabV3's ±0.20 at 16 labels stays inside the axes.
+              FAINT on purpose (owner call, 2026-09-13: at full strength they
+              competed with the lines); the exact ±σ numbers live in the
+              readout row, so the whiskers only have to gesture at spread. */}
           {MODELS.map((m, i) => {
             const p = at(m);
             const x = cursorX + (i - (MODELS.length - 1) / 2) * 6;
             const yTop = yScale(Math.min(1, p.diceMean + p.diceStd));
             const yBot = yScale(Math.max(Y_MIN, p.diceMean - p.diceStd));
             return (
-              <g key={m} data-whisker={m} stroke={SERIES[m].color} strokeOpacity={0.75}>
+              <g key={m} data-whisker={m} stroke={SERIES[m].color} strokeOpacity={0.28}>
                 <line x1={x} x2={x} y1={yTop} y2={yBot} strokeWidth={1.1} />
                 <line x1={x - 3.5} x2={x + 3.5} y1={yTop} y2={yTop} strokeWidth={1.1} />
                 <line x1={x - 3.5} x2={x + 3.5} y1={yBot} y2={yBot} strokeWidth={1.1} />

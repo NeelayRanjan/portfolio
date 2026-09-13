@@ -46,26 +46,18 @@ await page.evaluate(() => document.fonts.ready);
 await page.waitForTimeout(500);
 
 /**
- * At a bare 1200x630 the masthead's abstract paragraph runs long enough that
- * Table 1's rule sits ~23px below the fold (measured) — "start of Table 1"
- * would be missing entirely. Scroll down just enough to bring Table 1's rule
- * + caption row fully into frame, computed from the live DOM rather than a
- * fixed pixel guess, so a future copy edit that changes the masthead's height
- * doesn't silently push this back below the fold again. Deliberately stops at
- * the caption, never into the numeral grid: a big serif number sliced in half
- * at the card's bottom edge would read as broken, not as "more content below".
+ * The card is the TOP of the page, no scroll. An earlier version scrolled
+ * until Table 1's caption was in frame; that stopped fitting once the
+ * headshot rail made the masthead ~840px tall (2026-09-13 regeneration: the
+ * scroll pushed the name off the top of the card). The name, the tagline, the
+ * abstract and the photo are what an unfurl needs, so the card frames them
+ * and the assertion below fails the run rather than write a card without the
+ * name in it.
  */
-const scrollNeeded = await page.evaluate(() => {
-  const label = Array.from(document.querySelectorAll("b")).find(
-    (el) => el.textContent?.trim() === "Table 1.",
-  );
-  const captionRow = label?.closest("div")?.parentElement?.firstElementChild;
-  if (!captionRow) return 0;
-  const overflow = captionRow.getBoundingClientRect().bottom - window.innerHeight;
-  return overflow > 0 ? Math.ceil(overflow) + 4 : 0; // +4px breathing room under the caption
-});
-if (scrollNeeded > 0) {
-  await page.evaluate((s) => window.scrollBy(0, s), scrollNeeded);
+const nameTop = await page.evaluate(() => document.querySelector("h1")?.getBoundingClientRect().top);
+if (nameTop === undefined || nameTop < 0 || nameTop > 630) {
+  await browser.close();
+  throw new Error(`the masthead h1 is not inside the 630px card (top ${nameTop}); nothing written`);
 }
 
 await page.screenshot({ path: "public/og.png", clip: { x: 0, y: 0, width: 1200, height: 630 } });

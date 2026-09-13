@@ -81,8 +81,12 @@ export const copy = {
   /** The masthead: paper title, affiliation line, bio-as-abstract, and the
    *  margin rail (stamp, date, identity links). Spec §5. */
   masthead: {
-    title:
-      "Neelay Ranjan. Diffusion models for domains where labels are scarce and mistakes are expensive.",
+    /** Split (owner call, 2026-09-13): the name and the one-line thesis were
+     *  one string at one size; the tagline now renders smaller than the name.
+     *  Both live inside the single h1, so the page title reads as before. */
+    titleName: "Neelay Ranjan",
+    titleTagline:
+      "Diffusion models for domains where labels are scarce and mistakes are expensive.",
     affiliation: "NASA Ames Research Center · Regenstrief Institute · Purdue University",
     /** ~80 words, first person. Numbers here are load-bearing: keep them in
      *  sync with `research.prose` and CLAUDE.md's content facts. */
@@ -371,7 +375,7 @@ export const copy = {
     intro:
       "Both demos below run their real trained weights in your browser. Nothing here is a recording or a mockup.",
 
-    /** Figure 4 — live SDEdit draw-a-digit. Carried over wholesale from v1's
+    /** Figure 5 (was 4 until the 2026-09-13 order swap) — live SDEdit draw-a-digit. Carried over wholesale from v1's
      *  `sdedit` namespace (`copy.sdedit.*` → `copy.systems.draw.*`); every
      *  leaf key name is unchanged. */
     draw: {
@@ -436,7 +440,7 @@ export const copy = {
       },
     },
 
-    /** Figure 5 — the EBM chess engine. Carried over wholesale from v1's
+    /** Figure 4 (was 5 until the 2026-09-13 order swap) — the EBM chess engine. Carried over wholesale from v1's
      *  `chess` namespace (`copy.chess.*` → `copy.systems.chess.*`); every
      *  leaf key name is unchanged, including the nested `search` and
      *  `activations` blocks `lib/chess-protocol.ts` and

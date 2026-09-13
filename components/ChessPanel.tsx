@@ -468,7 +468,7 @@ export function ChessPanel() {
 
   return (
     <InstrumentFigure
-      n="5"
+      n="4"
       id="fig-chess"
       caption={copy.systems.chess.figureCaption}
       readout={status}

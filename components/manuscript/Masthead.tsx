@@ -49,8 +49,17 @@ export function Masthead() {
         </div>
       }
     >
-      <h1 className="mb-[18px] max-w-[22ch] text-[clamp(27px,4.2vw,37px)] leading-[1.22] font-semibold tracking-[-0.01em] text-ink [text-wrap:balance]">
-        {t.title}
+      {/* One h1, two sizes (owner call, 2026-09-13): the name carries the old
+          display size, the thesis line drops to a subordinate size below it.
+          Both stay in the h1 so the accessible page title is unchanged in
+          substance. */}
+      <h1 className="mb-[18px] font-semibold tracking-[-0.01em] text-ink">
+        <span className="block text-[clamp(27px,4.2vw,37px)] leading-[1.22]">
+          {t.titleName}
+        </span>
+        <span className="mt-2 block max-w-[44ch] text-[clamp(17px,2.6vw,22px)] leading-[1.3] font-medium [text-wrap:balance]">
+          {t.titleTagline}
+        </span>
       </h1>
       <p className="mb-6 text-[15px] text-mut italic">{t.affiliation}</p>
       <p className="text-[16px] leading-relaxed text-ink">{t.abstract}</p>

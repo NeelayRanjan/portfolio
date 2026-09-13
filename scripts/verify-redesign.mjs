@@ -450,18 +450,34 @@ async function checkJepaTripleEqualityOnMixedQuery(browser) {
  * answer: a sampler that ran the wrong class, a display mapping that inverted,
  * or a canned animation could not pass it. Fresh noise every press moves the
  * observed number by only a unit or two.
+ *
+ * ⚠️ This check runs at a 400px viewport, so the loader's device budget hands
+ * it the 128 FALLBACK family — which is what those numbers were calibrated
+ * against, and is deliberate: the phone path is the one most likely to break.
+ * (Re-measured 2026-09-12 on the v2 bundle's re-encoded photos, display
+ * position 1 = class 2: own 13.06 vs 90.20 / 87.50.)
+ * The 256 primary is exercised separately (a node run against the served
+ * graph); if this check is ever widened to a desktop viewport, recalibrate,
+ * because the 256's per-photo PSNRs are 21.0 / 27.4 / 18.0 dB.
  */
 const HEADSHOT_MAD_MAX = 20;
 
 async function checkHeadshotSamplesPhoto(browser) {
   return withPage(browser, { viewport: { width: 400, height: 800 } }, async (page) => {
     const urls = [];
-    page.on("request", (req) => urls.push(req.url()));
+    /** GETs only. The loader HEAD-probes BOTH families before choosing one, so
+     *  a bare URL list would report a probe rather than the download. */
+    const gets = [];
+    page.on("request", (req) => {
+      urls.push(req.url());
+      if (req.method() === "GET") gets.push(req.url());
+    });
     await page.goto(BASE, { waitUntil: "networkidle" });
     await page.waitForTimeout(1500); // catch an idle callback that might still fire
 
     // At rest the masthead is a plain <img>. The toy sits in first paint, so a
-    // model fetch here would put ~24MB of runtime on the critical path.
+    // model fetch here would put ~24MB of runtime on the critical path. Any
+    // method counts: even a probe at rest would mean the loader ran.
     const early = urls.filter((u) => /\/headshot\/.*\.onnx/.test(u));
     if (early.length) {
       throw new Error(`model fetched at rest: ${early.join(", ")}`);
@@ -478,6 +494,12 @@ async function checkHeadshotSamplesPhoto(browser) {
     if (!Number.isInteger(cls)) {
       throw new Error(`could not derive the class index from the face button (src ${thumbSrc})`);
     }
+    // The full-size photo URL is DERIVED from the thumb the page is actually
+    // serving, never spelled out here: the bundle's directory is versioned
+    // (/headshot/v2/ today, because those files are immutable for a year), and
+    // a hardcoded prefix would have this check comparing the canvas against a
+    // 404 the day that moves.
+    const photoUrl = (i) => thumbSrc.replace(/\d+_thumb\.webp$/, `${i}.webp`);
     await face.scrollIntoViewIfNeeded();
     await face.click();
 
@@ -496,12 +518,16 @@ async function checkHeadshotSamplesPhoto(browser) {
     const readout = (await page.locator("#headshot-toy [role=status]").textContent()).trim();
     if (!DONE_RE.test(readout)) throw new Error(`unexpected terminal readout: ${readout}`);
 
-    // A GET of one of the two graphs is what proves a model ran at all.
-    if (!urls.some((u) => /\/headshot\/headshot(_int8)?\.onnx/.test(u))) {
+    // A GET of one of the shipped graphs is what proves a model ran at all.
+    // Path-agnostic, and the name is reported: which family this device got
+    // (256 primary or 128 fallback) is a runtime budget decision.
+    const graphs = gets.filter((u) => /\/headshot\/.*\.onnx/.test(u));
+    if (graphs.length === 0) {
       throw new Error("run completed without ever requesting a model file");
     }
+    const graph = graphs[0].split("/").pop();
 
-    const { mad, controls } = await page.evaluate(async (cls) => {
+    const { mad, controls } = await page.evaluate(async ({ own, others }) => {
       const N = 32;
       // Downscale both through the same 2D path, so any resampling the browser
       // does applies equally to the sample and to the target.
@@ -531,13 +557,13 @@ async function checkHeadshotSamplesPhoto(browser) {
         return shrink(img);
       };
       const sample = shrink(document.querySelector("#headshot-toy canvas"));
-      const target = await load(`/headshot/photos/${cls}.webp`);
+      const target = await load(own);
       const controls = [];
-      for (const i of [0, 1, 2].filter((i) => i !== cls)) {
-        controls.push(meanAbs(sample, await load(`/headshot/photos/${i}.webp`)));
+      for (const url of others) {
+        controls.push(meanAbs(sample, await load(url)));
       }
       return { mad: meanAbs(sample, target), controls };
-    }, cls);
+    }, { own: photoUrl(cls), others: [0, 1, 2].filter((i) => i !== cls).map(photoUrl) });
 
     if (mad > HEADSHOT_MAD_MAX) {
       throw new Error(
@@ -553,15 +579,17 @@ async function checkHeadshotSamplesPhoto(browser) {
       );
     }
 
-    // Second press, different face: the new class must win on the canvas.
-    // Version-agnostic on purpose: under the v1 module this is a second
-    // from-noise run; under v2 it is a transition seeded by the first run's
-    // final — either way the end state is the pressed photo, which is the
-    // property that matters. The readout under v2 additionally says "morphed"
-    // (reported, not asserted, so the check passes both module versions).
+    // Second press, different face: it must MORPH, and the new class must win
+    // on the canvas. The morph half is asserted rather than reported now that
+    // the vendored module is v2 and the capability is permanent — a readout
+    // saying "sampled from noise" here would mean the transition path went
+    // quiet (a stale vendored module, a cleared seed buffer, a length mismatch
+    // between the two model families), which is exactly the silent regression
+    // that shipping a from-noise run under a morph label would hide.
     const face2 = page.locator('#headshot-toy button[aria-label^="Sample photo 2"]');
     const thumb2 = await face2.locator("img").getAttribute("src");
     const cls2 = Number(/photos\/(\d+)_thumb/.exec(thumb2 ?? "")?.[1] ?? NaN);
+    const photoUrl2 = (i) => thumb2.replace(/\d+_thumb\.webp$/, `${i}.webp`);
     if (!Number.isInteger(cls2) || cls2 === cls) {
       throw new Error(`could not derive a distinct second class (got ${cls2} vs ${cls})`);
     }
@@ -578,7 +606,10 @@ async function checkHeadshotSamplesPhoto(browser) {
     // paint, but give the canvas one frame anyway.
     await page.waitForTimeout(200);
     const readout2 = (await page.locator("#headshot-toy [role=status]").textContent()).trim();
-    const second = await page.evaluate(async (cls2) => {
+    if (!/morphed from the last sample/.test(readout2)) {
+      throw new Error(`second press did not morph: "${readout2}"`);
+    }
+    const second = await page.evaluate(async ({ own, others }) => {
       const N = 32;
       const shrink = (src) => {
         const c = document.createElement("canvas");
@@ -600,13 +631,13 @@ async function checkHeadshotSamplesPhoto(browser) {
         return shrink(img);
       };
       const sample = shrink(document.querySelector("#headshot-toy canvas"));
-      const target = await load(`/headshot/photos/${cls2}.webp`);
+      const target = await load(own);
       const controls = [];
-      for (const i of [0, 1, 2].filter((i) => i !== cls2)) {
-        controls.push(meanAbs(sample, await load(`/headshot/photos/${i}.webp`)));
+      for (const url of others) {
+        controls.push(meanAbs(sample, await load(url)));
       }
       return { mad: meanAbs(sample, target), controls };
-    }, cls2);
+    }, { own: photoUrl2(cls2), others: [0, 1, 2].filter((i) => i !== cls2).map(photoUrl2) });
     if (second.mad > HEADSHOT_MAD_MAX) {
       throw new Error(
         `after second press, canvas is ${second.mad.toFixed(2)} off photo ${cls2} (limit ${HEADSHOT_MAD_MAX})`,
@@ -618,7 +649,7 @@ async function checkHeadshotSamplesPhoto(browser) {
       );
     }
 
-    return `no model at rest; "${readout}"; MAD own ${mad.toFixed(2)} vs others ${controls.map((c) => c.toFixed(2)).join(", ")}; 2nd press ("${readout2}") MAD own ${second.mad.toFixed(2)} vs ${second.controls.map((c) => c.toFixed(2)).join(", ")}`;
+    return `no model at rest; loaded ${graph}; "${readout}"; MAD own ${mad.toFixed(2)} vs others ${controls.map((c) => c.toFixed(2)).join(", ")}; 2nd press ("${readout2}") MAD own ${second.mad.toFixed(2)} vs ${second.controls.map((c) => c.toFixed(2)).join(", ")}`;
   });
 }
 

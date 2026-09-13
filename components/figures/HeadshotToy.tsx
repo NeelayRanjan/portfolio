@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { copy } from "@/content/copy";
-import { loadHeadshotModel, type HeadshotModel } from "@/lib/headshot-model";
+import { loadHeadshotModel, PHOTO_BASE, type HeadshotModel } from "@/lib/headshot-model";
 
 /**
  * The author photo, sampled live.
@@ -19,10 +19,16 @@ import { loadHeadshotModel, type HeadshotModel } from "@/lib/headshot-model";
  * the download (`loadHeadshotModel`, memoized). `scripts/verify-redesign.mjs`
  * asserts the no-request-at-rest half of that in a real browser.
  *
+ * Two models ship: a 256 primary and a 128 fallback, one picked per device by
+ * `lib/headshot-model.ts` against a bandwidth/CPU budget. This file never
+ * assumes which one it got — every resolution it uses comes off the loaded
+ * meta.
+ *
  * Division of labour, per the Constitution: `lib/headshot-diffusion.js` is
  * vendored verbatim from the model repo and owns every piece of math (the
- * cosine schedule, the DDIM step, the timestep sequence, the clamp). This file
- * owns the canvas, the buttons, the readout and the copy, and nothing else.
+ * cosine schedule, the DDIM step, the timestep sequence, the transition mode's
+ * forward-noising, the clamp). This file owns the canvas, the buttons, the
+ * readout and the copy, and nothing else.
  * Three of the module's rules are load-bearing here:
  *   1. the site NEVER passes `t` — the module builds the raw 0..999 sequence;
  *   2. `xt` frames are UNBOUNDED, so they are clamped before display;
@@ -35,17 +41,20 @@ import { loadHeadshotModel, type HeadshotModel } from "@/lib/headshot-model";
  */
 export function HeadshotToy({
   /** Class indices that actually have a photo served, in order. From the
-   *  server gate, which reads `k` out of `headshot_meta.json`. */
+   *  server gate, which reads `k` out of a bundled meta. */
   photos,
-  /** `meta.res` (128 today). The canvas backing store is exactly this and CSS
-   *  upscales it with DEFAULT smoothing, per the bundle's integrator note:
-   *  softness is expected at a 256px display size, nearest-neighbour blocks
-   *  are not. (This is the opposite of the draw demo's 28px grids, which are
-   *  `pixelated` on purpose.) */
-  res,
+  /** The SSR canvas attributes only. ⚠️ NOT the generation resolution: which
+   *  model this device gets (256 primary or 128 fallback) is a per-device
+   *  decision made in the browser at load time, so the real backing store is
+   *  set from the LOADED meta's `res` inside `paint`. The canvas backing store
+   *  is exactly that and CSS upscales it with DEFAULT smoothing, per the
+   *  bundle's integrator note: softness is expected at a 256px display size,
+   *  nearest-neighbour blocks are not. (This is the opposite of the draw
+   *  demo's 28px grids, which are `pixelated` on purpose.) */
+  defaultRes,
 }: {
   photos: number[];
-  res: number;
+  defaultRes: number;
 }) {
   const t = copy.masthead.headshot;
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -68,14 +77,14 @@ export function HeadshotToy({
    *  revert to. */
   const [painted, setPainted] = useState(false);
   /**
-   * The last COMPLETED run's final sample, kept as transition seed material
-   * (v2 module only). Rules that keep it honest:
+   * The last COMPLETED run's final sample, kept as transition seed material.
+   * Rules that keep it honest:
    *   - written only after a run resolves (a failed run clears it — morphing
    *     out of a half-noised frame would be a lie about what's on screen);
    *   - both directions are defensive copies: the module gets `.slice()` in
    *     case it mutates its input, and stores `.slice()` of what it returned;
-   *   - length-checked against the current res before use, so a future
-   *     res-changing bundle swap can never feed a stale-sized buffer.
+   *   - length-checked against the LOADED model's res before use, so a buffer
+   *     from a different-resolution model can never be fed in.
    */
   const lastFinalRef = useRef<{ cls: number; data: Float32Array } | null>(null);
   /** Which story the finished run gets to claim in the readout: "sampled from
@@ -83,19 +92,29 @@ export function HeadshotToy({
   const [wasMorph, setWasMorph] = useState(false);
 
   /**
-   * One frame onto the 128px canvas.
+   * One frame onto the canvas.
    *
    * Frames are planar C-order ([1, C, R, R]), NOT interleaved RGBA: channel c
    * of pixel p lives at `c * R * R + p`. `clampForDisplay` is true only for
    * `xt`, which is unbounded; the final sample arrives pre-clamped and is
    * written straight through (`ImageData`'s Uint8ClampedArray saturates rather
    * than wrapping, so the write is safe either way).
+   *
+   * ⚠️ `res` is the LOADED model's `meta.res`, passed in per run rather than
+   * baked in: this device may have gotten the 256 primary or the 128 fallback,
+   * and the backing store has to match the frames or every pixel lands in the
+   * wrong place. Resizing a canvas clears it, so it is only touched when it
+   * actually differs.
    */
   const paint = useCallback(
-    (data: Float32Array, channels: number, clampForDisplay: boolean) => {
+    (data: Float32Array, channels: number, res: number, clampForDisplay: boolean) => {
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext("2d");
       if (!canvas || !ctx) return;
+      if (canvas.width !== res || canvas.height !== res) {
+        canvas.width = res;
+        canvas.height = res;
+      }
       const n = res * res;
       const img = ctx.createImageData(res, res);
       for (let p = 0; p < n; p++) {
@@ -111,7 +130,7 @@ export function HeadshotToy({
       }
       ctx.putImageData(img, 0, 0);
     },
-    [res],
+    [],
   );
 
   /**
@@ -131,30 +150,14 @@ export function HeadshotToy({
       setRunning(true);
       setFailed(false);
       setStep(null);
-      /**
-       * Transition or from-noise? Cross-class presses morph (v2 module only);
-       * everything else is from-noise ON PURPOSE:
-       *   - the first press proves the model samples at all (the demo's thesis);
-       *   - `resample` keeps its meaning, "new noise, same photo, different
-       *     route" (opts.fresh);
-       *   - a same-class face press is just resample by another button.
-       */
-      const prev = lastFinalRef.current;
-      // model?.canMorph: on the very first press the model isn't loaded yet,
-      // which is fine — there is no prev to morph from either.
-      const morph =
-        (model?.canMorph ?? false) &&
-        !opts?.fresh &&
-        prev !== null &&
-        prev.cls !== idx &&
-        prev.data.length === 3 * res * res;
-      setWasMorph(morph);
+      setWasMorph(false);
       try {
         let m = model;
         if (!m) {
           setLoading(true);
           try {
-            // First press starts the ~24 MB runtime + 1.55 MB of weights.
+            // First press starts the ~24 MB runtime plus this device's weights
+            // (1.55 MB int8 at 128, 5.29 MB fp32 at 256).
             m = await loadHeadshotModel();
           } finally {
             setLoading(false);
@@ -165,15 +168,40 @@ export function HeadshotToy({
           }
           setModel(m);
         }
+        const res = m.meta.res;
+
+        /**
+         * Transition or from-noise? Cross-class presses morph; everything else
+         * is from-noise ON PURPOSE:
+         *   - the first press proves the model samples at all (the demo's
+         *     thesis);
+         *   - `resample` keeps its meaning, "new noise, same photo, different
+         *     route" (opts.fresh);
+         *   - a same-class face press is just resample by another button.
+         *
+         * Decided AFTER the load, so `res` is the loaded model's own: the
+         * length check is what guarantees a buffer from one family can never be
+         * fed to the other (the module would throw, but the readout would
+         * already have claimed a morph).
+         */
+        const prev = lastFinalRef.current;
+        const morph =
+          m.canMorph &&
+          !opts?.fresh &&
+          prev !== null &&
+          prev.cls !== idx &&
+          prev.data.length === m.meta.channels * res * res;
+        setWasMorph(morph);
 
         const final = await m.generate({
           session: m.session,
           ort: m.ort,
           meta: m.meta,
           classIdx: idx,
-          // Transition seed (v2 only; v1 never reaches here with morph=true).
-          // The module gets its own copy; `strength` is deliberately omitted
-          // so the module's tuned default applies.
+          // Transition seed. The module gets its own copy; `strength` is
+          // deliberately omitted so the module's tuned default (0.55) applies,
+          // and `size`/`classWeights` are never passed at all — the bundle
+          // calls both exploratory, off the trained regime.
           ...(morph && prev ? { init: prev.data.slice() } : {}),
           // No `steps`: the module falls back to meta.steps_default, which is
           // the export's own number rather than one picked here.
@@ -182,7 +210,7 @@ export function HeadshotToy({
             // there is no spinner to design. ⚠️ Nothing in here may throw:
             // the module's event-loop yield sits immediately after this call,
             // and skipping it locks the page (the draw demo's trap 3).
-            paint(xt, m.meta.channels, true);
+            paint(xt, m.meta.channels, res, true);
             setPainted(true);
             setStep({ i: i + 1, n: total });
           },
@@ -190,7 +218,7 @@ export function HeadshotToy({
         // The run's last state, kept. `final` is the module's return: with the
         // final alpha-bar at 1 it IS the last clamped x0, so it is the sampled
         // photo and is painted WITHOUT a second clamp.
-        paint(final, m.meta.channels, false);
+        paint(final, m.meta.channels, res, false);
         setPainted(true);
         lastFinalRef.current = { cls: idx, data: final.slice() };
       } catch {
@@ -208,7 +236,7 @@ export function HeadshotToy({
         setRunning(false);
       }
     },
-    [model, paint, res],
+    [model, paint],
   );
 
   const altOf = (i: number) => t.photoAlts[i] ?? t.photoAltGeneric;
@@ -247,15 +275,17 @@ export function HeadshotToy({
          * works fine.
          */}
         <img
-          src={`/headshot/photos/${sel}.webp`}
+          src={`${PHOTO_BASE}/${sel}.webp`}
           alt={altOf(sel)}
           hidden={painted}
           className="absolute inset-0 h-full w-full object-cover"
         />
         <canvas
           ref={canvasRef}
-          width={res}
-          height={res}
+          // SSR attributes only; `paint` sets the real backing store from the
+          // loaded model's meta, which may be the other family's resolution.
+          width={defaultRes}
+          height={defaultRes}
           hidden={!painted}
           role="img"
           // The photo's own alt text rides along. Without it, the description
@@ -286,7 +316,7 @@ export function HeadshotToy({
                 alt="": the button's own aria-label names it, and the face is
                 already described by the big photo's alt above. */}
             <img
-              src={`/headshot/photos/${i}_thumb.webp`}
+              src={`${PHOTO_BASE}/${i}_thumb.webp`}
               alt=""
               width={96}
               height={96}

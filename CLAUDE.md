@@ -37,8 +37,13 @@ change), flight video play/pause, a drawn stroke producing a real auto-label,
 the chess hint matching vector D (`g3 p=0.236`), JEPA seed query 834 plus the
 triple-equality, and the headshot toy (no model fetched at rest; the sampled
 canvas pixel-matches the pressed photo, with the other two photos as asserted
-controls). Run it after any change touching a demo, a figure, or the page
-shell. `scripts/check-voice.mjs` gates every copy.ts edit.
+controls; the second press must report a MORPH and match ITS photo; photo URLs
+are derived from the pressed thumb, so the versioned bundle directory can move
+without touching the check). ⚠️ That check runs at 400px, so the loader's
+budget hands it the 128 fallback — the 256 primary is exercised out of band
+(the forced node run recorded in the headshot section). Run it after any change
+touching a demo, a figure, or the page shell. `scripts/check-voice.mjs` gates
+every copy.ts edit.
 
 **Open items, roughly in order:**
 1. **The Pi claim needs the owner.** `systems.chess.searchNote.post` says "The
@@ -52,10 +57,15 @@ shell. `scripts/check-voice.mjs` gates every copy.ts edit.
 3. **A regenerated `predictions_cache`** (more images, real tail cases, runs
    matching the CSV seeds) would substantially strengthen Figures 1–2 — see
    the research-figures section for today's limits.
-4. The mobile draw-demo bugs (Known bugs below) are open.
-5. `public/research/label_efficiency.json` is computed, committed, and
+4. **A transition parity vector for the headshot bundle.** The morph is live on
+   the site, but `test_parity.mjs` pins only the from-noise path; its
+   `init+strength` case is a structural smoke (step count + finiteness), so the
+   forward-noising branch is unpinned vendored math. Ask the model owner for an
+   init+strength case in `vectors/`.
+5. The mobile draw-demo bugs (Known bugs below) are open.
+6. `public/research/label_efficiency.json` is computed, committed, and
    currently unrendered — free material for a future figure.
-6. Much later: a third headliner demo, a **live network-security honeypot**
+7. Much later: a third headliner demo, a **live network-security honeypot**
    (exposed Pi, malicious ssh/https logged, LLM-categorized into a live UMAP
    of attack families). Needs a live-data seam the static site doesn't have;
    the systems figure column is trivially appendable when it comes.
@@ -223,7 +233,10 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 - **⚠️ `/models/*`, `/ort/*` and `/headshot/*` are served `immutable` for a year**
   (`next.config.ts`). That makes filenames the cache key: a retrained model or a
   refreshed export MUST ship under a new filename (and the code path that loads it
-  updated), or returning visitors keep the old bytes until the cache expires.
+  updated), or returning visitors keep the old bytes until the cache expires. The
+  headshot bundle does that with a versioned DIRECTORY (`/headshot/v2/…`, the
+  photos included, since their bytes changed too); `:path*` matches the deeper
+  path, so the header still applies. The v1 paths are deleted, not redirected.
 - **COOP/COEP headers on every route** (`next.config.ts`): they enable
   SharedArrayBuffer → multithreaded WASM. The draw demo's classifier needs them
   (~1s vs ~17s without); chess doesn't (measured: threads change nothing for a
@@ -306,15 +319,47 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 
 ### Headshot diffusion (the author photo) — page 1's masthead
 - The bio's signature piece: the photo is a live sample, not a file. A
-  deliberately-overfit class-conditional x0 model (1.31M params, 128², cosine
+  deliberately-overfit class-conditional x0 model (1.31M params, cosine
   T=1000, DDIM-25) of three approved crops. Overfitting is also the safety
   property: it can only produce faces the owner approved, never a novel one.
+- **Two models ship (v2 bundle, integrated 2026-09-12), one picked per
+  device.** The **256 primary** (`headshot256.onnx`, 5.29 MB fp32, dynamic H/W
+  axes, native training res) and the **128 fallback family**
+  (`headshot128_int8.onnx` 1.55 MB, `headshot128.onnx` 5.29 MB fp32). They are
+  independent: **never mix tensors between them**, and every `res` comes off
+  the model's OWN meta. There is deliberately **no 256 int8** — the bundle
+  quantized it, measured 34.8 / 30.5 / 32.5 dB PSNR against the fp32 samples,
+  missed its own ≥35 dB gate on class 1 and discarded the artifact.
+- **Budget policy** (`wantsPrimary()` in `lib/headshot-model.ts`): the 256 only
+  when `crossOriginIsolated` AND `hardwareConcurrency >= 4` AND
+  `(min-width: 768px)` AND not `saveData` AND not (`deviceMemory` present and
+  < 4) — house rule, **absent means unknown, not no**, so only a present-and-bad
+  value vetoes. That is a preference ORDER; **presence probes decide**: HEAD on
+  both families first, and whichever is actually served wins, so a half-uploaded
+  deploy gets the family it has rather than a gate. `build` is `"256" |
+  "128 int8" | "128"` and the readout prints it — every fallback in the chain
+  updates the label, so it can never lie.
+- **Everything lives under `/headshot/v2/`.** `/headshot/:path*` is immutable
+  for a year and the v2 bundle changed the weights, the metas AND the photo
+  bytes, so the whole set moved rather than being overwritten. The v1 files are
+  deleted; their URLs are dead by design. Nothing in the repo may spell a
+  `/headshot/photos/...` or `/headshot/headshot*.onnx` path again.
 - Pieces: `lib/headshot-diffusion.js` is **vendored verbatim** (all the math:
-  schedule, DDIM step, timestep sequence, clamp) with `lib/headshot-diffusion.d.ts`
-  hand-typed beside it; `lib/headshot-model.ts` owns loading;
+  schedule, DDIM step, timestep sequence, transition forward-noising, clamp);
+  **one module drives both models**. Two hand-maintained siblings sit beside it
+  and are updated at every re-vendor: `lib/headshot-diffusion.d.ts` (types) and
+  `lib/headshot-module-info.ts` (`MODULE_SUPPORTS_TRANSITIONS`). That constant
+  replaces the old `MODULE_VERSION` read — **the v2 module exports no version
+  marker**, and option-sniffing is forbidden because v1 silently ignored unknown
+  `generate()` options. Its truth is backed by a parity run, not by anything the
+  module says about itself. `lib/headshot-model.ts` owns loading;
   `components/figures/HeadshotFigure.tsx` is the server gate and
   `components/figures/HeadshotToy.tsx` the client UI. Pinned by the bundle's own
-  parity test against this repo's ORT: **max|Δ| 6.71e-6**.
+  parity test against this repo's ORT, both models PASS: **max|Δ| 3.14e-5 (256)
+  and 6.71e-6 (128)**.
+- **`size` and `classWeights` are typed and never passed.** The bundle calls
+  both exploratory — off the trained resolution or off the training simplex the
+  output is not a face the owner approved, which is the whole safety property.
 - **Three integrator rules, all silent failures if broken**: the site never
   passes `t` (module-internal, raw 0..999); `xt` frames are UNBOUNDED and get
   clamped for display; `x0` and the returned final sample are ALREADY clamped
@@ -324,39 +369,58 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   + the weights (`loadHeadshotModel`, memoized, same `onnxruntime-web/webgpu`
   specifier as draw/chess so the runtime is shared). Deliberately NOT in
   `lib/warm.ts`: the warm window is spent on the runtime the two big demos share.
-- int8 (1.55 MB) with an fp32 fallback if a runtime rejects the quantized graph,
-  and the readout names which build loaded. Same ruling as chess: losing the
-  "int8" label costs nothing, a dead button costs everything.
-- Gate reads `k` and `res` out of `headshot_meta.json` and checks each class has a
-  served photo, so a retrained export with four photos grows a fourth button with
-  no code change. Canvas backing store is `res` and CSS upscales with DEFAULT
-  smoothing (the opposite of the draw demo's `pixelated` grids) — softness at
-  256px is expected.
+- Within the 128 family, int8 first with an fp32 fallback if a runtime rejects
+  the quantized graph. Same ruling as chess: losing the "int8" label costs
+  nothing, a dead button costs everything.
+- Gate reads `k` (and a default `res`) out of `headshot256_meta.json`, falling
+  back to the 128 meta, and checks each class has a served photo, so a retrained
+  export with four photos grows a fourth button with no code change. ⚠️ That
+  `res` is SSR canvas attributes only: the real backing store is set inside
+  `paint()` from the LOADED model's meta, because the family is a per-device
+  choice made in the browser. CSS upscales with DEFAULT smoothing (the opposite
+  of the draw demo's `pixelated` grids) — softness at 256px display is expected,
+  less so now that the primary generates at 256.
 - Every press is fresh noise, so the route differs and the photo doesn't:
   verified in-browser that two runs of one class are not byte-identical. All
   controls disable while a run is in flight (`runningRef`, synchronous).
-- **Transition mode (built 2026-09-12, dormant until the v2 module lands).**
-  The site is fully wired for SDEdit-style morphs: a cross-class press hands
-  the previous COMPLETED run's final sample back as `init` and the module
-  forward-noises it partway and descends into the new photo. Rules, all in
-  code already: capability = the vendored module exporting `MODULE_VERSION
-  >= 2`, read at load time via index access (⚠️ v1 silently IGNORES unknown
-  generate() options, so option-passing is never the test; and a static named
-  import of the flag fails the v1 build — Turbopack bind-checks it);
-  first-press and `resample` and same-class presses stay from-noise (the
-  demo's thesis + resample's meaning); init only from a completed run
-  (failures clear it), defensive `.slice()` both directions, length-checked
-  against `res`; `strength` is never passed (module default rules); the
-  readout and caption swap to morph wording only when capable, so no state
-  ever overclaims. When the v2 module file replaces `lib/headshot-diffusion.js`
-  everything lights up with zero site edits — but demand its TRANSITION parity
-  vector (init+strength case) in `vectors/` first; the forward-noising branch
-  is unpinned vendored math until then. The verify check already exercises a
-  second press and passes under both module versions.
-- Measured in headless Firefox on a production build: 25 steps end to end
-  ~15.5s including the download (a real browser is much faster; quote measured
-  numbers only). Per-photo PSNR from the bundle: 29.3 / 24.0 / 21.1 dB — classes
-  1-2 soften on busy backgrounds and that was approved at the human review gate.
+- **Transition mode is LIVE (2026-09-12).** A cross-class press hands the
+  previous COMPLETED run's final sample back as `init`; the module
+  forward-noises it to `round(0.55·(T−1))` and descends into the new photo, so
+  the run is ~14 of the 25 steps. Rules: capability comes from
+  `MODULE_SUPPORTS_TRANSITIONS`, never from sniffing; first press, `resample`
+  and same-class presses stay from-noise (the demo's thesis + resample's
+  meaning); `init` only from a completed run (failures clear it), defensive
+  `.slice()` both directions, length-checked against the LOADED meta's res (the
+  two families differ, so this is what stops a 128 buffer reaching a 256 run);
+  the morph decision is made AFTER the load for exactly that reason; `strength`
+  is never passed (module default rules); readout and caption carry the morph
+  wording, so no state overclaims.
+  ⚠️ **The transition branch is still UNPINNED vendored math.** The bundle's
+  `test_parity.mjs` pins only the classic from-noise path against PyTorch
+  vectors (both models). Its three v2 additions are STRUCTURAL SMOKES with no
+  expected output: `size:128` checks length + finiteness, `classWeights` checks
+  the per-step call count + finiteness, and `init+strength` checks only that it
+  ran a strict subset of the steps (14/25) and returned finite numbers. Nothing
+  compares the forward-noising against a reference. Keep demanding a real
+  init+strength vector in `vectors/`; until then the site's evidence is
+  behavioural (the morph lands on the destination photo, measured below).
+- Measured on a production build, headless Firefox (~20x slower than a real
+  browser; quote measured numbers only): the whole check, download + 25 steps +
+  a 14-step morph, ~15s. Node wasm 4 threads: **107 ms/step at 256** (25 steps
+  ≈ 2.7s), **29 ms/step at 128**. Per-photo PSNR from the bundle, DDIM-25 from
+  fresh noise (the bundle's own numbers): **256 → 21.0 / 27.4 / 18.0 dB** (below target on classes 0 and 2;
+  likeness sharp on all three, and the human gate accepted that photo 2's
+  sampled face reads slightly leaner and lighter than the target); **128 → 29.3
+  / 24.0 / 21.1 dB** (classes 1-2 soften on busy backgrounds, approved at the
+  same gate).
+- **The 256 + morph path, measured out of band** (2026-09-12, node wasm driving
+  the site's vendored module against the SERVED `public/headshot/v2/` bytes,
+  because the Playwright check's 400px viewport always lands on the 128): 25
+  steps from noise into class 2 at 107 ms/step, mean abs 8.91/255 against that
+  class's 256 training input (PSNR 22.0 dB) versus 90.3 and 88.5 against the
+  other two; then a morph seeded by that sample into class 0 ran **14 of 25
+  steps** and landed at mean abs 12.12 (PSNR 19.9 dB) versus 64.1 and 88.6. Redo
+  that run whenever the bundle or the loader's policy changes.
 
 ### Chess (EBM + MCTS) — page 1
 - Architecture: `lib/chess-engine.ts` is a thin worker client (no model);
@@ -487,20 +551,24 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 | `public/models/mnist_x0.onnx` | 26 MB | the pixel model, live draw-a-digit |
 | `public/models/chess-int8.onnx` | 553 KB | the chess EBM |
 | `public/models/chess-fp32.onnx` | 1.8 MB | chess fallback |
-| `public/headshot/headshot_int8.onnx` | 1.55 MB | the headshot model, what the browser loads |
-| `public/headshot/headshot.onnx` | 5.29 MB | headshot fp32 fallback |
-| `public/headshot/headshot_meta.json` | 204 B | res/channels/k/schedule/steps — read, never hardcoded |
-| `public/headshot/photos/{0,1,2}.webp` | 17/53/32 KB | the three approved crops, 512², q80, metadata stripped |
-| `public/headshot/photos/{0,1,2}_thumb.webp` | ~2 KB each | 96² derivatives for the 44px face buttons (first paint) |
+| `public/headshot/v2/headshot256.onnx` | 5.29 MB | the 256 primary, fp32, dynamic H/W (no int8 exists) |
+| `public/headshot/v2/headshot256_meta.json` | 204 B | res 256 — read, never hardcoded, never shared with the 128 |
+| `public/headshot/v2/headshot128_int8.onnx` | 1.55 MB | the 128 fallback, what a phone loads |
+| `public/headshot/v2/headshot128.onnx` | 5.29 MB | 128 fp32 fallback-of-the-fallback |
+| `public/headshot/v2/headshot128_meta.json` | 204 B | res 128 |
+| `public/headshot/v2/photos/{0,1,2}.webp` | 18/57/36 KB | the three approved crops, 512², q80, metadata stripped |
+| `public/headshot/v2/photos/{0,1,2}_thumb.webp` | ~2 KB each | 96² derivatives for the 44px face buttons (first paint) |
 | `public/research/*` | ~1.7 MB | prepare-research outputs: wipe assets, `cdf/` stops, flight mp4 + poster, `cdf.json`, `label_efficiency.json`, `provenance.json` |
 | `public/ort/*` | ~37 MB | onnxruntime-web wasm, vendored, **gitignored**, synced on prebuild |
 
 The JEPA bundle is produced by
 `export.py` in `~/Documents/embedding_jepa/` and copied verbatim; nothing in this
-repo generates it. `public/headshot/` is copied verbatim out of
-`~/Documents/headshot_diffusion/dist/` (the photos re-encoded to WebP q80 with
-`-map_metadata -1`); the bundle's `vectors/` and `*_128.png` training inputs stay
-out of `public/`. Git LFS: settled, not needed (~42 MB tracked binaries).
+repo generates it. `public/headshot/v2/` is copied verbatim out of
+`~/Documents/headshot_diffusion/dist/` (graphs and metas byte-for-byte, renamed
+to the `headshot256*` / `headshot128*` scheme; the photos re-encoded from the new
+`photos/{i}.png` with `ffmpeg -map_metadata -1 -c:v libwebp -quality 80`, 512²
+plus 96² thumbs); the bundle's `vectors/` and `*_{128,256}.png` training inputs
+stay out of `public/`. Git LFS: settled, not needed (~47 MB tracked binaries).
 
 ## Known bugs — open on the live site
 

@@ -95,7 +95,7 @@ export const copy = {
      * The author photo, which is a live diffusion sample rather than a file
      * (`components/figures/HeadshotFigure.tsx`). Every claim below is checked:
      * 1.31M params and three source photos come from the bundle's README,
-     * "25 steps" is `steps_default` in `headshot_meta.json`, and "fresh noise
+     * "25 steps" is `steps_default` in both v2 metas, and "fresh noise
      * every press" is the module's documented behavior. No latency claim is
      * made here on purpose: the only numbers measured so far are node-wasm
      * ones, and CLAUDE.md's rule is to quote what you measure in a real

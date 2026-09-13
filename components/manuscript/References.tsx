@@ -1,4 +1,5 @@
 import { copy } from "@/content/copy";
+import { TrackedLink } from "@/components/manuscript/TrackedLink";
 
 /**
  * The bibliography: `copy.references.items` rendered as a numbered list,
@@ -18,12 +19,13 @@ export function References() {
         {t.items.map((item) =>
           item.href ? (
             <li key={item.label}>
-              <a
+              <TrackedLink
+                label={item.label}
                 href={item.href}
                 className="text-link hover:underline hover:underline-offset-[3px]"
               >
                 {item.label}
-              </a>
+              </TrackedLink>
             </li>
           ) : (
             <li key={item.label}>{item.label}</li>

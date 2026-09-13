@@ -943,7 +943,20 @@ async function checkHeadshotSamplesPhoto(browser) {
       );
     }
 
-    return `no model at rest; "${readout}" matches the fetched ${graph}; ${steps1} steps, MAD own ${mad.toFixed(2)} vs others ${controls.map((c) => c.toFixed(2)).join(", ")}; 2nd press ("${readout2}") ran ${steps2} of ${steps1} steps, MAD own ${second.mad.toFixed(2)} vs ${second.controls.map((c) => c.toFixed(2)).join(", ")}`;
+    // Analytics: two COMPLETED runs must queue exactly ONE demo_used event
+    // (once per demo per page load, lib/track.ts). Off Vercel the tracker
+    // script 404s, so window.vaq holds every call it would have sent.
+    const headshotEvents = await page.evaluate(
+      () =>
+        (window.vaq ?? []).filter(
+          ([kind, ev]) => kind === "event" && ev?.name === "demo_used" && ev?.data?.demo === "headshot",
+        ).length,
+    );
+    if (headshotEvents !== 1) {
+      throw new Error(`expected exactly 1 demo_used{headshot} after two completed runs, queued ${headshotEvents}`);
+    }
+
+    return `no model at rest; "${readout}" matches the fetched ${graph}; ${steps1} steps, MAD own ${mad.toFixed(2)} vs others ${controls.map((c) => c.toFixed(2)).join(", ")}; 2nd press ("${readout2}") ran ${steps2} of ${steps1} steps, MAD own ${second.mad.toFixed(2)} vs ${second.controls.map((c) => c.toFixed(2)).join(", ")}; demo_used{headshot} queued once`;
   });
 }
 
@@ -1169,6 +1182,53 @@ async function checkDiceCdf(browser) {
 }
 
 /* ---------------------------------------------------------------------- */
+/* 13. Vercel Web Analytics (app/layout.tsx + lib/track.ts)                */
+/* ---------------------------------------------------------------------- */
+
+/**
+ * What can be proven locally, and what can't. The tracker loads from
+ * /_vercel/insights/script.js, which only Vercel serves, so on this prod
+ * build it 404s and never drains `window.vaq` — the queue therefore holds
+ * exactly what production would send. This asserts: the script tag is
+ * injected at the same-origin path (anything cross-origin would be blocked
+ * by the site's COEP header), and a click on the Resume link queues an
+ * outbound_link event carrying its label. Delivery itself is only visible in
+ * the Vercel dashboard. (demo_used is asserted inside the headshot check,
+ * which already pays for two real model runs.)
+ */
+async function checkAnalyticsQueue(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await page.waitForFunction(
+      () => document.querySelector('script[src*="/_vercel/insights/script.js"]') !== null,
+      null,
+      { timeout: 10000 },
+    );
+    const src = await page.evaluate(
+      () => document.querySelector('script[src*="_vercel/insights"]').getAttribute("src"),
+    );
+    if (!src.startsWith("/")) throw new Error(`tracker script is not same-origin: ${src}`);
+
+    const resume = page.locator('a[data-track-label="Resume"]').first();
+    await resume.waitFor({ state: "attached", timeout: 10000 });
+    // Keep the click from navigating to Drive: a capture-phase preventDefault
+    // stops the navigation without stopping React's onClick, which is what's
+    // under test.
+    await page.evaluate(() => document.addEventListener("click", (e) => e.preventDefault(), true));
+    await resume.click();
+
+    const events = await page.evaluate(() =>
+      (window.vaq ?? []).filter(([kind]) => kind === "event").map(([, ev]) => ev),
+    );
+    const hit = events.find((ev) => ev?.name === "outbound_link" && ev?.data?.label === "Resume");
+    if (!hit) {
+      throw new Error(`no outbound_link{Resume} queued; queue holds ${JSON.stringify(events)}`);
+    }
+    return `tracker injected at ${src}; Resume click queued outbound_link{label: "Resume"}`;
+  });
+}
+
+/* ---------------------------------------------------------------------- */
 /* driver                                                                  */
 /* ---------------------------------------------------------------------- */
 
@@ -1187,6 +1247,7 @@ const CHECKS = [
   ["jepa-seed-query-834", checkJepaSeedQuery834],
   ["jepa-triple-equality-mixed", checkJepaTripleEqualityOnMixedQuery],
   ["headshot-samples-photo", checkHeadshotSamplesPhoto],
+  ["analytics-queue", checkAnalyticsQueue],
 ];
 
 async function main() {

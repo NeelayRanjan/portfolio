@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { trackDemoOnce } from "@/lib/track";
 import { copy } from "@/content/copy";
 import { loadHeadshotModel, PHOTO_BASE, type HeadshotModel } from "@/lib/headshot-model";
 
@@ -221,6 +222,7 @@ export function HeadshotToy({
         paint(final, m.meta.channels, res, false);
         setPainted(true);
         lastFinalRef.current = { cls: idx, data: final.slice() };
+        trackDemoOnce("headshot");
       } catch {
         // ⚠️ `painted` has to go back to false, not just `failed` to true. A run
         // that dies mid-sampling after an earlier successful one would

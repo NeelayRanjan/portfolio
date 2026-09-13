@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess, type Square } from "chess.js";
+import { trackDemoOnce } from "@/lib/track";
 import { InstrumentFigure } from "./manuscript/InstrumentFigure";
 import { ChessBoard } from "./ChessBoard";
 import { ChessActivations } from "./ChessActivations";
@@ -389,6 +390,7 @@ export function ChessPanel() {
     setSelected(null);
     setPendingPromo(null);
     sync();
+    trackDemoOnce("chess");
   };
 
   const onSquare = (square: Square) => {

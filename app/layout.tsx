@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { STIX_Two_Text, Spline_Sans_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { copy } from "@/content/copy";
 import { DeskField } from "@/components/manuscript/DeskField";
@@ -68,6 +69,10 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col font-serif">
         <DeskField />
         {children}
+        {/* Vercel Web Analytics: cookieless page views, plus the custom events
+            in lib/track.ts. In production it loads same-origin from
+            /_vercel/insights/, so the COOP/COEP headers never block it. */}
+        <Analytics />
       </body>
     </html>
   );

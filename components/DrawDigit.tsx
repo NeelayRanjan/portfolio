@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { trackDemoOnce } from "@/lib/track";
 import { InstrumentFigure } from "./manuscript/InstrumentFigure";
 import type { AsciiDiffusion } from "@/lib/ascii-diffusion";
 import { classifyDrawing } from "@/lib/classify";
@@ -539,6 +540,7 @@ export function DrawDigit() {
           // there is nothing to spin on — never await the run and then play it back.
           onFrame: (f) => setFrame(f),
         });
+        trackDemoOnce("draw");
       } catch (err) {
         setLoadErr((err as Error).message);
       } finally {

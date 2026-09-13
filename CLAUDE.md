@@ -37,7 +37,7 @@ line smaller beneath it (`titleName` / `titleTagline`), and the OG card was
 regenerated (`gen-og.mjs` now frames the top of the page; its old scroll-to-
 Table-1 logic cut the name off once the headshot rail grew).
 
-**Verification: `scripts/verify-redesign.mjs`** — 14 named checks,
+**Verification: `scripts/verify-redesign.mjs`** — 15 named checks,
 Playwright-Firefox against a real `npm run build && npm start` on :3000, never
 the dev server; pass check-name substrings as args to run subsets. Covers the
 desk field (motion / reduced-motion / absent below 880px), no horizontal
@@ -49,7 +49,9 @@ the slider, and the strip's panels carrying the json's Dice and repainting per
 budget), the Dice-CDF slider (curves, readouts vs `cdf.json`, repaint on stop
 change), flight video play/pause, a drawn stroke producing a real auto-label,
 the chess hint matching vector D (`g3 p=0.236`), JEPA seed query 834 plus the
-triple-equality, and the headshot toy (no model fetched at rest; the sampled
+triple-equality, Vercel Analytics (tracker injected same-origin, a Resume click
+queues `outbound_link`; two headshot runs queue exactly one `demo_used`), and
+the headshot toy (no model fetched at rest; the sampled
 canvas pixel-matches the pressed photo, with the other two photos as asserted
 controls; the readout's build label must match the graph the browser actually
 fetched; the second press must match ITS photo and must run STRICTLY FEWER
@@ -241,11 +243,30 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   swapping in Spline's narrower advance without re-deriving it would stretch
   every digit in the grid. Don't wire the grids to `--font-mono`.
 - Runtime deps are exactly: `chess.js` (owns every chess rule — never hand-roll
-  them) and `onnxruntime-web` 1.27 (every model on the page). `playwright` is a
+  them), `onnxruntime-web` 1.27 (every model on the page) and
+  `@vercel/analytics` 2 (see Analytics below). `playwright` is a
   devDependency (Firefox only installed) for canvas verification and the two
   artifact-rendering scripts.
 - Deploy: Vercel, custom domain neelayranjan.dev. Repo is private
   (`NeelayRanjan/portfolio`).
+- **Analytics (wired 2026-09-13): Vercel Web Analytics.** `<Analytics />` in
+  `app/layout.tsx` records cookieless page views (client navigations
+  included). Custom events live ONLY in `lib/track.ts`, deliberately two:
+  `outbound_link {label}` on every identity and reference link (via the
+  `TrackedLink` client leaf, so Masthead/References stay server components;
+  `onAuxClick` catches middle-click), and `demo_used {demo}` once per demo
+  per page load, fired only AFTER real output (a completed headshot run, a
+  completed digit generation, an accepted chess move) so failures and
+  slider-scrubbing never count. Quota-conscious on purpose: don't add
+  per-interaction events. ⚠️ Production loads the tracker SAME-ORIGIN from
+  `/_vercel/insights/script.js`, which is why COEP never blocks it; dev mode
+  loads a debug copy from va.vercel-scripts.com, which works only because that
+  host sends `cross-origin-resource-policy: cross-origin` (measured). Locally
+  the insights path 404s, so events wait in `window.vaq` forever, and that
+  queue is what the verify check reads; real delivery is only visible in the
+  Vercel dashboard, and Web Analytics must be ENABLED there or production's
+  script 404s too. Whether custom events are ingested depends on the plan
+  (unconfirmed from here); page views work on every plan.
 - **⚠️ `/models/*`, `/ort/*` and `/headshot/*` are served `immutable` for a year**
   (`next.config.ts`). That makes filenames the cache key: a retrained model or a
   refreshed export MUST ship under a new filename (and the code path that loads it

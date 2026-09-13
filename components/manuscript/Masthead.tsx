@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Row } from "@/components/manuscript/Row";
 import { Stamp } from "@/components/manuscript/Stamp";
 import { HeadshotFigure } from "@/components/figures/HeadshotFigure";
+import { TrackedLink } from "@/components/manuscript/TrackedLink";
 import { copy } from "@/content/copy";
 
 /**
@@ -37,13 +38,14 @@ export function Masthead() {
           </span>
           <nav className="flex flex-row flex-wrap gap-x-5 gap-y-2 text-[15px] min-[880px]:flex-col min-[880px]:gap-1.5">
             {t.links.map((link) => (
-              <a
+              <TrackedLink
                 key={link.label}
+                label={link.label}
                 href={link.href}
                 className="text-link hover:underline hover:underline-offset-[3px]"
               >
                 {link.label}
-              </a>
+              </TrackedLink>
             ))}
           </nav>
         </div>

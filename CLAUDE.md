@@ -55,7 +55,10 @@ from the load instant (one turn every ~8 minutes), pole hidden behind the
 sheet; reduced motion paints one frame at load and stays still. Hovering near
 a constellation brightens its lines and names it in both languages ("Ursa
 Major (Great Bear)", Latin larger and brighter), the label placed beside the
-pointer in the page margin, never under the sheet. A "stargaze for a bit?"
+pointer in the page margin; when the catalog anchor would land under the
+sheet the label moves into whichever margin the pointer is in instead, though
+on narrow desktops it may still graze the sheet if even the Latin name alone
+doesn't fit the available margin width. A "stargaze for a bit?"
 button (`StargazeToggle.tsx`, state in `lib/stargaze.ts`) hides every page's
 content with CSS plus `inert`, never unmounting (a chess game, a drawing, and
 scroll position all survive the round trip), and counts once per page load as
@@ -78,8 +81,8 @@ chess worker's termination truly frees memory. `window.__sky` and
 **Verification: `scripts/verify-redesign.mjs`** — 23 named checks,
 Playwright-Firefox against a real `npm run build && npm start` on :3000, never
 the dev server; pass check-name substrings as args to run subsets. Covers the
-night sky (turning at 1280px with a measured median frame draw around 3-4ms
-in headless Firefox, a floor not a claim; static under reduced motion;
+night sky (turning at 1280px with a measured median frame draw around 3-4ms,
+a headless Firefox number, not a device number; static under reduced motion;
 present in the 400px margins; orientation checked against an independently
 computed astronomy-engine LST and two expected bright pixels; hovering
 brightening a constellation and naming it clear of the sheet), stargaze mode

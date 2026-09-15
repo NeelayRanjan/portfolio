@@ -31,13 +31,14 @@ build time.
 ### Verify before believing
 
 ```bash
-node scripts/verify-redesign.mjs           # all 23 checks, against npm start on :3000
+node scripts/verify-redesign.mjs           # all 27 checks, against npm start on :3000
 node scripts/verify-redesign.mjs chess cdf # any check-name substrings run a subset
 node scripts/verify-headshot-256.mjs       # hand-run: the 256 headshot + morph, in node
-node scripts/check-voice.mjs               # copy.ts voice gate (banned words, em-dashes)
-node --test scripts/test-sky-data.mjs scripts/test-sky-math.mjs
-                                            # plain node: the committed star catalog's shape,
-                                            # and the projection math pinned against astronomy-engine
+node scripts/check-voice.mjs               # copy.ts + sky-facts.ts voice gate (banned words, em-dashes)
+node --test scripts/test-sky-data.mjs scripts/test-sky-math.mjs scripts/test-sky-pan.mjs \
+             scripts/test-sky-objects.mjs scripts/test-sky-facts.mjs scripts/test-sky-iss.mjs
+                                            # plain node: the committed sky data's shape, the projection/
+                                            # drag math pinned against astronomy-engine, and fact coverage
 ```
 
 The suite is Playwright-Firefox against a real production build and asserts
@@ -51,9 +52,16 @@ production would send.
 ## The pages
 
 Every page shares a real star chart of the sky over NASA Ames turning slowly
-behind the paper, and a "stargaze for a bit?" button that hides the page and
-gives the sky the screen (the models in flight get cancelled and offloaded,
-never faked as finished). `/` is the paper and carries ~95% of the site:
+behind the paper: drag it to pan (it springs back on release), hover a star,
+object or line for a one-liner, and a "stargaze for a bit?" button hides the
+page and gives the sky the screen, where deep-sky objects, named stars,
+meteor radiants, the Voyagers and the live ISS all draw from real data and
+open a sourced, cited card on click or tap (the models in flight get
+cancelled and offloaded, never faked as finished). The ISS's position comes
+from a same-origin, server-cached route (`app/api/iss-tle`) that fetches a
+CelesTrak TLE at most once every two hours, so a visitor's browser never
+talks to a third party and the ISS simply doesn't draw if that fetch ever
+fails. `/` is the paper and carries ~95% of the site:
 masthead (name, tagline, abstract, the sampled author photo, the paper-status
 stamp linking `/lab`), Table 1, three research figures (the label-efficiency
 sweep with a mask strip, the pannable Dice CDF, the synthetic flight-day map),
@@ -77,8 +85,9 @@ scripts/           gates, generators, verification
 external_materials/  gitignored source data the figures are derived from
 ```
 
-Runtime deps are exactly `chess.js`, `onnxruntime-web` and `@vercel/analytics`.
-No component libraries.
+Runtime deps are exactly `chess.js`, `onnxruntime-web`, `@vercel/analytics`
+and `satellite.js` (SGP4 for the live ISS, lazy-loaded only after the ISS
+route returns a TLE). No component libraries.
 
 ## Analytics
 
@@ -98,6 +107,7 @@ recorded locally; the verify suite reads the pending `window.vaq` queue instead.
 | `gen-og.mjs` | screenshots the top of the page into `public/og.png`; rerun after any masthead copy or layout change | Playwright, server on :3000 |
 | `measure-mono.mjs` | measures a mono's advance (why the ASCII grids keep Geist Mono) | Playwright, dev server |
 | `prepare-sky.mjs` | derives `public/sky/sky.json`, the star catalog behind every page, from a commit-pinned d3-celestial | network access to GitHub raw |
+| `prepare-sky-objects.mjs` | derives `public/sky/objects.json` and `public/sky/milkyway.json` from pinned d3-celestial data, JPL Horizons (Voyager positions on the run date), the archived IMO 2026 calendar and a pinned Wikipedia revision | network access (GitHub raw, ssd.jpl.nasa.gov, web.archive.org, en.wikipedia.org) |
 
 Outputs are committed; Vercel never runs any of these.
 

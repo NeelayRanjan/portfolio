@@ -1,6 +1,6 @@
 # Sky objects, drag, cards and the ISS: design spec
 
-Date: 2026-09-15 · Status: approved to build (owner, 2026-09-15: "go ahead and build all the new features now")
+Date: 2026-09-15 · Status: implemented (plan docs/superpowers/plans/2026-09-15-sky-objects.md)
 Builds on: `docs/superpowers/specs/2026-09-14-night-sky-design.md` (shipped to main locally at f15f3a1; its contracts stand unless this spec changes them).
 Binding context: CLAUDE.md (Constitution, Voice, traps), including its "Night sky + stargaze" section.
 

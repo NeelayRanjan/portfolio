@@ -786,9 +786,9 @@ export const copy = {
     hintPointer: "drag to look around, click a name to read about it",
     hintTouch: "drag to look around, tap a name to read about it",
     credit:
-      "The sky over NASA Ames from the moment you arrived, turning 180 times faster than the real one. Stars from the Extended Hipparcos Compilation; lines and Latin names from d3-celestial; English names from Wikipedia.",
+      "The sky over NASA Ames from the moment you arrived, turning 180 times faster than the real one. Stars from the Extended Hipparcos Compilation; lines, Latin names, the Milky Way and the Messier objects from d3-celestial; English names and constellation origins from Wikipedia; spacecraft positions from JPL Horizons; meteor showers from the IMO; the ISS from CelesTrak. Every card cites its sources.",
     creditStill:
-      "The sky over NASA Ames at the moment you arrived. Stars from the Extended Hipparcos Compilation; lines and Latin names from d3-celestial; English names from Wikipedia.",
+      "The sky over NASA Ames at the moment you arrived. Stars from the Extended Hipparcos Compilation; lines, Latin names, the Milky Way and the Messier objects from d3-celestial; English names and constellation origins from Wikipedia; spacecraft positions from JPL Horizons; meteor showers from the IMO; the ISS from CelesTrak. Every card cites its sources.",
     /** The stargaze card (components/manuscript/SkyCard.tsx). Numbers and
      *  dates between these fragments come from the data files; the facts
      *  themselves live in content/sky-facts.ts. */

@@ -78,14 +78,30 @@ honest limit: the main-thread ORT wasm heap never actually shrinks, only the
 chess worker's termination truly frees memory. `window.__sky` and
 `window.__offload` are verify hooks, not UI.
 
-**Verification: `scripts/verify-redesign.mjs`** — 23 named checks,
+**Verification: `scripts/verify-redesign.mjs`** — 27 named checks,
 Playwright-Firefox against a real `npm run build && npm start` on :3000, never
 the dev server; pass check-name substrings as args to run subsets. Covers the
-night sky (turning at 1280px with a measured median frame draw around 3-4ms,
-a headless Firefox number, not a device number; static under reduced motion;
-present in the 400px margins; orientation checked against an independently
-computed astronomy-engine LST and two expected bright pixels; hovering
-brightening a constellation and naming it clear of the sheet), stargaze mode
+night sky (turning at 1280px with a measured median frame draw around 2.7-3.2ms
+against a 5.92ms budget (2x the pre-objects 2.96ms baseline), a headless
+Firefox number, not a device number; static under reduced motion; present in
+the 400px margins; orientation checked against an independently computed
+astronomy-engine LST and two expected bright pixels, both at the moved,
+margin-based pole; hovering brightening a constellation and naming it clear
+of the sheet, with the hovered or selected symbol's own always-on name
+suppressed), **`sky-drag`** (dragging the margin slides `window.__sky.offset`,
+release springs it home inside 1.5s, a drag starting on the sheet never pans,
+reduced motion snaps back instead of springing), **`sky-objects`** (Andromeda
+and the galactic core each hold real pixels at an instant the check finds for
+that body alone, since the two are never both on screen on a shared canvas at
+once; an active meteor radiant only inside its window; the objects layer's
+absence still leaves the rest of the sky drawn), **`stargaze-card`** (clicking
+a selectable in stargaze opens a sourced card with a title, a kind line and at
+least one citation link; Escape closes the card before it reaches the
+stargaze-exit handler, a second Escape exits; a drag never opens a card; the
+card follows its subject and closes when the subject leaves the viewport),
+**`sky-iss`** (with the TLE route intercepted to a fixed reply, the ISS marker
+draws and its card opens with live altitude/speed/epoch; with the route
+returning `{ tle: null }`, no ISS and no console error), stargaze mode
 (hiding the page with `inert` and firing no page-content fetch; offloading
 the chess worker and the draw/headshot sessions; cancelling a run in flight
 without ever showing it as a failure or counting `demo_used`; surviving
@@ -115,20 +131,64 @@ hand-run script, **`scripts/verify-headshot-256.mjs`** (same prod build on
 :3000; drives the site's vendored module in node against the SERVED bytes,
 with MAD thresholds the browser check doesn't carry). Run the suite after any
 change touching a demo, a figure, or the page shell.
-`scripts/check-voice.mjs` gates every copy.ts edit. **`node --test
-scripts/test-sky-data.mjs scripts/test-sky-math.mjs`** runs outside Playwright,
-in plain node: the first pins the committed `sky.json`'s shape (star
+`scripts/check-voice.mjs` gates every copy.ts edit, and (2026-09-15) scans
+`content/sky-facts.ts` with the same rules. **`node --test
+scripts/test-sky-data.mjs scripts/test-sky-math.mjs scripts/test-sky-pan.mjs
+scripts/test-sky-objects.mjs scripts/test-sky-facts.mjs
+scripts/test-sky-iss.mjs`** runs outside Playwright, in plain node (47 cases
+total): `test-sky-data` pins the committed `sky.json`'s shape (star
 count/order/ranges, Polaris and Sirius by position and magnitude, all 88
 constellations with Serpens merged and bilingual names) against hand edits
-and bad regenerations; the second pins `lib/sky-math.ts`'s projection math
-(GMST 1.13 s worst error, Saturn 0.088°, Moon 0.043°, all against
-`astronomy-engine`, a devDependency used only here and by the verify suite).
-Node prints a `MODULE_TYPELESS_PACKAGE_JSON` warning for `lib/sky-math.ts`
-when these run — known, harmless, not worth chasing (this repo's
-`package.json` has no `"type"` field and that's staying as-is).
+and bad regenerations; `test-sky-math` pins `lib/sky-math.ts`'s projection
+math (GMST 1.13 s worst error, Saturn 0.088°, Moon 0.043°, all against
+`astronomy-engine`, a devDependency used only here and by the verify suite),
+plus the moved pole and the drag/spring math; `test-sky-pan` pins the rubber
+band and spring in isolation (constants, frame-rate independence, no
+overshoot); `test-sky-objects` pins `objects.json`/`milkyway.json`'s shape,
+the 15 named stars resolved by HIP id, shower windows, the constellation
+origin table, and the Milky Way's vertex budget; `test-sky-facts` pins that
+every drawn object, planet, the Moon, all 88 constellations, every shower,
+both Voyagers and the ISS carry a complete, cited fact; `test-sky-iss` pins
+`lib/sky-iss.ts`'s topocentric result against satellite.js's own look-angle
+conversion and the 7-day TLE-staleness gate. `SKY_FACTS_PARTIAL=1` in front
+of `test-sky-facts` exists only so facts can be written in batches without
+the coverage assertion failing mid-work; it must never be set in CI or a
+verification run. Node prints a `MODULE_TYPELESS_PACKAGE_JSON` warning for
+these `lib/*.ts` and `content/sky-facts.ts` files when the suite runs —
+known, harmless, not worth chasing (this repo's `package.json` has no
+`"type"` field and that's staying as-is).
+
+**2026-09-15 (later the same day): drag, objects and the ISS shipped on top of
+the night sky, branch `sky-objects`.** Polaris moves to the top left (a
+margin-based pole, not a fixed fraction: it sits at the midpoint of the
+left margin whenever that margin is at least 72px wide, else near the top of
+a narrow one); dragging the desk (or, in stargaze mode, dragging anywhere)
+slides the whole chart with a rubber-banded limit and springs back home on
+release. Ten Messier favourites, the galactic core, the Kepler field, the
+Hubble Deep Field, both Voyagers, 15 named bright stars, active meteor
+radiants and the live ISS all draw from real data (`public/sky/objects.json`,
+`public/sky/milkyway.json`, `scripts/prepare-sky-objects.mjs`); the Milky
+Way band itself draws as a faint low-alpha glow beneath everything.
+Hovering any of it in normal mode adds a one-liner to the existing label;
+clicking or tapping it in stargaze mode opens a sourced card (constellation
+mythology and origin, deep-sky facts, planet and Moon name origins, shower
+windows, spacecraft positions, the ISS's live look angles), all fed from one
+new content file, `content/sky-facts.ts`. See "Night sky + stargaze" below
+for the contracts.
 
 **Open items, roughly in order:**
-1. **The mobile draw-demo crash got worse** (owner, 2026-09-14, iPhone 17 Pro):
+1. **The moved pole hasn't been judged by the owner yet.** `sky-objects` is
+   built and fully verified but not yet reviewed live; in particular the pole
+   position at 1280-1440px (the margin-based rule's low end, where it sits
+   closest to the sheet) and the drag feel and docked card on a real phone
+   are still pending an owner pass, not just the Playwright suite.
+2. **JPL Horizons was down for the whole `sky-objects` session** (2026-09-15).
+   `scripts/prepare-sky-objects.mjs` fell back to Voyager 1/2 rows recorded
+   live at 2026-09-15 00:00 UT; `objects.json`'s `source.horizons.mode` reads
+   `"recorded"`, not `"live"`. Re-run the generator once Horizons answers
+   again and confirm `mode` flips to `"live"`; the recorded rows stay valid
+   (Horizons API, not a fabricated number) until then.
+3. **The mobile draw-demo crash got worse** (owner, 2026-09-14, iPhone 17 Pro):
    beyond the silent reloads, repeated refreshes now land on Safari's
    crash-loop error page ("a problem repeatedly occurred"), and friends
    testing the site call the section "super buggy". The top engineering
@@ -138,18 +198,18 @@ when these run — known, harmless, not worth chasing (this repo's
    so it stays open. Candidates that changed recently:
    phones now get the 256 headshot (viewport gate removed 2026-09-13), iOS 26
    Safari ships WebGPU, threaded wasm under COOP/COEP.
-2. **arXiv link** (~2026-09-18) swaps into the references when the preprint is
+4. **arXiv link** (~2026-09-18) swaps into the references when the preprint is
    live; the owner then creates a Google Scholar profile, which joins the
    identity links (the link list is data-driven copy).
-3. **A transition parity vector for the headshot bundle.** The morph is live on
+5. **A transition parity vector for the headshot bundle.** The morph is live on
    the site, but `test_parity.mjs` pins only the from-noise path; its
    `init+strength` case is a structural smoke (step count + finiteness), so the
    forward-noising branch is unpinned vendored math. Ask the model owner for an
    init+strength case in `vectors/`.
-4. **The CV is hidden** (owner, 2026-09-14: "shouldn't be public facing yet").
+6. **The CV is hidden** (owner, 2026-09-14: "shouldn't be public facing yet").
    Removed from `masthead.links` and `references.items`; its URL stays below.
    The Drive doc itself is still shared "anyone with the link".
-5. Much later: a third headliner demo, a **live network-security honeypot**
+7. Much later: a third headliner demo, a **live network-security honeypot**
    (exposed Pi, malicious ssh/https logged, LLM-categorized into a live UMAP
    of attack families). Needs a live-data seam the static site doesn't have;
    the systems figure column is trivially appendable when it comes.
@@ -335,13 +395,30 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   swapping in Spline's narrower advance without re-deriving it would stretch
   every digit in the grid. Don't wire the grids to `--font-mono`.
 - Runtime deps are exactly: `chess.js` (owns every chess rule — never hand-roll
-  them), `onnxruntime-web` 1.27 (every model on the page) and
-  `@vercel/analytics` 2 (see Analytics below). `playwright` is a
-  devDependency (Firefox only installed) for canvas verification and the two
-  artifact-rendering scripts. `astronomy-engine` is also devDependency-only:
-  it never ships to the browser, and exists solely so `scripts/test-sky-math.mjs`
-  and `scripts/verify-redesign.mjs` have an independent reference to pin
+  them), `onnxruntime-web` 1.27 (every model on the page), `@vercel/analytics`
+  2 (see Analytics below) and, since 2026-09-15, `satellite.js` (SGP4
+  propagation for the live ISS, `lib/sky-iss.ts`; lazy-imported only after
+  `/api/iss-tle` actually returns a TLE, so it never loads for a visitor the
+  route fails, and a new dependency owner-requested for that one feature — a
+  lazy chunk of ~38.7 KB). `playwright` is a devDependency (Firefox only
+  installed) for canvas verification and the two artifact-rendering scripts.
+  `astronomy-engine` is also devDependency-only: it never ships to the
+  browser, and exists solely so `scripts/test-sky-math.mjs` and
+  `scripts/verify-redesign.mjs` have an independent reference to pin
   `lib/sky-math.ts`'s projection math against.
+- **`app/api/iss-tle/route.ts` is the site's only server code path** (every
+  other route is static). `GET` fetches CelesTrak's TLE for the ISS with an
+  8s upstream timeout and `export const revalidate = 7200`; that works here
+  specifically because this project has `cacheComponents` off (with it on,
+  route-level `revalidate` means something different — see the route's own
+  header comment and `node_modules/next/dist/docs/`). Every failure path —
+  a non-OK response, an unparseable body, a thrown error, the timeout — still
+  answers HTTP 200 with `{ tle: null, fetchedAt }`, never a non-2xx, so the
+  cache keeps revalidating instead of getting stuck on a hard failure; the
+  client (`lib/sky-iss.ts`) treats a null TLE as "no ISS today", not an
+  error. A visitor's browser never talks to CelesTrak directly, and CelesTrak
+  sees this deployment at most once per two hours (their own fair-use ask).
+  The build lists the route as `○ /api/iss-tle 2h 1y`.
 - Deploy: Vercel, custom domain neelayranjan.dev. Repo is private
   (`NeelayRanjan/portfolio`).
 - **Analytics (wired 2026-09-13): Vercel Web Analytics.** `<Analytics />` in
@@ -381,11 +458,16 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   useless "no available backend found". If ORT changes what it fetches, the
   network tab names the file — don't guess.
 - `scripts/gen-icons.py` (fontTools + cairosvg venv; fetches the STIX variable
-  TTF, see its header), `scripts/gen-og.mjs` (Playwright) and
+  TTF, see its header), `scripts/gen-og.mjs` (Playwright),
   `scripts/prepare-sky.mjs` (fetches the star catalog from a commit-pinned
-  d3-celestial on GitHub raw) are **hand-run, never wired to prebuild** —
+  d3-celestial on GitHub raw) and `scripts/prepare-sky-objects.mjs`
+  (2026-09-15: derives `public/sky/objects.json` and `public/sky/milkyway.json`
+  from the same pinned d3-celestial, JPL Horizons for the Voyagers, a
+  SHA-256-pinned Wayback copy of the IMO 2026 meteor calendar, and a
+  SHA-256-pinned Wikipedia revision for constellation origins — see "Night
+  sky + stargaze" below) are **hand-run, never wired to prebuild** —
   Vercel's image has neither toolchain and Vercel's build has no network
-  access to fetch the catalog. Their outputs are committed. The favicon is the owner's mark (2026-09-12): STIX "N"
+  access to fetch any of it. Their outputs are committed. The favicon is the owner's mark (2026-09-12): STIX "N"
   in ink on the paper tile with stamp-red corner brackets; edit the script's
   token constants and re-run rather than hand-editing the four app/ icon files. The OG card screenshots the TOP of the live page
   (name, tagline, abstract, headshot rail; it refuses to write a card whose h1
@@ -466,16 +548,85 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   model-loaded flag gets a second producer; the specific trap inside that
   shape is reaching for "was this transition a restore" as the guard instead
   of the invariant the effect actually cares about.
+- **Importing `satellite.js` on the client hangs a Turbopack production
+  build indefinitely** (2026-09-15) — `next build` never gets past "Creating
+  an optimized production build ...". Bisected (route-only vs. import-only
+  vs. both) to: importing the package at all is what hangs it, not which of
+  its two package-internal subpath imports (`#wasm-single-thread` /
+  `#wasm-multi-thread`, reached transitively from its main export, resolved
+  through the package's own `package.json` `imports` map into
+  Emscripten-generated glue that does `await import("node:module")`, plus a
+  pthreads variant that self-references a `new Worker(...)`) Turbopack
+  actually trips on — the bisect isolated the trigger to "imports
+  satellite.js," not to a single construct inside it. Fixed by
+  `turbopack.resolveAlias` in `next.config.ts` mapping BOTH subpath imports
+  to `lib/satellite-wasm-stub.js` (a stub that throws loudly if ever
+  actually called — nothing here calls it, since the site only uses SGP4
+  propagation, never the package's optional WASM runtimes). Vercel's own
+  `next build` is Turbopack too, so this isn't a local-only quirk; it bites
+  in production exactly the same way.
+- **A Playwright check against the real system clock can be genuinely
+  flaky, not just slow.** `sky-hover` intermittently missed its sampled
+  pixel because the hover label's own desk-coloured backing (added to keep
+  labels legible over drawn sky content) could, at some real clock instants,
+  end up covering the exact point the check sampled for brightness — a race
+  between "what LST is it right now" and "where did the check decide to
+  sample," not a timeout. Fixed by pinning `sky-hover` (and, by the same
+  logic, every other sky/stargaze check) to a fixed instant via
+  `page.clock.setFixedTime`, rather than letting any of them run against
+  whatever the wall clock happens to be. Every sky/stargaze verify check is
+  now pinned or time-independent for exactly this reason.
+- **Andromeda and the galactic core are never both on screen at once on a
+  1600x1000 canvas** under the moved pole — `checkSkyObjects` finds each of
+  their positions with its own independent instant search
+  (`findInstant`), never a single shared instant, because the pole's new
+  off-centre position means the two bodies' on-screen windows don't
+  reliably overlap the way they did under the old centred pole.
+- **The Intl `"at"` glue in a combined date-time format varies by engine**
+  (`Intl.DateTimeFormat` with both `dateStyle` and `timeStyle`, or
+  `month`/`day`/`year` plus `hour`/`minute` in one formatter, inserts locale
+  connective text like "at" whose exact wording isn't guaranteed stable
+  across browsers). `SkyCard.tsx` formats date and time with two separate
+  `Intl.DateTimeFormat` instances (`LONG_DATE`/`SHORT_DATE` and `TIME`) and
+  its own literal joins, rather than one combined formatter, so the ISS
+  card's epoch line reads the same everywhere it renders.
+- **Frame-time medians for the new sky layers, measured in headless Firefox**
+  (`sky-animates-1280`, against the pre-objects 2.96ms baseline and its 2x
+  budget of 5.92ms): three runs at 3.12ms, 2.80ms and 2.86ms, plus two more
+  context readings at 2.80ms and 3.20ms — all comfortably under budget, most
+  of them at or below the pre-objects baseline itself. The Milky Way's 5
+  nested levels, ~30 objects and ~12 showers (≈2,300 precomputed vertices
+  total) add no measurable draw cost at this catalog size; none of the
+  planned fallbacks (per-level Path2D caching, off-canvas ring culling,
+  half-resolution offscreen blit) were needed.
 
 ## The demos — contracts and traps (these carry into the redesign)
 
 ### Night sky + stargaze (every page)
 - **Frame**: J2000 equatorial throughout (the catalog's epoch; the Moon and
   planets are computed in the same frame so everything agrees). **Projection**:
-  polar stereographic centred on the north celestial pole, which sits at the
-  centre of the viewport (behind the sheet on desktop); `r = k · tan((90° −
-  dec) / 2)`, `k` chosen by eye so the viewport's half-diagonal reaches dec
-  −30° (measured `k = 490.2` at 1440x900). **Orientation**: up from the pole
+  polar stereographic centred on the north celestial pole; `r = k · tan((90° −
+  dec) / 2)`. **The pole moved top left, 2026-09-15, margin-based rather than
+  a fixed viewport fraction**: `sheetW = min(width − 32, 1000)`,
+  `leftMargin = (width − sheetW) / 2`, and the pole sits at
+  `(leftMargin / 2, 0.18 · height)` whenever `leftMargin ≥ 72` (`POLE_MIN_MARGIN_PX`
+  in `lib/sky-math.ts`), else at `(0.22 · width, 28)`. Because the pole in the
+  wide branch is always exactly half the sheet's own left offset, it can
+  never land under the sheet in that branch, by construction, at any width —
+  at 1280px (sheet left edge at x=140) the pole sits at x=70, 70px clear; at
+  1440px (sheet edge at x=220) it sits at x=110, 110px clear; at 1920px
+  (sheet edge at x=460) it sits at x=230, 230px clear. The narrow branch
+  (`width < 1144`, verified: `leftMargin` is a constant 16px below 1032px, so
+  the branch threshold is exactly where `leftMargin` first reaches 72) is the
+  only place Polaris sits close to the page at all, and there it's ABOVE the
+  sheet in the top margin, not under it. `k` is chosen so the viewport corner
+  FARTHEST from the pole lands on dec −35° (was: half-diagonal at −30°,
+  which is now stale everywhere it's quoted) — measured `k = 791.8` at
+  1440x900 for the new pole (110, 162), farthest corner bottom-right,
+  `hypot(1330, 738) = 1521.03`, `k = 1521.03 / tan(62.5°)`. This keeps
+  Sagittarius and the galactic core (dec −29°) reachable on screen as the sky
+  turns, which is the reason the ruling moved the edge declination from −30°
+  to −35° at the same time as the pole. **Orientation**: up from the pole
   points at the zenith over Moffett Field (37.4153°N, 122.0647°W), east is to
   the right, and a star's screen angle is `RA − LST` measured from straight up
   — so as LST advances the sky turns counterclockwise, same as the real sky
@@ -486,6 +637,106 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   within 0.25°, the Moon within 0.3° (measured worst case tighter: GMST
   1.13 s, Saturn 0.088°, Moon 0.043°). `lib/sky-render.ts` is the pure
   per-frame drawer (no state, no clock) that reads its projected output.
+- **Drag to pan** (2026-09-15, `lib/sky-pan.ts`, no imports, closed-form
+  math): a pointer drag adds a screen-space offset to the whole chart —
+  pole, stars, lines, objects, labels together. `rubberBand` bounds it past
+  `PAN_LIMIT_FRAC · min(W,H)` to a fraction of further travel, never
+  unbounded; on release `springStep` (critically damped, driven by the
+  dt-scaled clock, `k = dt/16.67`) returns the offset to `(0,0)`, settling
+  in under 1.5s (measured: a 150x80 held drag springs home in 945-947ms).
+  Reduced motion snaps the offset to `(0,0)` on release instead of
+  animating; the drag itself still works under reduced motion. The
+  animation frame gate (which normally pauses when nothing changes) is
+  lifted only while a drag or its spring is actually live, so idle CPU stays
+  near zero the rest of the time. In normal mode, touch never starts a drag
+  (the 16px desk margins there need to scroll the page instead) and dragging
+  never starts on the sheet, a link, a button, an input, or the stargaze
+  controls; in stargaze mode, touch drag is enabled and the container gets
+  `touch-action: none` so the browser doesn't also try to scroll. A pointer
+  that travels less than `CLICK_SLOP_PX` (5px) between down and up is a
+  click (selects in stargaze mode), not a drag; hover highlighting and hover
+  labels are suspended while dragging, and the desk cursor becomes
+  `grabbing`.
+- **The objects layer is gated exactly like the star catalog, but per layer**
+  (`lib/sky-objects.ts`'s `loadObjects`/`loadMilkyWay`, `NightSky`'s
+  `layers.{objects,milkyWay,facts,iss}`): each of `objects.json`,
+  `milkyway.json`, the lazy-imported `content/sky-facts.ts`, and the ISS's
+  own fetch is independently `"loading" | "ready" | "absent" | "error"`. A
+  404 on any one of them resolves `null` for that layer only — the rest of
+  the sky (stars, lines, whichever other layers did load) still draws; a
+  malformed file throws, at the same "see the export bug, don't hide it"
+  standard as the star catalog.
+- **Hover precedence** (normal mode): the nearest selectable symbol
+  (star/object/planet/Moon/ISS/radiant) within 12px wins over the nearest
+  constellation line segment within 24px. The label is the existing name
+  label plus a second line, the entry's `oneLiner` from `content/sky-facts.ts`
+  (constellations get their origin line instead, e.g. "One of Ptolemy's 48,
+  2nd century" or "Introduced by Lacaille, 1756"). The hover label draws on
+  a desk-coloured backing so it never overlaps drawn sky content
+  illegibly, and the hovered or selected symbol's own always-on name is
+  suppressed while its hover/selection label is showing (`View.suppressName`
+  in `lib/sky-render.ts`, read back as `window.__sky.suppressedName`) so the
+  two labels never double up.
+- **Stargaze cards** (`components/manuscript/SkyCard.tsx`, a DOM `aside`
+  with `aria-labelledby`, not canvas): a click under `CLICK_SLOP_PX` on a
+  selectable opens a card; a click on empty sky, or the card's own close
+  button, closes it. Escape is handled in the capture phase and closes the
+  card first, calling `stopImmediatePropagation` so the same keypress never
+  also reaches `StargazeToggle`'s exit handler — a second, separate Escape
+  press is what exits stargaze. The card follows its subject every frame as
+  the sky turns and while dragging (`followCard`, clamped to the viewport,
+  offset from the subject so it doesn't cover it) and closes itself if the
+  subject's position leaves the viewport. Below 880px it docks to the
+  bottom as a sheet (capped at 60vh); at 880px and up it uses the available
+  viewport height (`calc(100vh - 32px)`) with a scroll fade rather than a
+  fixed height, since card content length varies a lot (a one-citation
+  planet card vs. a three-citation constellation mythology card). Opening a
+  card moves focus into it; closing returns focus to `[data-stargaze-exit]`.
+  The open effect is keyed on `card?.id`, not on the card object's identity,
+  because the ISS's card rebuilds a fresh object every second to carry its
+  live look angles — keying on identity would steal focus back every second
+  the ISS card is open. Citation links are plain `<a target="_blank"
+  rel="noopener">`, deliberately untracked (the analytics quota rule: no new
+  per-interaction events).
+- **Facts** (`content/sky-facts.ts`, the single source for every one-liner
+  and card, typed per the spec's `SkyFact`/`Citation` shape): no runtime
+  imports — it's a plain data module, scanned by `scripts/check-voice.mjs`
+  under the same rules as `copy.ts` except its citation fields (author,
+  title, site, URL, access date are factual, not prose, and exempt).
+  `scripts/test-sky-facts.mjs` asserts coverage (every drawn object, all 5
+  planets, the Moon, all 88 constellations, every shower, both Voyagers, the
+  ISS, the Milky Way band — exactly one fact each) and shape (non-empty
+  one-liner/body/visibility, ≥1 well-formed citation). The accuracy rule —
+  every number in a card appears in its cited source — is a self-audit done
+  by reading, not something a test can check; `SKY_FACTS_PARTIAL=1` exists
+  only to let the coverage assertion be skipped while the file is being
+  written in batches, and must never be set for an actual verification run.
+  `ORIGIN_OVERRIDES` in `test-sky-facts.mjs` (Cru, Sct) exist because Ian
+  Ridpath's *Star Tales* documents a different, more specific modern origin
+  than the generated Wikipedia table for those two constellations; all 12
+  meteor-shower cards' "Naked eye" line cites NASA's "Skywatching Tips From
+  NASA" specifically. **Sourcing traps hit for real, 2026-09-15**: the IMO's
+  own site was offline all session, so `SHOWERS` in
+  `scripts/prepare-sky-objects.mjs` is transcribed from Table 5 of the IMO
+  2026 calendar (not its prose, which differs slightly for the Draconids and
+  the Southern Taurids), fetched from a SHA-256-pinned Wayback Machine copy
+  rather than imo.net; constellation origins are parsed from Wikipedia
+  revision 1373165890, also SHA-256-pinned, rather than the live article, so
+  a future Wikipedia edit can't silently drift the generated table.
+- **The ISS** (`lib/sky-iss.ts`, `satellite.js`'s SGP4): the TLE's native
+  frame is TEME of date; the site precesses that to J2000 (`precessToJ2000`)
+  before projecting, so it draws in the same frame as everything else. A
+  TLE more than 7 days from its own epoch is treated as stale and the ISS is
+  removed rather than drawn from a position that's aged past usefulness. The
+  card shows whether it's currently above Moffett Field's horizon, altitude,
+  speed, the TLE's epoch, and a CelesTrak citation, refreshed once a real
+  second (not tied to the simulated clock, which the ISS otherwise follows
+  like everything else — at 180x it can cross the visible sky in seconds).
+- **Voyager 2 is never drawn** (dec −59.8°, south of the −35° farthest-corner
+  edge the moved pole now uses) — its symbol never appears on screen at any
+  width or LST, by construction of the projection, but it still keeps its
+  fact and its Horizons-derived position in `objects.json`; this is expected,
+  not a bug or a missing export.
 - **English constellation names are transcribed from Wikipedia's "IAU
   designated constellations" Meaning column**, never d3-celestial's own `en`
   field — that field names asterisms, not the constellation ("Big Dipper" for
@@ -537,9 +788,11 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   since terminating a worker frees its whole heap. Stargazing on a phone that
   already loaded the draw model does not fix that phone's memory pressure —
   see Known bugs, item 1.
-- `window.__sky` (`drawn`, `simMs`, `lstDeg`, `k`, `frameMsMedian`,
-  `highlight`, `segmentsFor`, `label`) and `window.__offload` (a per-kind
-  offload counter) are verify hooks for `scripts/verify-redesign.mjs`, not UI.
+- `window.__sky` (`drawn`, `simMs`, `lstDeg`, `k`, `cx`, `cy`, `offset`,
+  `dragging`, `frameMsMedian`, `highlight`, `label`, `labelText`,
+  `suppressedName`, `hits`, `radiants`, `layers`, `card`, `iss`,
+  `segmentsFor`) and `window.__offload` (a per-kind offload counter) are
+  verify hooks for `scripts/verify-redesign.mjs`, not UI.
 
 ### Draw-a-digit (SDEdit, live MNIST diffusion) — page 1
 - Division of labour: all model math lives in `lib/ascii-diffusion.js`, vendored
@@ -877,6 +1130,9 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 | `public/ascii_traj.json` | 586 KB | discrete/mask trajectories, same shape |
 | `public/chess_activations.json` | 43 KB | precomputed saliency, 8 curated positions |
 | `public/sky/sky.json` | ~57 KB | star catalog behind every page: 1,627 stars, 88 constellations, built by `scripts/prepare-sky.mjs` from a pinned d3-celestial commit |
+| `public/sky/objects.json` | ~15 KB | Messier picks, Sgr A*, the Kepler field, the Hubble Deep Field, the 15 named stars, both Voyagers, the 12 meteor showers, the constellation origin table; built by `scripts/prepare-sky-objects.mjs` |
+| `public/sky/milkyway.json` | ~30 KB | the Milky Way band, 5 nested levels, 2,267 vertices after simplification (budget 1,500-4,000); same generator |
+| `content/sky-facts.ts` | 862 string literals (voice-scanned) | every card's and one-liner's facts and citations; single source, typed, no runtime imports |
 | `public/jepa/manifest.json` | 483 KB | JEPA bundle: labels, UMAPs, neighbours, metrics |
 | `public/jepa/sprites.webp` | 3.6 MB | 4096 thumbnails, 64x64 atlas |
 | `public/models/mnist_x0.onnx` | 26 MB | the pixel model, live draw-a-digit |

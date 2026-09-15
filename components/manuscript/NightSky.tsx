@@ -23,13 +23,16 @@ import {
   type LabelText,
   type Projected,
 } from "@/lib/sky-render";
+import { loadIss, MOFFETT_HEIGHT_KM, type IssLook, type IssTracker } from "@/lib/sky-iss";
 import {
+  MOFFETT,
   PLANETS,
   chartFor,
   lstDeg,
   moonEquatorial,
   moonPhase,
   planetEquatorial,
+  precessToJ2000,
   simTimeMs,
   sunEquatorial,
 } from "@/lib/sky-math";
@@ -68,6 +71,10 @@ import { SkyCard, type CardModel } from "./SkyCard";
  *   StargazeToggle's exit. The card follows its subject as the sky turns and
  *   while dragging, and closes when the subject leaves the viewport.
  *
+ * - The ISS (spec 2026-09-15 §8): a TLE from the same-origin /api/iss-tle,
+ *   propagated by satellite.js (lazy-imported only once there is a TLE) at
+ *   the simulated time, precessed into the chart's J2000 frame.
+ *
  * `window.__sky` is a read-only snapshot for scripts/verify-redesign.mjs.
  */
 
@@ -98,7 +105,8 @@ type SkySnapshot = {
   suppressedName: string | null;
   hits: { id: string; x: number; y: number }[];
   radiants: string[];
-  layers: { objects: LayerState; milkyWay: LayerState; facts: LayerState };
+  layers: { objects: LayerState; milkyWay: LayerState; facts: LayerState; iss: LayerState };
+  iss: { x: number; y: number; aboveHorizon: boolean } | null;
   card: string | null;
   segmentsFor: (abbr: string) => number[][];
 };
@@ -164,7 +172,11 @@ export function NightSky() {
     let objectRings = new Map<string, [number, number][]>();
     let milkyWay: PreparedMilkyWay | null = null;
     let facts: Map<string, SkyFact> | null = null;
-    const layers: SkySnapshot["layers"] = { objects: "loading", milkyWay: "loading", facts: "loading" };
+    const layers: SkySnapshot["layers"] = { objects: "loading", milkyWay: "loading", facts: "loading", iss: "loading" };
+    let issTracker: IssTracker | null = null;
+    /** The ISS as of the last paint. */
+    let issNow: IssLook | null = null;
+    let issCardRefreshed = 0;
     let width = 0;
     let height = 0;
     // The canvas's actual backing-store pixel size and DPR at last
@@ -273,6 +285,10 @@ export function NightSky() {
           })()
         : null;
       const activeShowers = objectsData ? objectsData.showers.filter((s) => isShowerActive(s, sim)) : [];
+      issNow = issTracker ? issTracker.at(sim) : null;
+      const iss = issNow
+        ? { eq: precessToJ2000({ raDeg: issNow.raDateDeg, decDeg: issNow.decDateDeg }, sim), aboveHorizon: issNow.elevationDeg > 0 }
+        : null;
       const t0 = performance.now();
       projected = drawSky(ctx, sky, {
         width,
@@ -291,6 +307,7 @@ export function NightSky() {
         names: !narrowQ.matches,
         oneLiner: (id) => facts?.get(id)?.oneLiner ?? null,
         selectedId: selected?.id ?? null,
+        iss,
       });
       frameTimes.push(performance.now() - t0);
       if (frameTimes.length > 60) frameTimes.shift();
@@ -314,9 +331,19 @@ export function NightSky() {
         radiants: activeShowers.map((s) => s.id),
         layers: { ...layers },
         card: selected?.id ?? null,
+        iss: (() => {
+          const h = seen.hits.find((x) => x.id === "iss");
+          return h && iss ? { x: h.x, y: h.y, aboveHorizon: iss.aboveHorizon } : null;
+        })(),
         segmentsFor: (abbr) => (seen.segments.get(abbr) ?? []).map((s) => [...s]),
       };
       if (selected) followCard(seen);
+      // The ISS card's live lines, refreshed once a real second.
+      if (selected?.id === "iss" && performance.now() - issCardRefreshed > 1000) {
+        issCardRefreshed = performance.now();
+        const model = buildCard(selected);
+        if (model) setCard(model);
+      }
     };
 
     // ---- cards ----
@@ -340,6 +367,21 @@ export function NightSky() {
       const planet = PLANETS.find((name) => name.toLowerCase() === h.id);
       if (planet) return { id: h.id, title: planet, fact, extra: { type: "none" } };
       if (h.id === "moon") return { id: h.id, title: copy.stargaze.card.titleMoon, fact, extra: { type: "none" } };
+      if (h.id === "iss" && issTracker && issNow) {
+        return {
+          id: h.id,
+          title: copy.stargaze.card.titleIss,
+          fact,
+          extra: {
+            type: "iss",
+            aboveHorizon: issNow.elevationDeg > 0,
+            altitudeKm: issNow.altitudeKm,
+            speedKmS: issNow.speedKmS,
+            epoch: issTracker.tle.epoch,
+            still: reducedQ.matches,
+          },
+        };
+      }
       if (h.id === "milky-way") return { id: h.id, title: copy.stargaze.card.titleMilkyWay, fact, extra: { type: "none" } };
       return null;
     };
@@ -601,6 +643,18 @@ export function NightSky() {
       .catch((err) => {
         layers.milkyWay = "error";
         console.error("NightSky: milkyway.json is malformed; the sky draws without the band.", err);
+        if (alive) paint();
+      });
+    loadIss(() => import("satellite.js"), { ...MOFFETT, heightKm: MOFFETT_HEIGHT_KM })
+      .then((t) => {
+        if (!alive) return;
+        issTracker = t;
+        layers.iss = t ? "ready" : "absent";
+        paint();
+      })
+      .catch((err) => {
+        layers.iss = "error";
+        console.error("NightSky: /api/iss-tle answered with something that isn't a TLE; no ISS drawn.", err);
         if (alive) paint();
       });
     import("@/content/sky-facts")

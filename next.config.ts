@@ -1,6 +1,22 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // satellite.js's SGP4 propagation (lib/sky-iss.ts) is pure JS; the package
+  // also ships optional WASM runtimes (createSingleThreadRuntime /
+  // createMultiThreadRuntime) this site never calls, whose Emscripten glue
+  // conditionally does `await import("node:module")` for its Node code path.
+  // Turbopack hung indefinitely trying to bundle that for the browser (a real
+  // production build never got past "Creating an optimized production
+  // build ..."; see .superpowers/sdd/2026-09-15-sky-objects/task-6-report.md's
+  // Build hang section). Aliasing the package's own internal subpath imports
+  // to a stub that is never actually called keeps the hang out of the browser
+  // bundle.
+  turbopack: {
+    resolveAlias: {
+      "#wasm-single-thread": "./lib/satellite-wasm-stub.js",
+      "#wasm-multi-thread": "./lib/satellite-wasm-stub.js",
+    },
+  },
   async headers() {
     return [
       {

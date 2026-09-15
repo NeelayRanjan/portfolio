@@ -33,6 +33,7 @@
  */
 import { firefox } from "playwright";
 import * as Astronomy from "astronomy-engine";
+import * as satellite from "satellite.js";
 import { readFileSync } from "node:fs";
 import { SKY_FACTS } from "../content/sky-facts.ts";
 import { moonEquatorial, planetEquatorial } from "../lib/sky-math.ts";
@@ -2272,6 +2273,112 @@ async function checkStargazeCard(browser) {
   return `${m31Summary}; voyager-1 card "${voyager.title}" data "${spacecraftLine}"; planet card "${mars.title}" / "${mars.kind}"; Moon card "${moon.title}" / "${moon.kind}"`;
 }
 
+/** A real ISS element set (CelesTrak, fetched 2026-09-15), served in place of the route. */
+const ISS_TLE = {
+  name: "ISS (ZARYA)",
+  line1: "1 25544U 98067A   26258.17538348  .00006015  00000+0  11677-3 0  9998",
+  line2: "2 25544  51.6311 214.7209 0004917 142.0099 218.1237 15.49120584585708",
+  epoch: "2026-09-15T04:12:33.132Z",
+  fetchedAt: "2026-09-15T15:53:34.000Z",
+};
+
+/**
+ * The first instant in the 24 h after the TLE's epoch (30 s steps) when the
+ * ISS is more than 20° up over Moffett Field and lands 80px inside W x H.
+ * Computed independently of lib/sky-iss.ts: satellite.js's own look angles,
+ * converted to RA/Dec of date by the horizon-to-equatorial formulas, then to
+ * J2000 by astronomy-engine.
+ */
+function findIssInstant(W, H) {
+  const D2R = Math.PI / 180;
+  const satrec = satellite.twoline2satrec(ISS_TLE.line1, ISS_TLE.line2);
+  const site = { longitude: MOFFETT_LON * D2R, latitude: 37.4153 * D2R, height: 0.01 };
+  const epoch = Date.parse(ISS_TLE.epoch);
+  for (let ms = epoch; ms < epoch + 24 * 3600e3; ms += 30e3) {
+    const date = new Date(ms);
+    const pv = satellite.propagate(satrec, date);
+    const gmst = satellite.gstime(date);
+    const look = satellite.ecfToLookAngles(site, satellite.eciToEcf(pv.position, gmst));
+    if (look.elevation / D2R < 20) continue;
+    const phi = site.latitude;
+    const A = look.azimuth;
+    const h = look.elevation;
+    const dec = Math.asin(Math.sin(phi) * Math.sin(h) + Math.cos(phi) * Math.cos(h) * Math.cos(A));
+    const HA = Math.atan2(-Math.sin(A) * Math.cos(h), Math.sin(h) * Math.cos(phi) - Math.cos(h) * Math.cos(A) * Math.sin(phi));
+    const raOfDate = (gmst + site.longitude - HA) / D2R;
+    const time = new Astronomy.AstroTime(date);
+    const v = Astronomy.RotateVector(
+      Astronomy.Rotation_EQD_EQJ(time),
+      Astronomy.VectorFromSphere(new Astronomy.Spherical(dec / D2R, raOfDate, 1), time),
+    );
+    const eq = Astronomy.EquatorFromVector(v);
+    const p = specProject(W, H, lstAt(date), eq.ra * 15, eq.dec);
+    if (p.x > 80 && p.x < W - 80 && p.y > 80 && p.y < H - 80) return { date, p, elevation: h / D2R };
+  }
+  throw new Error("the fixture TLE never puts the ISS 20° up and on screen in 24 h");
+}
+
+async function checkSkyIss(browser) {
+  const W = 1600;
+  const H = 1000;
+  const { date, p, elevation } = findIssInstant(W, H);
+  const issPage = (body, fn) =>
+    withPage(browser, { viewport: { width: W, height: H }, reducedMotion: "reduce", deviceScaleFactor: 1 }, async (page, context) => {
+      const errors = [];
+      page.on("pageerror", (err) => errors.push(`pageerror: ${err.message}`));
+      page.on("console", (msg) => {
+        if (msg.type() === "error" && /iss|satellite|NightSky/i.test(msg.text())) errors.push(`console: ${msg.text()}`);
+      });
+      await context.route("**/api/iss-tle", (route) =>
+        route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) }),
+      );
+      await page.clock.setFixedTime(date);
+      await page.goto(BASE, { waitUntil: "networkidle" });
+      await waitSkyDrawn(page);
+      const out = await fn(page);
+      if (errors.length) throw new Error(errors.join(" | "));
+      return out;
+    });
+
+  const present = await issPage(ISS_TLE, async (page) => {
+    await page.waitForFunction(() => window.__sky.layers.iss === "ready" && window.__sky.layers.facts === "ready", null, { timeout: 10000 });
+    const iss = await page.evaluate(() => window.__sky.iss);
+    if (!iss) throw new Error(`no ISS drawn at ${date.toISOString()} (elevation ${elevation.toFixed(1)}°)`);
+    if (Math.hypot(iss.x - p.x, iss.y - p.y) > 3) {
+      throw new Error(`ISS drawn at (${iss.x.toFixed(1)}, ${iss.y.toFixed(1)}), independent computation says (${p.x.toFixed(1)}, ${p.y.toFixed(1)})`);
+    }
+    if (!iss.aboveHorizon) throw new Error(`ISS reported below the horizon at ${elevation.toFixed(1)}° elevation`);
+    const peak = await skyPeak(page, p.x, p.y, 3);
+
+    await waitStargazeReady(page);
+    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    await page.mouse.click(p.x, p.y);
+    const card = page.locator("[data-sky-card]");
+    await card.waitFor({ state: "visible", timeout: 3000 });
+    const content = await card.evaluate((el) => ({
+      id: el.getAttribute("data-sky-card"),
+      title: el.querySelector("h2")?.textContent,
+      data: [...el.querySelectorAll("[data-sky-card-data]")].map((d) => d.textContent),
+      links: [...el.querySelectorAll("[data-sky-card-sources] a")].map((a) => a.getAttribute("href")),
+    }));
+    if (content.id !== "iss" || content.title !== "International Space Station") throw new Error(`card ${content.id} "${content.title}"`);
+    if (!content.data.some((d) => /^Above the horizon/.test(d))) throw new Error(`card data ${JSON.stringify(content.data)}`);
+    if (!content.data.some((d) => /September 15, 2026, 04:12 UTC/.test(d))) throw new Error(`card lacks the TLE epoch: ${JSON.stringify(content.data)}`);
+    if (!content.links.some((href) => href.startsWith("https://celestrak.org/"))) throw new Error(`no CelesTrak citation: ${content.links}`);
+    return peak;
+  });
+
+  const absentPeak = await issPage({ tle: null, fetchedAt: ISS_TLE.fetchedAt }, async (page) => {
+    await page.waitForFunction(() => window.__sky.layers.iss === "absent", null, { timeout: 10000 });
+    const snap = await page.evaluate(() => ({ iss: window.__sky.iss, hit: window.__sky.hits.some((h) => h.id === "iss") }));
+    if (snap.iss || snap.hit) throw new Error("an ISS was drawn although the route had no TLE");
+    return skyPeak(page, p.x, p.y, 3);
+  });
+  if (present - absentPeak < 40) throw new Error(`ISS pixel peak ${present} with a TLE vs ${absentPeak} without`);
+  return `${date.toISOString()} at ${elevation.toFixed(1)}°: drawn at (${p.x.toFixed(0)}, ${p.y.toFixed(0)}), peak ${absentPeak} -> ${present}, card opens; { tle: null } draws nothing, no errors`;
+}
+
 /* ---------------------------------------------------------------------- */
 /* driver                                                                  */
 /* ---------------------------------------------------------------------- */
@@ -2303,6 +2410,7 @@ const CHECKS = [
   ["stargaze-cancels-run", checkStargazeCancelsRun],
   ["stargaze-during-download", checkStargazeDuringDownload],
   ["stargaze-card", checkStargazeCard],
+  ["sky-iss", checkSkyIss],
 ];
 
 async function main() {

@@ -13,7 +13,7 @@
  * way sky-render.ts renders planet names; they are names, not prose.
  */
 import type { PreparedMilkyWay, SkyObject, SkyShower } from "./sky-objects";
-import { project, type Chart } from "./sky-math";
+import { project, type Chart, type Equatorial } from "./sky-math";
 
 /** A selectable thing as drawn this frame, CSS px. `name` is its label. */
 export type Hit = { id: string; name: string; x: number; y: number };
@@ -216,4 +216,25 @@ export function drawRadiants(ctx: CanvasRenderingContext2D, v: View, active: Sky
     }
   }
   return hits;
+}
+
+/** The ISS: a small warm square with a faint halo, dimmed while it is below Moffett Field's horizon. */
+export function drawIss(ctx: CanvasRenderingContext2D, v: View, iss: { eq: Equatorial; aboveHorizon: boolean }): Hit | null {
+  const p = project(v.chart, iss.eq.raDeg, iss.eq.decDeg);
+  if (!onCanvas(p, v, 0)) return null;
+  const a = iss.aboveHorizon ? 1 : 0.35;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+  ctx.fillStyle = `rgba(${WARM},${0.16 * a})`;
+  ctx.fill();
+  ctx.fillStyle = `rgba(${WARM},${0.95 * a})`;
+  ctx.fillRect(p.x - 1.75, p.y - 1.75, 3.5, 3.5);
+  // Skipped when the ISS is the current hover/selection (fix round 1, C1
+  // precedent): its name is about to be drawn again, larger, by the hover label.
+  if (v.names && v.suppressName !== "iss") {
+    ctx.font = `9px ${v.fontFamily}`;
+    ctx.fillStyle = `rgba(${WARM},${0.75 * a})`;
+    ctx.fillText("ISS", p.x + 8, p.y + 3);
+  }
+  return { id: "iss", name: "ISS", x: p.x, y: p.y };
 }

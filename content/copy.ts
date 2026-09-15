@@ -815,6 +815,17 @@ export const copy = {
       spacecraftPre: "Position on ",
       spacecraftMid: ": ",
       spacecraftPost: " au from Earth.",
+      issAbove: "Above the horizon over NASA Ames at this chart's time.",
+      issBelow: "Below the horizon over NASA Ames at this chart's time.",
+      /** "Altitude 419 km, moving at 7.66 km/s." */
+      issAltitude: "Altitude ",
+      issSpeed: " km, moving at ",
+      issSpeedPost: " km/s.",
+      /** "Orbit data (TLE) from September 15, 2026, 04:12 UTC." */
+      issEpoch: "Orbit data (TLE) from ",
+      issEpochPost: " UTC.",
+      issClock: "This sky runs 180 times faster than the real one, so the station crosses it in seconds.",
+      issClockStill: "This sky holds still at the moment you arrived, so the station does too.",
     },
   },
 

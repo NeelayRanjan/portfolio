@@ -14,7 +14,7 @@
  * handed in through `oneLiner`.
  */
 import type { SkyData } from "./sky-data";
-import { drawMilkyWay, drawObjects, drawRadiants, type Hit, type View } from "./sky-layers";
+import { drawIss, drawMilkyWay, drawObjects, drawRadiants, type Hit, type View } from "./sky-layers";
 import type { PreparedMilkyWay, SkyObject, SkyShower } from "./sky-objects";
 import { eclipticToEquatorial, project, type Chart, type Equatorial, type Planet, type Point } from "./sky-math";
 
@@ -72,6 +72,8 @@ export type FrameInput = {
   oneLiner: (id: string) => string | null;
   /** The id whose card is open (Task 5), ringed like a hover. */
   selectedId: string | null;
+  /** The ISS in J2000 (lib/sky-iss.ts, precessed), or null when there is no usable TLE. */
+  iss: { eq: Equatorial; aboveHorizon: boolean } | null;
 };
 
 const DESK = "#0c0b09";
@@ -273,6 +275,12 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
       ctx.fillText("Moon", mp.x + 8, mp.y + 3);
     }
     if (onCanvas(mp, 0)) hits.push({ id: "moon", name: "Moon", x: mp.x, y: mp.y });
+  }
+
+  // The ISS.
+  if (f.iss) {
+    const issHit = drawIss(ctx, view, f.iss);
+    if (issHit) hits.push(issHit);
   }
 
   // Hover and selection, on top of everything.

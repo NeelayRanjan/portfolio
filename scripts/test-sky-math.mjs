@@ -111,6 +111,23 @@ test("Moon phase: lit fraction within 0.03, bright limb faces the Sun", () => {
   }
 });
 
+test("precession of date -> J2000 within 0.01° of astronomy-engine", () => {
+  let worst = 0;
+  for (const d of DATES.filter((_, i) => i % 13 === 0)) {
+    const time = new A.AstroTime(d);
+    const rot = A.Rotation_EQD_EQJ(time);
+    for (let ra = 0; ra < 360; ra += 45) {
+      for (const dec of [-60, -20, 0, 30, 60, 80]) {
+        const ofDate = { raDeg: ra, decDeg: dec };
+        const refVec = A.RotateVector(rot, A.VectorFromSphere(new A.Spherical(dec, ra, 1), time));
+        const ref = refEq(refVec);
+        worst = Math.max(worst, sepDeg(S.precessToJ2000(ofDate, d.getTime()), ref));
+      }
+    }
+  }
+  assert.ok(worst < 0.01, `worst ${worst.toFixed(4)}°`);
+});
+
 test("projection: pole toward the top left, farthest corner at the edge declination", () => {
   assert.equal(S.EDGE_DEC_DEG, -35);
   // Independently worked out from the layout (Sheet.tsx: max-width 1000px,

@@ -42,12 +42,15 @@ import type { SkyShower } from "@/lib/sky-objects";
 export type CardExtra =
   | { type: "none" }
   | { type: "shower"; shower: SkyShower }
-  | { type: "spacecraft"; distanceAu: number; positionDate: string };
+  | { type: "spacecraft"; distanceAu: number; positionDate: string }
+  | { type: "iss"; aboveHorizon: boolean; altitudeKm: number; speedKmS: number; epoch: string; still: boolean };
 
 export type CardModel = { id: string; title: string; fact: SkyFact; extra: CardExtra };
 
 const LONG_DATE = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
 const SHORT_DATE = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+/** Time on its own: a combined date-time format inserts locale glue ("at") that varies by engine. */
+const TIME = new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "UTC" });
 
 /** "2026-09-15" -> "September 15, 2026". */
 const longDate = (iso: string) => LONG_DATE.format(new Date(`${iso}T00:00:00Z`));
@@ -82,6 +85,13 @@ function extraLines(extra: CardExtra): string[] {
     }
     case "spacecraft":
       return [`${t.spacecraftPre}${longDate(extra.positionDate)}${t.spacecraftMid}${extra.distanceAu.toFixed(1)}${t.spacecraftPost}`];
+    case "iss":
+      return [
+        extra.aboveHorizon ? t.issAbove : t.issBelow,
+        `${t.issAltitude}${Math.round(extra.altitudeKm)}${t.issSpeed}${extra.speedKmS.toFixed(2)}${t.issSpeedPost}`,
+        `${t.issEpoch}${LONG_DATE.format(new Date(extra.epoch))}, ${TIME.format(new Date(extra.epoch))}${t.issEpochPost}`,
+        extra.still ? t.issClockStill : t.issClock,
+      ];
     case "none":
       return [];
   }

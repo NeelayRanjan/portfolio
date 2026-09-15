@@ -219,6 +219,38 @@ export function moonPhase(moon: Equatorial, sun: Equatorial): { litFraction: num
   return { litFraction, brightLimbDeg: norm360(chi * R2D) };
 }
 
+/**
+ * Mean equator and equinox of date -> J2000, IAU 1976 precession (Lieske
+ * 1977: zeta, z, theta). For positions that arrive in the frame of date,
+ * like the ISS's (satellite.js works in TEME); everything on the chart is
+ * J2000 so it all agrees. Pinned against astronomy-engine within 0.01° (its
+ * equator of date also carries nutation, under 0.006°).
+ */
+export function precessToJ2000(eq: Equatorial, ms: number): Equatorial {
+  const t = centuries(ms);
+  const as = D2R / 3600;
+  const zeta = (2306.2181 * t + 0.30188 * t * t + 0.017998 * t * t * t) * as;
+  const z = (2306.2181 * t + 1.09468 * t * t + 0.018203 * t * t * t) * as;
+  const theta = (2004.3109 * t - 0.42665 * t * t - 0.041833 * t * t * t) * as;
+  const cz = Math.cos(z), sz = Math.sin(z);
+  const ct = Math.cos(theta), st = Math.sin(theta);
+  const cZ = Math.cos(zeta), sZ = Math.sin(zeta);
+  // P maps J2000 -> date; its transpose maps date -> J2000.
+  const P = [
+    [cz * ct * cZ - sz * sZ, -cz * ct * sZ - sz * cZ, -cz * st],
+    [sz * ct * cZ + cz * sZ, -sz * ct * sZ + cz * cZ, -sz * st],
+    [st * cZ, -st * sZ, ct],
+  ];
+  const a = eq.raDeg * D2R;
+  const d = eq.decDeg * D2R;
+  const v: Vec3 = [Math.cos(d) * Math.cos(a), Math.cos(d) * Math.sin(a), Math.sin(d)];
+  return toRaDec([
+    P[0][0] * v[0] + P[1][0] * v[1] + P[2][0] * v[2],
+    P[0][1] * v[0] + P[1][1] * v[1] + P[2][1] * v[2],
+    P[0][2] * v[0] + P[1][2] * v[1] + P[2][2] * v[2],
+  ]);
+}
+
 /** Mirrors the layout: the sheet is at most 1000 px wide inside main's 16 px
  *  gutters (components/manuscript/Sheet.tsx, app/page.tsx) and starts 56 px
  *  down (Sheet's mt-14). Change these with the layout. */

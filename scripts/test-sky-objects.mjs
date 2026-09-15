@@ -87,9 +87,19 @@ test("the 15 named stars resolved by HIP", () => {
 test("voyagers: dated, plausible", () => {
   const v1 = byId.get("voyager-1");
   const v2 = byId.get("voyager-2");
+  // positionDate means "the date this position was true". On the live path
+  // that's the run date. On the recorded fallback it's the date the
+  // recorded query was actually made (source.horizons.queried's date part),
+  // which can predate a later run's `generated` — it must never postdate it.
+  const recordedDate = data.source.horizons.queried.slice(0, 10);
   for (const v of [v1, v2]) {
     assert.equal(v.symbol, "chevron");
-    assert.equal(v.positionDate, data.generated);
+    if (data.source.horizons.mode === "live") {
+      assert.equal(v.positionDate, data.generated);
+    } else {
+      assert.equal(v.positionDate, recordedDate, `${v.id} positionDate vs recorded query date`);
+      assert.ok(v.positionDate <= data.generated, `${v.id} positionDate ${v.positionDate} is after generated ${data.generated}`);
+    }
   }
   assert.ok(v1.raDeg > 255 && v1.raDeg < 262 && v1.decDeg > 10 && v1.decDeg < 14, `V1 at ${v1.raDeg}, ${v1.decDeg}`);
   assert.ok(v1.distanceAu > 165 && v1.distanceAu < 185, `V1 ${v1.distanceAu} au`);

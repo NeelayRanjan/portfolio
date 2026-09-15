@@ -669,6 +669,151 @@ export const SKY_FACTS: readonly SkyFact[] = [
     citations: [nasaScience("resource/the-milky-way-galaxy/", "The Milky Way Galaxy", "2026-09-15"), SKYWATCHING],
   },
 
+  /* ---- meteor showers ---- */
+  {
+    id: "quadrantids",
+    kind: "Meteor shower · radiant near Boötes",
+    oneLiner: "Named for a constellation the IAU dropped in 1922",
+    body: [
+      "The name comes from Quadrans Muralis, a constellation Jerome Lalande created in 1795 and the IAU left off its list in 1922.",
+      "Unlike most showers it comes from an asteroid, which may be a “dead comet”.",
+      "The peak lasts only a few hours, because the stream is thin and Earth crosses it at a perpendicular angle.",
+    ],
+    visibility: "Naked eye; best from the Northern Hemisphere, at night and before dawn",
+    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/quadrantids/", "Quadrantids", "2026-09-15")],
+  },
+  {
+    id: "lyrids",
+    kind: "Meteor shower · radiant in Lyra",
+    oneLiner: "First recorded by the Chinese in 687 BC",
+    body: [
+      "It is one of the oldest known showers, observed for 2,700 years.",
+      "Most years are modest, but watchers have seen as many as 100 meteors per hour, in 1803, 1922, 1945 and 1982.",
+      "The meteors appear to come from near Vega, the brightest star in Lyra.",
+    ],
+    visibility: "Naked eye; best from the Northern Hemisphere, after moonset and before dawn",
+    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/lyrids/", "Lyrids", "2026-09-15")],
+  },
+  {
+    id: "eta-aquariids",
+    kind: "Meteor shower · radiant in Aquarius",
+    oneLiner: "Named for Eta Aquarii, a star in the water jar",
+    body: [
+      "Each time its parent comet comes back, it sheds ice and rock, and the same dust also makes the Orionids in October.",
+      "The Southern Hemisphere sees more of it, because Aquarius rides higher there; in the north the hourly rate drops to about 10.",
+      "From the north its meteors more often appear as “Earthgrazers”, long streaks that seem to skim the horizon.",
+    ],
+    visibility: "Naked eye, in the pre-dawn hours; better from the Southern Hemisphere",
+    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/eta-aquarids/", "Eta Aquarids", "2026-09-15")],
+  },
+  {
+    id: "southern-delta-aquariids",
+    kind: "Meteor shower · radiant in Aquarius",
+    oneLiner: "Faint meteors from the southern part of the sky",
+    body: [
+      "The meteors are faint and hard to spot, and moonlight hides them completely.",
+      "Delta, the third brightest star in Aquarius, is in the name to tell it apart from the Eta Aquariids.",
+      "The comet suspected to be its source goes around the Sun about once every five years.",
+    ],
+    visibility: "Naked eye, only without the Moon; best from the Southern Hemisphere",
+    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/delta-aquariids/", "Southern Delta Aquariids", "2026-09-15")],
+  },
+  {
+    id: "perseids",
+    kind: "Meteor shower · radiant in Perseus",
+    oneLiner: "Often called the best meteor shower of the year",
+    body: [
+      "Giovanni Schiaparelli worked out in 1865 which comet it comes from.",
+      "That comet’s nucleus is 16 miles across, almost twice the size of the object thought to have killed off the dinosaurs.",
+      "Models expect lower background rates through 2026; in 2027 Earth passes parts of the stream that Jupiter has disturbed, which may raise them again.",
+    ],
+    visibility: "Naked eye; best from mid-northern latitudes, and poorly placed for most of the southern hemisphere",
+    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/perseids/", "Perseids", "2026-09-15")],
+  },
+  {
+    id: "draconids",
+    kind: "Meteor shower · exceptionally slow meteors",
+    oneLiner: "Quiet most years, but it stormed in 1933 and 1946",
+    body: [
+      "It produced spectacular meteor storms in 1933 and 1946, and a predicted outburst in 2011 reached a ZHR of about 300.",
+      "Its meteors move exceptionally slowly.",
+      "The radiant never sets for observers north of about 45°N.",
+    ],
+    visibility: "Naked eye",
+    citations: [IMO_2026],
+  },
+  {
+    id: "southern-taurids",
+    kind: "Meteor shower · bright, slow meteors",
+    oneLiner: "The southern branch of the Taurids",
+    body: [
+      "It and the Northern Taurids are two branches of one debris complex.",
+      "Many Taurids are bright and fairly slow, which makes them good targets for still photos.",
+      "There is also an earlier maximum around October 13, a date often listed in the past as the main peak.",
+    ],
+    visibility: "Naked eye, from any latitude; the northern hemisphere is somewhat better placed",
+    citations: [IMO_2026],
+  },
+  {
+    id: "orionids",
+    kind: "Meteor shower · radiant in Orion",
+    oneLiner: "Framed by some of the brightest stars in the sky",
+    body: [
+      "The comet that feeds it also feeds the Eta Aquariids in May.",
+      "From 2006 to 2009 it produced unexpectedly strong rates, a ZHR of around 40 to 70, on two or three nights in a row.",
+      "Looking 45 to 90 degrees away from the radiant makes the meteors appear longer.",
+    ],
+    visibility: "Naked eye; the radiant is well up from about local midnight in either hemisphere",
+    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/orionids/", "Orionids", "2026-09-15")],
+  },
+  {
+    id: "northern-taurids",
+    kind: "Meteor shower · bright, slow meteors",
+    oneLiner: "The northern branch of the Taurids",
+    body: [
+      "Earlier results suggest its best rates hold for roughly ten days in early to mid November, so the peak is less sharp than one date implies.",
+      "Its radiant is a large oval region, not a point.",
+    ],
+    visibility: "Naked eye, well placed through the night",
+    citations: [IMO_2026],
+  },
+  {
+    id: "leonids",
+    kind: "Meteor shower · radiant in Leo",
+    oneLiner: "A possible meteor storm every 33 years or so",
+    body: [
+      "Every 33 years or so Earth may get a Leonid storm, with hundreds to thousands of meteors per hour.",
+      "In 1966 thousands of meteors per minute fell during a 15-minute period.",
+      "The last Leonid storm was in 2002.",
+    ],
+    visibility: "Naked eye; the meteors look longer away from the radiant",
+    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/leonids/", "Leonids", "2026-09-15")],
+  },
+  {
+    id: "geminids",
+    kind: "Meteor shower · radiant in Gemini",
+    oneLiner: "A major shower that comes from an asteroid",
+    body: [
+      "Its parent looks like a rocky asteroid, but it may be a “dead comet” or a “rock comet”, and scientists are not certain how to define it.",
+      "The shower first appeared in the mid-1800s with only 10 to 20 meteors per hour.",
+      "Its meteors tend to be yellow.",
+    ],
+    visibility: "Naked eye; best from middle and northern latitudes",
+    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/geminids/", "Geminids", "2026-09-15")],
+  },
+  {
+    id: "ursids",
+    kind: "Meteor shower · radiant in Ursa Minor",
+    oneLiner: "A narrow stream, radiating from near the star Kochab",
+    body: [
+      "William F. Denning probably discovered it, around the start of the 20th century.",
+      "In 1945 A. Bečvář saw an outburst of 169 per hour.",
+      "Outbursts can come when its parent comet is farthest from the Sun, because some meteoroids are trapped in a 7/6 orbital resonance with Jupiter.",
+    ],
+    visibility: "Naked eye",
+    citations: [IMO_2026, wikipedia("Ursids", 1328535157, "2025", "2026-09-15")],
+  },
+
   /* ---- constellations ---- */
   {
     id: "UMa",

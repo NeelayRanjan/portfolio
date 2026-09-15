@@ -122,7 +122,7 @@ async function skyAnimatesAt1280(browser) {
     const b = await sample();
     if (a === b) throw new Error("two samples 1.5s apart are byte-identical (the sky is not turning)");
     const ms = await page.evaluate(() => window.__sky.frameMsMedian);
-    return `samples differ; median frame draw ${ms?.toFixed(2)}ms (headless Firefox: a floor, not a claim)`;
+    return `samples differ; median frame draw ${ms?.toFixed(2)}ms (a headless Firefox number, not a device number)`;
   });
 }
 
@@ -1600,6 +1600,11 @@ async function checkStargazeCancelsRun(browser) {
     if (d.b.includes("the model running")) throw new Error("the draw figure still shows a half-finished run");
     if (d.b.includes("model failed to load")) throw new Error("a cancelled draw run was reported as a failure");
     if ((await demoEvents(page, "draw")) !== 0) throw new Error("a cancelled draw run queued demo_used{draw}");
+    // Prove the release, not just the stall: the panel's stable text above
+    // could equally mean "still cancelling" as "session released". Only the
+    // offload counter (bumped by unloadDrawModel once the cancelled run's
+    // promise actually settles) proves the session is really gone.
+    await page.waitForFunction(() => (window.__offload?.draw ?? 0) >= 1, null, { timeout: 15000 });
     await page.keyboard.press("Escape");
 
     // --- headshot: cancel mid-sampling ---
@@ -1620,6 +1625,10 @@ async function checkStargazeCancelsRun(browser) {
     const canvasHidden = await page.evaluate(() => document.querySelector("#headshot-toy canvas").hidden);
     if (!canvasHidden) throw new Error("a half-sampled headshot frame was left on screen");
     if ((await demoEvents(page, "headshot")) !== 0) throw new Error("a cancelled headshot run queued demo_used{headshot}");
+    // Same proof as the draw phase above: the offload counter, not just a
+    // stable readout, is what shows unloadHeadshotModel actually released
+    // the session after the cancelled run settled.
+    await page.waitForFunction(() => (window.__offload?.headshot ?? 0) >= 1, null, { timeout: 15000 });
     await page.keyboard.press("Escape");
 
     const gazes = await demoEvents(page, "stargaze");
@@ -1639,7 +1648,7 @@ async function checkStargazeCancelsRun(browser) {
       null,
       { timeout: 120000 },
     );
-    return "draw and headshot runs stopped within a step, no failure shown, no demo_used; a later generate completed";
+    return "draw and headshot runs stopped within a step, no failure shown, no demo_used, both sessions released (offload counters); a later generate completed";
   });
 }
 

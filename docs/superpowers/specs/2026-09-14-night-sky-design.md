@@ -318,3 +318,32 @@ offload doesn't fix it.
 2. Stargazing **counts** as `demo_used {demo: "stargaze"}`, once per load (§5).
 3. **No horizon line** (§11).
 4. Names in **both languages**, Latin larger, English smaller and dimmer (§4).
+
+## 13. Plan-time refinements (2026-09-14)
+
+Found while writing the implementation plan
+(`docs/superpowers/plans/2026-09-14-night-sky.md`); these supersede the
+sections they name.
+
+1. **Return behaviour (§5 "Return").** "Nothing preloads on return" left the
+   chess and draw panels dead after a round trip (chess loads on mount, draw
+   on first stroke, and neither would fire again). The rule is now: **on
+   return, a model that was loaded (or loading) before stargazing reloads;
+   one that never loaded stays unloaded.** The headshot model is the
+   exception by design: its next press loads it, as the first press always
+   has. A chess engine loaded only by the idle warm-up is unloaded and not
+   restored.
+2. **The classifier (§5 cancel rules).** It is not true that the zero-shot
+   classifier runs `generate()` with no `onFrame`: `lib/classify.ts` already
+   passes an `onFrame` that throws its own `ABORT` to skip the second step,
+   which is the proven precedent for throw-to-cancel. The stargaze check still
+   sits between reconstructions, in the site's own loop.
+3. **Load generations.** Each panel tags its loads; stargaze bumps the tag, so
+   a load that resolves after an unload (or after a newer load started) never
+   installs a released session or a terminated worker.
+4. **Catalog size (§6).** Measured output is ~55 KB (1,627 stars, 88
+   constellations, 743 line segments); the assert is under 70 KB, not 60.
+5. **Verification (§10).** `stargaze-offload` is split into
+   `stargaze-offload-chess` and `stargaze-offload-draw`, and a
+   `stargaze-hides-page` check covers hiding, `inert`, scroll lock, focus and
+   the once-per-load event. 21 checks in total.

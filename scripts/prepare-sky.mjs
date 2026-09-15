@@ -28,6 +28,11 @@ import { mkdir, writeFile } from "node:fs/promises";
 const COMMIT = "7e720a3de062059d4c5400a379146a601d9010e0";
 const REPO = "https://github.com/ofrohn/d3-celestial";
 const RAW = `https://raw.githubusercontent.com/ofrohn/d3-celestial/${COMMIT}/data`;
+/** The BSD-3-Clause notice requires redistributing the copyright line, not
+ *  just naming the license. Verbatim from the repo's LICENSE at COMMIT:
+ *  https://raw.githubusercontent.com/ofrohn/d3-celestial/7e720a3de062059d4c5400a379146a601d9010e0/LICENSE
+ *  (fetched by hand, not at build time — the same pin as the data files above). */
+const D3_CELESTIAL_COPYRIGHT = "Copyright (c) 2015, Olaf Frohn";
 const MAG_LIMIT = 5.0;
 const OUT_DIR = new URL("../public/sky/", import.meta.url);
 const OUT = new URL("sky.json", OUT_DIR);
@@ -38,17 +43,17 @@ const ENGLISH = {
   Cae: "Chisel", Cam: "Giraffe", Cnc: "Crab", CVn: "Hunting Dogs",
   CMa: "Greater Dog", CMi: "Lesser Dog", Cap: "Sea Goat", Car: "Keel",
   Cas: null, Cen: "Centaur", Cep: null, Cet: "Sea Monster", Cha: "Chameleon",
-  Cir: "Compasses", Col: "Dove", Com: "Berenice's Hair", CrA: "Southern Crown",
+  Cir: "Compasses", Col: "Dove", Com: "Berenice’s Hair", CrA: "Southern Crown",
   CrB: "Northern Crown", Crv: "Crow", Crt: "Mixing Bowl", Cru: "Cross",
   Cyg: "Swan", Del: "Dolphin", Dor: "Dolphinfish", Dra: "Dragon", Equ: "Pony",
   Eri: "River", For: "Furnace", Gem: "Twins", Gru: "Crane", Her: null,
   Hor: "Pendulum Clock", Hya: null, Hyi: "Lesser Water Snake", Ind: "Indian",
   Lac: "Lizard", Leo: "Lion", LMi: "Lesser Lion", Lep: "Hare", Lib: "Balance",
   Lup: "Wolf", Lyn: null, Lyr: "Lyre", Men: "Table Mountain",
-  Mic: "Microscope", Mon: "Unicorn", Mus: "Fly", Nor: "Carpenter's Level",
+  Mic: "Microscope", Mon: "Unicorn", Mus: "Fly", Nor: "Carpenter’s Level",
   Oct: "Octant", Oph: "Serpent Bearer", Ori: null, Pav: "Peacock", Peg: null,
   Per: null, Phe: null, Pic: "Painter", Psc: "Fishes", PsA: "Southern Fish",
-  Pup: "Poop Deck", Pyx: "Mariner's Compass", Ret: "Reticle", Sge: "Arrow",
+  Pup: "Poop Deck", Pyx: "Mariner’s Compass", Ret: "Reticle", Sge: "Arrow",
   Sgr: "Archer", Sco: "Scorpion", Scl: null, Sct: "Shield", Ser: "Snake",
   Sex: "Sextant", Tau: "Bull", Tel: "Telescope", Tri: "Triangle",
   TrA: "Southern Triangle", Tuc: "Toucan", UMa: "Great Bear",
@@ -126,6 +131,7 @@ const sky = {
     repo: REPO,
     commit: COMMIT,
     license: "BSD-3-Clause (d3-celestial); stars from the Extended Hipparcos Compilation (Anderson & Francis 2012)",
+    copyright: D3_CELESTIAL_COPYRIGHT,
     meanings: "https://en.wikipedia.org/wiki/IAU_designated_constellations",
     accessed: "2026-09-14",
   },
@@ -146,6 +152,7 @@ for (const a of abbrs) {
 for (const a of Object.keys(lines)) if (!constellations[a]) fail(`lines for unknown ${a}`);
 if (constellations.UMa.latin !== "Ursa Major" || constellations.UMa.english !== "Great Bear")
   fail("UMa names wrong");
+if (!sky.source.copyright?.includes("Olaf Frohn")) fail("source.copyright is missing or wrong");
 if (constellations.Ser.labels.length !== 2) fail("Serpens did not merge to two anchors");
 if (stars.length < 1500 || stars.length > 1750) fail(`${stars.length} stars at mag <= ${MAG_LIMIT}`);
 const polaris = stars.find(([, dec]) => dec > 89);

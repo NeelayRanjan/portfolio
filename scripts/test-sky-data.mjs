@@ -15,6 +15,7 @@ test("header", () => {
   assert.equal(sky.epoch, "J2000");
   assert.equal(sky.source.commit, "7e720a3de062059d4c5400a379146a601d9010e0");
   assert.match(sky.source.license, /BSD/);
+  assert.match(sky.source.copyright, /Olaf Frohn/); // BSD-3 redistribution requires the notice, not just the license name
 });
 
 test("stars: count, order, ranges", () => {

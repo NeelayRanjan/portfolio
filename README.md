@@ -1,9 +1,10 @@
 # neelayranjan.dev
 
-Personal portfolio, styled as a dark preprint: a sheet on a live particle-field
-desk, research rendered as interactive figures, and trained models running
-entirely in the visitor's browser. Shipped 2026-09-12; the previous
-faux-terminal site lives at git tag `v1`.
+Personal portfolio, styled as a dark preprint: a sheet on a real, slowly
+turning star chart of the sky over NASA Ames, research rendered as
+interactive figures, and trained models running entirely in the visitor's
+browser. Shipped 2026-09-12; the previous faux-terminal site lives at git tag
+`v1`. The night sky replaced the original particle-field desk on 2026-09-15.
 
 Nothing here is faked. The author photo is sampled on demand by a diffusion
 model overfit on three real photos. The segmentation figures are computed from

@@ -128,8 +128,11 @@ when these run — known, harmless, not worth chasing (this repo's
 1. **The mobile draw-demo crash got worse** (owner, 2026-09-14, iPhone 17 Pro):
    beyond the silent reloads, repeated refreshes now land on Safari's
    crash-loop error page ("a problem repeatedly occurred"), and friends
-   testing the site call the section "super buggy". Top engineering priority
-   after the background redo; see Known bugs. Candidates that changed recently:
+   testing the site call the section "super buggy". The top engineering
+   priority now that the night sky has shipped; see Known bugs. Stargaze mode
+   (2026-09-15) lets a visitor voluntarily release the draw session, but does
+   nothing for this bug's own crash path (the main-thread-only architecture),
+   so it stays open. Candidates that changed recently:
    phones now get the 256 headshot (viewport gate removed 2026-09-13), iOS 26
    Safari ships WebGPU, threaded wasm under COOP/COEP.
 2. **arXiv link** (~2026-09-18) swaps into the references when the preprint is
@@ -173,7 +176,10 @@ and the owner's SOP tell one story.
 - Page-1 demos: **draw-a-digit and chess**. The trajectory viewer, JEPA and
   sample-space move to **`/lab`** (one page for all of them).
 - The ssh **boot screen is cut**. The particle **swarm is tamed**, kept as the hero
-  attention grab (v1 finding: visitors never discover it's draggable).
+  attention grab (v1 finding: visitors never discover it's draggable). This
+  particle desk (`DeskField`) was itself replaced by the real night sky on
+  2026-09-15 — see Current state and "Night sky + stargaze" below; this
+  bullet records the original redesign decision, not the current desk.
 - **Dark theme, fixed.** Palette and fonts **roam freely** — the owner dislikes how
   v1 uses the indigo/teal palette (likes the hues in isolation, not the usage).
 - **First person** copy ("I build…"). `content/copy.ts` remains the single copy
@@ -423,22 +429,40 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 - **Playwright's Firefox lacks `screenshot({omitBackground})`** — the icon script
   rasterizes via canvas `toDataURL` instead.
 - **A re-render that flips a load-triggering prop null→loaded→null→loaded can
-  silently re-fire an effect meant to run once.** Night sky's stargaze restore
-  reloads the draw model on return, so `model` (null→loaded) now cycles on
-  every round trip; a pre-existing `useEffect(() => { if (!model || !hasInk)
-  return; autoPick(); }, [model])` had assumed that transition happens once
-  per page load and started re-classifying (and transiently disabling the
-  generate button) on every restore. The failure mode was a genuinely flaky
-  Playwright check, not an obvious one: the button's native disabled-click
-  suppression swallows a `.click()` that lands in the disabled window with no
-  thrown error and no handler firing, so the symptom was a `waitForFunction`
-  timeout with nothing in between to blame. Measured before the fix: 3 runs at
-  67924ms (pass, lucky timing), 169033ms and 169431ms (fail, 400ms apart,
-  which is what said "real race" over "slow machine"); after adding a ref that
-  suppresses the re-classify specifically on a stargaze-triggered reload, 5
-  runs clustered at 52969-54392ms, all pass. The general shape (an effect
-  keyed on a value assumed monotonic that a new code path made cyclic) is
-  worth checking for anywhere else a model-loaded flag gets a second producer.
+  silently re-fire an effect meant to run once — and the fix is NOT "skip on
+  restore".** Night sky's stargaze restore reloads the draw model on return,
+  so `model` (null→loaded) now cycles on every round trip; a pre-existing
+  `useEffect(() => { if (!model || !hasInk) return; autoPick(); }, [model])`
+  had assumed that transition happens once per page load and started
+  re-classifying (and transiently disabling the generate button) on every
+  restore. The failure mode was a genuinely flaky Playwright check, not an
+  obvious one: the button's native disabled-click suppression swallows a
+  `.click()` that lands in the disabled window with no thrown error and no
+  handler firing, so the symptom was a `waitForFunction` timeout with nothing
+  in between to blame. Measured before any fix: 3 runs at 67924ms (pass,
+  lucky timing), 169033ms and 169431ms (fail, 400ms apart, which is what said
+  "real race" over "slow machine"). **The first fix (`restoringRef`, a flag
+  set before a restore's reload and consumed by the effect) was itself wrong**
+  — a stronger-model review caught it skipping the classify on three paths
+  where the restore was NOT actually fresh: stargaze entered during the first
+  download (the pen-up classify never ran, having bailed on `model === null`),
+  stargaze entered mid-classify (the in-flight run aborts before setting
+  anything), and stargaze entered inside the 450ms pen-up debounce (cleared
+  before it ever fires) — in all three the flag still claimed "fresh" on
+  exit and the restore silently never classified. The shipped fix
+  (`components/DrawDigit.tsx`, `fitFreshRef`/`inkGenRef`) is keyed on the
+  actual invariant instead of on "was this a restore": `fitFreshRef` is set
+  `true` only right after a classify actually completes against the ink still
+  on screen (gated on `inkGenRef`, which `onDown`/`clear` bump so a stroke
+  landing mid-classify can't mark stale scores fresh), and set `false` by any
+  new ink or a wipe; the model-load effect skips only when `fitFreshRef.current`
+  is true. After that fix, `stargaze-cancels-run` ran 3/3 clean at
+  52200-52817ms (task-7 fix round 1) and 52969-54392ms across further runs,
+  all pass. The general shape — an effect keyed on a value assumed monotonic
+  that a new code path made cyclic — is worth checking for anywhere else a
+  model-loaded flag gets a second producer; the specific trap inside that
+  shape is reaching for "was this transition a restore" as the guard instead
+  of the invariant the effect actually cares about.
 
 ## The demos — contracts and traps (these carry into the redesign)
 

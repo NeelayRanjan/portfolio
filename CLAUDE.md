@@ -51,8 +51,11 @@ constellation) from a commit-pinned d3-celestial. `lib/sky-math.ts` computes
 the projection (GMST/LST, the planets, the Moon) with no imports, so
 `scripts/test-sky-math.mjs` pins it against `astronomy-engine` in plain node.
 `components/manuscript/NightSky.tsx` runs a simulated clock at 180x real time
-from the load instant (one turn every ~8 minutes), pole hidden behind the
-sheet; reduced motion paints one frame at load and stays still. Hovering near
+from the load instant (one turn every ~8 minutes); the pole originally sat
+behind the sheet and later moved to the top-left margin (2026-09-15, see the
+paragraph below and the Night sky section's projection bullet for the
+current, margin-based rule). Reduced motion paints one frame at load and
+stays still. Hovering near
 a constellation brightens its lines and names it in both languages ("Ursa
 Major (Great Bear)", Latin larger and brighter), the label placed beside the
 pointer in the page margin; when the catalog anchor would land under the
@@ -1132,7 +1135,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 | `public/sky/sky.json` | ~57 KB | star catalog behind every page: 1,627 stars, 88 constellations, built by `scripts/prepare-sky.mjs` from a pinned d3-celestial commit |
 | `public/sky/objects.json` | ~15 KB | Messier picks, Sgr A*, the Kepler field, the Hubble Deep Field, the 15 named stars, both Voyagers, the 12 meteor showers, the constellation origin table; built by `scripts/prepare-sky-objects.mjs` |
 | `public/sky/milkyway.json` | ~30 KB | the Milky Way band, 5 nested levels, 2,267 vertices after simplification (budget 1,500-4,000); same generator |
-| `content/sky-facts.ts` | 862 string literals (voice-scanned) | every card's and one-liner's facts and citations; single source, typed, no runtime imports |
+| `content/sky-facts.ts` | 138 facts, 862 string literals (voice-scanned) | every card's and one-liner's facts and citations; single source, typed, no runtime imports |
 | `public/jepa/manifest.json` | 483 KB | JEPA bundle: labels, UMAPs, neighbours, metrics |
 | `public/jepa/sprites.webp` | 3.6 MB | 4096 thumbnails, 64x64 atlas |
 | `public/models/mnist_x0.onnx` | 26 MB | the pixel model, live draw-a-digit |

@@ -14,7 +14,7 @@ import {
   unloadDrawModel,
   type AsciiFrame,
 } from "@/lib/draw-model";
-import { StargazeAbort, subscribeStargaze } from "@/lib/stargaze";
+import { StargazeAbort, isStargazing, subscribeStargaze } from "@/lib/stargaze";
 import { copy } from "@/content/copy";
 
 /**
@@ -328,24 +328,39 @@ export function DrawDigit() {
   /** Mirrors `running` synchronously, for the stargaze handler (state would
    *  be a render late). */
   const runningRef = useRef(false);
-  /** True while stargazing: the next onFrame throws StargazeAbort. */
-  const abortRef = useRef(false);
+  /** True while stargazing: the next onFrame throws StargazeAbort. Seeded
+   *  from the live flag, not `false`, in case this panel mounts (or
+   *  remounts) while stargaze is already on. */
+  const abortRef = useRef(isStargazing());
   /** Load generation: a load that resolves after an unload lands nowhere. */
   const loadGenRef = useRef(0);
   /** Whether the model had been asked for when stargaze began (restore rule). */
   const wantedRef = useRef(false);
   /**
-   * Set just before a stargaze restore's `startLoad()`, consumed by the
-   * auto-classify effect below. Without this, that effect (keyed only on
-   * `model`) fires on EVERY null->loaded transition, not just the first —
-   * so a restore re-runs a classify against a drawing whose fit scores are
-   * already on screen (`release()` never clears them), for nothing. Worse,
-   * it can transiently disable the generate button while it runs, which is
-   * how this raced a real test click (found 2026-09-15, see task-7 report).
+   * True exactly when `fit`'s scores describe the ink currently on the
+   * canvas. Set after `setFit(...)` completes in `autoPick`; cleared by any
+   * new ink (`onDown`) or a wipe (`clear`) — the two ways the drawing can
+   * stop matching the scores. Consumed (and reset) by the model-load effect
+   * below: a stargaze restore reloads the SAME model with the SAME ink, so
+   * if the scores on screen are still fresh there is nothing to reclassify;
+   * if they are not (stargaze landed mid-download, mid-classify, or inside
+   * the pen-up debounce, so no classify ever finished), the effect must
+   * still run one. A flag keyed on "was this a restore" got this wrong in
+   * all three of those cases (found 2026-09-15 review, task-7 fix round 1);
+   * this one is keyed on the actual invariant instead.
    */
-  const restoringRef = useRef(false);
+  const fitFreshRef = useRef(false);
+  /** The pending `unloadDrawModel()` promise from the most recent `release`,
+   *  so a restore can wait for a still-in-flight unload to finish releasing
+   *  its session before starting a new download — otherwise a round trip
+   *  begun mid-download can hold two ~26MB sessions in the same
+   *  never-shrinking wasm heap at once (task-7 fix round 1, P1). */
+  const unloadingRef = useRef<Promise<void> | null>(null);
   const probed = useRef(false);
   const classifyTimer = useRef(0);
+  /** The model-load effect's own 50ms timer (separate from `classifyTimer`,
+   *  the pen-up debounce), cleared on stargaze entry too. */
+  const modelLoadTimer = useRef(0);
 
   // autoPick is async; read the flag through a ref so a hand-pick mid-classify
   // isn't clobbered by a stale closure.
@@ -371,17 +386,18 @@ export function DrawDigit() {
    * the load in the first place.
    *
    * ⚠️ A stargaze restore is ALSO a null -> loaded transition (see `release`),
-   * but not a fresh one worth reclassifying: the drawing hasn't changed and
-   * its fit scores are still on screen, so `restoringRef` skips it.
+   * and most of the time nothing needs to happen: the drawing hasn't changed
+   * and its fit scores are still on screen (`fitFreshRef`). But a restore
+   * is not GUARANTEED fresh — stargaze can land before the first classify
+   * ever finished (mid-download, mid-classify, or inside the pen-up
+   * debounce) — so this checks the actual invariant rather than assuming
+   * "restore therefore skip".
    */
   useEffect(() => {
     if (!model || !hasInk) return;
-    if (restoringRef.current) {
-      restoringRef.current = false;
-      return;
-    }
-    const t = window.setTimeout(() => void autoPick(), 50);
-    return () => window.clearTimeout(t);
+    if (fitFreshRef.current) return;
+    modelLoadTimer.current = window.setTimeout(() => void autoPick(), 50);
+    return () => window.clearTimeout(modelLoadTimer.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [model]);
 
@@ -462,7 +478,7 @@ export function DrawDigit() {
     probed.current = false;
     setModel(null);
     setLoading(false);
-    void unloadDrawModel();
+    unloadingRef.current = unloadDrawModel();
   }, []);
 
   const onDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -471,6 +487,7 @@ export function DrawDigit() {
     // First stroke starts the ~26MB download, never page load. They can keep
     // drawing while it lands.
     if (!probed.current) startLoad();
+    fitFreshRef.current = false; // new ink: the scores on screen no longer describe it
     e.currentTarget.setPointerCapture(e.pointerId);
     drawing.current = true;
     const { x, y } = at(e);
@@ -522,6 +539,7 @@ export function DrawDigit() {
       // Kept whatever the picker does with the guess: the scores describe the
       // DRAWING, so they stay true after a hand-pick overrides the label.
       setFit({ scores, margin });
+      fitFreshRef.current = true; // these scores now match the ink on screen
       // Re-check: they may have picked by hand while this was running.
       setParams((p) => (autoLabelRef.current ? { ...p, digit: guess } : p));
     } catch {
@@ -541,6 +559,7 @@ export function DrawDigit() {
     setHasInk(false);
     setFrame(null);
     setFit(null); // the scores describe a drawing that no longer exists
+    fitFreshRef.current = false;
     setAutoLabel(true); // fresh drawing, guess again
     window.clearTimeout(classifyTimer.current);
   };
@@ -623,12 +642,22 @@ export function DrawDigit() {
           abortRef.current = true;
           wantedRef.current = probed.current;
           window.clearTimeout(classifyTimer.current);
+          window.clearTimeout(modelLoadTimer.current); // the model-load effect's own timer, not just the pen-up debounce
           if (!runningRef.current && !classifyingRef.current) release();
         } else {
           abortRef.current = false;
           if (wantedRef.current) {
-            restoringRef.current = true; // skip the reload's auto-classify; see restoringRef
-            startLoad();
+            // If `release` just started an unload (or one is still finishing
+            // from a cancel that landed a moment ago), wait for it to
+            // actually free its session before starting a new download —
+            // otherwise a round trip begun mid-download can hold two ~26MB
+            // sessions in the never-shrinking wasm heap at once (P1). The
+            // abortRef re-check guards a re-entry that happened while we
+            // were waiting: that later toggle already owns the decision.
+            const pending = unloadingRef.current;
+            void Promise.resolve(pending).then(() => {
+              if (!abortRef.current) startLoad();
+            });
           }
         }
       }),

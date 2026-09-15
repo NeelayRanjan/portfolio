@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { trackDemoOnce } from "@/lib/track";
 import { copy } from "@/content/copy";
 import { loadHeadshotModel, unloadHeadshotModel, PHOTO_BASE, type HeadshotModel } from "@/lib/headshot-model";
-import { StargazeAbort, subscribeStargaze } from "@/lib/stargaze";
+import { StargazeAbort, isStargazing, subscribeStargaze } from "@/lib/stargaze";
 
 /**
  * The author photo, sampled live.
@@ -96,8 +96,10 @@ export function HeadshotToy({
    *  stargaze unloads the model, and the readout must still name the graph
    *  that drew the picture still showing. */
   const [shownBuild, setShownBuild] = useState("");
-  /** True while stargazing: the next onFrame throws StargazeAbort. */
-  const abortRef = useRef(false);
+  /** True while stargazing: the next onFrame throws StargazeAbort. Seeded
+   *  from the live flag, not `false`, in case this panel mounts (or
+   *  remounts) while stargaze is already on. */
+  const abortRef = useRef(isStargazing());
 
   /** Stargaze offload. Only ever called with no run in flight. The morph
    *  seed goes too: a transition must come from a completed run of the

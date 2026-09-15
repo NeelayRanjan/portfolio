@@ -1643,6 +1643,33 @@ async function checkStargazeCancelsRun(browser) {
   });
 }
 
+/**
+ * Stargaze entered before the FIRST classify ever finished (mid-download,
+ * ideally): the restore must still produce fit scores, never silently skip
+ * them (task-7 fix round 1, I1 / P2). Not a hard assertion that entry beats
+ * the download — headless Firefox HTTP-caches the 26MB model fast enough
+ * that this can lose the race on a warm run, so a landed-before-entry case
+ * is reported in the detail rather than failed.
+ */
+async function checkStargazeDuringDownload(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await waitStargazeReady(page);
+    await scrollUntilAttached(page, "#fig-draw");
+    await drawStroke(page); // starts the ~26MB download
+    const fitsAtEntry = await page.evaluate(
+      () => !!document.querySelector('#fig-draw button[aria-label*="fits your drawing"]'),
+    );
+    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await page.waitForTimeout(2000); // let the download, and a cancelled classify if one started, land
+    await page.keyboard.press("Escape");
+    await waitDrawFits(page);
+    return fitsAtEntry
+      ? "model landed and classified before stargaze was entered (too fast to reproduce the download race headlessly this run); restore still holds fit scores"
+      : "entered stargaze before the first classify ever ran (mid-download); restore still produced fit scores";
+  });
+}
+
 /* ---------------------------------------------------------------------- */
 /* driver                                                                  */
 /* ---------------------------------------------------------------------- */
@@ -1670,6 +1697,7 @@ const CHECKS = [
   ["stargaze-offload-chess", checkStargazeOffloadChess],
   ["stargaze-offload-draw", checkStargazeOffloadDraw],
   ["stargaze-cancels-run", checkStargazeCancelsRun],
+  ["stargaze-during-download", checkStargazeDuringDownload],
 ];
 
 async function main() {

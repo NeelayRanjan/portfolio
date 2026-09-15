@@ -17,7 +17,7 @@ contracts below.
 **In production at neelayranjan.dev since 2026-09-12** (fast-forward of the
 15-task `redesign` build into `main` after a full verification run; the branch
 is deleted; v1 lives at the tag). Page 1: masthead (title, abstract, the
-live-sampled author photo, the UNDER REVIEW stamp linking `/lab` through a
+live-sampled author photo, the paper-status stamp (IN PREPARATION; UNDER REVIEW until 2026-09-14) linking `/lab` through a
 "pending additional materials" sub-line, identity links) → Table 1 → Research
 (Figure 1 label-efficiency sweep, Figure 2 Dice CDF, Figure 3 flight map) →
 the live demos as Figures 4–5 (chess, then draw — swapped 2026-09-13 at the owner's call, the `n` props swapped with them) → Experience as Figure 6 (NASA and Regenstrief
@@ -73,11 +73,13 @@ change touching a demo, a figure, or the page shell.
 `scripts/check-voice.mjs` gates every copy.ts edit.
 
 **Open items, roughly in order:**
-1. **The Pi claim needs the owner.** `systems.chess.searchNote.post` says "The
-   Pi gets through its 500 sims in about 2 seconds" — owner-authored in v1,
-   carried on that authority, unsourced in this file (and the browser's own
-   numbers make it look very fast). Confirm or cut; do not soften it into a
-   different unsourced claim.
+1. **The mobile draw-demo crash got worse** (owner, 2026-09-14, iPhone 17 Pro):
+   beyond the silent reloads, repeated refreshes now land on Safari's
+   crash-loop error page ("a problem repeatedly occurred"), and friends
+   testing the site call the section "super buggy". Top engineering priority
+   after the background redo; see Known bugs. Candidates that changed recently:
+   phones now get the 256 headshot (viewport gate removed 2026-09-13), iOS 26
+   Safari ships WebGPU, threaded wasm under COOP/COEP.
 2. **arXiv link** (~2026-09-18) swaps into the references when the preprint is
    live; the owner then creates a Google Scholar profile, which joins the
    identity links (the link list is data-driven copy).
@@ -86,12 +88,12 @@ change touching a demo, a figure, or the page shell.
    `init+strength` case is a structural smoke (step count + finiteness), so the
    forward-noising branch is unpinned vendored math. Ask the model owner for an
    init+strength case in `vectors/`.
-4. **Enable Web Analytics in the Vercel dashboard** (owner step; the site side
-   shipped 2026-09-13). Until it's on, production's `/_vercel/insights/script.js`
-   404s and nothing records. Then confirm the plan ingests custom events: an
-   empty Events tab after real clicks means it doesn't. The Vercel connector in
-   this environment reports zero teams, so neither can be checked from here.
-5. The mobile draw-demo bugs (Known bugs below) are open.
+4. **The CV is hidden** (owner, 2026-09-14: "shouldn't be public facing yet").
+   Removed from `masthead.links` and `references.items`; its URL stays below.
+   The Drive doc itself is still shared "anyone with the link".
+5. **The desk field becomes a night sky** (owner, 2026-09-14): a slowly
+   rotating star field meant to merge the paper and NASA aesthetics. In
+   brainstorming; replaces `DeskField`'s flow field.
 6. Much later: a third headliner demo, a **live network-security honeypot**
    (exposed Pi, malicious ssh/https logged, LLM-categorized into a live UMAP
    of attack families). Needs a live-data seam the static site doesn't have;
@@ -139,7 +141,7 @@ and the owner's SOP tell one story.
   the flight blips, ResNet-UNet's dotted curve, **link-blue = hyperlinks** and
   ViT-DPT where it appears. The spec-era "red marks the x0 finding" rule is
   dead; the spec file records history, this file records now.
-- The UNDER REVIEW stamp doubles as the `/lab` link; the dotted-underlined
+- The paper-status stamp doubles as the `/lab` link; the dotted-underlined
   "pending additional materials" sub-line carries the affordance.
 - v1's draw-demo bugs survived the re-chrome where the code path survived
   (see Known bugs) — they are open on the live site.
@@ -156,8 +158,11 @@ publication.
 
 - **First-author paper**: "Bootstrapping surgeon labeling campaigns with
   x0-diffusion: label-efficient vessel segmentation of catheter-based angiograms"
-  (Ranjan, Dev, Gonzalez). **Under review at JAMIA** — say exactly that, never
-  "published". arXiv preprint from ~2026-09-18. The numbers: **Dice 0.882 at 16
+  (Ranjan, Dev, Gonzalez). **IN PREPARATION** (owner correction, 2026-09-14:
+  the site said "under review at JAMIA" from launch until then, and that was
+  wrong). Say "in preparation" and name no journal; never "under review" or
+  "published" until the owner says the status changed. arXiv preprint from
+  ~2026-09-18 (owner: still on track). The numbers: **Dice 0.882 at 16
   labels, beating all five baselines in all 25 paired runs; ~75% measured surgeon
   correction-time speedup; the claim is label efficiency, not peak accuracy.**
   (v1's "80% Dice at 19 images" was an older result. Do not reuse it.)
@@ -165,26 +170,42 @@ publication.
   **oral**, August 11 2026, Cincinnati. 15 authors, Neelay 14th — cite as
   "F. Perez, J. Morisaki, H. Kanakri, M. Rizkalla, et al. (incl. N. Ranjan), IEEE
   MWSCAS 2026 (oral)". Don't claim IEEE Xplore indexing until confirmed.
+  **Title, per the resume (owner call 2026-09-14): "Helical Antenna for
+  Electromagnetic Field Stimulation in Alzheimer's Disease Therapy"**; the
+  site used to call this project the "MRI birdcage coil".
 - **Education**: B.S. Artificial Intelligence, Purdue (Indianapolis campus),
   Intelligent Control & Systems concentration, math minor, John Martinson Honors
-  College, GPA ~3.7. **On leave Fall 2026 for NASA; returns January 2027;
-  graduates May 2027.** (Not December 2026 — that's the stale file.)
-- **NASA Ames is three engagements, presented as one arc**: Summer 2026 (SLAAC,
+  College, Dean's List, GPA 3.68 (all per the live resume, 2026-09-14).
+  **On leave Fall 2026 for NASA (the site says "gap semester", owner's
+  wording); returns January 2027; graduates May 2027.** Rendered as its own
+  Experience row on an amber "gap semester" lamp (owner call, 2026-09-14).
+- **NASA Ames is two engagements, presented as one arc**: Summer 2026 (SLAAC,
   space-launch/airspace coordination, Dr. Kapil Sheth) · Fall 2026, Aug 24–Dec 4
   (synthetic text-to-ATC-speech dataset; ATC speech→text→database pipeline,
-  Stephen Clarke) · Summer 2027 (lunar digital twin, accepted, involves diffusion).
+  Stephen Clarke). **The Summer 2027 lunar digital twin is DROPPED** (owner,
+  2026-09-14: no longer pursuing it); never mention it again.
+- **The flight-day transformer (Figure 3) is the owner's own work**, trained
+  from scratch (owner, 2026-09-14). Resume wording: a custom LLM with a novel
+  token vocabulary that "speaks" filed flight plans, synthesizing ~44,000
+  flights matched to historical density, for capacity and safety studies of US
+  airspace failure modes; the owner adds it is being used at NASA to justify
+  real changes and projects. Too slow to run live in the browser.
 - Also real and usable: **Regenstrief** (Feb 2024 →; x0-diffusion vessel
   segmentation, synthetic angiogram pipeline, img2img CLIP for vessel locality;
   Dr. Andrew Gonzalez, Shantanu Dev) · **Davinci Wearables** (2025; agentic vLLM
   nutritional estimation from meal photos, <15% error) · **V2X aircraft-maintenance
-  LLM lead** (two-stage RAG; hallucinations ~40% → ~5%) · **MRI birdcage**
-  embedded/PCB team lead · the **chess EBM + solar Pi device** (v2 of a lost ESP32
+  LLM lead** (two-stage RAG; hallucinations ~40% → ~5%) · **the MWSCAS
+  helical stimulation antenna** embedded/PCB team lead · the **chess EBM + solar Pi device** (v2 of a lost ESP32
   build; now stronger than its author).
 - **Chess Elo phrasing stays honest**: "roughly 1900–2200 vs Stockfish's limited
-  modes", never 2300+ flat. Quantization cost ≈ 0 (-14 ±59 Elo).
+  modes", never 2300+ flat. Quantization cost ≈ 0 (-14 ±59 Elo). The copy's
+  "The Pi gets through its 500 sims in about 2 seconds" is CONFIRMED by the
+  owner (2026-09-14; "runs even faster on desktop"). ⚠️ The live resume says
+  "RaspPi 2W (~1s / move)"; the owner ruled (2026-09-14) the site says
+  **Raspberry Pi Zero 2 W**, not "Pi 4".
 - **Links** (footer set is data-driven; Google Scholar joins after the preprint):
   - Resume: https://docs.google.com/document/d/1Du0NEDaov2tRzY-tWbuN0wrO6xk6SFDi/preview
-  - CV: https://docs.google.com/document/d/1mzXEobC6bxIV_SqX761EVrDTmsYtrbsA/preview
+  - CV (HIDDEN from the site since 2026-09-14, owner call; restore on request): https://docs.google.com/document/d/1mzXEobC6bxIV_SqX761EVrDTmsYtrbsA/preview
   - Always the `/preview` form of a Drive URL, never `/edit?usp=sharing&ouid=…`
     (`ouid` is the owner's account id; `/edit` opens editing chrome;
     `/export?format=pdf` force-downloads).
@@ -325,6 +346,10 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 - **Turbopack has served stale CSS** for hours, silently. If a CSS change appears
   to do nothing, curl the served chunk before doubting the code; `rm -rf .next`
   fixes it.
+- **Tailwind v4 can't order rem breakpoints against px ones.** `sm:` (40rem)
+  and `min-[880px]` on one element: the build emitted `sm:` LATER, so it won at
+  every desktop width (Figure 5 sat at two columns, 2026-09-14). The site's
+  breakpoint is 880px; pair it only with other `min-[Npx]` variants.
 - **`ctx.font` silently ignores CSS variables** (invalid assignments don't throw,
   they keep the old font). Anything canvas that needs the page's font must resolve
   the family via `getComputedStyle` or a DOM probe + ResizeObserver first.

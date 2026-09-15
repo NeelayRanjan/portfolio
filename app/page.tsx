@@ -72,7 +72,7 @@ export default function Home() {
         </Row>
 
         <Row>
-          <p className="text-[15px] leading-relaxed text-mut">
+          <p className="mt-8 text-[15px] leading-relaxed text-mut">
             {copy.research.nasaProse}
           </p>
         </Row>

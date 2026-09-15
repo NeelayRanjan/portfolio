@@ -5,12 +5,12 @@
  * WHY THIS EXISTS. One forward over a position's legal moves costs ~130-175ms in
  * ort-web's WASM backend, and MCTS spends one per simulation. Even a modest 48
  * simulations is ~7s of solid compute; on the main thread that is 7 seconds of
- * frozen page — no scroll, no CharField, no cursor. The search cannot live there.
+ * frozen page — no scroll, no cursor, no animation. The search cannot live there.
  *
  * The session moved here with it, rather than staying on the main thread and
  * shipping tensors across. That is the point: `postMessage` per simulation would
  * hand 30 encoded boards (~2MB) back and forth 48 times, and the ~1s of session
- * creation would still land on the main thread during the hero. Now the ONLY
+ * creation would still land on the main thread. Now the ONLY
  * things crossing the wire are a FEN going in and a ranked move list coming out.
  *
  * onnxruntime-web is imported HERE and nowhere else on the main thread's graph.

@@ -4,7 +4,7 @@ import { TrackedLink } from "@/components/manuscript/TrackedLink";
 /**
  * The bibliography: `copy.references.items` rendered as a numbered list,
  * mirroring the approved mockup's `ol.refs`. A reference with no `href`
- * (the JAMIA paper and the MWSCAS oral, both still unlinkable) renders as
+ * (the first-author paper and the MWSCAS oral, both still unlinkable) renders as
  * plain text rather than a dead or placeholder link.
  */
 export function References() {

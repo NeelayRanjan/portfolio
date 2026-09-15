@@ -45,7 +45,7 @@ Resume click queues the analytics event production would send.
 ## The pages
 
 `/` is the paper and carries ~95% of the site: masthead (name, tagline,
-abstract, the sampled author photo, the UNDER REVIEW stamp linking `/lab`),
+abstract, the sampled author photo, the paper-status stamp linking `/lab`),
 Table 1, three research figures (the label-efficiency sweep with a mask strip,
 the pannable Dice CDF, the synthetic flight-day map), the two live demos (the
 chess engine, then draw-a-digit), the experience board, references. `/lab` is
@@ -74,7 +74,7 @@ No component libraries.
 
 Vercel Web Analytics: cookieless page views from `<Analytics />` in
 `app/layout.tsx`, plus two custom events defined only in `lib/track.ts`:
-`outbound_link {label}` (Resume, CV, GitHub, ORCID, Email, references) and
+`outbound_link {label}` (Resume, GitHub, ORCID, Email, references) and
 `demo_used {demo}` (once per demo per page load, after real output). Web
 Analytics has to be enabled on the project in the Vercel dashboard. Nothing is
 recorded locally; the verify suite reads the pending `window.vaq` queue instead.

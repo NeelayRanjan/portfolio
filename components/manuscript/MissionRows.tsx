@@ -1,14 +1,16 @@
-type Status = "active" | "scheduled" | "complete" | "ongoing";
+type Status = "active" | "scheduled" | "gap semester" | "complete" | "ongoing";
 
 // Lamp color encodes state; only "active" gets the glow (a genuinely running
 // thing), matching the mockup's `.live .lamp` box-shadow. "scheduled" is
 // amber/warm with no glow (booked, not running). "complete"/"ongoing" both
 // read as settled and share the muted lamp — there's no third color for a
 // fourth state, and CLAUDE.md's red-discipline rule (this file uses none of
-// it) leaves nothing for a "the good kind of done" hue anyway.
+// it) leaves nothing for a "the good kind of done" hue anyway. "gap semester"
+// (the education row) shares amber: real, but paused, so not green.
 const LAMP_CLASS: Record<Status, string> = {
   active: "bg-ok shadow-[0_0_8px_var(--color-ok)]",
   scheduled: "bg-warm",
+  "gap semester": "bg-warm",
   complete: "bg-mut",
   ongoing: "bg-mut",
 };
@@ -18,6 +20,7 @@ const LAMP_CLASS: Record<Status, string> = {
 const STATUS_TEXT_CLASS: Record<Status, string> = {
   active: "text-ok",
   scheduled: "text-warm",
+  "gap semester": "text-warm",
   complete: "text-mut",
   ongoing: "text-mut",
 };

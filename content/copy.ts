@@ -65,7 +65,7 @@
 export const copy = {
   /** <title>, meta description, and the share-card (OG/Twitter) text. */
   meta: {
-    title: "Neelay Ranjan · Generative modeling for data-scarce, safety-critical systems",
+    title: "Neelay Ranjan · generative modeling for data-scarce, safety-critical systems",
     siteName: "neelayranjan.dev",
     /** The unfurl description. Concrete, because a share card is the one place a
      *  recruiter or admissions reader sees before deciding whether to click. */
@@ -93,8 +93,8 @@ export const copy = {
     abstract:
       "I build generative models for domains where labeled data is scarce and a " +
       "wrong prediction costs more than a missed one. My first-author paper on " +
-      "label-efficient vessel segmentation from catheter angiograms is under " +
-      "review at JAMIA. At NASA Ames I work on airspace coordination and a " +
+      "label-efficient vessel segmentation from catheter angiograms is in " +
+      "preparation. At NASA Ames I work on airspace coordination and a " +
       "synthetic dataset for air traffic control speech; at Regenstrief I trained " +
       "the diffusion model behind that paper. I also built a 553 KB chess engine; " +
       "you can play it further down this page. I'm on a gap semester from my AI " +
@@ -168,10 +168,12 @@ export const copy = {
       statusAbsent: "the model isn't deployed, so this is the photo itself",
       statusFailed: "the model didn't load",
     },
-    /** A claim, not decor: this changes when JAMIA's review resolves. The
+    /** A claim, not decor: it tracks the paper's real status (owner,
+     *  2026-09-14: in preparation, NOT yet under review; it said UNDER REVIEW
+     *  until then, which was wrong). The
      *  stamp is also the door to /lab (owner call, 2026-09-12): the sub-line
      *  below it carries the affordance and links the supplementary page. */
-    stamp: "UNDER REVIEW",
+    stamp: "IN PREPARATION",
     stampNote: "pending additional materials",
     date: "September 2026",
     links: [
@@ -179,10 +181,8 @@ export const copy = {
         label: "Resume",
         href: "https://docs.google.com/document/d/1Du0NEDaov2tRzY-tWbuN0wrO6xk6SFDi/preview",
       },
-      {
-        label: "CV",
-        href: "https://docs.google.com/document/d/1mzXEobC6bxIV_SqX761EVrDTmsYtrbsA/preview",
-      },
+      // CV hidden (owner call, 2026-09-14: not public-facing yet). Its /preview
+      // URL is in CLAUDE.md's links; restore it here and in references.items.
       { label: "GitHub", href: "https://github.com/NeelayRanjan" },
       { label: "ORCID", href: "https://orcid.org/0009-0008-9482-0160" },
       { label: "Email", href: "mailto:neelay.ranjan@outlook.com" },
@@ -195,7 +195,7 @@ export const copy = {
     cells: [
       {
         value: "0.882",
-        label: "Dice at 16 labeled angiograms, under review at JAMIA",
+        label: "Dice at 16 labeled angiograms, from my paper in preparation",
         hot: true,
       },
       { value: "25/25", label: "paired runs ahead of every baseline" },
@@ -204,7 +204,7 @@ export const copy = {
     ],
   },
 
-  /** §1 Research: the JAMIA paper, the two computed figures, the MWSCAS
+  /** §1 Research: the first-author paper, the two computed figures, the MWSCAS
    *  credit, and the NASA arc + flight-day figure. */
   research: {
     /** The section's `<h2>`, added for Task 8's page assembly. */
@@ -214,7 +214,7 @@ export const copy = {
     prose: [
       "My first-author paper, “Bootstrapping surgeon labeling campaigns with " +
         "x0-diffusion: label-efficient vessel segmentation of catheter-based " +
-        "angiograms,” is under review at JAMIA (with Shantanu Dev and Andrew " +
+        "angiograms,” is in preparation (with Shantanu Dev and Andrew " +
         "Gonzalez at Regenstrief Institute). I trained a diffusion model to predict " +
         "the clean segmentation mask directly instead of predicting the noise, so " +
         "it reaches 0.882 Dice from 16 labels, ahead of five baselines in 25 " +
@@ -338,28 +338,28 @@ export const copy = {
      *  separate so the citation can stay a literal, checkable string. */
     mwscas: {
       prose:
-        "I also led the PCB design team for an MRI birdcage coil; we presented it as an oral at IEEE MWSCAS 2026 in Cincinnati on August 11.",
+        "I also led the PCB design team for a helical antenna for electromagnetic field stimulation in Alzheimer’s disease therapy; we presented it as an oral at IEEE MWSCAS 2026 in Cincinnati on August 11.",
       citation:
-        "F. Perez, J. Morisaki, H. Kanakri, M. Rizkalla, et al. (incl. N. Ranjan), IEEE MWSCAS 2026 (oral).",
+        "F. Perez, J. Morisaki, H. Kanakri, M. Rizkalla, et al. (incl. N. Ranjan), “Helical Antenna for Electromagnetic Field Stimulation in Alzheimer’s Disease Therapy,” IEEE MWSCAS 2026 (oral).",
     },
     /** NASA block: the three-engagement arc, presented as one, plus the
      *  SLAAC poster's real numbers. */
     nasaProse:
-      "My NASA Ames work is three engagements: SLAAC, space-launch and airspace coordination, with Dr. Kapil Sheth in summer 2026; a synthetic text-to-speech-to-database pipeline for air traffic control speech with Stephen Clarke this fall; and a lunar digital twin in summer 2027, already accepted, that involves diffusion. The SLAAC poster's numbers: 98–99% clear the 25 nm buffer, +1.1% median added distance at infinite lookahead, and within 1.2% of geometric optimum.",
+      "My NASA Ames work is two engagements: SLAAC, space-launch and airspace coordination, with Dr. Kapil Sheth in summer 2026, and a synthetic text-to-speech-to-database pipeline for air traffic control speech with Stephen Clarke this fall. The SLAAC poster's numbers: 98–99% clear the 25 nm buffer, +1.1% median added distance at infinite lookahead, and within 1.2% of geometric optimum.",
     /** Figure 3 — the flight-plan synthesis video. Carried over unchanged,
      *  renamed from `flight`. */
     figFlight: {
       caption:
-        "A trained transformer’s synthesis of a full day of FAA flight plans: roughly 44,000 flights, the density of a real day of traffic. Every path in this clip is synthetic; none of it is recorded ATC data.",
+        "A transformer I trained from scratch on its own flight-plan vocabulary, writing a full day of FAA flight plans: roughly 44,000 flights, matched to the density of a real day of traffic. Its output feeds NASA capacity and safety studies of US airspace failure modes. Every path in this clip is synthetic; none of it is recorded ATC data.",
       videoAria:
-        "A trained transformer’s synthesis of a day of FAA flight plans, looping video",
+        "A day of FAA flight plans synthesized by a transformer I trained, looping video",
     },
     /** Short margin notes (rail `Note`s) beside the research figures: data
      *  provenance and a claims caveat, distinct from `scopeNote` above. */
     noteBars: [
       {
         tag: "data",
-        body: "Figure 1 pools the paper's own metrics export: 2,500 per-image predictions behind every point. The frames in Figure 2 come from the public pelvic-iliac benchmark, so publishing them is clean.",
+        body: "Figure 1 pools the paper's own metrics export: 2,500 per-image predictions behind every point. The angiograms in Figures 1 and 2 come from the public pelvic-iliac benchmark, so publishing them is clean.",
       },
       {
         tag: "credit",
@@ -382,7 +382,7 @@ export const copy = {
       /** New for the manuscript chrome: v1's panel had no caption, so this one
        *  is drafted rather than carried over. */
       figureCaption:
-        "A diffusion model dissolving your handwriting into static and pulling a cleaner digit back out, running its real 26MB weights on your device. Draw in the left box; the middle panel is the sample as it computes, and the right one is the model’s running guess at the finished digit.",
+        "A diffusion model dissolving your handwriting into static and pulling a cleaner digit back out, running its real 26MB weights on your device. Draw in the first box; the second shows the sample as it computes, and the third is the model’s running guess at the finished digit.",
       statusFetching: "fetching weights…",
       statusReady: "ready",
       statusDraw: "draw to load",
@@ -462,7 +462,7 @@ export const copy = {
       viewSaw: "what it saw",
       heading: "Energy-based modeling over board states",
       lede: {
-        a: "A 469K-parameter convolutional energy-based model. It scores resulting positions rather than proposing moves: every legal move is played out, the batch ranked in one forward pass, and the lowest-energy position wins. Trained on about 30M positions from Lichess games where both sides were rated 1800+, then run under AlphaZero-style MCTS on a Raspberry Pi 4 for real-time play, roughly 1900–2200 Elo against Stockfish’s limited modes.",
+        a: "A 469K-parameter convolutional energy-based model. It scores resulting positions rather than proposing moves: every legal move is played out, the batch ranked in one forward pass, and the lowest-energy position wins. Trained on about 30M positions from Lichess games where both sides were rated 1800+, then run under AlphaZero-style MCTS on a Raspberry Pi Zero 2 W for real-time play, roughly 1900–2200 Elo against Stockfish’s limited modes.",
         b: "Two findings from the on-device work: int8 quantization cost close to nothing (-14 ±59 Elo), and on the Pi’s ARM cores fp32 runs faster than int8, so the deployed engine ships fp32. This page runs the 553 KB int8 file in your browser, by default as the bare network with no search. MCTS runs ~500 sequential forward passes a move, too slow to be the default here, so out of the box you’re a few hundred Elo below the full engine.",
       },
       activationsLede:
@@ -558,12 +558,12 @@ export const copy = {
     heading: "Experience",
     /** Figure 6's caption: the one instrument figure that wraps `MissionRows`. */
     figureCaption:
-      "Five roles since 2024, most recent first. The lamp is real state, not decoration: green means active now.",
+      "Five roles since 2024 and my degree, current work first. The lamp is real state, not decoration: green means active now, and amber means paused until January.",
     rows: [
       {
-        when: "2026–2027",
+        when: "2026",
         who: "NASA Ames Research Center",
-        what: "SLAAC airspace coordination, a synthetic ATC speech pipeline, and a lunar digital twin next summer.",
+        what: "SLAAC airspace coordination and a synthetic ATC speech pipeline.",
         status: "active",
       },
       {
@@ -573,9 +573,18 @@ export const copy = {
         status: "active",
       },
       {
+        /** Facts from the live resume (2026-09-14). The status word is the
+         *  abstract's own "gap semester" (owner's wording), on the amber lamp:
+         *  enrolled but not in classes this fall, so "active" would be false. */
+        when: "expected May 2027",
+        who: "Purdue University",
+        what: "B.S. in Artificial Intelligence, Intelligent Control & Systems concentration, math minor. John Martinson Honors College, Dean’s List, 3.68 GPA.",
+        status: "gap semester",
+      },
+      {
         when: "2026",
-        who: "MRI birdcage coil",
-        what: "Led the embedded and PCB team; presented as an oral at IEEE MWSCAS 2026.",
+        who: "Alzheimer’s stimulation antenna",
+        what: "Led the embedded and PCB team on a helical antenna for electromagnetic field stimulation; presented as an oral at IEEE MWSCAS 2026.",
         status: "complete",
       },
       {
@@ -600,22 +609,19 @@ export const copy = {
     items: [
       {
         label:
-          "Bootstrapping surgeon labeling campaigns with x0-diffusion (under review at JAMIA)",
+          "Bootstrapping surgeon labeling campaigns with x0-diffusion (in preparation)",
         href: "",
       },
       {
         label:
-          "F. Perez, J. Morisaki, H. Kanakri, M. Rizkalla, et al. (incl. N. Ranjan), IEEE MWSCAS 2026 (oral)",
+          "F. Perez, J. Morisaki, H. Kanakri, M. Rizkalla, et al. (incl. N. Ranjan), “Helical Antenna for Electromagnetic Field Stimulation in Alzheimer’s Disease Therapy,” IEEE MWSCAS 2026 (oral)",
         href: "",
       },
       {
         label: "Resume",
         href: "https://docs.google.com/document/d/1Du0NEDaov2tRzY-tWbuN0wrO6xk6SFDi/preview",
       },
-      {
-        label: "CV",
-        href: "https://docs.google.com/document/d/1mzXEobC6bxIV_SqX761EVrDTmsYtrbsA/preview",
-      },
+      // CV hidden with the masthead's (see masthead.links).
       { label: "GitHub", href: "https://github.com/NeelayRanjan" },
       { label: "ORCID", href: "https://orcid.org/0009-0008-9482-0160" },
       { label: "LinkedIn", href: "https://linkedin.com/in/neelayranjan" },

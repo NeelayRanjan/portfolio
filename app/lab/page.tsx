@@ -35,7 +35,7 @@ export default function LabPage() {
         </Link>
 
         <h1 className="mt-6 mb-4 text-[22px] font-semibold text-ink">{copy.lab.heading}</h1>
-        <p className="max-w-2xl text-[15px] leading-relaxed text-mut">{copy.lab.intro}</p>
+        <p className="mb-6 max-w-2xl text-[15px] leading-relaxed text-mut">{copy.lab.intro}</p>
 
         {/*
          * Each figure component renders its own `sXIntro` framing paragraph

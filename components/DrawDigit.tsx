@@ -671,7 +671,18 @@ export function DrawDigit() {
       </div>
 
 
-      <div className="flex flex-wrap items-start gap-6">
+      {/*
+       * Three equal columns from 880px, two from sm, one below. A flex-wrap
+       * row of fixed 280px panels needs 888px, and the figure only has ~846px
+       * inside it at the sheet's full width, so the x̂₀ panel used to wrap
+       * under the canvas at EVERY desktop size. The panels are fluid up to
+       * 280px now; the pen is a fraction of canvas width, so a narrower box
+       * draws the same stroke. ⚠️ Both breakpoints are px on purpose: Tailwind
+       * v4 can't order a rem variant (`sm:` = 40rem) against a px one, emitted
+       * `sm:grid-cols-2` AFTER `min-[880px]:grid-cols-3`, and two columns won
+       * at every desktop width (measured in the built CSS, 2026-09-14).
+       */}
+      <div className="grid items-start gap-6 min-[640px]:grid-cols-2 min-[880px]:grid-cols-3">
         <figure>
           <canvas
             ref={canvasRef}
@@ -681,17 +692,17 @@ export function DrawDigit() {
             onPointerCancel={onUp}
             // touch-none or a touch drag scrolls the page instead of
             // drawing. Safe here: a small box, not the full-width hero.
-            className="aspect-square w-[280px] max-w-full cursor-crosshair touch-none border border-rule"
+            className="aspect-square w-full max-w-[280px] cursor-crosshair touch-none border border-rule"
             aria-label={`${copy.systems.draw.canvasAria} ${digit}`}
             role="img"
           />
-          <figcaption className="mt-4 w-[280px] max-w-full font-mono text-[11px] leading-relaxed text-mut/60">
+          <figcaption className="mt-4 w-full max-w-[280px] font-mono text-[11px] leading-relaxed text-mut/60">
             {copy.systems.draw.canvasCaption}
           </figcaption>
         </figure>
 
         <figure>
-          <div className="flex aspect-square w-[280px] max-w-full items-center justify-center overflow-hidden border border-rule">
+          <div className="flex aspect-square w-full max-w-[280px] items-center justify-center overflow-hidden border border-rule">
             {frame ? (
               // xt, not x0: xt IS the effect — drawing, then static, then
               // digit. x0 during the dissolve is just the drawing held
@@ -711,7 +722,7 @@ export function DrawDigit() {
               </span>
             )}
           </div>
-          <figcaption className="mt-4 w-[280px] max-w-full font-mono text-[11px] leading-relaxed text-mut/60">
+          <figcaption className="mt-4 w-full max-w-[280px] font-mono text-[11px] leading-relaxed text-mut/60">
             {frame ? (
               <>
                 <span className={frame.phase === "dissolve" ? "text-ink" : "text-ok"}>
@@ -740,7 +751,7 @@ export function DrawDigit() {
          * begins, which is the model switching on, visibly.
          */}
         <figure>
-          <div className="flex aspect-square w-[280px] max-w-full items-center justify-center overflow-hidden border border-rule">
+          <div className="flex aspect-square w-full max-w-[280px] items-center justify-center overflow-hidden border border-rule">
             {frame ? (
               <PixelGrid
                 data={frame.x0}
@@ -753,7 +764,7 @@ export function DrawDigit() {
               </span>
             )}
           </div>
-          <figcaption className="mt-4 w-[280px] max-w-full font-mono text-[11px] leading-relaxed text-mut/60">
+          <figcaption className="mt-4 w-full max-w-[280px] font-mono text-[11px] leading-relaxed text-mut/60">
             {frame ? (
               <>
                 <span className="text-ink">{copy.systems.draw.x0Label}</span>

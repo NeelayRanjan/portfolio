@@ -1,8 +1,10 @@
 /**
- * Warm heavy assets during the hero's boot beat, so the demos are ready before
- * the visitor scrolls to them instead of booting under a progress line.
+ * Warm heavy assets in the first idle window after first paint, so the demos
+ * are ready before the visitor scrolls to them instead of loading on arrival.
  *
- * WHAT IS ACTUALLY WORTH WARMING — measured in the browser, not guessed:
+ * WHAT IS ACTUALLY WORTH WARMING — measured in the browser on v1's single-page
+ * layout, not guessed (the trajectory JSONs have since moved to /lab, so
+ * page one no longer carries them at all; the ORT finding is unchanged):
  *
  *   page load, hero only     3.63 MB   diffusion_traj.json + ascii_traj.json
  *   reaching #chess         25.01 MB   of which onnxruntime-web is 24.44 MB
@@ -12,7 +14,7 @@
  *
  * 1. The trajectory JSONs need no help. The first section sits inside the
  *    viewport at load on every size checked, so its IntersectionObserver fires
- *    immediately and the 3.63MB is already in flight while the hero types.
+ *    immediately and the 3.63MB was already in flight on arrival.
  *    Warming them would be a no-op. This file does not bother.
  *
  * 2. The whole cost is the ORT runtime: 24.44 MB, and it is shared by BOTH model
@@ -78,8 +80,7 @@ function whenIdle(cb: () => void) {
 }
 
 /**
- * Fire-and-forget. Deliberately not awaited and deliberately not chained to the
- * typing: the two are parallel, and the typing is only cover.
+ * Fire-and-forget. Deliberately not awaited: nothing on the page waits on it.
  */
 export function warmBackground(): void {
   if (started) return;
@@ -87,8 +88,8 @@ export function warmBackground(): void {
   if (!affordable()) return;
 
   // Idle, not immediate. Creating the session costs ~1s of CPU (measured: int8
-  // load 964ms), and spending it during the hero would stutter the swarm — which
-  // is the one thing on this page that cannot pause. The point is to be ready
+  // load 964ms), and spending it during first paint would stutter the masthead
+  // and the desk field. The point is to be ready
   // before the visitor scrolls, not to be ready one second sooner.
   whenIdle(() => {
     // The real loader, not a raw fetch of the same URL. Every loader here is a

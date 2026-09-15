@@ -45,7 +45,7 @@ let unloading: Promise<void> | null = null;
  */
 export function loadDrawModel(): Promise<AsciiDiffusion | null> {
   if (cache) return cache;
-  cache = (async () => {
+  const p: Promise<AsciiDiffusion | null> = (async () => {
     // See `unloading`'s doc comment: a session still being released must
     // finish before this one starts building a new one.
     if (unloading) await unloading.catch(() => {});
@@ -77,10 +77,16 @@ export function loadDrawModel(): Promise<AsciiDiffusion | null> {
     // providers: WebGPU where available, wasm everywhere else.
     return AD.load(MODEL_URL, { ort, executionProviders: ["webgpu", "wasm"] });
   })().catch((err) => {
-    cache = null; // let a later attempt retry rather than caching the failure
+    // Identity guard: an older failed load must not wipe a newer `cache` a
+    // stargaze round trip has since installed. Without this, that newer
+    // load's session (or worker) is never released by unloadDrawModel, which
+    // finds `cache === null` and does nothing, and the next load builds a
+    // second one alongside it.
+    if (cache === p) cache = null; // let a later attempt retry rather than caching the failure
     throw err;
   });
-  return cache;
+  cache = p;
+  return p;
 }
 
 /**

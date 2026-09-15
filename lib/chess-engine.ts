@@ -55,7 +55,7 @@ let cache: Promise<ChessEngine | null> | null = null;
 /** Resolves null if the weights aren't deployed — the UI gates on that. */
 export function loadChessEngine(): Promise<ChessEngine | null> {
   if (cache) return cache;
-  cache = (async () => {
+  const p: Promise<ChessEngine | null> = (async () => {
     // Turbopack resolves this form at build time and emits the worker as its own
     // chunk graph, loaded via its `turbopack-worker-[client-fs]` shim. It must
     // stay a literal `new URL(..., import.meta.url)`: hand it a variable and the
@@ -144,10 +144,16 @@ export function loadChessEngine(): Promise<ChessEngine | null> {
     };
     return engine;
   })().catch((err) => {
-    cache = null;
+    // Identity guard: an older failed load must not wipe a newer `cache` a
+    // stargaze round trip has since installed. Without this, that newer
+    // load's worker is never terminated by unloadChessEngine, which finds
+    // `cache === null` and does nothing, and the next load spins up a second
+    // worker alongside it.
+    if (cache === p) cache = null;
     throw err;
   });
-  return cache;
+  cache = p;
+  return p;
 }
 
 /**

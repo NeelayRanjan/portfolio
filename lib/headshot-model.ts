@@ -157,7 +157,7 @@ function wantsPrimary(): boolean {
  */
 export function loadHeadshotModel(): Promise<HeadshotModel | null> {
   if (cache) return cache;
-  cache = (async () => {
+  const p: Promise<HeadshotModel | null> = (async () => {
     // See `unloading`'s doc comment: a session still being released must
     // finish before this one starts building a new one.
     if (unloading) await unloading.catch(() => {});
@@ -249,10 +249,16 @@ export function loadHeadshotModel(): Promise<HeadshotModel | null> {
     }
     return null;
   })().catch((err) => {
-    cache = null; // let a later press retry rather than caching the failure
+    // Identity guard: an older failed load must not wipe a newer `cache` a
+    // stargaze round trip has since installed. Without this, that newer
+    // load's session is never released by unloadHeadshotModel, which finds
+    // `cache === null` and does nothing, and the next load builds a second
+    // one alongside it.
+    if (cache === p) cache = null; // let a later press retry rather than caching the failure
     throw err;
   });
-  return cache;
+  cache = p;
+  return p;
 }
 
 /**

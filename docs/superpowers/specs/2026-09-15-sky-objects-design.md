@@ -4,6 +4,12 @@ Date: 2026-09-15 · Status: implemented (plan docs/superpowers/plans/2026-09-15-
 Builds on: `docs/superpowers/specs/2026-09-14-night-sky-design.md` (shipped to main locally at f15f3a1; its contracts stand unless this spec changes them).
 Binding context: CLAUDE.md (Constitution, Voice, traps), including its "Night sky + stargaze" section.
 
+> **Status note (2026-09-15, after the final whole-branch review).** Two places where what shipped differs from the text below:
+> - **The pole shipped margin-based, per Ruling P1**, not at the fixed `(0.16·W, 0.18·H)` / `(0.22·W, 0.10·H)` of §2: at `(leftMargin / 2, 0.18·H)` whenever the sheet's left margin is at least 72px, else `(0.22·W, 28)`. CLAUDE.md's "Night sky + stargaze" section has the exact rule and its measurements.
+> - **Voyager 2 is never drawn.** Its declination (−59.8°) is south of the chart's −35° farthest-corner edge at every width and LST. It keeps its Horizons position in `objects.json` and its fact in `content/sky-facts.ts`.
+>
+> The same review also changed §6's card behaviour: a card no longer closes when its subject leaves the viewport (it stays open and says the subject is out of view), names are hit targets, and a hidden keyboard list reaches every card. CLAUDE.md records the current contracts.
+
 ## 1. Owner decisions (2026-09-15)
 
 - **Polaris moves to the top left.** The pole stops hiding behind the page (the owner found it odd).

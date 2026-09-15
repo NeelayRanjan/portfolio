@@ -31,7 +31,7 @@ build time.
 ### Verify before believing
 
 ```bash
-node scripts/verify-redesign.mjs           # all 27 checks, against npm start on :3000
+node scripts/verify-redesign.mjs           # all 29 checks, against npm start on :3000
 node scripts/verify-redesign.mjs chess cdf # any check-name substrings run a subset
 node scripts/verify-headshot-256.mjs       # hand-run: the 256 headshot + morph, in node
 node scripts/check-voice.mjs               # copy.ts + sky-facts.ts voice gate (banned words, em-dashes)
@@ -55,11 +55,13 @@ Every page shares a real star chart of the sky over NASA Ames turning slowly
 behind the paper: drag it to pan (it springs back on release), hover a star,
 object or line for a one-liner, and a "stargaze for a bit?" button hides the
 page and gives the sky the screen, where deep-sky objects, named stars,
-meteor radiants, the Voyagers and the live ISS all draw from real data and
-open a sourced, cited card on click or tap (the models in flight get
+meteor radiants, Voyager 1 and the live ISS all draw from real data and
+open a sourced, cited card on a click (a symbol or its name), a tap (a
+symbol), or Enter in a hidden keyboard list (Voyager 2 keeps its data but sits
+south of the chart's edge) (the models in flight get
 cancelled and offloaded, never faked as finished). The ISS's position comes
 from a same-origin, server-cached route (`app/api/iss-tle`) that fetches a
-CelesTrak TLE at most once every two hours, so a visitor's browser never
+CelesTrak TLE at most once every two hours (plus once per build), so a visitor's browser never
 talks to a third party and the ISS simply doesn't draw if that fetch ever
 fails. `/` is the paper and carries ~95% of the site:
 masthead (name, tagline, abstract, the sampled author photo, the paper-status

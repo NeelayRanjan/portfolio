@@ -81,7 +81,7 @@ honest limit: the main-thread ORT wasm heap never actually shrinks, only the
 chess worker's termination truly frees memory. `window.__sky` and
 `window.__offload` are verify hooks, not UI.
 
-**Verification: `scripts/verify-redesign.mjs`** — 27 named checks,
+**Verification: `scripts/verify-redesign.mjs`** — 29 named checks,
 Playwright-Firefox against a real `npm run build && npm start` on :3000, never
 the dev server; pass check-name substrings as args to run subsets. Covers the
 night sky (turning at 1280px with a measured median frame draw around 2.7-3.2ms
@@ -93,18 +93,33 @@ margin-based pole; hovering brightening a constellation and naming it clear
 of the sheet, with the hovered or selected symbol's own always-on name
 suppressed), **`sky-drag`** (dragging the margin slides `window.__sky.offset`,
 release springs it home inside 1.5s, a drag starting on the sheet never pans,
-reduced motion snaps back instead of springing), **`sky-objects`** (Andromeda
+reduced motion snaps back instead of springing, a window blur ends a held
+drag), **`sky-objects`** (Andromeda
 and the galactic core each hold real pixels at an instant the check finds for
 that body alone, since the two are never both on screen on a shared canvas at
 once; an active meteor radiant only inside its window; the objects layer's
 absence still leaves the rest of the sky drawn), **`stargaze-card`** (clicking
 a selectable in stargaze opens a sourced card with a title, a kind line and at
-least one citation link; Escape closes the card before it reaches the
-stargaze-exit handler, a second Escape exits; a drag never opens a card; the
-card follows its subject and closes when the subject leaves the viewport),
+least one citation link; clicking the middle of an object's drawn name, 20px+
+from its symbol, opens that object's card, and the Milky Way's label box opens
+its card; Escape closes the card before it reaches the stargaze-exit handler,
+a second Escape exits; a drag never opens a card; the card follows its subject
+during a drag; a subject dragged past the viewport edge leaves its card OPEN
+with the out-of-view line, which clears when the subject snaps back),
+**`stargaze-keyboard-list`** (every drawn hit and some constellations are
+buttons named "title, kind" in a stable sorted order; Tab from the exit
+control reaches the first, which rings its subject; Enter opens its card with
+focus inside; Escape returns focus to that button),
+**`stargaze-touch-400`** (touch emulated: the touch hint; a tap 18px from a
+symbol opens its card while a mouse click at the same point doesn't; the
+docked phone card is at most 60% of the viewport tall with no text under
+12px; the Milky Way has no canvas hit but is in the keyboard list),
 **`sky-iss`** (with the TLE route intercepted to a fixed reply, the ISS marker
 draws and its card opens with live altitude/speed/epoch; with the route
-returning `{ tle: null }`, no ISS and no console error), stargaze mode
+returning `{ tle: null }`, no ISS and no console error; every OTHER check
+gets `{ tle: null }` from `withPage` by default, since the route is
+prerendered at build time and its TLE would otherwise draw an ISS into any
+pinned instant within 7 days of the build), stargaze mode
 (hiding the page with `inert` and firing no page-content fetch; offloading
 the chess worker and the draw/headshot sessions; cancelling a run in flight
 without ever showing it as a failure or counting `demo_used`; surviving
@@ -168,12 +183,14 @@ left margin whenever that margin is at least 72px wide, else near the top of
 a narrow one); dragging the desk (or, in stargaze mode, dragging anywhere)
 slides the whole chart with a rubber-banded limit and springs back home on
 release. Ten Messier favourites, the galactic core, the Kepler field, the
-Hubble Deep Field, both Voyagers, 15 named bright stars, active meteor
-radiants and the live ISS all draw from real data (`public/sky/objects.json`,
+Hubble Deep Field, Voyager 1, 15 named bright stars, active meteor
+radiants and the live ISS all draw from real data (Voyager 2 has its data
+and card fact but never draws: dec −59.8° is south of the chart edge) (`public/sky/objects.json`,
 `public/sky/milkyway.json`, `scripts/prepare-sky-objects.mjs`); the Milky
 Way band itself draws as a faint low-alpha glow beneath everything.
 Hovering any of it in normal mode adds a one-liner to the existing label;
-clicking or tapping it in stargaze mode opens a sourced card (constellation
+clicking a symbol or its drawn name (or tapping a symbol) in stargaze mode,
+or pressing Enter on its button in the hidden keyboard list, opens a sourced card (constellation
 mythology and origin, deep-sky facts, planet and Moon name origins, shower
 windows, spacecraft positions, the ISS's live look angles), all fed from one
 new content file, `content/sky-facts.ts`. See "Night sky + stargaze" below
@@ -417,7 +434,9 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   cache keeps revalidating instead of getting stuck on a hard failure; the
   client (`lib/sky-iss.ts`) treats a null TLE as "no ISS today", not an
   error. A visitor's browser never talks to CelesTrak directly, and CelesTrak
-  sees this deployment at most once per two hours (their own fair-use ask).
+  sees this deployment at most once per two hours (their own fair-use ask),
+  plus once per build: preview and production builds both prerender the
+  route, and each prerender is a real fetch.
   The build lists the route as `○ /api/iss-tle 2h 1y`.
 - Deploy: Vercel, custom domain neelayranjan.dev. Repo is private
   (`NeelayRanjan/portfolio`).
@@ -641,14 +660,19 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   math): a pointer drag adds a screen-space offset to the whole chart —
   pole, stars, lines, objects, labels together. `rubberBand` bounds it past
   `PAN_LIMIT_FRAC · min(W,H)` to a fraction of further travel, never
-  unbounded; on release `springStep` (critically damped, driven by the
-  dt-scaled clock, `k = dt/16.67`) returns the offset to `(0,0)`, settling
+  unbounded; on release `springStep` (critically damped, the exact closed-form
+  solution advanced by the real elapsed ms, so frame rate can't change its
+  curve; not the `k = dt/16.67` per-frame form) returns the offset to `(0,0)`, settling
   in under 1.5s (measured: a 150x80 held drag springs home in 945-947ms).
   Reduced motion snaps the offset to `(0,0)` on release instead of
-  animating; the drag itself still works under reduced motion. The
-  animation frame gate (which normally pauses when nothing changes) is
-  lifted only while a drag or its spring is actually live, so idle CPU stays
-  near zero the rest of the time. In normal mode, touch never starts a drag
+  animating; the drag itself still works under reduced motion. The idle sky
+  keeps painting at its frame gate (~20 fps at ≥880px, ~10 fps below; it
+  turns, so it never pauses outside reduced motion or a hidden tab); a live
+  drag or spring raises that to ~60 fps (a 16ms gate less 2ms of rAF
+  jitter), never the display's full refresh rate. A drag ends on pointerup,
+  pointercancel, a mouse move with no button down, `lostpointercapture` or
+  a window blur, so it can't get stuck. In stargaze mode `body` is
+  `user-select: none` except the card and the keyboard list. In normal mode, touch never starts a drag
   (the 16px desk margins there need to scroll the page instead) and dragging
   never starts on the sheet, a link, a button, an input, or the stargaze
   controls; in stargaze mode, touch drag is enabled and the container gets
@@ -666,12 +690,20 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   the sky (stars, lines, whichever other layers did load) still draws; a
   malformed file throws, at the same "see the export bug, don't hide it"
   standard as the star catalog.
-- **Hover precedence** (normal mode): the nearest selectable symbol
-  (star/object/planet/Moon/ISS/radiant) within 12px wins over the nearest
-  constellation line segment within 24px. The label is the existing name
-  label plus a second line, the entry's `oneLiner` from `content/sky-facts.ts`
-  (constellations get their origin line instead, e.g. "One of Ptolemy's 48,
-  2nd century" or "Introduced by Lacaille, 1756"). The hover label draws on
+- **Hit precedence** (`nearestHit` in `lib/sky-render.ts`, hover and
+  stargaze clicks alike): a symbol the point is ON (within 6px) wins; then a
+  drawn name's text box containing the point (every Hit carries the box of
+  its always-on name whenever names draw, even while the name itself is
+  suppressed under a hover label); then the nearest symbol within 12px, or
+  22px for a touch pointer (`hitRadiusFor`); then the nearest constellation
+  segment within 24px. The on-symbol pass exists because names are ~80px
+  long: box-first alone made Mars unclickable under "Beehive Cluster"
+  (measured). The Milky Way is `boxOnly`: its label box on desktop, and no
+  canvas hit at all below 880px, where no names draw. The label is the
+  existing name label plus a second line, the entry's `oneLiner` from
+  `content/sky-facts.ts` (constellations get their origin line instead, e.g.
+  "One of the 48 constellations in Ptolemy’s Almagest" or "Introduced by
+  Lacaille in 1756"). The hover label draws on
   a desk-coloured backing so it never overlaps drawn sky content
   illegibly, and the hovered or selected symbol's own always-on name is
   suppressed while its hover/selection label is showing (`View.suppressName`
@@ -685,13 +717,30 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   also reaches `StargazeToggle`'s exit handler — a second, separate Escape
   press is what exits stargaze. The card follows its subject every frame as
   the sky turns and while dragging (`followCard`, clamped to the viewport,
-  offset from the subject so it doesn't cover it) and closes itself if the
-  subject's position leaves the viewport. Below 880px it docks to the
-  bottom as a sheet (capped at 60vh); at 880px and up it uses the available
+  offset from the subject so it doesn't cover it). **Only the visitor closes
+  a card** (final review, 2026-09-15): when the subject leaves the viewport
+  (the ISS at 180x does within seconds) the card stops following, stays
+  where it was, re-clamped, and shows `copy.stargaze.card.outOfView` in a
+  polite live region until the subject returns; a constellation counts as in
+  view while any segment crosses the viewport. Below 880px it docks to the
+  bottom as a sheet (capped at 60dvh, no text under 12px); at 880px and up it uses the available
   viewport height (`calc(100vh - 32px)`) with a scroll fade rather than a
   fixed height, since card content length varies a lot (a one-citation
   planet card vs. a three-citation constellation mythology card). Opening a
-  card moves focus into it; closing returns focus to `[data-stargaze-exit]`.
+  card moves focus into it. Closing moves focus only if it was inside the
+  card (back to the keyboard-list button that opened it, else
+  `[data-stargaze-exit]`), or on an Escape with focus on nothing (the body,
+  after a mouse drag blurred the card); a click on empty sky never yanks it.
+- **The stargaze keyboard list** (NightSky, portalled into
+  `[data-sky-list-slot]`, which `StargazeToggle` renders right after the exit
+  control): the canvas is `aria-hidden`, so this `sr-only` group of buttons,
+  named "title, kind", is how keyboard and screen-reader visitors open cards.
+  It holds every current Hit, the Milky Way when its label point is on
+  screen, and every constellation with a segment in view; refreshed every
+  2s, re-rendered only when the set changes, sorted by label (symbols, then
+  constellations) so entries coming and going never reorder the rest, and a
+  focused button is kept even if its subject leaves. Focusing a button sets
+  the hover highlight, so the canvas rings the subject.
   The open effect is keyed on `card?.id`, not on the card object's identity,
   because the ISS's card rebuilds a fresh object every second to carry its
   live look angles — keying on identity would steal focus back every second

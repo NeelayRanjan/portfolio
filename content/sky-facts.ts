@@ -1495,7 +1495,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
       "Mensa commemorates Table Mountain near Cape Town, where Lacaille catalogued the southern stars in 1751–52.",
       "Part of the Large Magellanic Cloud lies in it, capping it with a white cloud like the one sometimes seen over the real mountain.",
     ],
-    visibility: "Naked eye, but faint: the faintest of all the 88 constellations",
+    visibility: "Naked eye, but faint: the dimmest of the 88",
     citations: [starTales("mensa", "Mensa", "2026-09-15"), IAU_TABLE, SKYWATCHING],
   },
   {

@@ -177,7 +177,10 @@ clicking or tapping it in stargaze mode opens a sourced card (constellation
 mythology and origin, deep-sky facts, planet and Moon name origins, shower
 windows, spacecraft positions, the ISS's live look angles), all fed from one
 new content file, `content/sky-facts.ts`. See "Night sky + stargaze" below
-for the contracts.
+for the contracts. JPL Horizons was down during the build session, so the
+Voyager rows first shipped from the recorded fallback; the generator was
+re-run live on 2026-09-15 (`source.horizons.mode: "live"`), and the live
+rows matched the recorded ones to every stored digit.
 
 **Open items, roughly in order:**
 1. **The moved pole hasn't been judged by the owner yet.** `sky-objects` is
@@ -185,13 +188,7 @@ for the contracts.
    position at 1280-1440px (the margin-based rule's low end, where it sits
    closest to the sheet) and the drag feel and docked card on a real phone
    are still pending an owner pass, not just the Playwright suite.
-2. **JPL Horizons was down for the whole `sky-objects` session** (2026-09-15).
-   `scripts/prepare-sky-objects.mjs` fell back to Voyager 1/2 rows recorded
-   live at 2026-09-15 00:00 UT; `objects.json`'s `source.horizons.mode` reads
-   `"recorded"`, not `"live"`. Re-run the generator once Horizons answers
-   again and confirm `mode` flips to `"live"`; the recorded rows stay valid
-   (Horizons API, not a fabricated number) until then.
-3. **The mobile draw-demo crash got worse** (owner, 2026-09-14, iPhone 17 Pro):
+2. **The mobile draw-demo crash got worse** (owner, 2026-09-14, iPhone 17 Pro):
    beyond the silent reloads, repeated refreshes now land on Safari's
    crash-loop error page ("a problem repeatedly occurred"), and friends
    testing the site call the section "super buggy". The top engineering
@@ -201,18 +198,18 @@ for the contracts.
    so it stays open. Candidates that changed recently:
    phones now get the 256 headshot (viewport gate removed 2026-09-13), iOS 26
    Safari ships WebGPU, threaded wasm under COOP/COEP.
-4. **arXiv link** (~2026-09-18) swaps into the references when the preprint is
+3. **arXiv link** (~2026-09-18) swaps into the references when the preprint is
    live; the owner then creates a Google Scholar profile, which joins the
    identity links (the link list is data-driven copy).
-5. **A transition parity vector for the headshot bundle.** The morph is live on
+4. **A transition parity vector for the headshot bundle.** The morph is live on
    the site, but `test_parity.mjs` pins only the from-noise path; its
    `init+strength` case is a structural smoke (step count + finiteness), so the
    forward-noising branch is unpinned vendored math. Ask the model owner for an
    init+strength case in `vectors/`.
-6. **The CV is hidden** (owner, 2026-09-14: "shouldn't be public facing yet").
+5. **The CV is hidden** (owner, 2026-09-14: "shouldn't be public facing yet").
    Removed from `masthead.links` and `references.items`; its URL stays below.
    The Drive doc itself is still shared "anyone with the link".
-7. Much later: a third headliner demo, a **live network-security honeypot**
+6. Much later: a third headliner demo, a **live network-security honeypot**
    (exposed Pi, malicious ssh/https logged, LLM-categorized into a live UMAP
    of attack families). Needs a live-data seam the static site doesn't have;
    the systems figure column is trivially appendable when it comes.

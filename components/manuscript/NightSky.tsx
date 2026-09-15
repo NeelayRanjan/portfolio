@@ -179,9 +179,12 @@ export function NightSky() {
         sky = s;
         paint();
       })
-      .catch(() => {
+      .catch((err) => {
         // A malformed catalog is an export bug; the desk stays plain dark
-        // rather than drawing a sky that isn't the real one.
+        // rather than drawing a sky that isn't the real one. Logged on
+        // purpose (never swallowed silently): an export bug is something to
+        // see, not hide, even though there is no visitor-facing UI for it.
+        console.error("NightSky: the star catalog is malformed; the desk stays plain dark.", err);
       });
     void document.fonts?.ready.then(() => {
       if (!alive) return;

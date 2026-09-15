@@ -6,12 +6,13 @@
  * start of Table 1 — the same crop the mockup review settled on as the card's
  * "what is this" frame. A real frame of the running page, not a mockup.
  *
- * RULING: shoot under `prefers-reduced-motion`. DeskField (the one live
+ * RULING: shoot under `prefers-reduced-motion`. NightSky (the one live
  * background layer now, see CLAUDE.md's Page ambience notes / components/
- * manuscript/DeskField.tsx) paints a single static frame under reduced motion
- * and never repaints after, so the shot is deterministic run to run. Without
- * it the card would depend on exactly which mid-animation frame the shutter
- * caught.
+ * manuscript/NightSky.tsx) paints a single static frame of the real sky at
+ * the load instant under reduced motion and never repaints after (it only
+ * ever repaints again on a resize or a stargaze toggle), so the shot is
+ * deterministic run to run. Without it the card would depend on exactly
+ * which mid-animation frame the shutter caught.
  */
 import { firefox } from "playwright";
 
@@ -40,10 +41,14 @@ await page.goto("http://localhost:3000", { waitUntil: "networkidle" });
 await page.addStyleTag({
   content: "nextjs-portal, [data-nextjs-toast], #__next-build-watcher { display: none !important; }",
 });
-// DeskField's reduced-motion path paints once in its mount effect; give it
-// (and web fonts) a beat to settle before the shutter.
+// NightSky's reduced-motion path draws a static frame of the real sky, but
+// only once its ~55 KB catalog (fetched after first paint, never bundled)
+// has landed — until then the desk is plain dark. Wait on the site's own
+// `window.__sky.drawn` flag rather than a fixed timeout, so the shot is
+// never taken mid-fetch; a short settle afterward covers web fonts too.
+await page.waitForFunction(() => window.__sky?.drawn === true, null, { timeout: 15000 });
 await page.evaluate(() => document.fonts.ready);
-await page.waitForTimeout(500);
+await page.waitForTimeout(200);
 
 /**
  * The card is the TOP of the page, no scroll. An earlier version scrolled

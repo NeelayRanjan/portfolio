@@ -63,9 +63,27 @@ async function run(name, browser, fn) {
   }
 }
 
-/** New isolated context + page, closed automatically when `fn` returns. */
-async function withPage(browser, contextOptions, fn) {
+/**
+ * New isolated context + page, closed automatically when `fn` returns.
+ *
+ * `/api/iss-tle` is answered `{ tle: null }` by default (final review F4):
+ * the route is prerendered at build time, so without this every check would
+ * draw whatever ISS the build's TLE puts on screen whenever a pinned instant
+ * lands within 7 days of it, which makes a pixel or "lone symbol" pick depend
+ * on the build date and the network. `sky-iss` opts out with
+ * `{ stubIssTle: false }` and serves its own fixture.
+ */
+async function withPage(browser, contextOptions, fn, { stubIssTle = true } = {}) {
   const context = await browser.newContext(contextOptions);
+  if (stubIssTle) {
+    await context.route("**/api/iss-tle", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ tle: null, fetchedAt: new Date().toISOString() }),
+      }),
+    );
+  }
   const page = await context.newPage();
   try {
     return await fn(page, context);
@@ -446,8 +464,8 @@ function findInstant(from, W, H, body, margin) {
 }
 
 /** A reduced-motion page pinned to `date`, with the sky and (unless `blockObjects`) its objects layer loaded. */
-async function pinnedSkyPage(browser, { W, H, date, blockObjects = false }, fn) {
-  return withPage(browser, { viewport: { width: W, height: H }, reducedMotion: "reduce", deviceScaleFactor: 1 }, async (page, context) => {
+async function pinnedSkyPage(browser, { W, H, date, blockObjects = false, contextOptions = {} }, fn) {
+  return withPage(browser, { viewport: { width: W, height: H }, reducedMotion: "reduce", deviceScaleFactor: 1, ...contextOptions }, async (page, context) => {
     if (blockObjects) await context.route("**/sky/objects.json", (route) => route.fulfill({ status: 404, body: "" }));
     await page.clock.setFixedTime(date);
     await page.goto(BASE, { waitUntil: "networkidle" });
@@ -624,6 +642,15 @@ async function checkSkyDrag(browser) {
     if (!(far.x > limit && far.x < 1.5 * limit)) throw new Error(`900px drag gave offset ${far.x}, limit ${limit}`);
     await page.waitForFunction(() => window.__sky.offset.x === 0 && window.__sky.offset.y === 0, null, { timeout: 2500 });
     notes.push(`900px drag banded to ${far.x.toFixed(0)}px`);
+
+    // A drag can't get stuck: losing the window (blur) ends it and the
+    // spring takes the chart home even though the button is still down.
+    await dragBy(page, x, y, 120, 0);
+    await page.waitForFunction(() => window.__sky.dragging === true, null, { timeout: 2000 });
+    await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+    await page.waitForFunction(() => window.__sky.dragging === false && window.__sky.offset.x === 0 && window.__sky.offset.y === 0, null, { timeout: 2500 });
+    await page.mouse.up();
+    notes.push("window blur ended a held drag");
 
     // Starting on the sheet never pans (and the page text is not a drag handle).
     const sheetPoint = await page.evaluate(() => {
@@ -2090,9 +2117,9 @@ function findInstantMoving(from, W, H, posAt, margin) {
  * every constellation line (so a click there selects nothing), off the card,
  * off any control, and at least `awayFrom.r` px from `awayFrom`.
  */
-function emptySkyPoint(page, awayFrom) {
+function emptySkyPoint(page, awayFrom, bounds = null) {
   return page.evaluate(
-    ([abbrs, away]) => {
+    ([abbrs, away, bounds]) => {
       const segs = abbrs.flatMap((a) => window.__sky.segmentsFor(a));
       const distToSeg = (x, y, [x1, y1, x2, y2]) => {
         const dx = x2 - x1;
@@ -2105,6 +2132,7 @@ function emptySkyPoint(page, awayFrom) {
       for (let y = 120; y < window.innerHeight - 120; y += 23) {
         for (let x = 120; x < window.innerWidth - 120; x += 29) {
           if (Math.hypot(x - away.x, y - away.y) < away.r) continue;
+          if (bounds && (x < bounds.left || x > bounds.right || y < bounds.top || y > bounds.bottom)) continue;
           if (card && x > card.left - 20 && x < card.right + 20 && y > card.top - 20 && y < card.bottom + 20) continue;
           if (window.__sky.hits.some((h) => Math.hypot(h.x - x, h.y - y) < 30)) continue;
           if (segs.some((s) => distToSeg(x, y, s) < 30)) continue;
@@ -2114,7 +2142,7 @@ function emptySkyPoint(page, awayFrom) {
       }
       return null;
     },
-    [ABBRS, awayFrom],
+    [ABBRS, awayFrom, bounds],
   );
 }
 
@@ -2214,7 +2242,8 @@ async function checkStargazeCard(browser) {
       throw new Error("the first Escape exited stargaze instead of closing the card");
     }
     // Fix round 1, I3: focus returns to the stargaze exit control, not lost
-    // to the body, once the card it was on is gone.
+    // to the body, once the card it was on is gone. (Final review F3: only
+    // because focus was inside the card; the card took it on open.)
     const focusedAfterEscape = await page.evaluate(() => document.activeElement?.textContent?.trim());
     if (focusedAfterEscape !== STARGAZE_EXIT) {
       throw new Error(`focus after closing the card is on "${focusedAfterEscape}", not the exit control`);
@@ -2231,7 +2260,96 @@ async function checkStargazeCard(browser) {
     if (!blank) throw new Error("no empty sky to click");
     await page.mouse.click(blank.x, blank.y);
     await card.waitFor({ state: "detached", timeout: 2000 });
-    return `drag opened nothing; card "${content.title}" / "${content.kind}" with one-liner "${content.oneLiner}" and ${content.links.length} source link(s); followed a -100px drag; Escape closed it, second Escape exited; empty click closed it; focus moved into the card and back to the exit control after Escape`;
+
+    // Final review F1: a drawn name is a hit target. Click the middle of an
+    // object's name box, at least 20px from its own symbol (well outside the
+    // 12px symbol radius, so only the box can be what selects it). F6: the
+    // Milky Way, which has no symbol, is selected by its label box the same way.
+    const nameTarget = (wantMilkyWay) =>
+      page.evaluate((wantMilkyWay) => {
+        const hits = window.__sky.hits;
+        for (const h of hits) {
+          if (!h.box || (h.id === "milky-way") !== wantMilkyWay) continue;
+          const x = h.box.x + h.box.w / 2;
+          const y = h.box.y + h.box.h / 2;
+          if (!wantMilkyWay && Math.hypot(x - h.x, y - h.y) < 20) continue;
+          if (y < 80 || y > window.innerHeight - 120 || x < 20 || x > window.innerWidth - 20) continue;
+          if (hits.some((o) => o !== h && ((o.box && x >= o.box.x && x <= o.box.x + o.box.w && y >= o.box.y && y <= o.box.y + o.box.h) || Math.hypot(o.x - x, o.y - y) < 20))) continue;
+          if (document.elementFromPoint(x, y)?.closest("button, a, [data-sky-card], [data-sky-credit]")) continue;
+          return { id: h.id, x, y, symbolDist: Math.hypot(x - h.x, y - h.y) };
+        }
+        return null;
+      }, wantMilkyWay);
+    const clickName = async (t) => {
+      await page.mouse.click(t.x, t.y);
+      await page.locator(`[data-sky-card="${t.id}"]`).waitFor({ state: "visible", timeout: 3000 }).catch(async () => {
+        const open = await page.evaluate(() => window.__sky.card);
+        throw new Error(`clicking ${t.id}'s name at (${t.x.toFixed(0)}, ${t.y.toFixed(0)}) opened ${open}`);
+      });
+      await page.keyboard.press("Escape");
+      await card.waitFor({ state: "detached", timeout: 2000 });
+    };
+    const named = await nameTarget(false);
+    if (!named) throw new Error("no clickable object name box on screen");
+    await clickName(named);
+    const mwName = await nameTarget(true);
+    if (!mwName) throw new Error("the Milky Way's label box is not clickable on screen");
+    await clickName(mwName);
+
+    // Final review F3: a subject leaving the viewport leaves its card open,
+    // with the out-of-view line, until the visitor closes it; the line clears
+    // when the subject comes back. Take a lone hit near an edge, open it, and
+    // drag the sky from empty space until the hit is past that edge (under
+    // the rubber band's 450px limit, so the drag moves it 1:1).
+    const edgy = await page.evaluate(() => {
+      const W = window.innerWidth;
+      const H = window.innerHeight;
+      for (const h of window.__sky.hits) {
+        // Not the Milky Way: its label hops to whichever anchor is on screen.
+        if (h.boxOnly || h.id === "milky-way" || h.y < 90 || h.y > H - 130) continue;
+        if (window.__sky.hits.some((o) => o !== h && (Math.hypot(o.x - h.x, o.y - h.y) < 30 || (o.box && h.x >= o.box.x - 4 && h.x <= o.box.x + o.box.w + 4 && h.y >= o.box.y - 4 && h.y <= o.box.y + o.box.h + 4)))) continue;
+        const edges = [
+          { dir: [-1, 0], d: h.x },
+          { dir: [1, 0], d: W - h.x },
+        ].filter((e) => e.d > 40 && e.d < 360);
+        if (edges.length) return { id: h.id, x: h.x, y: h.y, ...edges[0] };
+      }
+      return null;
+    });
+    if (!edgy) throw new Error("no lone hit within 360px of a side edge");
+    await page.mouse.click(edgy.x, edgy.y);
+    const edgyCard = page.locator(`[data-sky-card="${edgy.id}"]`);
+    await edgyCard.waitFor({ state: "visible", timeout: 3000 });
+    const travel = Math.round(edgy.d + 60);
+    const startBounds =
+      edgy.dir[0] < 0 ? { left: travel + 20, right: W - 20, top: 100, bottom: H - 140 } : { left: 20, right: W - travel - 20, top: 100, bottom: H - 140 };
+    const dragFrom = await emptySkyPoint(page, { x: edgy.x, y: edgy.y, r: 60 }, startBounds);
+    if (!dragFrom) throw new Error(`no empty sky to drag ${edgy.id} out of view from`);
+    await page.mouse.move(dragFrom.x, dragFrom.y);
+    await page.mouse.down();
+    await page.mouse.move(dragFrom.x + edgy.dir[0] * travel, dragFrom.y, { steps: 12 });
+    await page.waitForFunction(() => window.__sky.cardOutOfView === true, null, { timeout: 3000 }).catch(async () => {
+      const snap = await page.evaluate((id) => ({ offset: window.__sky.offset, dragging: window.__sky.dragging, hit: window.__sky.hits.find((h) => h.id === id) ?? null, card: window.__sky.card }), edgy.id);
+      throw new Error(`${edgy.id} (${JSON.stringify(edgy)}) never went out of view after a ${travel}px drag from ${JSON.stringify(dragFrom)}: ${JSON.stringify(snap)}`);
+    });
+    const gone = await page.evaluate((id) => ({
+      hit: window.__sky.hits.some((h) => h.id === id),
+      card: document.querySelector("[data-sky-card]")?.getAttribute("data-sky-card") ?? null,
+      line: document.querySelector("[data-sky-card-out-of-view]")?.textContent ?? null,
+      box: document.querySelector("[data-sky-card]")?.getBoundingClientRect().toJSON() ?? null,
+    }), edgy.id);
+    if (gone.hit) throw new Error(`${edgy.id} still among the hits after a ${travel}px drag`);
+    if (gone.card !== edgy.id) throw new Error(`card ${gone.card} open once ${edgy.id} left the viewport; it should stay open`);
+    if (gone.line !== copy.stargaze.card.outOfView) throw new Error(`out-of-view line ${JSON.stringify(gone.line)}`);
+    if (gone.box.left < 0 || gone.box.top < 0 || gone.box.right > W || gone.box.bottom > H) throw new Error(`out-of-view card ${JSON.stringify(gone.box)} left the viewport`);
+    // Reduced motion: the release snaps home, the subject returns, the line goes.
+    await page.mouse.up();
+    await page.waitForFunction(() => window.__sky.cardOutOfView === false, null, { timeout: 3000 }).catch(() => {
+      throw new Error(`${edgy.id}'s card still out of view after the sky snapped home`);
+    });
+    if ((await page.locator("[data-sky-card-out-of-view]").count()) !== 0) throw new Error("out-of-view line stayed after the subject came back");
+    if ((await edgyCard.count()) !== 1) throw new Error(`${edgy.id}'s card closed when its subject came back`);
+    return `drag opened nothing; card "${content.title}" / "${content.kind}" with one-liner "${content.oneLiner}" and ${content.links.length} source link(s); followed a -100px drag; Escape closed it, second Escape exited; empty click closed it; focus moved into the card and back to the exit control after Escape; clicking ${named.id}'s name ${named.symbolDist.toFixed(0)}px from its symbol opened its card, and the Milky Way's label box opened its card; ${edgy.id} dragged ${travel}px out of view kept its card open with "${gone.line}", cleared on return`;
   });
 
   // Fix round 1, I2: the spacecraft branch (Voyager 1), a planet, and the
@@ -2271,6 +2389,146 @@ async function checkStargazeCard(browser) {
   if (moon.oneLiner !== moonFact.oneLiner) throw new Error(`Moon one-liner "${moon.oneLiner}", fact says "${moonFact.oneLiner}"`);
 
   return `${m31Summary}; voyager-1 card "${voyager.title}" data "${spacecraftLine}"; planet card "${mars.title}" / "${mars.kind}"; Moon card "${moon.title}" / "${moon.kind}"`;
+}
+
+/**
+ * Final review F2: keyboard and screen-reader users reach every card. In
+ * stargaze, a visually hidden list of buttons, one per selectable on screen
+ * (every drawn hit plus every constellation with a segment in view), sits
+ * right after the exit control: Tab from the exit lands in it, the focused
+ * button rings its subject (window.__sky.highlight), Enter opens that
+ * subject's card with focus inside it, and Escape hands focus back to the
+ * same button.
+ */
+async function checkStargazeKeyboardList(browser) {
+  const W = 1440;
+  const H = 900;
+  const { date } = findInstant(new Date(Date.UTC(2026, 9, 1)), W, H, M31, 120);
+  return pinnedSkyPage(browser, { W, H, date }, async (page) => {
+    await page.waitForFunction(() => window.__sky.layers.facts === "ready", null, { timeout: 10000 });
+    await waitStargazeReady(page);
+    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    await page.waitForFunction(() => document.querySelectorAll("[data-sky-list-item]").length > 0, null, { timeout: 5000 });
+    const onExit = await page.evaluate(() => document.activeElement?.hasAttribute("data-stargaze-exit"));
+    if (!onExit) throw new Error("entering stargaze did not focus the exit control");
+
+    const list = await page.evaluate(() => ({
+      items: [...document.querySelectorAll("[data-sky-list-item]")].map((b) => ({ id: b.getAttribute("data-sky-list-item"), label: b.textContent })),
+      hits: window.__sky.hits.map((h) => h.id),
+      group: document.querySelector("[data-sky-list]")?.getAttribute("aria-label"),
+    }));
+    if (list.group !== copy.stargaze.listLabel) throw new Error(`list group named ${JSON.stringify(list.group)}`);
+    const listed = new Set(list.items.map((i) => i.id));
+    const missing = list.hits.filter((id) => !listed.has(id));
+    if (missing.length) throw new Error(`drawn hits missing from the keyboard list: ${missing}`);
+    const constellations = list.items.filter((i) => ABBRS.includes(i.id));
+    if (!constellations.length) throw new Error("no constellation in the keyboard list");
+    for (const item of list.items) {
+      const fact = SKY_FACTS.find((f) => f.id === item.id);
+      if (!fact || !item.label.endsWith(`, ${fact.kind}`)) throw new Error(`list button ${item.id} named "${item.label}", fact kind "${fact?.kind}"`);
+    }
+    // Stable order: symbols, then constellations, each sorted by name.
+    const symbols = list.items.filter((i) => !ABBRS.includes(i.id));
+    const sorted = (xs) => xs.every((x, i) => i === 0 || xs[i - 1].label.localeCompare(x.label, "en") <= 0);
+    if (!sorted(symbols) || !sorted(constellations) || list.items.findIndex((i) => ABBRS.includes(i.id)) !== symbols.length) {
+      throw new Error("keyboard list is not in its stable order");
+    }
+
+    await page.keyboard.press("Tab");
+    const first = await page.evaluate(() => document.activeElement?.getAttribute("data-sky-list-item"));
+    if (first !== list.items[0].id) throw new Error(`Tab from the exit control landed on ${JSON.stringify(first)}, not the first list button ${list.items[0].id}`);
+    await page.waitForFunction((id) => window.__sky.highlight === id, first, { timeout: 3000 });
+
+    await page.keyboard.press("Enter");
+    const card = page.locator(`[data-sky-card="${first}"]`);
+    await card.waitFor({ state: "visible", timeout: 3000 });
+    const inCard = await page.evaluate(() => !!document.activeElement?.closest("[data-sky-card]"));
+    if (!inCard) throw new Error("Enter opened the card but focus is not inside it");
+    await page.keyboard.press("Escape");
+    await card.waitFor({ state: "detached", timeout: 2000 });
+    const back = await page.evaluate(() => document.activeElement?.getAttribute("data-sky-list-item"));
+    if (back !== first) throw new Error(`after Escape, focus is on ${JSON.stringify(back)}, not the list button that opened the card`);
+    if (!(await page.evaluate(() => document.body.hasAttribute("data-stargaze")))) throw new Error("Escape from the card left stargaze");
+    return `${list.items.length} buttons (${symbols.length} symbols, ${constellations.length} constellations), every drawn hit listed; Tab from exit -> "${list.items[0].label}", ringed; Enter opened its card with focus inside; Escape returned focus to the button`;
+  });
+}
+
+/**
+ * Final review F1/F6 and the phone card, at 400x800 with touch emulated
+ * (Playwright's Firefox dispatches real pointerType "touch" events for
+ * touchscreen.tap, and `(hover: none)` matches): the touch hint; a tap 18px
+ * from a symbol opens its card (outside the 12px mouse radius, inside the
+ * 22px touch radius, and a mouse click at the same point does not); the
+ * docked card stays within 60% of the viewport height with no text under
+ * 12px; and the Milky Way, which has no canvas hit below 880px, is still in
+ * the keyboard list.
+ */
+async function checkStargazeTouch400(browser) {
+  const W = 400;
+  const H = 800;
+  const date = new Date(Date.UTC(2026, 9, 1, 6));
+  return pinnedSkyPage(browser, { W, H, date, contextOptions: { hasTouch: true } }, async (page) => {
+    await page.waitForFunction(() => window.__sky.layers.facts === "ready", null, { timeout: 10000 });
+    await waitStargazeReady(page);
+    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    const hint = await page.locator("[data-stargaze-exit]").evaluate((el) => el.parentElement.querySelector("span")?.textContent);
+    if (hint !== copy.stargaze.hintTouch) throw new Error(`touch hint reads ${JSON.stringify(hint)}`);
+
+    // A lone hit with a tap point 18px to one side that no name box covers,
+    // no other symbol is within 24px of, and no control sits on.
+    const target = await page.evaluate(() => {
+      const hits = window.__sky.hits;
+      const inBox = (b, x, y) => b && x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
+      for (const h of hits) {
+        if (h.id === "milky-way") continue;
+        for (const [dx, dy] of [[-18, 0], [0, 18], [18, 0], [0, -18]]) {
+          const x = h.x + dx;
+          const y = h.y + dy;
+          if (y < 80 || y > window.innerHeight * 0.35 || x < 10 || x > window.innerWidth - 10) continue;
+          if (hits.some((o) => inBox(o.box, x, y) || (o !== h && Math.hypot(o.x - x, o.y - y) < 30))) continue;
+          if (document.elementFromPoint(x, y)?.closest("button, a, [data-sky-card], [data-sky-credit]")) continue;
+          return { id: h.id, x, y };
+        }
+      }
+      return null;
+    });
+    if (!target) throw new Error(`no lone symbol with a clear 18px tap point at ${date.toISOString()}`);
+
+    // A mouse click 18px away is outside the 12px pointer radius: not this card.
+    await page.mouse.click(target.x, target.y);
+    await page.waitForTimeout(200);
+    const mouseCard = await page.evaluate(() => document.querySelector("[data-sky-card]")?.getAttribute("data-sky-card") ?? null);
+    if (mouseCard === target.id) throw new Error(`a mouse click 18px from ${target.id} opened its card; the pointer radius is 12px`);
+    if (mouseCard) {
+      await page.keyboard.press("Escape");
+      await page.locator("[data-sky-card]").waitFor({ state: "detached", timeout: 2000 });
+    }
+
+    await page.touchscreen.tap(target.x, target.y);
+    const card = page.locator(`[data-sky-card="${target.id}"]`);
+    await card.waitFor({ state: "visible", timeout: 3000 });
+    const sizes = await card.evaluate((el) => ({
+      height: el.getBoundingClientRect().height,
+      bottom: el.getBoundingClientRect().bottom,
+      fonts: [...el.querySelectorAll("p, h3, li, button")].map((n) => parseFloat(getComputedStyle(n).fontSize)),
+    }));
+    if (sizes.height > 0.6 * H + 2) throw new Error(`phone card ${sizes.height}px tall, over 60% of ${H}`);
+    if (Math.abs(sizes.bottom - H) > 1) throw new Error(`phone card bottom at ${sizes.bottom}, not docked to ${H}`);
+    const small = Math.min(...sizes.fonts);
+    if (small < 12) throw new Error(`phone card has ${small}px text`);
+
+    const mw = await page.evaluate(() => ({
+      anchor: window.__sky.milkyWay,
+      hit: window.__sky.hits.some((h) => h.id === "milky-way"),
+      listed: !!document.querySelector('[data-sky-list-item="milky-way"]'),
+    }));
+    if (mw.hit) throw new Error("the Milky Way has a canvas hit below 880px (an invisible target)");
+    if (!mw.anchor) throw new Error(`the Milky Way's label point is off screen at ${date.toISOString()}; pick another instant`);
+    await page.waitForFunction(() => !!document.querySelector('[data-sky-list-item="milky-way"]'), null, { timeout: 3000 });
+    return `touch hint; mouse click 18px from ${target.id} ${mouseCard ? `opened ${mouseCard}` : "opened nothing"}, a touch tap there opened ${target.id}; card ${sizes.height.toFixed(0)}px of ${H} (<= 60%), docked, smallest text ${small}px; Milky Way: no canvas hit, in the keyboard list`;
+  });
 }
 
 /** A real ISS element set (CelesTrak, fetched 2026-09-15), served in place of the route. */
@@ -2365,6 +2623,7 @@ async function checkSkyIss(browser) {
         if (errors.length) throw new Error(errors.join(" | "));
         return out;
       },
+      { stubIssTle: false },
     );
 
   const t = copy.stargaze.card;
@@ -2452,7 +2711,7 @@ async function checkSkyIss(browser) {
       );
       if (!stillFocused) throw new Error("focus moved off the card's close button during a live ISS-card refresh");
     },
-    { motion: true },
+    { motion: true, strictConsole: true },
   );
 
   return `${date.toISOString()} at ${elevation.toFixed(1)}°: drawn at (${p.x.toFixed(0)}, ${p.y.toFixed(0)}), off by ${posErrPx.toFixed(2)}px, peak ${absentPeak} -> ${present.peak}, altitude ${present.altitudeKm} km / ${present.speedKmS} km/s, card opens; { tle: null } draws nothing, no errors; focus survives a live refresh under motion`;
@@ -2489,6 +2748,8 @@ const CHECKS = [
   ["stargaze-cancels-run", checkStargazeCancelsRun],
   ["stargaze-during-download", checkStargazeDuringDownload],
   ["stargaze-card", checkStargazeCard],
+  ["stargaze-keyboard-list", checkStargazeKeyboardList],
+  ["stargaze-touch-400", checkStargazeTouch400],
   ["sky-iss", checkSkyIss],
 ];
 

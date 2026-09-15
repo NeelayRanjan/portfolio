@@ -15,8 +15,18 @@
 import type { PreparedMilkyWay, SkyObject, SkyShower } from "./sky-objects";
 import { project, type Chart, type Equatorial } from "./sky-math";
 
-/** A selectable thing as drawn this frame, CSS px. `name` is its label. */
-export type Hit = { id: string; name: string; x: number; y: number };
+/** A rectangle, CSS px, top-left + size. */
+export type Box = { x: number; y: number; w: number; h: number };
+/**
+ * A selectable thing as drawn this frame, CSS px. `name` is its label.
+ * `box` is where its always-on name sits (final review F1): a click inside
+ * it selects the thing, before any radius test, so "click a name" is true.
+ * It is reported whenever names are on (>=880px), even while the name
+ * itself is suppressed under a hover label, so hovering a name can't make
+ * its own hit target vanish on the next pointer move. `boxOnly` hits (the
+ * Milky Way, F6) have no symbol, so they are selectable by the box alone.
+ */
+export type Hit = { id: string; name: string; x: number; y: number; box?: Box; boxOnly?: boolean };
 
 const INK = "234,229,218";
 const MUT = "154,148,138";
@@ -40,7 +50,31 @@ export type View = {
 const onCanvas = (p: { x: number; y: number }, v: View, m: number) =>
   p.x > -m && p.x < v.width + m && p.y > -m && p.y < v.height + m;
 
-export function drawMilkyWay(ctx: CanvasRenderingContext2D, v: View, mw: PreparedMilkyWay): Hit | null {
+/** Padding around a name's text box, so a click on the glyphs' edge still lands. */
+const NAME_PAD = 3;
+/**
+ * The box a name occupies when drawn with fillText at (x, baseline) in the
+ * context's CURRENT font of `px` size: measured width, a cap height of
+ * ~0.8em above the baseline and ~0.25em below, padded.
+ */
+export function nameBox(ctx: CanvasRenderingContext2D, text: string, x: number, baseline: number, px: number): Box {
+  const w = ctx.measureText(text).width;
+  return { x: x - NAME_PAD, y: baseline - 0.8 * px - NAME_PAD, w: w + 2 * NAME_PAD, h: 1.05 * px + 2 * NAME_PAD };
+}
+
+/**
+ * The band, plus where its one label goes. `anchor` is the label point
+ * whether or not a name is drawn; `hit` exists only when the name is drawn
+ * (>=880px), and is selectable by that name's box alone (final review F6:
+ * it used to be an invisible 12px point, at the text baseline on desktop
+ * and at nothing visible at all on a phone). Below 880px the band has no
+ * canvas hit; NightSky lists it in the stargaze keyboard list instead.
+ */
+export function drawMilkyWay(
+  ctx: CanvasRenderingContext2D,
+  v: View,
+  mw: PreparedMilkyWay,
+): { hit: Hit | null; anchor: { x: number; y: number } | null } {
   const c = v.chart;
   const lst = c.lstDeg * D2R;
   ctx.fillStyle = `rgba(${INK},${MILKY_WAY_ALPHA})`;
@@ -73,18 +107,18 @@ export function drawMilkyWay(ctx: CanvasRenderingContext2D, v: View, mw: Prepare
       bestRho = rho;
     }
   }
-  if (!best) return null;
-  // Gated on v.names like every other always-on label (M5, fix round 1):
-  // below 880px the band is still a selectable Hit (stargaze can tap it),
-  // it just carries no always-on name. Also skipped when the band itself is
-  // the current hover/selection, whose own label is about to draw the same
-  // name in the same place (C1).
-  if (v.names && v.suppressName !== "milky-way") {
-    ctx.font = `9px ${v.fontFamily}`;
+  if (!best) return { hit: null, anchor: null };
+  // Gated on v.names like every other always-on label (M5, fix round 1).
+  // Also skipped when the band itself is the current hover/selection, whose
+  // own label is about to draw the same name in the same place (C1).
+  if (!v.names) return { hit: null, anchor: best };
+  ctx.font = `9px ${v.fontFamily}`;
+  if (v.suppressName !== "milky-way") {
     ctx.fillStyle = `rgba(${MUT},0.5)`;
     ctx.fillText("Milky Way", best.x, best.y);
   }
-  return { id: "milky-way", name: "Milky Way", x: best.x, y: best.y };
+  const box = nameBox(ctx, "Milky Way", best.x, best.y, 9);
+  return { hit: { id: "milky-way", name: "Milky Way", x: best.x, y: best.y, box, boxOnly: true }, anchor: best };
 }
 
 /**
@@ -105,7 +139,8 @@ export function drawObjects(
   for (const o of objects) {
     const p = project(c, o.raDeg, o.decDeg);
     if (!onCanvas(p, v, 0)) continue;
-    hits.push({ id: o.id, name: o.name, x: p.x, y: p.y });
+    const hit: Hit = { id: o.id, name: o.name, x: p.x, y: p.y };
+    hits.push(hit);
     const human = o.symbol === "chevron";
     switch (o.symbol) {
       case "galaxy": {
@@ -183,10 +218,13 @@ export function drawObjects(
     }
     // Skipped when this object is the current hover/selection (C1): its
     // name is about to be drawn again, larger, by the hover label.
-    if (v.names && o.id !== v.suppressName) {
-      ctx.fillStyle = human ? `rgba(${WARM},0.75)` : `rgba(${MUT},0.7)`;
+    if (v.names) {
       const dx = o.symbol === "field" ? 0 : 8;
-      ctx.fillText(o.name, p.x + dx, p.y + 3);
+      hit.box = nameBox(ctx, o.name, p.x + dx, p.y + 3, 9);
+      if (o.id !== v.suppressName) {
+        ctx.fillStyle = human ? `rgba(${WARM},0.75)` : `rgba(${MUT},0.7)`;
+        ctx.fillText(o.name, p.x + dx, p.y + 3);
+      }
     }
   }
   return hits;
@@ -201,7 +239,8 @@ export function drawRadiants(ctx: CanvasRenderingContext2D, v: View, active: Sky
   for (const sh of active) {
     const p = project(c, sh.radiantRaDeg, sh.radiantDecDeg);
     if (!onCanvas(p, v, 0)) continue;
-    hits.push({ id: sh.id, name: sh.name, x: p.x, y: p.y });
+    const hit: Hit = { id: sh.id, name: sh.name, x: p.x, y: p.y };
+    hits.push(hit);
     ctx.beginPath();
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2;
@@ -210,9 +249,12 @@ export function drawRadiants(ctx: CanvasRenderingContext2D, v: View, active: Sky
     }
     ctx.strokeStyle = `rgba(${WARM},0.9)`;
     ctx.stroke();
-    if (v.names && sh.id !== v.suppressName) {
-      ctx.fillStyle = `rgba(${WARM},0.75)`;
-      ctx.fillText(sh.name, p.x + 9, p.y + 3);
+    if (v.names) {
+      hit.box = nameBox(ctx, sh.name, p.x + 9, p.y + 3, 9);
+      if (sh.id !== v.suppressName) {
+        ctx.fillStyle = `rgba(${WARM},0.75)`;
+        ctx.fillText(sh.name, p.x + 9, p.y + 3);
+      }
     }
   }
   return hits;
@@ -231,10 +273,14 @@ export function drawIss(ctx: CanvasRenderingContext2D, v: View, iss: { eq: Equat
   ctx.fillRect(p.x - 1.75, p.y - 1.75, 3.5, 3.5);
   // Skipped when the ISS is the current hover/selection (fix round 1, C1
   // precedent): its name is about to be drawn again, larger, by the hover label.
-  if (v.names && v.suppressName !== "iss") {
+  const hit: Hit = { id: "iss", name: "ISS", x: p.x, y: p.y };
+  if (v.names) {
     ctx.font = `9px ${v.fontFamily}`;
-    ctx.fillStyle = `rgba(${WARM},${0.75 * a})`;
-    ctx.fillText("ISS", p.x + 8, p.y + 3);
+    hit.box = nameBox(ctx, "ISS", p.x + 8, p.y + 3, 9);
+    if (v.suppressName !== "iss") {
+      ctx.fillStyle = `rgba(${WARM},${0.75 * a})`;
+      ctx.fillText("ISS", p.x + 8, p.y + 3);
+    }
   }
-  return { id: "iss", name: "ISS", x: p.x, y: p.y };
+  return hit;
 }

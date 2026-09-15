@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { copy } from "@/content/copy";
 import type { SkyFact } from "@/content/sky-facts";
 import { loadSky, type SkyData } from "@/lib/sky-data";
@@ -14,7 +15,9 @@ import {
   type SkyObjectsData,
 } from "@/lib/sky-objects";
 import {
+  constellationAt,
   drawSky,
+  hitRadiusFor,
   nearestConstellation,
   nearestHit,
   precomputeStarFills,
@@ -66,10 +69,19 @@ import { SkyCard, type CardModel } from "./SkyCard";
  *   paint never carries ~138 entries of prose.
  *
  * - Cards (spec 2026-09-15 §6): in stargaze mode a click (under
- *   CLICK_SLOP_PX of travel) on a selectable opens its SkyCard, a click on
- *   empty sky closes it, Escape closes it before it can reach
- *   StargazeToggle's exit. The card follows its subject as the sky turns and
- *   while dragging, and closes when the subject leaves the viewport.
+ *   CLICK_SLOP_PX of travel) on a selectable's symbol or drawn name opens
+ *   its SkyCard, a click on empty sky closes it, Escape closes it before it
+ *   can reach StargazeToggle's exit. The card follows its subject as the sky
+ *   turns and while dragging. When the subject leaves the viewport the card
+ *   stays open where it was and says so; only the visitor closes a card
+ *   (final review F3).
+ *
+ * - Keyboard and screen readers (final review F2): the canvas is
+ *   aria-hidden, so in stargaze mode a visually hidden list of buttons, one
+ *   per selectable currently on screen, is portalled into StargazeToggle's
+ *   slot right after the exit control. It refreshes every LIST_REFRESH_MS,
+ *   and only re-renders when the set changes; a focused button rings its
+ *   subject on the canvas through the hover highlight.
  *
  * - The ISS (spec 2026-09-15 §8): a TLE from the same-origin /api/iss-tle,
  *   propagated by satellite.js (lazy-imported only once there is a TLE) at
@@ -83,8 +95,12 @@ const FRAME_MS_NARROW = 100;
 const BODY_REFRESH_SIM_MS = 10 * 60_000;
 const DPR_CAP = 2;
 const HOVER_PX = 24;
-/** Symbols (objects, stars, planets, the Moon, radiants) win within this, before any line (spec §5). */
-const HOVER_HIT_PX = 12;
+/** A live drag or spring paints at about 60 fps, not the display's refresh
+ *  rate: a 16ms gate, less 2ms so ordinary rAF jitter at 60Hz doesn't drop
+ *  every other frame. */
+const FRAME_MS_INTERACTING = 14;
+/** How often the stargaze keyboard list re-reads what's on screen. */
+const LIST_REFRESH_MS = 2000;
 /** Never start a pan on these: the page's own controls, and (Task 5) the card. */
 const PAN_BLOCKERS = "a, button, input, select, textarea, label, summary, [role='button'], [data-sky-card]";
 
@@ -103,15 +119,26 @@ type SkySnapshot = {
   labelText: LabelText | null;
   /** The id whose always-on name was skipped this frame, or null (fix round 1, I2). */
   suppressedName: string | null;
-  hits: { id: string; x: number; y: number }[];
+  hits: { id: string; x: number; y: number; box: { x: number; y: number; w: number; h: number } | null }[];
+  milkyWay: { x: number; y: number } | null;
   radiants: string[];
   layers: { objects: LayerState; milkyWay: LayerState; facts: LayerState; iss: LayerState };
   iss: { x: number; y: number; aboveHorizon: boolean } | null;
   card: string | null;
+  /** The open card's subject has left the viewport (F3). */
+  cardOutOfView: boolean;
   segmentsFor: (abbr: string) => number[][];
 };
 
 type LayerState = "loading" | "ready" | "absent" | "error";
+
+/** One button in the stargaze keyboard list (F2). */
+type ListItem = { kind: Highlight["kind"]; id: string; label: string };
+type ListActions = {
+  open: (item: ListItem, el: HTMLElement) => void;
+  focus: (item: ListItem) => void;
+  blur: (item: ListItem) => void;
+};
 
 export function NightSky() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -129,7 +156,14 @@ export function NightSky() {
    *  in that case, so NightSky must not also grab it for the exit control. */
   const focusRestoreRef = useRef(true);
   const prevCardRef = useRef<CardModel | null>(null);
+  /** The keyboard-list button that opened the open card, if one did: focus
+   *  goes back there on close, so a keyboard user keeps their place (F2). */
+  const openerRef = useRef<HTMLElement | null>(null);
+  const listActionsRef = useRef<ListActions | null>(null);
   const [card, setCard] = useState<CardModel | null>(null);
+  const [cardOutOfView, setCardOutOfView] = useState(false);
+  const [listItems, setListItems] = useState<ListItem[]>([]);
+  const [listSlot, setListSlot] = useState<HTMLElement | null>(null);
 
   useLayoutEffect(() => {
     if (card) {
@@ -150,8 +184,11 @@ export function NightSky() {
       return () => ro.disconnect();
     }
     if (prevCardRef.current && focusRestoreRef.current) {
-      document.querySelector<HTMLElement>("[data-stargaze-exit]")?.focus({ preventScroll: true });
+      const opener = openerRef.current;
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+      else document.querySelector<HTMLElement>("[data-stargaze-exit]")?.focus({ preventScroll: true });
     }
+    openerRef.current = null;
     prevCardRef.current = null;
     // Fix round 1, I1: keyed on the SUBJECT (card?.id), not the card object
     // itself. The ISS card's once-a-second refresh (below) calls setCard
@@ -162,6 +199,13 @@ export function NightSky() {
     // re-announce the card. Keying on id alone still fires exactly when a
     // card opens, changes subject, or closes.
   }, [card?.id]);
+
+  useEffect(() => {
+    // StargazeToggle renders the slot right after its exit control, so the
+    // list follows it in tab order; both are in app/layout.tsx, so it exists
+    // by the time this runs.
+    setListSlot(document.querySelector<HTMLElement>("[data-sky-list-slot]"));
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -212,6 +256,18 @@ export function NightSky() {
      *  frame time. Refreshed by updateCardSize, never read from the DOM
      *  inline in the paint loop. */
     let cardSize: { w: number; h: number } | null = null;
+    /** Where followCard last put the card (>=880px), so a card whose subject
+     *  has left can stay put, re-clamped to the viewport (F3). */
+    let cardPos: { x: number; y: number } | null = null;
+    /** Mirrors cardOutOfView state; setState only on a change. */
+    let outOfView = false;
+    const setOutOfView = (next: boolean) => {
+      if (next === outOfView) return;
+      outOfView = next;
+      setCardOutOfView(next);
+    };
+    let listTimer = 0;
+    let listSignature = "";
     const frameTimes: number[] = [];
     // Drag to pan. `offset` slides the whole chart (lib/sky-math.ts chartFor);
     // `velocity` is the return spring's, px/s.
@@ -338,17 +394,22 @@ export function NightSky() {
         label: seen.label,
         labelText: seen.labelText,
         suppressedName: seen.suppressName,
-        hits: seen.hits.map(({ id, x, y }) => ({ id, x, y })),
+        hits: seen.hits.map(({ id, x, y, box }) => ({ id, x, y, box: box ? { ...box } : null })),
+        milkyWay: seen.milkyWay,
         radiants: activeShowers.map((s) => s.id),
         layers: { ...layers },
         card: selected?.id ?? null,
+        cardOutOfView: outOfView,
         iss: (() => {
           const h = seen.hits.find((x) => x.id === "iss");
           return h && iss ? { x: h.x, y: h.y, aboveHorizon: iss.aboveHorizon } : null;
         })(),
         segmentsFor: (abbr) => (seen.segments.get(abbr) ?? []).map((s) => [...s]),
       };
-      if (selected) followCard(seen);
+      if (selected) {
+        followCard(seen);
+        win.__sky.cardOutOfView = outOfView;
+      }
       // The ISS card's live lines, refreshed once a real second.
       if (selected?.id === "iss" && performance.now() - issCardRefreshed > 1000) {
         issCardRefreshed = performance.now();
@@ -399,46 +460,45 @@ export function NightSky() {
     const openCard = (h: Highlight) => {
       const model = buildCard(h);
       if (!model) return;
+      openerRef.current = null;
       selected = { kind: h.kind, id: h.id };
       setCard(model);
       paint();
     };
-    const closeCard = (opts?: { restoreFocus?: boolean }) => {
+    const closeCard = (opts?: { restoreFocus?: boolean; byKey?: boolean }) => {
       if (!selected) return;
+      // Focus moves back only if it was inside the card (F3): a click on
+      // empty sky must not yank it from wherever the visitor put it. One
+      // exception: Escape with focus on nothing at all (the body, after a
+      // mouse drag blurred the card), where leaving it on the body would
+      // strand a keyboard user. A close that leaves stargaze mode (below)
+      // passes restoreFocus false, since StargazeToggle returns focus to its
+      // own entry button then and must not be fought for it.
+      const active = document.activeElement;
+      const focusInCard = !!(active && cardRef.current?.contains(active));
+      const focusNowhere = !active || active === document.body;
+      focusRestoreRef.current = (opts?.restoreFocus ?? true) && (focusInCard || (!!opts?.byKey && focusNowhere));
       selected = null;
       cardSize = null;
-      // Default true: a close that leaves stargaze mode (below) passes
-      // false, since StargazeToggle already returns focus to its own entry
-      // button in that case and must not be fought for it.
-      focusRestoreRef.current = opts?.restoreFocus ?? true;
+      cardPos = null;
+      setOutOfView(false);
       setCard(null);
       paint();
     };
     closeRef.current = closeCard;
-    /** Where the card's subject is this frame, or null once it has left the viewport. */
-    const subjectAt = (p: Projected): { x: number; y: number } | null => {
-      const sel = selected;
-      if (!sel) return null;
-      if (sel.kind === "hit") return p.hits.find((h) => h.id === sel.id) ?? null;
-      const inView = (p.segments.get(sel.id) ?? [])
-        .flatMap(([x1, y1, x2, y2]) => [
-          [x1, y1],
-          [x2, y2],
-        ])
-        .filter(([x, y]) => x >= 0 && x <= width && y >= 0 && y <= height);
-      if (!inView.length) return null;
-      return {
-        x: inView.reduce((sum, [x]) => sum + x, 0) / inView.length,
-        y: inView.reduce((sum, [, y]) => sum + y, 0) / inView.length,
-      };
+    /** Where a subject is this frame, or null when it is off the viewport. */
+    const positionOf = (p: Projected, kind: Highlight["kind"], id: string): { x: number; y: number } | null => {
+      if (kind === "constellation") return constellationAt(p, id, width, height);
+      const hit = p.hits.find((h) => h.id === id);
+      if (hit) return hit;
+      // Below 880px the Milky Way has no hit, only its label point (F6).
+      return id === "milky-way" ? p.milkyWay : null;
     };
     const followCard = (p: Projected) => {
-      const at = subjectAt(p);
-      if (!at) {
-        // Deferred: this runs inside paint, and closeCard paints again.
-        queueMicrotask(closeCard);
-        return;
-      }
+      const at = selected ? positionOf(p, selected.kind, selected.id) : null;
+      // F3: a subject that left the viewport no longer closes its card. The
+      // card stops following, stays where it was, and says it's out of view.
+      setOutOfView(!at);
       const el = cardRef.current;
       if (!el) return;
       if (narrowQ.matches) {
@@ -454,26 +514,107 @@ export function NightSky() {
       if (!cardSize) updateCardSize();
       const w = cardSize?.w ?? el.offsetWidth;
       const h = cardSize?.h ?? el.offsetHeight;
-      let x = at.x + 18;
-      if (x + w > width - 16) x = at.x - 18 - w;
+      let x: number;
+      let y: number;
+      if (at) {
+        x = at.x + 18;
+        if (x + w > width - 16) x = at.x - 18 - w;
+        y = at.y - 24;
+      } else if (cardPos) {
+        ({ x, y } = cardPos);
+      } else {
+        return;
+      }
       x = Math.min(Math.max(x, 16), width - 16 - w);
-      const y = Math.min(Math.max(at.y - 24, 16), height - 16 - h);
+      y = Math.min(Math.max(y, 16), height - 16 - h);
+      cardPos = { x, y };
       el.style.left = `${x}px`;
       el.style.top = `${y}px`;
+    };
+
+    // ---- the stargaze keyboard list (F2) ----
+    const refreshList = () => {
+      if (!isStargazing() || !projected || !sky || !facts) return;
+      const p = projected;
+      const hitItems: ListItem[] = [];
+      const conItems: ListItem[] = [];
+      const label = (kind: Highlight["kind"], id: string) => {
+        const model = buildCard({ kind, id });
+        return model ? `${model.title}, ${model.fact.kind}` : null;
+      };
+      const seen = new Set<string>();
+      const addHit = (id: string) => {
+        if (seen.has(id)) return;
+        seen.add(id);
+        const l = label("hit", id);
+        if (l) hitItems.push({ kind: "hit", id, label: l });
+      };
+      for (const h of p.hits) addHit(h.id);
+      if (p.milkyWay) addHit("milky-way");
+      for (const abbr of p.segments.keys()) {
+        if (!constellationAt(p, abbr, width, height)) continue;
+        const l = label("constellation", abbr);
+        if (l) conItems.push({ kind: "constellation", id: abbr, label: l });
+      }
+      // A button that has focus stays in the list even if its subject just
+      // left the screen, or focus would drop to the body under the visitor.
+      const focusedId = (document.activeElement as HTMLElement | null)?.dataset?.skyListItem;
+      if (focusedId && !seen.has(focusedId) && !conItems.some((i) => i.id === focusedId)) {
+        const kind: Highlight["kind"] = sky.constellations[focusedId] ? "constellation" : "hit";
+        const l = label(kind, focusedId);
+        if (l) (kind === "hit" ? hitItems : conItems).push({ kind, id: focusedId, label: l });
+      }
+      // Sorted by label, symbols then constellations: the order depends only
+      // on which things are listed, so entries coming and going never
+      // reshuffle the ones that stay.
+      const byLabel = (a: ListItem, b: ListItem) => a.label.localeCompare(b.label, "en");
+      const items = [...hitItems.sort(byLabel), ...conItems.sort(byLabel)];
+      const signature = items.map((i) => `${i.kind}:${i.id}`).join("|");
+      if (signature === listSignature) return;
+      listSignature = signature;
+      setListItems(items);
+    };
+    const startList = () => {
+      refreshList();
+      if (!listTimer) listTimer = window.setInterval(refreshList, LIST_REFRESH_MS);
+    };
+    const stopList = () => {
+      window.clearInterval(listTimer);
+      listTimer = 0;
+      listSignature = "";
+      setListItems([]);
+    };
+    listActionsRef.current = {
+      open: (item, el) => {
+        const model = buildCard(item);
+        if (!model) return;
+        openerRef.current = el;
+        selected = { kind: item.kind, id: item.id };
+        setCard(model);
+        paint();
+      },
+      focus: (item) => {
+        if (!projected) return;
+        const at = positionOf(projected, item.kind, item.id) ?? { x: width / 2, y: height / 2 };
+        setHighlight({ kind: item.kind, id: item.id, pointer: at });
+      },
+      blur: (item) => {
+        if (highlight?.id === item.id) setHighlight(null);
+      },
     };
     const onKeyDown = (e: KeyboardEvent) => {
       // Capture phase: Escape closes the card first and never reaches
       // StargazeToggle's exit handler; the next Escape exits stargaze.
       if (e.key !== "Escape" || !selected) return;
       e.stopImmediatePropagation();
-      closeCard();
+      closeCard({ byKey: true });
     };
 
     const step = (t: number) => {
       if (!running) return;
       raf = requestAnimationFrame(step);
       if (document.hidden) return;
-      // A live drag or spring paints every frame; the idle sky keeps its gate.
+      // A live drag or spring paints at ~60 fps; the idle sky keeps its 20/10 fps gate.
       const interacting = drag !== null || springing;
       if (springing) {
         const r = springStep(offset, velocity, springLast ? t - springLast : 1000 / 60);
@@ -482,7 +623,7 @@ export function NightSky() {
         velocity = r.v;
         if (r.settled) springing = false;
       }
-      if (!interacting && t - last < (narrowQ.matches ? FRAME_MS_NARROW : FRAME_MS_WIDE)) return;
+      if (t - last < (interacting ? FRAME_MS_INTERACTING : narrowQ.matches ? FRAME_MS_NARROW : FRAME_MS_WIDE)) return;
       last = t;
       paint();
     };
@@ -518,10 +659,13 @@ export function NightSky() {
       const r = el.getBoundingClientRect();
       return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
     };
-    const pick = (x: number, y: number): Highlight | null => {
+    /** What is under (x, y): a drawn name's box, then a symbol within the
+     *  pointer type's radius (22px for touch, 12px otherwise; F1), then a
+     *  constellation line within HOVER_PX. */
+    const pick = (x: number, y: number, pointerType: string): Highlight | null => {
       if (!projected) return null;
       if (!isStargazing() && sheetContains(x, y)) return null;
-      const hit = nearestHit(projected, x, y, HOVER_HIT_PX);
+      const hit = nearestHit(projected, x, y, hitRadiusFor(pointerType));
       if (hit) return { kind: "hit", id: hit.id, pointer: { x, y } };
       const abbr = nearestConstellation(projected, x, y, HOVER_PX);
       return abbr ? { kind: "constellation", id: abbr, pointer: { x, y } } : null;
@@ -544,9 +688,9 @@ export function NightSky() {
 
     // A pointer that never travelled CLICK_SLOP_PX: in stargaze mode, a card
     // for whatever is under it, or closing the open card on empty sky.
-    const onSkyClick = (x: number, y: number) => {
+    const onSkyClick = (x: number, y: number, pointerType: string) => {
       if (!isStargazing()) return;
-      const next = pick(x, y);
+      const next = pick(x, y, pointerType);
       if (next) openCard(next);
       else closeCard();
     };
@@ -573,6 +717,10 @@ export function NightSky() {
     };
     const onPointerMove = (e: PointerEvent) => {
       if (drag && e.pointerId === drag.id) {
+        // A mouse whose button is already up: the pointerup went somewhere
+        // this never heard about (a context menu, a lost capture). End the
+        // drag instead of panning with no button held.
+        if (e.pointerType === "mouse" && e.buttons === 0) return finishDrag(null);
         const dx = e.clientX - drag.startX;
         const dy = e.clientY - drag.startY;
         if (!drag.moved && Math.hypot(dx, dy) >= CLICK_SLOP_PX) drag.moved = true;
@@ -583,11 +731,11 @@ export function NightSky() {
       if (e.pointerType === "touch") return;
       // Over the open card: nothing under it is being pointed at.
       if (e.target instanceof Element && e.target.closest("[data-sky-card]")) return setHighlight(null);
-      setHighlight(pick(e.clientX, e.clientY));
+      setHighlight(pick(e.clientX, e.clientY, e.pointerType));
     };
-    const endDrag = (e: PointerEvent) => {
-      if (!drag || e.pointerId !== drag.id) return;
-      const click = !drag.moved && e.type === "pointerup";
+    /** Ends the drag; `click` is the pointer's final position when it never travelled CLICK_SLOP_PX. */
+    const finishDrag = (click: { x: number; y: number; pointerType: string } | null) => {
+      if (!drag) return;
       drag = null;
       document.documentElement.style.cursor = "";
       if (reducedQ.matches) {
@@ -599,8 +747,18 @@ export function NightSky() {
         springing = true;
         springLast = 0;
       }
-      if (click) onSkyClick(e.clientX, e.clientY);
+      if (click) onSkyClick(click.x, click.y, click.pointerType);
     };
+    const endDrag = (e: PointerEvent) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      finishDrag(!drag.moved && e.type === "pointerup" ? { x: e.clientX, y: e.clientY, pointerType: e.pointerType } : null);
+    };
+    // pointerup fires before lostpointercapture, so a normal release has
+    // already ended the drag by now; this catches a capture lost any other way.
+    const onLostCapture = (e: PointerEvent) => {
+      if (drag && e.pointerId === drag.id) finishDrag(null);
+    };
+    const onBlur = () => finishDrag(null);
     const onPointerLeave = () => {
       if (!drag) setHighlight(null);
     };
@@ -695,8 +853,10 @@ export function NightSky() {
     window.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("pointerup", endDrag);
     window.addEventListener("pointercancel", endDrag);
+    window.addEventListener("blur", onBlur);
     window.addEventListener("keydown", onKeyDown, { capture: true });
     document.documentElement.addEventListener("pointerleave", onPointerLeave);
+    document.documentElement.addEventListener("lostpointercapture", onLostCapture);
     const unsubStargaze = subscribeStargaze((on) => {
       highlight = null;
       // Leaving stargaze closes any open card too, but focus is
@@ -704,6 +864,8 @@ export function NightSky() {
       // button), not the exit control NightSky would otherwise reach for.
       if (!on) closeCard({ restoreFocus: false });
       paint();
+      if (on) startList();
+      else stopList();
     });
     repaintRef.current = () => {
       if (!running) paint();
@@ -719,10 +881,13 @@ export function NightSky() {
       window.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointerup", endDrag);
       window.removeEventListener("pointercancel", endDrag);
+      window.removeEventListener("blur", onBlur);
       window.removeEventListener("keydown", onKeyDown, { capture: true });
       cancelAnimationFrame(pendingPaint);
+      window.clearInterval(listTimer);
       document.documentElement.style.cursor = "";
       document.documentElement.removeEventListener("pointerleave", onPointerLeave);
+      document.documentElement.removeEventListener("lostpointercapture", onLostCapture);
       unsubStargaze();
     };
   }, []);
@@ -734,7 +899,28 @@ export function NightSky() {
         aria-hidden
         className="pointer-events-none fixed inset-0 -z-10 h-full w-full"
       />
-      {card ? <SkyCard model={card} cardRef={cardRef} onClose={() => closeRef.current()} /> : null}
+      {card ? (
+        <SkyCard model={card} outOfView={cardOutOfView} cardRef={cardRef} onClose={() => closeRef.current()} />
+      ) : null}
+      {listSlot && listItems.length
+        ? createPortal(
+            <div data-sky-list role="group" aria-label={copy.stargaze.listLabel} className="sr-only">
+              {listItems.map((item) => (
+                <button
+                  key={`${item.kind}:${item.id}`}
+                  type="button"
+                  data-sky-list-item={item.id}
+                  onClick={(e) => listActionsRef.current?.open(item, e.currentTarget)}
+                  onFocus={() => listActionsRef.current?.focus(item)}
+                  onBlur={() => listActionsRef.current?.blur(item)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>,
+            listSlot,
+          )
+        : null}
     </>
   );
 }

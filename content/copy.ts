@@ -783,8 +783,14 @@ export const copy = {
   stargaze: {
     enter: "stargaze for a bit?",
     exit: "back to the page",
-    hintPointer: "drag to look around, click a name to read about it",
-    hintTouch: "drag to look around, tap a name to read about it",
+    /** Pointer: a drawn name's box and the symbol are both hit targets.
+     *  Touch: phones draw no names below 880px, so the hint promises only
+     *  the symbol (final review F1). */
+    hintPointer: "drag to look around, click a symbol or name to read about it",
+    hintTouch: "drag to look around, tap a symbol to read about it",
+    /** The screen-reader name of the stargaze keyboard list (NightSky, F2):
+     *  one button per selectable currently on screen. */
+    listLabel: "On screen now",
     credit:
       "The sky over NASA Ames from the moment you arrived, turning 180 times faster than the real one. Stars from the Extended Hipparcos Compilation; lines, Latin names, the Milky Way and the Messier objects from d3-celestial; English names and constellation origins from Wikipedia; spacecraft positions from JPL Horizons; meteor showers from the IMO; the ISS from CelesTrak. Every card cites its sources.",
     creditStill:
@@ -795,6 +801,9 @@ export const copy = {
     card: {
       close: "close",
       closeAria: "Close this card",
+      /** Shown while the card's subject is off the screen (F3); the card
+       *  stays open, and the line clears if the subject comes back. */
+      outOfView: "Out of view for now.",
       sources: "Sources",
       /** "Retrieved September 15, 2026, from https://…" (APA). */
       retrieved: "Retrieved",
@@ -802,11 +811,11 @@ export const copy = {
       titleMoon: "Moon",
       titleIss: "International Space Station",
       titleMilkyWay: "Milky Way",
-      /** "Active Jul 17 to Aug 24, peak Aug 13. Peak rate ZHR 100." */
+      /** "Active Jul 17 to Aug 24, peak Aug 13. Zenithal hourly rate (ZHR) at peak: 100." */
       showerActive: "Active ",
       showerTo: " to ",
       showerPeak: ", peak ",
-      showerZhr: ". Peak rate ZHR ",
+      showerZhr: ". Zenithal hourly rate (ZHR) at peak: ",
       showerParent: "Parent body: ",
       showerDrift:
         "The burst marks the radiant at the peak. The real radiant creeps a little each night, and this chart leaves that out.",

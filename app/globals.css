@@ -40,6 +40,11 @@ body[data-stargaze] [data-sky-credit] { position: fixed; inset-inline: 0; bottom
 /* Stargaze: a touch drag pans the sky (NightSky, spec 2026-09-15 §3), so the
    browser must not claim it for scrolling or pinch-zoom first. */
 html:has(body[data-stargaze]), body[data-stargaze] { touch-action: none; }
+/* A drag across the sky must not paint a text selection over the chart; the
+   card (real text, real links) and the keyboard list stay selectable. */
+body[data-stargaze] { -webkit-user-select: none; user-select: none; }
+body[data-stargaze] [data-sky-card],
+body[data-stargaze] [data-sky-list] { -webkit-user-select: text; user-select: text; }
 @media (prefers-reduced-motion: reduce) {
   main, body[data-stargaze] main { transition: none; }
 }

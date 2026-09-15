@@ -22,7 +22,11 @@ import type { SkyShower } from "@/lib/sky-objects";
  * position alone. Citation links are plain, untracked anchors (CLAUDE.md's
  * analytics quota rule: no new events).
  *
- * Fix round 1, I1: below 880px the card is still capped at 60vh (the bottom
+ * Final review: below 880px the cap is 60dvh (the dynamic viewport, so a
+ * phone's collapsing URL bar can't push the sheet's bottom off screen) and no
+ * text is smaller than 12px there; the desktop sizes are unchanged.
+ *
+ * Fix round 1, I1: below 880px the card was capped at 60vh (the bottom
  * sheet), but at 880px and up it gets the whole viewport height, minus a
  * 16px margin top and bottom, to match `NightSky.tsx`'s `followCard` clamp
  * (`height - 16 - h`) — a shower card's four data lines plus its body used to
@@ -35,8 +39,9 @@ import type { SkyShower } from "@/lib/sky-objects";
  *
  * Fix round 1, I3: the aside takes focus when it opens (`tabIndex={-1}`,
  * NightSky calls `.focus()`) so Tab reaches the close button and the source
- * links; NightSky returns focus to the stargaze exit control when the card
- * closes without leaving stargaze mode.
+ * links. On a close, NightSky moves focus only if it was inside the card:
+ * back to the keyboard-list button that opened it, else to the stargaze exit
+ * control (final review F2/F3).
  */
 
 export type CardExtra =
@@ -97,7 +102,18 @@ function extraLines(extra: CardExtra): string[] {
   }
 }
 
-export function SkyCard({ model, cardRef, onClose }: { model: CardModel; cardRef: Ref<HTMLElement>; onClose: () => void }) {
+export function SkyCard({
+  model,
+  outOfView,
+  cardRef,
+  onClose,
+}: {
+  model: CardModel;
+  /** The subject has left the viewport (final review F3): the card stays open and says so. */
+  outOfView: boolean;
+  cardRef: Ref<HTMLElement>;
+  onClose: () => void;
+}) {
   const t = copy.stargaze.card;
   const titleId = `sky-card-title-${model.id}`;
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -141,7 +157,7 @@ export function SkyCard({ model, cardRef, onClose }: { model: CardModel; cardRef
     >
       <div
         ref={scrollRef}
-        className="max-h-[60vh] overflow-y-auto px-4 py-4 font-mono text-[11px] leading-relaxed text-mut min-[880px]:max-h-[calc(100vh-32px)]"
+        className="max-h-[60dvh] overflow-y-auto px-4 py-4 font-mono text-[12px] leading-relaxed text-mut min-[880px]:max-h-[calc(100vh-32px)] min-[880px]:text-[11px]"
       >
         <div className="flex items-start justify-between gap-3">
           <h2 id={titleId} className="font-serif text-[17px] leading-snug text-ink">
@@ -159,6 +175,15 @@ export function SkyCard({ model, cardRef, onClose }: { model: CardModel; cardRef
         <p data-sky-card-kind className="mt-1 text-warm">
           {model.fact.kind}
         </p>
+        {/* Polite, so a screen reader hears the subject leave (and the
+            line go) without the card itself being re-announced. */}
+        <div aria-live="polite">
+          {outOfView ? (
+            <p data-sky-card-out-of-view className="mt-1 text-ink">
+              {t.outOfView}
+            </p>
+          ) : null}
+        </div>
         <p data-sky-card-oneliner className="mt-1 italic text-mut/90">
           {model.fact.oneLiner}
         </p>
@@ -171,8 +196,8 @@ export function SkyCard({ model, cardRef, onClose }: { model: CardModel; cardRef
         <p data-sky-card-visibility className="mt-2">
           {model.fact.visibility}
         </p>
-        <h3 className="mt-3 text-[10px] text-mut/80">{t.sources}</h3>
-        <ol data-sky-card-sources className="mt-1 space-y-1 text-[10px] leading-snug">
+        <h3 className="mt-3 text-[12px] text-mut/80 min-[880px]:text-[10px]">{t.sources}</h3>
+        <ol data-sky-card-sources className="mt-1 space-y-1 text-[12px] leading-snug min-[880px]:text-[10px]">
           {model.fact.citations.map((c) => (
             <CitationItem key={c.url} c={c} />
           ))}

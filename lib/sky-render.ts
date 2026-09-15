@@ -14,7 +14,7 @@
  * handed in through `oneLiner`.
  */
 import type { SkyData } from "./sky-data";
-import { drawIss, drawMilkyWay, drawObjects, drawRadiants, type Hit, type View } from "./sky-layers";
+import { drawIss, drawMilkyWay, drawObjects, drawRadiants, nameBox, type Hit, type View } from "./sky-layers";
 import type { PreparedMilkyWay, SkyObject, SkyShower } from "./sky-objects";
 import { eclipticToEquatorial, project, type Chart, type Equatorial, type Planet, type Point } from "./sky-math";
 
@@ -35,6 +35,9 @@ export type Projected = {
   segments: Map<string, Segment[]>;
   /** Everything selectable that is on screen this frame, in draw order. */
   hits: Hit[];
+  /** The Milky Way's label point this frame, drawn or not (below 880px it
+   *  has no hit, but the stargaze keyboard list still offers it; F6). */
+  milkyWay: { x: number; y: number } | null;
   label: LabelBox | null;
   labelText: LabelText | null;
   /** The id whose always-on name was skipped this frame because the
@@ -127,9 +130,11 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
   ctx.lineWidth = 1;
 
   // Milky Way band, under everything else.
+  let milkyWayAnchor: { x: number; y: number } | null = null;
   if (f.milkyWay) {
-    const mwHit = drawMilkyWay(ctx, view, f.milkyWay);
-    if (mwHit) hits.push(mwHit);
+    const mw = drawMilkyWay(ctx, view, f.milkyWay);
+    if (mw.hit) hits.push(mw.hit);
+    milkyWayAnchor = mw.anchor;
   }
   ctx.font = `10px ${f.fontFamily}`;
 
@@ -227,7 +232,8 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
       ctx.fillStyle = `rgba(${WARM},0.75)`;
       ctx.fillText(name, p.x + 6, p.y + 3);
     }
-    if (onCanvas(p, 0)) hits.push({ id, name, x: p.x, y: p.y });
+    // Planet names draw at every width, so their boxes are hit targets at every width (F1).
+    if (onCanvas(p, 0)) hits.push({ id, name, x: p.x, y: p.y, box: nameBox(ctx, name, p.x + 6, p.y + 3, 10) });
   }
 
   // The Moon, with its real phase. Screen directions of celestial north and
@@ -274,7 +280,7 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
       ctx.fillStyle = `rgba(${INK},0.7)`;
       ctx.fillText("Moon", mp.x + 8, mp.y + 3);
     }
-    if (onCanvas(mp, 0)) hits.push({ id: "moon", name: "Moon", x: mp.x, y: mp.y });
+    if (onCanvas(mp, 0)) hits.push({ id: "moon", name: "Moon", x: mp.x, y: mp.y, box: nameBox(ctx, "Moon", mp.x + 8, mp.y + 3, 10) });
   }
 
   // The ISS.
@@ -345,7 +351,7 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
   }
   ctx.font = `10px ${f.fontFamily}`;
 
-  return { segments, hits, label, labelText, suppressName };
+  return { segments, hits, milkyWay: milkyWayAnchor, label, labelText, suppressName };
 }
 
 const ASCENT = 9;
@@ -504,6 +510,57 @@ function segmentDistance(x: number, y: number, [x1, y1, x2, y2]: Segment): numbe
   return Math.hypot(x - (x1 + t * dx), y - (y1 + t * dy));
 }
 
+/**
+ * The part of a segment inside the rectangle [0, w] x [0, h] (Liang-Barsky),
+ * or null when none of it is.
+ */
+export function clipSegment([x1, y1, x2, y2]: Segment, w: number, h: number): Segment | null {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  let t0 = 0;
+  let t1 = 1;
+  for (const [pk, qk] of [
+    [-dx, x1],
+    [dx, w - x1],
+    [-dy, y1],
+    [dy, h - y1],
+  ]) {
+    if (pk === 0) {
+      if (qk < 0) return null;
+      continue;
+    }
+    const r = qk / pk;
+    if (pk < 0) {
+      if (r > t1) return null;
+      if (r > t0) t0 = r;
+    } else {
+      if (r < t0) return null;
+      if (r < t1) t1 = r;
+    }
+  }
+  return [x1 + t0 * dx, y1 + t0 * dy, x1 + t1 * dx, y1 + t1 * dy];
+}
+
+/**
+ * Where a constellation sits on screen: the mean midpoint of the parts of its
+ * segments inside the viewport, or null when no segment crosses it at all.
+ * A constellation whose lines cross the screen with every star off it still
+ * counts as in view.
+ */
+export function constellationAt(p: Projected, abbr: string, w: number, h: number): { x: number; y: number } | null {
+  let sx = 0;
+  let sy = 0;
+  let n = 0;
+  for (const seg of p.segments.get(abbr) ?? []) {
+    const c = clipSegment(seg, w, h);
+    if (!c) continue;
+    sx += (c[0] + c[2]) / 2;
+    sy += (c[1] + c[3]) / 2;
+    n++;
+  }
+  return n ? { x: sx / n, y: sy / n } : null;
+}
+
 /** The constellation whose nearest line segment is within maxPx, or null. */
 export function nearestConstellation(p: Projected, x: number, y: number, maxPx: number): string | null {
   let best: string | null = null;
@@ -520,11 +577,42 @@ export function nearestConstellation(p: Projected, x: number, y: number, maxPx: 
   return best;
 }
 
-/** The nearest drawn selectable within maxPx, or null. */
+/** Symbols win within this for a mouse or pen (spec §5). */
+export const HIT_PX_POINTER = 12;
+/** A fingertip covers far more than a cursor tip does (final review F1). */
+export const HIT_PX_TOUCH = 22;
+/** The symbol radius for a PointerEvent's `pointerType`. */
+export function hitRadiusFor(pointerType: string): number {
+  return pointerType === "touch" ? HIT_PX_TOUCH : HIT_PX_POINTER;
+}
+
+/** A point this close to a drawn symbol is ON it: that symbol beats any name box over it. */
+export const SYMBOL_CORE_PX = 6;
+
+/**
+ * The drawn selectable under (x, y), in three passes: a symbol the point is
+ * actually on (within SYMBOL_CORE_PX); then any name box containing the
+ * point (topmost, i.e. last drawn, wins); then the nearest symbol within
+ * maxPx. The first pass exists because names are ~80px long: without it,
+ * a planet or star drawn under a neighbour's name (Mars under "Beehive
+ * Cluster", measured) could never be clicked. Box-only hits (the Milky Way's
+ * label) never match by radius.
+ */
 export function nearestHit(p: Projected, x: number, y: number, maxPx: number): Hit | null {
+  const onSymbol = nearestSymbol(p, x, y, Math.min(SYMBOL_CORE_PX, maxPx));
+  if (onSymbol) return onSymbol;
+  for (let i = p.hits.length - 1; i >= 0; i--) {
+    const b = p.hits[i].box;
+    if (b && x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return p.hits[i];
+  }
+  return nearestSymbol(p, x, y, maxPx);
+}
+
+function nearestSymbol(p: Projected, x: number, y: number, maxPx: number): Hit | null {
   let best: Hit | null = null;
   let bestD = maxPx;
   for (const h of p.hits) {
+    if (h.boxOnly) continue;
     const d = Math.hypot(h.x - x, h.y - y);
     if (d <= bestD) {
       bestD = d;

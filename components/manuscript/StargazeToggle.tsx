@@ -13,6 +13,9 @@ import { isStargazing, setStargazing, useStargazing } from "@/lib/stargaze";
  * Focus follows the mode: entering moves focus to the exit control (the
  * entry button is hidden, and `main` is inert); leaving returns it to the
  * entry button. Escape leaves from anywhere.
+ *
+ * The hint is chosen by `(hover: none)`: a pointer can click a drawn name or
+ * its symbol, a finger gets the symbol (phones draw no names below 880px).
  */
 export function StargazeToggle() {
   const on = useStargazing();
@@ -78,6 +81,11 @@ export function StargazeToggle() {
           </div>
         </div>
       ) : null}
+      {/* NightSky portals the stargaze keyboard list in here (final review
+          F2): right after the exit control in DOM order, so Tab goes from
+          "back to the page" straight into what's on screen. Always rendered,
+          so it exists before stargaze mode first turns on. */}
+      <div data-sky-list-slot />
     </>
   );
 }

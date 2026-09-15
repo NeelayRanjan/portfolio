@@ -118,6 +118,20 @@ function wikipedia(title: string, oldid: number, year: string, accessed: string)
   };
 }
 
+/** A NASA Science page, by its path under https://science.nasa.gov/. */
+function nasaScience(path: string, title: string, accessed: string): Citation {
+  return {
+    author: "NASA Science",
+    year: "n.d.",
+    title,
+    site: "NASA Science",
+    url: `https://science.nasa.gov/${path}`,
+    accessed,
+  };
+}
+
+const SKYWATCHING = nasaScience("skywatching/", "Skywatching Tips From NASA", "2026-09-15");
+
 export const SKY_FACTS: readonly SkyFact[] = [
   /* ---- deep-sky objects and landmarks ---- */
   {
@@ -541,6 +555,118 @@ export const SKY_FACTS: readonly SkyFact[] = [
     ],
     visibility: "Naked eye",
     citations: [wikipedia("Regulus", 1374633235, "2026", "2026-09-15")],
+  },
+
+  /* ---- solar system, the ISS, the Milky Way ---- */
+  {
+    id: "mercury",
+    kind: "Planet · closest to the Sun",
+    oneLiner: "Named for the swiftest of the Roman gods",
+    body: [
+      "It is named for the swiftest of the ancient Roman gods, and it is the fastest planet, going around the Sun every 88 Earth days.",
+      "One solar day there, a full cycle of day and night, lasts 176 Earth days.",
+    ],
+    visibility: "Naked eye",
+    citations: [nasaScience("mercury/facts/", "Mercury: Facts", "2026-09-15"), SKYWATCHING],
+  },
+  {
+    id: "venus",
+    kind: "Planet · second from the Sun",
+    oneLiner: "The only planet named after a female god",
+    body: [
+      "It is named for the Roman goddess of love and beauty, whom the Greeks knew as Aphrodite, and most features on it are named for women.",
+      "A day there lasts 243 Earth days, longer than its 225-day year, and the Sun rises in the west.",
+    ],
+    visibility: "Naked eye; the brightest object in the night sky after the Moon",
+    citations: [nasaScience("venus/facts/", "Venus: Facts", "2026-09-15")],
+  },
+  {
+    id: "mars",
+    kind: "Planet · fourth from the Sun",
+    oneLiner: "Named by the Romans for their god of war",
+    body: [
+      "The Romans named it for their god of war because its reddish colour was reminiscent of blood; the Egyptians called it “Her Desher”, meaning “the red one”.",
+      "The red is iron minerals in the dirt that have oxidized, or rusted.",
+      "Olympus Mons, the largest volcano in the solar system, stands more than 25 miles tall.",
+    ],
+    visibility: "Naked eye",
+    citations: [nasaScience("mars/facts/", "Mars: Facts", "2026-09-15"), SKYWATCHING],
+  },
+  {
+    id: "jupiter",
+    kind: "Planet · the largest",
+    oneLiner: "The king of planets, named for the king of the gods",
+    body: [
+      "It is named for Jupiter, king of the Roman gods, and most of its moons for figures tied to him or to Zeus.",
+      "Galileo first saw its four largest moons in 1610.",
+      "A day there takes about 9.9 hours, the shortest in the solar system.",
+    ],
+    visibility: "Naked eye",
+    citations: [nasaScience("jupiter/facts/", "Jupiter Facts", "2026-09-15"), SKYWATCHING],
+  },
+  {
+    id: "saturn",
+    kind: "Planet · sixth from the Sun",
+    oneLiner: "The farthest planet found with the unaided eye",
+    body: [
+      "It is named for the Roman god of agriculture and wealth, who was also the father of Jupiter.",
+      "As of March 2025 it had 274 confirmed moons, far more than any other planet.",
+    ],
+    visibility: "Naked eye",
+    citations: [nasaScience("saturn/facts/", "Saturn: Facts", "2026-09-15"), SKYWATCHING],
+  },
+  {
+    id: "moon",
+    kind: "Natural satellite · 238,855 miles away on average",
+    oneLiner: "Earth’s only natural satellite",
+    body: [
+      "All moons share its name because nobody knew other moons existed until Galileo found four around Jupiter in 1610.",
+      "In Latin it was Luna, which gives us the word lunar.",
+      "Nobody saw its far side until a Soviet spacecraft flew past in 1959.",
+    ],
+    visibility: "Naked eye",
+    citations: [nasaScience("moon/facts/", "Moon Facts", "2026-09-15"), SKYWATCHING],
+  },
+  {
+    id: "iss",
+    kind: "Space station · launched 1998",
+    oneLiner: "People have lived aboard without a break for over 25 years",
+    body: [
+      "November 2, 2025, marked 25 years of continuous human presence aboard.",
+      "Over 280 people from 26 countries have visited it.",
+    ],
+    visibility: "Naked eye, within a few hours of sunrise or sunset; it looks like a very bright star moving steadily, with no flashing lights",
+    citations: [
+      CELESTRAK_ISS,
+      {
+        author: "NASA",
+        year: "n.d.",
+        title: "International Space Station",
+        site: "NASA",
+        url: "https://www.nasa.gov/international-space-station/",
+        accessed: "2026-09-15",
+      },
+      {
+        author: "NASA",
+        year: "n.d.",
+        title: "Spot The Station",
+        site: "NASA",
+        url: "https://www.nasa.gov/spot-the-station/",
+        accessed: "2026-09-15",
+      },
+    ],
+  },
+  {
+    id: "milky-way",
+    kind: "Galaxy · ours, seen edge-on from inside",
+    oneLiner: "The disk of our own galaxy, seen from within",
+    body: [
+      "The solar system lies inside the Milky Way’s disk, so we see the disk edge-on as a band across the sky.",
+      "Spitzer’s infrared images showed two major arms coming off the ends of a central bar; the galaxy was previously thought to have four.",
+      "The Sun lies near a small, partial arm called the Orion Arm, or Orion Spur.",
+    ],
+    visibility: "Naked eye, as a band of faint light, away from bright city lights",
+    citations: [nasaScience("resource/the-milky-way-galaxy/", "The Milky Way Galaxy", "2026-09-15"), SKYWATCHING],
   },
 
   /* ---- constellations ---- */

@@ -86,6 +86,8 @@ type SkySnapshot = {
   highlight: string | null;
   label: { x: number; y: number; w: number; h: number } | null;
   labelText: LabelText | null;
+  /** The id whose always-on name was skipped this frame, or null (fix round 1, I2). */
+  suppressedName: string | null;
   hits: { id: string; x: number; y: number }[];
   radiants: string[];
   layers: { objects: LayerState; milkyWay: LayerState; facts: LayerState };
@@ -242,6 +244,7 @@ export function NightSky() {
         highlight: highlight?.id ?? null,
         label: seen.label,
         labelText: seen.labelText,
+        suppressedName: seen.suppressName,
         hits: seen.hits.map(({ id, x, y }) => ({ id, x, y })),
         radiants: activeShowers.map((s) => s.id),
         layers: { ...layers },

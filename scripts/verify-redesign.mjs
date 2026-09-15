@@ -112,6 +112,28 @@ function skyPeak(page, x, y, r) {
   );
 }
 
+/** Mean (not brightest) RGB value in a (2r+1)px box of the sky canvas, CSS
+ *  coords: skyPeak's companion, used to confirm a patch of canvas is dark
+ *  (a desk-coloured label backing) rather than bright (bleed-through text). */
+function skyMean(page, x, y, r) {
+  return page.evaluate(
+    ([sel, x, y, r]) => {
+      const c = document.querySelector(sel);
+      const s = c.width / window.innerWidth;
+      const size = Math.round(2 * r * s) + 1;
+      const { data } = c.getContext("2d").getImageData(Math.round((x - r) * s), Math.round((y - r) * s), size, size);
+      let sum = 0;
+      let n = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        sum += (data[i] + data[i + 1] + data[i + 2]) / 3;
+        n++;
+      }
+      return sum / n;
+    },
+    [SKY_CANVAS, x, y, r],
+  );
+}
+
 async function skyAnimatesAt1280(browser) {
   return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
     await page.goto(BASE, { waitUntil: "networkidle" });
@@ -474,7 +496,36 @@ async function checkSkyObjects(browser) {
     const text = await page.evaluate(() => window.__sky.labelText);
     const oneLiner = SKY_FACTS.find((f) => f.id === target.id)?.oneLiner;
     if (!oneLiner || text?.sub !== oneLiner) throw new Error(`${target.id}: label ${JSON.stringify(text)}, fact one-liner ${JSON.stringify(oneLiner)}`);
-    return `${target.id} "${text.title}" / "${text.sub}"`;
+
+    // Legibility (fix round 1, C1/I2): the hovered symbol's own always-on
+    // name must be suppressed (it is about to be redrawn, larger, right
+    // here), and the label itself must sit on a desk-coloured backing so a
+    // neighbouring label's text can't bleed through underneath it.
+    const suppressed = await page.evaluate(() => window.__sky.suppressedName);
+    if (suppressed !== target.id) {
+      throw new Error(`suppressedName is ${JSON.stringify(suppressed)} while hovering ${target.id}`);
+    }
+    const box = await page.evaluate(() => window.__sky.label);
+    if (!box) throw new Error(`${target.id} hovered but window.__sky.label is null`);
+    // Just inside the backing's few-px padding, outside the tight text box:
+    // desk-coloured (low mean RGB) if the backing is real, still showing any
+    // pre-existing bright content (a star, a line, a neighbour's name) at
+    // roughly its own brightness if the backing regresses to nothing.
+    const corners = [
+      [box.x - 1, box.y - 1],
+      [box.x + box.w + 1, box.y - 1],
+      [box.x - 1, box.y + box.h + 1],
+      [box.x + box.w + 1, box.y + box.h + 1],
+    ];
+    for (const [cx, cy] of corners) {
+      const mean = await skyMean(page, cx, cy, 1);
+      if (mean > 70) {
+        throw new Error(
+          `label backing corner (${cx}, ${cy}) mean RGB ${mean.toFixed(1)} looks like bleed-through, not the desk-coloured backing`,
+        );
+      }
+    }
+    return `${target.id} "${text.title}" / "${text.sub}"; suppressedName ok; backing corners dark`;
   });
   notes.push(`hover ${hovered}`);
   return notes.join("; ");

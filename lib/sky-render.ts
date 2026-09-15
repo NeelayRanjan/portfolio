@@ -37,6 +37,9 @@ export type Projected = {
   hits: Hit[];
   label: LabelBox | null;
   labelText: LabelText | null;
+  /** The id whose always-on name was skipped this frame because the
+   *  hover/selection label was about to draw it again (fix round 1, C1). */
+  suppressName: string | null;
 };
 /** A hovered (or tapped) thing: a constellation by abbreviation, or a Hit by id. */
 export type Highlight = { kind: "constellation" | "hit"; id: string; pointer: Point };
@@ -72,6 +75,7 @@ export type FrameInput = {
 };
 
 const DESK = "#0c0b09";
+const DESK_RGB = "12,11,9";
 const INK = "234,229,218";
 const MUT = "154,148,138";
 const WARM = "217,164,91";
@@ -104,7 +108,12 @@ export function precomputeStarFills(stars: SkyData["stars"]): string[] {
 
 export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInput): Projected {
   const { width, height, chart: c } = f;
-  const view: View = { chart: c, width, height, fontFamily: f.fontFamily, names: f.names };
+  // The id whose always-on name must be skipped this frame (fix round 1,
+  // C1): the current hover wins over the current selection, since the
+  // hover's label is what is about to overdraw it. Task 5 wires real
+  // selection; today selectedId is always null from NightSky.tsx.
+  const suppressName = f.highlight?.kind === "hit" ? f.highlight.id : f.selectedId;
+  const view: View = { chart: c, width, height, fontFamily: f.fontFamily, names: f.names, suppressName };
   const onCanvas = (p: { x: number; y: number }, m: number) =>
     p.x > -m && p.x < width + m && p.y > -m && p.y < height + m;
   const radiusAt = (dec: number) => c.k * Math.tan(((90 - dec) / 2) * D2R);
@@ -208,9 +217,14 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
     ctx.arc(p.x, p.y, 2.6, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(${WARM},0.95)`;
     ctx.fill();
-    ctx.fillStyle = `rgba(${WARM},0.75)`;
-    ctx.fillText(name, p.x + 6, p.y + 3);
-    if (onCanvas(p, 0)) hits.push({ id: name.toLowerCase(), name, x: p.x, y: p.y });
+    const id = name.toLowerCase();
+    // Skipped when this planet is the current hover/selection (C1): its
+    // name is about to be drawn again, larger, by the hover label.
+    if (id !== suppressName) {
+      ctx.fillStyle = `rgba(${WARM},0.75)`;
+      ctx.fillText(name, p.x + 6, p.y + 3);
+    }
+    if (onCanvas(p, 0)) hits.push({ id, name, x: p.x, y: p.y });
   }
 
   // The Moon, with its real phase. Screen directions of celestial north and
@@ -251,8 +265,12 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
     ctx.fillStyle = `rgba(${INK},0.95)`;
     ctx.fill();
     ctx.restore();
-    ctx.fillStyle = `rgba(${INK},0.7)`;
-    ctx.fillText("Moon", mp.x + 8, mp.y + 3);
+    // Skipped when the Moon is the current hover/selection (C1): its name
+    // is about to be drawn again, larger, by the hover label.
+    if ("moon" !== suppressName) {
+      ctx.fillStyle = `rgba(${INK},0.7)`;
+      ctx.fillText("Moon", mp.x + 8, mp.y + 3);
+    }
     if (onCanvas(mp, 0)) hits.push({ id: "moon", name: "Moon", x: mp.x, y: mp.y });
   }
 
@@ -318,7 +336,7 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
   }
   ctx.font = `10px ${f.fontFamily}`;
 
-  return { segments, hits, label, labelText };
+  return { segments, hits, label, labelText, suppressName };
 }
 
 const ASCENT = 9;
@@ -439,6 +457,13 @@ function drawLabel(
     }
     box = boxAt(boxX, baselineY, lay.w, lay.rows);
   }
+
+  // A desk-coloured backing behind the label (fix round 1, C1): the symbol's
+  // own always-on name is suppressed above, but a neighbouring label (e.g.
+  // "Mars" a few px away) is not, and used to bleed straight through.
+  const BACKING_PAD = 3;
+  ctx.fillStyle = `rgba(${DESK_RGB},0.85)`;
+  ctx.fillRect(box.x - BACKING_PAD, box.y - BACKING_PAD, box.w + 2 * BACKING_PAD, box.h + 2 * BACKING_PAD);
 
   ctx.font = `12px ${f.fontFamily}`;
   ctx.fillStyle = `rgba(${INK},0.95)`;

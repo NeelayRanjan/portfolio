@@ -25,8 +25,18 @@ const D2R = Math.PI / 180;
 /** Each level adds this much ink; five nested levels build the band's core. Tuned by eye (Task 4 Step 9). */
 export const MILKY_WAY_ALPHA = 0.022;
 
-/** What every layer needs to know about the frame. */
-export type View = { chart: Chart; width: number; height: number; fontFamily: string; names: boolean };
+/** What every layer needs to know about the frame. `suppressName` is the id
+ *  (a hit id, or "milky-way") whose always-on name must be skipped because
+ *  the hover/selection label is about to draw the same name over it (fix
+ *  round 1, C1: the two used to double-draw and fuse with neighbours). */
+export type View = {
+  chart: Chart;
+  width: number;
+  height: number;
+  fontFamily: string;
+  names: boolean;
+  suppressName: string | null;
+};
 const onCanvas = (p: { x: number; y: number }, v: View, m: number) =>
   p.x > -m && p.x < v.width + m && p.y > -m && p.y < v.height + m;
 
@@ -64,9 +74,16 @@ export function drawMilkyWay(ctx: CanvasRenderingContext2D, v: View, mw: Prepare
     }
   }
   if (!best) return null;
-  ctx.font = `9px ${v.fontFamily}`;
-  ctx.fillStyle = `rgba(${MUT},0.5)`;
-  ctx.fillText("Milky Way", best.x, best.y);
+  // Gated on v.names like every other always-on label (M5, fix round 1):
+  // below 880px the band is still a selectable Hit (stargaze can tap it),
+  // it just carries no always-on name. Also skipped when the band itself is
+  // the current hover/selection, whose own label is about to draw the same
+  // name in the same place (C1).
+  if (v.names && v.suppressName !== "milky-way") {
+    ctx.font = `9px ${v.fontFamily}`;
+    ctx.fillStyle = `rgba(${MUT},0.5)`;
+    ctx.fillText("Milky Way", best.x, best.y);
+  }
   return { id: "milky-way", name: "Milky Way", x: best.x, y: best.y };
 }
 
@@ -164,7 +181,9 @@ export function drawObjects(
       case "star":
         break; // the star layer already drew it; this adds the name and the hit
     }
-    if (v.names) {
+    // Skipped when this object is the current hover/selection (C1): its
+    // name is about to be drawn again, larger, by the hover label.
+    if (v.names && o.id !== v.suppressName) {
       ctx.fillStyle = human ? `rgba(${WARM},0.75)` : `rgba(${MUT},0.7)`;
       const dx = o.symbol === "field" ? 0 : 8;
       ctx.fillText(o.name, p.x + dx, p.y + 3);
@@ -191,7 +210,7 @@ export function drawRadiants(ctx: CanvasRenderingContext2D, v: View, active: Sky
     }
     ctx.strokeStyle = `rgba(${WARM},0.9)`;
     ctx.stroke();
-    if (v.names) {
+    if (v.names && sh.id !== v.suppressName) {
       ctx.fillStyle = `rgba(${WARM},0.75)`;
       ctx.fillText(sh.name, p.x + 9, p.y + 3);
     }

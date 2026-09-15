@@ -786,9 +786,9 @@ export const copy = {
     hintPointer: "hover a constellation",
     hintTouch: "tap a constellation",
     credit:
-      "The sky over NASA Ames from the moment you arrived, turning 180 times faster than the real one. Stars from the Extended Hipparcos Compilation; lines and names from d3-celestial.",
+      "The sky over NASA Ames from the moment you arrived, turning 180 times faster than the real one. Stars from the Extended Hipparcos Compilation; lines and Latin names from d3-celestial; English names from Wikipedia.",
     creditStill:
-      "The sky over NASA Ames at the moment you arrived. Stars from the Extended Hipparcos Compilation; lines and names from d3-celestial.",
+      "The sky over NASA Ames at the moment you arrived. Stars from the Extended Hipparcos Compilation; lines and Latin names from d3-celestial; English names from Wikipedia.",
   },
 
   /** The 404 page, restyled to the "reference not found" conceit (spec §2).

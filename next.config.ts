@@ -21,6 +21,13 @@ const nextConfig: NextConfig = {
   // createSingleThreadRuntime/createMultiThreadRuntime, which nothing here
   // does; it throws loudly if it's ever hit, rather than silently going
   // nowhere.
+  // ⚠️ `#wasm-single-thread` / `#wasm-multi-thread` are satellite.js's
+  // PACKAGE-PRIVATE import names, not a public API: a new release can rename
+  // them, add a third, or change what reaches them, and these aliases would
+  // then silently match nothing. That is why package.json pins satellite.js
+  // to exactly 7.1.0. Whenever it is bumped, re-bisect the build hang (a
+  // `next build` with the aliases removed, then with them) before trusting
+  // these two lines.
   turbopack: {
     resolveAlias: {
       "#wasm-single-thread": "./lib/satellite-wasm-stub.js",

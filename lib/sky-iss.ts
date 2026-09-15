@@ -113,9 +113,19 @@ export async function loadIss(importSatellite: () => Promise<SatelliteLib>, obs:
   }
   if (!res.ok) return null;
   const body = (await res.json()) as IssRouteBody;
-  if ("tle" in body && body.tle === null) return null;
+  // Fix round 1: `body` can itself be JSON `null` (or any other non-object
+  // reply); `"tle" in body` throws a TypeError on that rather than reaching
+  // the malformed-body error below, which is the one a route bug should
+  // actually surface as.
+  if (body && typeof body === "object" && "tle" in body && body.tle === null) return null;
   const tle = body as IssTle;
-  if (typeof tle.line1 !== "string" || typeof tle.line2 !== "string" || Number.isNaN(Date.parse(tle.epoch))) {
+  if (
+    !body ||
+    typeof body !== "object" ||
+    typeof tle.line1 !== "string" ||
+    typeof tle.line2 !== "string" ||
+    Number.isNaN(Date.parse(tle.epoch))
+  ) {
     throw new Error(`${ISS_URL}: malformed body ${JSON.stringify(body).slice(0, 200)}`);
   }
   const sat = await importSatellite();

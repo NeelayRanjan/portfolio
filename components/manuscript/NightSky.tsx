@@ -153,7 +153,15 @@ export function NightSky() {
       document.querySelector<HTMLElement>("[data-stargaze-exit]")?.focus({ preventScroll: true });
     }
     prevCardRef.current = null;
-  }, [card]);
+    // Fix round 1, I1: keyed on the SUBJECT (card?.id), not the card object
+    // itself. The ISS card's once-a-second refresh (below) calls setCard
+    // with a freshly built model whose altitude/speed/epoch text changed but
+    // whose id didn't; keying on the object would re-run this effect every
+    // second, stealing focus back from wherever the visitor had tabbed to
+    // (a citation link, the close button) and making a screen reader
+    // re-announce the card. Keying on id alone still fires exactly when a
+    // card opens, changes subject, or closes.
+  }, [card?.id]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -285,11 +293,14 @@ export function NightSky() {
           })()
         : null;
       const activeShowers = objectsData ? objectsData.showers.filter((s) => isShowerActive(s, sim)) : [];
+      // Fix round 1: the SGP4 propagation + precession moved inside the
+      // timed region below (it used to run before t0), so frameMsMedian
+      // covers the ISS's own per-frame cost, not just the canvas draw.
+      const t0 = performance.now();
       issNow = issTracker ? issTracker.at(sim) : null;
       const iss = issNow
         ? { eq: precessToJ2000({ raDeg: issNow.raDateDeg, decDeg: issNow.decDateDeg }, sim), aboveHorizon: issNow.elevationDeg > 0 }
         : null;
-      const t0 = performance.now();
       projected = drawSky(ctx, sky, {
         width,
         height,
@@ -654,7 +665,10 @@ export function NightSky() {
       })
       .catch((err) => {
         layers.iss = "error";
-        console.error("NightSky: /api/iss-tle answered with something that isn't a TLE; no ISS drawn.", err);
+        // Fix round 1: this also catches a failed import("satellite.js")
+        // chunk load (loadIss awaits importSatellite() internally), not only
+        // a malformed route body, so the message has to be true for both.
+        console.error("NightSky: the ISS's TLE or its satellite.js module failed to load; no ISS drawn.", err);
         if (alive) paint();
       });
     import("@/content/sky-facts")

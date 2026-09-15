@@ -2318,34 +2318,66 @@ function findIssInstant(W, H) {
   throw new Error("the fixture TLE never puts the ISS 20° up and on screen in 24 h");
 }
 
+// Fix round 1, folded minor: 3 runs against the fixture TLE at the pinned
+// instant all measured the SAME 0.02px (a pinned clock plus pure math has no
+// room for run-to-run variance here), well inside the old 3px slack. Tightened
+// to 2px rather than to the measured value itself, to leave headroom for a
+// different machine's floating-point rounding without being so tight a real
+// regression could hide under it.
+const ISS_POSITION_TOLERANCE_PX = 2;
+
+// Fix round 1, folded minor: on the {tle:null} page we now collect every
+// console error, not only ones mentioning iss/satellite/NightSky — a route
+// bug or an unrelated regression could log something that doesn't happen to
+// match those words. Entries here are messages seen, confirmed unrelated to
+// this check, and confirmed harmless; an empty list is the correct default,
+// not a placeholder to fill in preemptively.
+const ISS_KNOWN_HARMLESS_CONSOLE = [];
+
 async function checkSkyIss(browser) {
   const W = 1600;
   const H = 1000;
   const { date, p, elevation } = findIssInstant(W, H);
-  const issPage = (body, fn) =>
-    withPage(browser, { viewport: { width: W, height: H }, reducedMotion: "reduce", deviceScaleFactor: 1 }, async (page, context) => {
-      const errors = [];
-      page.on("pageerror", (err) => errors.push(`pageerror: ${err.message}`));
-      page.on("console", (msg) => {
-        if (msg.type() === "error" && /iss|satellite|NightSky/i.test(msg.text())) errors.push(`console: ${msg.text()}`);
-      });
-      await context.route("**/api/iss-tle", (route) =>
-        route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) }),
-      );
-      await page.clock.setFixedTime(date);
-      await page.goto(BASE, { waitUntil: "networkidle" });
-      await waitSkyDrawn(page);
-      const out = await fn(page);
-      if (errors.length) throw new Error(errors.join(" | "));
-      return out;
-    });
+  const issPage = (body, fn, { motion = false, strictConsole = false } = {}) =>
+    withPage(
+      browser,
+      { viewport: { width: W, height: H }, reducedMotion: motion ? "no-preference" : "reduce", deviceScaleFactor: 1 },
+      async (page, context) => {
+        const errors = [];
+        page.on("pageerror", (err) => errors.push(`pageerror: ${err.message}`));
+        page.on("console", (msg) => {
+          if (msg.type() !== "error") return;
+          const text = msg.text();
+          if (strictConsole) {
+            if (ISS_KNOWN_HARMLESS_CONSOLE.some((re) => re.test(text))) return;
+            errors.push(`console: ${text}`);
+          } else if (/iss|satellite|NightSky/i.test(text)) {
+            errors.push(`console: ${text}`);
+          }
+        });
+        await context.route("**/api/iss-tle", (route) =>
+          route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) }),
+        );
+        await page.clock.setFixedTime(date);
+        await page.goto(BASE, { waitUntil: "networkidle" });
+        await waitSkyDrawn(page);
+        const out = await fn(page);
+        if (errors.length) throw new Error(errors.join(" | "));
+        return out;
+      },
+    );
 
+  const t = copy.stargaze.card;
+  let posErrPx = 0;
   const present = await issPage(ISS_TLE, async (page) => {
     await page.waitForFunction(() => window.__sky.layers.iss === "ready" && window.__sky.layers.facts === "ready", null, { timeout: 10000 });
     const iss = await page.evaluate(() => window.__sky.iss);
     if (!iss) throw new Error(`no ISS drawn at ${date.toISOString()} (elevation ${elevation.toFixed(1)}°)`);
-    if (Math.hypot(iss.x - p.x, iss.y - p.y) > 3) {
-      throw new Error(`ISS drawn at (${iss.x.toFixed(1)}, ${iss.y.toFixed(1)}), independent computation says (${p.x.toFixed(1)}, ${p.y.toFixed(1)})`);
+    posErrPx = Math.hypot(iss.x - p.x, iss.y - p.y);
+    if (posErrPx > ISS_POSITION_TOLERANCE_PX) {
+      throw new Error(
+        `ISS drawn at (${iss.x.toFixed(1)}, ${iss.y.toFixed(1)}), independent computation says (${p.x.toFixed(1)}, ${p.y.toFixed(1)}), off by ${posErrPx.toFixed(2)}px`,
+      );
     }
     if (!iss.aboveHorizon) throw new Error(`ISS reported below the horizon at ${elevation.toFixed(1)}° elevation`);
     const peak = await skyPeak(page, p.x, p.y, 3);
@@ -2366,17 +2398,64 @@ async function checkSkyIss(browser) {
     if (!content.data.some((d) => /^Above the horizon/.test(d))) throw new Error(`card data ${JSON.stringify(content.data)}`);
     if (!content.data.some((d) => /September 15, 2026, 04:12 UTC/.test(d))) throw new Error(`card lacks the TLE epoch: ${JSON.stringify(content.data)}`);
     if (!content.links.some((href) => href.startsWith("https://celestrak.org/"))) throw new Error(`no CelesTrak citation: ${content.links}`);
-    return peak;
+
+    // Fix round 1, folded minor: the altitude/speed line is well-formed AND
+    // physically sane for the fixture TLE at the pinned instant (a stale
+    // TLE, a unit bug, or a garbled readout would all slip past a pure
+    // regex-presence check).
+    const altLine = content.data.find((d) => d.startsWith(t.issAltitude) && d.endsWith(t.issSpeedPost));
+    if (!altLine) throw new Error(`card missing an altitude/speed line: ${JSON.stringify(content.data)}`);
+    const [altStr, speedStr] = altLine.slice(t.issAltitude.length, altLine.length - t.issSpeedPost.length).split(t.issSpeed);
+    const altitudeKm = Number(altStr);
+    const speedKmS = Number(speedStr);
+    if (!(altitudeKm > 370 && altitudeKm < 460)) throw new Error(`card altitude ${altitudeKm} km outside 370-460`);
+    if (!(speedKmS > 7.5 && speedKmS < 7.8)) throw new Error(`card speed ${speedKmS} km/s outside 7.5-7.8`);
+    return { peak, altitudeKm, speedKmS };
   });
 
-  const absentPeak = await issPage({ tle: null, fetchedAt: ISS_TLE.fetchedAt }, async (page) => {
-    await page.waitForFunction(() => window.__sky.layers.iss === "absent", null, { timeout: 10000 });
-    const snap = await page.evaluate(() => ({ iss: window.__sky.iss, hit: window.__sky.hits.some((h) => h.id === "iss") }));
-    if (snap.iss || snap.hit) throw new Error("an ISS was drawn although the route had no TLE");
-    return skyPeak(page, p.x, p.y, 3);
-  });
-  if (present - absentPeak < 40) throw new Error(`ISS pixel peak ${present} with a TLE vs ${absentPeak} without`);
-  return `${date.toISOString()} at ${elevation.toFixed(1)}°: drawn at (${p.x.toFixed(0)}, ${p.y.toFixed(0)}), peak ${absentPeak} -> ${present}, card opens; { tle: null } draws nothing, no errors`;
+  const absentPeak = await issPage(
+    { tle: null, fetchedAt: ISS_TLE.fetchedAt },
+    async (page) => {
+      await page.waitForFunction(() => window.__sky.layers.iss === "absent", null, { timeout: 10000 });
+      const snap = await page.evaluate(() => ({ iss: window.__sky.iss, hit: window.__sky.hits.some((h) => h.id === "iss") }));
+      if (snap.iss || snap.hit) throw new Error("an ISS was drawn although the route had no TLE");
+      return skyPeak(page, p.x, p.y, 3);
+    },
+    { strictConsole: true },
+  );
+  if (present.peak - absentPeak < 40) throw new Error(`ISS pixel peak ${present.peak} with a TLE vs ${absentPeak} without`);
+
+  // Fix round 1, I1's regression check: with motion ON (not reduced), open
+  // the ISS card (whose readout refreshes once a real second — see
+  // NightSky.tsx), move focus to its close button, and confirm a repaint
+  // 2.5s later hasn't stolen focus back. Before the fix this failed: the
+  // once-a-second setCard(buildCard(...)) created a new card object every
+  // time, and the open/focus effect was keyed on that object, re-running
+  // `.focus()` on the card itself each refresh.
+  await issPage(
+    ISS_TLE,
+    async (page) => {
+      await page.waitForFunction(() => window.__sky.layers.iss === "ready" && window.__sky.layers.facts === "ready", null, { timeout: 10000 });
+      await waitStargazeReady(page);
+      await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+      await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+      await page.mouse.click(p.x, p.y);
+      const card = page.locator("[data-sky-card=iss]");
+      await card.waitFor({ state: "visible", timeout: 3000 });
+      await page.keyboard.press("Tab"); // aside itself has focus; Tab reaches the close button first
+      const closeText = await page.evaluate(() => document.activeElement?.textContent?.trim());
+      if (closeText !== copy.stargaze.card.close) throw new Error(`Tab from the card landed on "${closeText}", not the close button`);
+      await page.waitForTimeout(2500);
+      const stillFocused = await page.evaluate(
+        (label) => document.activeElement?.tagName === "BUTTON" && document.activeElement.textContent?.trim() === label,
+        copy.stargaze.card.close,
+      );
+      if (!stillFocused) throw new Error("focus moved off the card's close button during a live ISS-card refresh");
+    },
+    { motion: true },
+  );
+
+  return `${date.toISOString()} at ${elevation.toFixed(1)}°: drawn at (${p.x.toFixed(0)}, ${p.y.toFixed(0)}), off by ${posErrPx.toFixed(2)}px, peak ${absentPeak} -> ${present.peak}, altitude ${present.altitudeKm} km / ${present.speedKmS} km/s, card opens; { tle: null } draws nothing, no errors; focus survives a live refresh under motion`;
 }
 
 /* ---------------------------------------------------------------------- */

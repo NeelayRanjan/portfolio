@@ -1,16 +1,26 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // satellite.js's SGP4 propagation (lib/sky-iss.ts) is pure JS; the package
-  // also ships optional WASM runtimes (createSingleThreadRuntime /
-  // createMultiThreadRuntime) this site never calls, whose Emscripten glue
-  // conditionally does `await import("node:module")` for its Node code path.
-  // Turbopack hung indefinitely trying to bundle that for the browser (a real
-  // production build never got past "Creating an optimized production
-  // build ..."; see .superpowers/sdd/2026-09-15-sky-objects/task-6-report.md's
-  // Build hang section). Aliasing the package's own internal subpath imports
-  // to a stub that is never actually called keeps the hang out of the browser
-  // bundle.
+  // satellite.js's SGP4 propagation (lib/sky-iss.ts) is pure JS. Importing
+  // the package on the client (NightSky's `import("satellite.js")`) hangs a
+  // Turbopack production build indefinitely (never gets past "Creating an
+  // optimized production build ..."; confirmed by bisecting with the route
+  // and the import each in isolation) — Vercel's `next build` is Turbopack
+  // too, so this bites there exactly the same way, not only locally. The
+  // package's own optional WASM runtimes (createSingleThreadRuntime /
+  // createMultiThreadRuntime, functions this site never calls) are reached
+  // transitively from its main export via package-internal subpath imports
+  // (`#wasm-single-thread` / `#wasm-multi-thread`, resolved through its own
+  // package.json `imports` map) into Emscripten-generated glue that, for the
+  // Node code path, does `await import("node:module")`; the pthreads variant
+  // also self-references a Worker (`new Worker(new URL("index.js", ...),
+  // { type: "module" })`) and `import("node:worker_threads")`. Bisecting
+  // isolated the hang to importing satellite.js at all, not to which of
+  // those two constructs Turbopack actually trips on — both are aliased so
+  // neither is in play. The stub below is only reachable if something calls
+  // createSingleThreadRuntime/createMultiThreadRuntime, which nothing here
+  // does; it throws loudly if it's ever hit, rather than silently going
+  // nowhere.
   turbopack: {
     resolveAlias: {
       "#wasm-single-thread": "./lib/satellite-wasm-stub.js",

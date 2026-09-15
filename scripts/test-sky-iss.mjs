@@ -86,3 +86,17 @@ test("a TLE more than seven days from the instant is not used", async () => {
     globalThis.fetch = realFetch;
   }
 });
+
+test("a literal JSON null body is reported as malformed, not a raw TypeError (fix round 1)", async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("null", { headers: { "content-type": "application/json" } });
+  try {
+    await assert.rejects(() => I.loadIss(async () => satellite, MOFFETT), (err) => {
+      assert.ok(err instanceof Error && !(err instanceof TypeError), `expected a plain Error, got ${err}`);
+      assert.match(err.message, /malformed body/);
+      return true;
+    });
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});

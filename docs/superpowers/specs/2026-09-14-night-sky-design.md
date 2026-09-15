@@ -1,6 +1,6 @@
 # Night sky + stargaze mode: design spec
 
-Date: 2026-09-14 · Status: awaiting owner review
+Date: 2026-09-14 · Status: reviewed by the owner (open questions resolved, §12)
 Replaces: `components/manuscript/DeskField.tsx` (the flow-field particles).
 Binding context: CLAUDE.md (Constitution, Voice, Stack, traps). Where this spec
 and CLAUDE.md disagree, CLAUDE.md wins until this spec is approved and folded in.
@@ -25,6 +25,10 @@ Owner decisions this spec locks (2026-09-14):
 - One turn per ~8 minutes. Pole hidden behind the page.
 - A "stargaze for a bit?" button that hides the page content and offloads the
   expensive models.
+- Review answers (same day): a model run in flight when stargaze is pressed is
+  CANCELLED; stargazing counts as `demo_used {demo: "stargaze"}`; no horizon
+  line; constellation names in both languages, "Ursa Major (Great Bear)", the
+  Latin larger and the English smaller and dimmer.
 
 ## 2. What is drawn
 
@@ -94,9 +98,16 @@ change.
   hit-tests against the sheet's bounding rect; stargaze mode uses the whole
   screen.
 - The nearest constellation line segment within 24px of the pointer wins. Its
-  lines and member stars brighten to `--color-ink`; its IAU name (Latin:
-  "Ursa Major", "Orion") appears in mono at the constellation's label anchor
-  from the data file.
+  lines and member stars brighten to `--color-ink`; its name appears at the
+  constellation's label anchor from the data file, on one line: the Latin IAU
+  name in mono at the label size in `--color-ink`, then the English meaning in
+  parentheses, smaller and in `--color-mut` ("Ursa Major (Great Bear)").
+  Constellations named after a mythological figure (Orion, Andromeda,
+  Cassiopeia…) have no separate English meaning and show the Latin alone; a
+  duplicate "Orion (Orion)" never renders.
+- Serpens is one constellation in two disjoint parts (Caput and Cauda). Both
+  parts' lines highlight together; the name shows at the anchor of the part
+  nearest the pointer.
 - Touch: no hover in normal mode (the margins are 16px). In stargaze mode a tap
   selects the nearest constellation, and a tap on empty sky clears it.
 - The canvas stays `aria-hidden`; names are decoration for sighted pointer
@@ -124,10 +135,30 @@ the sheet, right-aligned to the sheet's edge, on every page. It renders from
      abandoned; the panel treats that as "engine idle", keeps the game, and the
      next engine call spins up a new worker (files come from the HTTP cache).
    - **Draw and headshot:** each `InferenceSession` is released and its
-     memoized loader reset. If a classify, generate or headshot run is in
-     flight, release waits for it to finish (runs are seconds). The headshot's
-     transition `init` is cleared, so the next press samples from noise and the
-     readout says so.
+     memoized loader reset. **A run in flight is cancelled** (owner call), at
+     the next step boundary, then released. Neither vendored sampler has an
+     abort option, and neither gets one: both call the site's `onFrame` after
+     every model step, between `session.run` calls, so the site's callback
+     throws a `StargazeAbort` sentinel and the sampler's promise rejects with
+     the session idle. Vendored math is untouched. Rules, all silent-failure
+     traps if broken:
+     - **Throw, never return early.** CLAUDE.md's draw trap (3): returning
+       from `onFrame` skips the module's event-loop yield and locks the page;
+       a throw exits the loop instead.
+     - The zero-shot classifier runs `generate()` with no `onFrame` (so no
+       hook inside a reconstruction); it is cancelled between its ten
+       reconstructions by checking the abort flag in the site's own loop
+       (`lib/classify.ts`), at most one reconstruction late.
+     - Release happens only after the cancelled promise has settled, and
+       respects `classifyingRef`/`runningRef` (the shared-session exclusion).
+     - The panels treat `StargazeAbort` as a quiet reset to their idle state:
+       no "model failed" message, the half-finished frame is cleared rather
+       than left looking like a result, and no `demo_used` fires for a
+       cancelled run. A drawing's strokes survive (they are canvas pixels, not
+       model output).
+     - The headshot's transition `init` is cleared (it must come from a
+       completed run), so the next press samples from noise and the readout
+       says so.
    - The idle warm-up (`lib/warm.ts`) is skipped if it has not fired yet.
 
    ⚠️ **Honest limit, measured before any copy claims it:** draw and headshot
@@ -143,7 +174,10 @@ the sheet, right-aligned to the sheet's edge, on every page. It renders from
 margin hit-testing. Models reload lazily on the next real use, each panel
 showing its normal loading status. Nothing preloads on return.
 
-**Analytics:** no new event name (the two-event rule). See open question 2.
+**Analytics (owner call):** entering stargaze fires `trackDemoOnce("stargaze")`,
+so `demo_used {demo: "stargaze"}` at most once per page load. No new event
+name, so the two-event rule holds; `trackDemoOnce`'s union type grows one
+member.
 
 ## 6. Data pipeline
 
@@ -154,14 +188,26 @@ committed, never run on Vercel.
   `stars.6.json` (Extended Hipparcos Compilation, Anderson & Francis 2012),
   `constellations.lines.json` and `constellations.json` (IAU lines and names).
   The license text and the commit hash are recorded in the output.
+- **English meanings** do NOT come from d3-celestial: its `en` field is not a
+  translation (it calls Ursa Major "Big Dipper", an asterism). They come from
+  the "Meaning" column of Wikipedia's "IAU designated constellations" table,
+  transcribed once into a table inside the script, title-cased ("Great Bear",
+  "Greater Dog", "Swan"). Entries whose meaning is a mythological figure
+  ("Orion (mythological character)") get no English meaning. The source URL
+  and access date are recorded in the output.
+- **Serpens:** the file has 89 entries for 88 constellations because Serpens
+  is split into Caput and Cauda; the script merges them under one `Ser` with
+  two line sets and two label anchors.
 - **Output:** `public/sky/sky.json`:
   `{ version, epoch: "J2000", source: { repo, commit, license },
   stars: [[ra, dec, mag, bv], …], lines: { abbr: [[[ra, dec], …], …] },
-  constellations: { abbr: { name, label: [ra, dec] } } }`,
+  constellations: { abbr: { latin, english | null, labels: [[ra, dec], …] } } }`,
   degrees at 0.01° precision, stars sorted brightest first (so a phone can
   take a prefix).
-- **Assert before write:** 88 constellations, each with lines, a name and a
-  label; star count in the expected range for mag ≤ 5.0 (~1,600); Polaris
+- **Assert before write:** exactly 88 constellations after the Serpens merge,
+  each with lines, a Latin name and at least one label; every English meaning
+  present in the table maps to a real abbreviation, and `UMa` reads "Ursa
+  Major" / "Great Bear"; star count in the expected range for mag ≤ 5.0 (~1,600); Polaris
   within 0.1° of dec +89.26°; Sirius present at mag ≈ −1.46; the file under
   60 KB. Nothing is written if any assert fails.
 - **Loading:** fetched after first paint by the sky component, never bundled.
@@ -219,6 +265,8 @@ orchestration), `scripts/prepare-sky.mjs`, `scripts/verify-sky-ephemeris.mjs`,
 
 Modified: `app/layout.tsx`, `app/globals.css`, `lib/chess-engine.ts`,
 `lib/draw-model.ts`, `lib/headshot-model.ts` (an unload function each),
+`lib/classify.ts` (abort check between reconstructions), `lib/track.ts`
+(`"stargaze"` joins the demo union),
 `components/ChessPanel.tsx`, `components/DrawDigit.tsx`,
 `components/figures/HeadshotToy.tsx`, `components/figures/FlightFigure.tsx`
 (react to unload/pause), `content/copy.ts`, `scripts/verify-redesign.mjs`,
@@ -244,6 +292,11 @@ regenerated.
   is terminated (counted via an init-script `Worker` wrapper), the draw session
   released; Escape returns; the chess hint again returns `g3 p=0.236` and a new
   stroke again auto-labels (both models genuinely reloaded).
+- `stargaze-cancels-run`: start a draw generation and a headshot run, enter
+  stargaze mid-run → both stop within one step (the step counters stop
+  advancing), neither panel shows a failure, no `demo_used` is queued for the
+  cancelled runs, `demo_used {demo: "stargaze"}` is queued exactly once across
+  two entries; after returning, a fresh generate completes normally.
 - `stargaze-no-fetch`: entering stargaze on a fresh page fetches nothing
   model-sized.
 - Existing checks keep passing, including `no-early-heavy-payload-400`.
@@ -254,19 +307,14 @@ Plus `node scripts/verify-sky-ephemeris.mjs` (§7) and `gen-og.mjs` re-run.
 
 ## 11. Out of scope
 
-Topocentric Moon parallax; Uranus and Neptune; the Sun; constellation
+A horizon line for Moffett Field (owner: leave it out); topocentric Moon parallax; Uranus and Neptune; the Sun; constellation
 boundaries; star names; a sky for the visitor's own location (would need
 geolocation permission). The iOS draw-demo crash is a separate item: stargaze
 offload doesn't fix it.
 
-## 12. Open questions for the owner
+## 12. Resolved questions (owner, 2026-09-14)
 
-1. **A model run in flight when stargaze is pressed:** wait for it to finish,
-   then release (proposed), or cancel it?
-2. **Analytics:** count stargazing as `demo_used {demo: "stargaze"}`, once per
-   page load (no new event name, one more possible call per visit), or leave it
-   uncounted (proposed: count it; it answers whether anyone finds the button)?
-3. **Horizon line:** a faint dashed line for Moffett Field's horizon would show
-   which stars are actually up. Proposed: leave it out.
-4. **Constellation names:** Latin IAU names (proposed) or English ("Great
-   Bear")?
+1. A run in flight when stargaze is pressed is **cancelled** (§5).
+2. Stargazing **counts** as `demo_used {demo: "stargaze"}`, once per load (§5).
+3. **No horizon line** (§11).
+4. Names in **both languages**, Latin larger, English smaller and dimmer (§4).

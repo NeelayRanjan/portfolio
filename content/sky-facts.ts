@@ -735,7 +735,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Meteor shower · exceptionally slow meteors",
     oneLiner: "Quiet most years, but it stormed in 1933 and 1946",
     body: [
-      "It produced spectacular meteor storms in 1933 and 1946, and a predicted outburst in 2011 reached a ZHR of about 300.",
+      "It produced meteor storms in 1933 and 1946, and a predicted outburst in 2011 reached a ZHR of about 300.",
       "Its meteors move exceptionally slowly.",
       "The radiant never sets for observers north of about 45°N.",
     ],

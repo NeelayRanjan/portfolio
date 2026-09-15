@@ -301,7 +301,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
   {
     id: "hubble-deep-field",
     kind: "Deep field · Hubble, 1995",
-    oneLiner: "An empty-looking speck of sky full of galaxies",
+    oneLiner: "A speck of sky holding at least 1,500 galaxies",
     body: [
       "Hubble took 342 frames of this spot over ten consecutive days, December 18 to 28, 1995.",
       "The field is about as wide as a dime seen from 75 feet away, and it holds at least 1,500 galaxies.",
@@ -684,7 +684,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
   },
   {
     id: "lyrids",
-    kind: "Meteor shower · radiant in Lyra",
+    kind: "Meteor shower · radiant near Lyra",
     oneLiner: "First recorded by the Chinese in 687 BC",
     body: [
       "It is one of the oldest known showers, observed for 2,700 years.",
@@ -920,7 +920,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     oneLiner: "One of the 48 constellations in Ptolemy’s Almagest",
     body: [
       "The Sumerians called it SUHUR-MASH-HA, the goat-fish; the Greeks identified it with Pan, god of the countryside.",
-      "In one story Pan leapt into a river to escape the monster Typhon and turned the lower half of his body into a fish.",
+      "In one story Pan leapt into a river to escape the monster Typhon and turned the lower part of his body into a fish.",
     ],
     visibility: "Naked eye",
     citations: [starTales("capricornus", "Capricornus", "2026-09-15"), IAU_TABLE, SKYWATCHING],

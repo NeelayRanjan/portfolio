@@ -222,6 +222,58 @@ async function checkSkyOrientation(browser) {
   );
 }
 
+async function checkSkyHover(browser) {
+  // Reduced motion keeps the chart still, so the targeted segment can't drift
+  // away from the pointer mid-check. Hover works there too (spec §3).
+  return withPage(
+    browser,
+    { viewport: { width: 1440, height: 900 }, reducedMotion: "reduce", deviceScaleFactor: 1 },
+    async (page) => {
+      await page.goto(BASE, { waitUntil: "networkidle" });
+      await waitSkyDrawn(page);
+      const target = await page.evaluate(() => {
+        const sheet = document.querySelector("[data-sheet]").getBoundingClientRect();
+        const W = window.innerWidth;
+        const H = window.innerHeight;
+        const inMargin = (x, y) =>
+          x > 12 && x < W - 12 && y > 12 && y < H - 12 &&
+          (x < sheet.left - 30 || x > sheet.right + 30 || y < sheet.top - 30);
+        const abbrs = ["UMa", "Ori", "Cas", "Cyg", "Lyr", "Leo", "Sco", "Peg", "And", "Per", "Aur", "Gem",
+          "Tau", "Boo", "Her", "Dra", "Cep", "UMi", "Cnc", "Vir", "Sgr", "Aql", "Aqr", "Cap", "Psc", "Ari",
+          "CMa", "Hya", "Oph", "Ser"];
+        for (const abbr of abbrs) {
+          for (const [x1, y1, x2, y2] of window.__sky.segmentsFor(abbr)) {
+            const x = (x1 + x2) / 2;
+            const y = (y1 + y2) / 2;
+            if (Math.hypot(x2 - x1, y2 - y1) > 30 && inMargin(x, y)) return { abbr, x, y, x1, y1, x2, y2 };
+          }
+        }
+        return null;
+      });
+      if (!target) throw new Error("no named constellation has a segment in the desk margin at 1440x900");
+
+      // A point 30% along the segment: on the line, away from the vertex stars.
+      const qx = target.x1 + (target.x2 - target.x1) * 0.3;
+      const qy = target.y1 + (target.y2 - target.y1) * 0.3;
+
+      await page.mouse.move(720, 450); // over the sheet: nothing may highlight
+      await page.waitForFunction(() => window.__sky.highlight === null, null, { timeout: 3000 });
+      const before = await skyPeak(page, qx, qy, 1);
+
+      await page.mouse.move(target.x, target.y);
+      await page.waitForFunction((abbr) => window.__sky.highlight === abbr, target.abbr, { timeout: 3000 });
+      const after = await skyPeak(page, qx, qy, 1);
+      if (after - before < 60) {
+        throw new Error(`${target.abbr} highlighted but its line did not brighten (${before} -> ${after})`);
+      }
+
+      await page.mouse.move(720, 450);
+      await page.waitForFunction(() => window.__sky.highlight === null, null, { timeout: 3000 });
+      return `${target.abbr}: line brightened ${before.toFixed(0)} -> ${after.toFixed(0)}; cleared over the sheet`;
+    },
+  );
+}
+
 /* ---------------------------------------------------------------------- */
 /* 2. No horizontal scroll at 400px                                       */
 /* ---------------------------------------------------------------------- */
@@ -1389,6 +1441,7 @@ const CHECKS = [
   ["sky-static-reduced-motion", skyStaticUnderReducedMotion],
   ["sky-present-400", skyPresentAt400],
   ["sky-orientation", checkSkyOrientation],
+  ["sky-hover", checkSkyHover],
   ["no-h-scroll-home-400", checkNoHorizontalScroll("/")],
   ["no-h-scroll-lab-400", checkNoHorizontalScroll("/lab")],
   ["no-early-heavy-payload-400", checkNoEarlyHeavyPayload],

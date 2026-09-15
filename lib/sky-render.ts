@@ -21,6 +21,7 @@ export type Bodies = {
 };
 export type Segment = [x1: number, y1: number, x2: number, y2: number];
 export type Projected = { segments: Map<string, Segment[]> };
+export type Highlight = { abbr: string; pointer: { x: number; y: number } };
 export type FrameInput = {
   width: number;
   height: number;
@@ -28,6 +29,7 @@ export type FrameInput = {
   magLimit: number;
   bodies: Bodies;
   fontFamily: string;
+  highlight: Highlight | null;
 };
 
 const DESK = "#0c0b09";
@@ -134,6 +136,56 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
     ctx.fill();
   }
 
+  // Hover: the constellation's lines and vertex stars brighten to ink, and
+  // its name appears at the label anchor nearest the pointer (Serpens has
+  // two). Latin in ink at 12px, then the English meaning, smaller and in mut.
+  const hot = f.highlight;
+  const hotSegs = hot ? segments.get(hot.abbr) : undefined;
+  const con = hot ? sky.constellations[hot.abbr] : undefined;
+  if (hot && hotSegs && con) {
+    ctx.beginPath();
+    for (const [x1, y1, x2, y2] of hotSegs) {
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+    }
+    ctx.lineWidth = 1.25;
+    ctx.strokeStyle = `rgba(${INK},0.85)`;
+    ctx.stroke();
+    ctx.lineWidth = 1;
+    ctx.fillStyle = `rgba(${INK},0.95)`;
+    for (const [x1, y1, x2, y2] of hotSegs) {
+      for (const [vx, vy] of [[x1, y1], [x2, y2]]) {
+        ctx.beginPath();
+        ctx.arc(vx, vy, 1.6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    let anchor = project(c, con.labels[0][0], con.labels[0][1]);
+    for (const [ra, dec] of con.labels.slice(1)) {
+      const q = project(c, ra, dec);
+      if (Math.hypot(q.x - hot.pointer.x, q.y - hot.pointer.y) < Math.hypot(anchor.x - hot.pointer.x, anchor.y - hot.pointer.y)) {
+        anchor = q;
+      }
+    }
+    const english = con.english ? ` (${con.english})` : "";
+    ctx.font = `12px ${f.fontFamily}`;
+    const latinW = ctx.measureText(con.latin).width;
+    ctx.font = `10px ${f.fontFamily}`;
+    const englishW = english ? ctx.measureText(english).width : 0;
+    const x = clamp(anchor.x - (latinW + englishW) / 2, 8, width - 8 - latinW - englishW);
+    const y = clamp(anchor.y, 18, height - 8);
+    ctx.font = `12px ${f.fontFamily}`;
+    ctx.fillStyle = `rgba(${INK},0.95)`;
+    ctx.fillText(con.latin, x, y);
+    if (english) {
+      ctx.font = `10px ${f.fontFamily}`;
+      ctx.fillStyle = `rgba(${MUT},0.85)`;
+      ctx.fillText(english, x + latinW, y);
+    }
+    ctx.font = `10px ${f.fontFamily}`;
+  }
+
   // Planets.
   for (const { name, eq } of f.bodies.planets) {
     const p = project(c, eq.raDeg, eq.decDeg);
@@ -189,4 +241,29 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
   }
 
   return { segments };
+}
+
+/** Distance from (x, y) to a segment, CSS px. */
+function segmentDistance(x: number, y: number, [x1, y1, x2, y2]: Segment): number {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 === 0 ? 0 : clamp(((x - x1) * dx + (y - y1) * dy) / len2, 0, 1);
+  return Math.hypot(x - (x1 + t * dx), y - (y1 + t * dy));
+}
+
+/** The constellation whose nearest line segment is within maxPx, or null. */
+export function nearestConstellation(p: Projected, x: number, y: number, maxPx: number): string | null {
+  let best: string | null = null;
+  let bestD = maxPx;
+  for (const [abbr, segs] of p.segments) {
+    for (const s of segs) {
+      const d = segmentDistance(x, y, s);
+      if (d <= bestD) {
+        bestD = d;
+        best = abbr;
+      }
+    }
+  }
+  return best;
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { loadSky, type SkyData } from "@/lib/sky-data";
-import { drawSky, type Bodies, type Projected } from "@/lib/sky-render";
+import { drawSky, nearestConstellation, type Bodies, type Highlight, type Projected } from "@/lib/sky-render";
 import {
   PLANETS,
   chartFor,
@@ -13,7 +13,7 @@ import {
   simTimeMs,
   sunEquatorial,
 } from "@/lib/sky-math";
-import { subscribeStargaze } from "@/lib/stargaze";
+import { isStargazing, subscribeStargaze } from "@/lib/stargaze";
 
 /**
  * NightSky: the real sky over NASA Ames behind every page, replacing v2's
@@ -36,6 +36,7 @@ const FRAME_MS_WIDE = 50;
 const FRAME_MS_NARROW = 100;
 const BODY_REFRESH_SIM_MS = 10 * 60_000;
 const DPR_CAP = 2;
+const HOVER_PX = 24;
 
 type SkySnapshot = {
   drawn: boolean;
@@ -71,6 +72,7 @@ export function NightSky() {
     let raf = 0;
     let last = 0;
     let running = false;
+    let highlight: Highlight | null = null;
     const frameTimes: number[] = [];
 
     // ctx.font ignores CSS variables (CLAUDE.md trap): read the real family
@@ -121,6 +123,7 @@ export function NightSky() {
         magLimit: narrowQ.matches ? 4.5 : 5.0,
         bodies,
         fontFamily,
+        highlight,
       });
       frameTimes.push(performance.now() - t0);
       if (frameTimes.length > 60) frameTimes.shift();
@@ -132,7 +135,7 @@ export function NightSky() {
         lstDeg: lst,
         k: chart.k,
         frameMsMedian: sorted.length ? sorted[sorted.length >> 1] : null,
-        highlight: null,
+        highlight: highlight?.abbr ?? null,
         segmentsFor: (abbr) => (seen.segments.get(abbr) ?? []).map((s) => [...s]),
       };
     };
@@ -168,6 +171,37 @@ export function NightSky() {
       paint();
     };
 
+    // Normal mode: only over the desk, never over the sheet. Stargaze mode:
+    // the whole screen, and a tap works too (no hover on touch).
+    const sheetContains = (x: number, y: number) => {
+      const el = document.querySelector("[data-sheet]");
+      if (!el) return false;
+      const r = el.getBoundingClientRect();
+      return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    };
+    const pick = (x: number, y: number): Highlight | null => {
+      if (!projected) return null;
+      if (!isStargazing() && sheetContains(x, y)) return null;
+      const abbr = nearestConstellation(projected, x, y, HOVER_PX);
+      return abbr ? { abbr, pointer: { x, y } } : null;
+    };
+    const setHighlight = (next: Highlight | null) => {
+      if (next === null && highlight === null) return;
+      highlight = next;
+      // A running loop repaints within one frame gate; a still sky (reduced
+      // motion) repaints only on change.
+      if (!running) paint();
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      if (e.pointerType === "touch") return;
+      setHighlight(pick(e.clientX, e.clientY));
+    };
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType !== "touch" || !isStargazing()) return;
+      setHighlight(pick(e.clientX, e.clientY));
+    };
+    const onPointerLeave = () => setHighlight(null);
+
     resize();
     resolveFont();
     paint();
@@ -194,13 +228,22 @@ export function NightSky() {
 
     window.addEventListener("resize", onResize);
     reducedQ.addEventListener("change", applyMode);
-    const unsubStargaze = subscribeStargaze(() => paint());
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerdown", onPointerDown);
+    document.documentElement.addEventListener("pointerleave", onPointerLeave);
+    const unsubStargaze = subscribeStargaze(() => {
+      highlight = null;
+      paint();
+    });
 
     return () => {
       alive = false;
       stop();
       window.removeEventListener("resize", onResize);
       reducedQ.removeEventListener("change", applyMode);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerdown", onPointerDown);
+      document.documentElement.removeEventListener("pointerleave", onPointerLeave);
       unsubStargaze();
     };
   }, []);

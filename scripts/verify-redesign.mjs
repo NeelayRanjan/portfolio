@@ -267,9 +267,32 @@ async function checkSkyHover(browser) {
         throw new Error(`${target.abbr} highlighted but its line did not brighten (${before} -> ${after})`);
       }
 
+      // The name must land somewhere the visitor can actually read it: on
+      // screen, and clear of the sheet (fix round 1, finding I1 — near-pole
+      // anchors like UMa's project near canvas centre, under the page).
+      const { label, sheet, viewport } = await page.evaluate(() => {
+        const r = document.querySelector("[data-sheet]").getBoundingClientRect();
+        return {
+          label: window.__sky.label,
+          sheet: { left: r.left, top: r.top, right: r.right, bottom: r.bottom },
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+        };
+      });
+      if (!label) throw new Error(`${target.abbr} highlighted but window.__sky.label is null`);
+      if (label.x < 0 || label.y < 0 || label.x + label.w > viewport.width || label.y + label.h > viewport.height) {
+        throw new Error(
+          `${target.abbr} label box ${JSON.stringify(label)} falls outside the ${viewport.width}x${viewport.height} viewport`,
+        );
+      }
+      const intersectsSheet =
+        label.x < sheet.right && label.x + label.w > sheet.left && label.y < sheet.bottom && label.y + label.h > sheet.top;
+      if (intersectsSheet) {
+        throw new Error(`${target.abbr} label box ${JSON.stringify(label)} intersects the sheet ${JSON.stringify(sheet)}`);
+      }
+
       await page.mouse.move(720, 450);
       await page.waitForFunction(() => window.__sky.highlight === null, null, { timeout: 3000 });
-      return `${target.abbr}: line brightened ${before.toFixed(0)} -> ${after.toFixed(0)}; cleared over the sheet`;
+      return `${target.abbr}: line brightened ${before.toFixed(0)} -> ${after.toFixed(0)}; label ${label.w.toFixed(0)}x${label.h.toFixed(0)} at (${label.x.toFixed(0)}, ${label.y.toFixed(0)}), clear of the sheet; cleared over the sheet`;
     },
   );
 }

@@ -45,6 +45,7 @@ type SkySnapshot = {
   k: number;
   frameMsMedian: number | null;
   highlight: string | null;
+  label: { x: number; y: number; w: number; h: number } | null;
   segmentsFor: (abbr: string) => number[][];
 };
 
@@ -115,6 +116,15 @@ export function NightSky() {
       }
       const lst = lstDeg(sim);
       const chart = chartFor(width, height, lst);
+      // Read fresh every paint, not per pointer move: the sheet can scroll.
+      // Stargaze mode steps the page aside, so nothing to avoid there.
+      const sheetEl = isStargazing() ? null : document.querySelector("[data-sheet]");
+      const avoid = sheetEl
+        ? (() => {
+            const r = sheetEl.getBoundingClientRect();
+            return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+          })()
+        : null;
       const t0 = performance.now();
       projected = drawSky(ctx, sky, {
         width,
@@ -124,6 +134,7 @@ export function NightSky() {
         bodies,
         fontFamily,
         highlight,
+        avoid,
       });
       frameTimes.push(performance.now() - t0);
       if (frameTimes.length > 60) frameTimes.shift();
@@ -136,6 +147,7 @@ export function NightSky() {
         k: chart.k,
         frameMsMedian: sorted.length ? sorted[sorted.length >> 1] : null,
         highlight: highlight?.abbr ?? null,
+        label: seen.label,
         segmentsFor: (abbr) => (seen.segments.get(abbr) ?? []).map((s) => [...s]),
       };
     };

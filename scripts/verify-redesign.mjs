@@ -303,6 +303,24 @@ async function checkSkyOrientation(browser) {
   );
 }
 
+// Root-caused 2026-09-15 (Task 5b): this check used to read the REAL clock
+// under reduced motion, so which constellation/segment it picked, and where
+// on that segment it sampled, depended on the wall-clock LST at whatever
+// moment the suite happened to run. Task 4 added the hover label's own
+// desk-coloured backing, drawn ON TOP of the highlighted line after the
+// hover; at some real times the 30%-along-segment sample point that looked
+// clear of every OTHER layer at pick-time ends up freshly covered by that
+// backing once the label is drawn, which can only ever make the sampled
+// pixel darker, not brighter, and pushes the diff under 60 (confirmed by
+// replaying the exact pick+measure logic at pinned instants every 2h across
+// a day on this branch's build: whenever the sample point fell inside the
+// resulting label box the diff ranged -15..+51, and every instant where it
+// fell clear of the label box scored 61..152 — see task-5b-report.md). The
+// fix pins the clock to one instant, chosen so the picked segment's sample
+// point lands comfortably clear of the label (confirmed >20px clearance,
+// deterministic across repeated runs against this build).
+const SKY_HOVER_INSTANT = new Date("2026-09-15T05:00:00.000Z");
+
 async function checkSkyHover(browser) {
   // Reduced motion keeps the chart still, so the targeted segment can't drift
   // away from the pointer mid-check. Hover works there too (spec §3).
@@ -310,6 +328,7 @@ async function checkSkyHover(browser) {
     browser,
     { viewport: { width: 1440, height: 900 }, reducedMotion: "reduce", deviceScaleFactor: 1 },
     async (page) => {
+      await page.clock.setFixedTime(SKY_HOVER_INSTANT);
       await page.goto(BASE, { waitUntil: "networkidle" });
       await waitSkyDrawn(page);
       await page.waitForFunction(
@@ -352,16 +371,17 @@ async function checkSkyHover(browser) {
 
       await page.mouse.move(target.x, target.y);
       await page.waitForFunction((abbr) => window.__sky.highlight === abbr, target.abbr, { timeout: 3000 });
-      const after = await skyPeak(page, qx, qy, 1);
-      if (after - before < 60) {
-        throw new Error(`${target.abbr} highlighted but its line did not brighten (${before} -> ${after})`);
-      }
 
       // The name must land somewhere the visitor can actually read it: on
       // screen, and clear of the sheet (fix round 1, finding I1). Since the
       // pole moved top left (2026-09-15) near-pole anchors sit near the
       // sheet's top-left corner, and on 1280-1440px viewports that corner is
       // still under the page, so the avoidance still matters.
+      // Fetched BEFORE the brightness sample (Task 5b): the label's own
+      // backing paints over whatever was under it, so a direct "sample point
+      // sits inside the label box" check here gives a clear diagnostic
+      // instead of a confusing brightness-diff failure if a future layer
+      // change ever pushes the label back onto the sample point.
       const { label, sheet, viewport } = await page.evaluate(() => {
         const r = document.querySelector("[data-sheet]").getBoundingClientRect();
         return {
@@ -371,6 +391,17 @@ async function checkSkyHover(browser) {
         };
       });
       if (!label) throw new Error(`${target.abbr} highlighted but window.__sky.label is null`);
+      const labelClearance = Math.max(label.x - qx, qx - (label.x + label.w), label.y - qy, qy - (label.y + label.h));
+      if (labelClearance < 4) {
+        throw new Error(
+          `${target.abbr} sample point (${qx.toFixed(1)}, ${qy.toFixed(1)}) sits inside (or ${(-labelClearance).toFixed(1)}px from) the hover label's own backing box ${JSON.stringify(label)}, which would darken it rather than the highlight brightening it — pick a different SKY_HOVER_INSTANT`,
+        );
+      }
+
+      const after = await skyPeak(page, qx, qy, 1);
+      if (after - before < 60) {
+        throw new Error(`${target.abbr} highlighted but its line did not brighten (${before} -> ${after})`);
+      }
       const text = await page.evaluate(() => window.__sky.labelText);
       const oneLiner = SKY_FACTS.find((f) => f.id === target.abbr)?.oneLiner;
       if (!oneLiner || text?.sub !== oneLiner) {

@@ -20,6 +20,7 @@ import {
   simTimeMs,
   sunEquatorial,
 } from "@/lib/sky-math";
+import { CLICK_SLOP_PX, PAN_LIMIT_FRAC, rubberBand, springStep, type Vec } from "@/lib/sky-pan";
 import { isStargazing, subscribeStargaze } from "@/lib/stargaze";
 
 /**
@@ -35,6 +36,11 @@ import { isStargazing, subscribeStargaze } from "@/lib/stargaze";
  * - The catalog (~55 KB) is fetched after first paint; until it lands, or if
  *   it never does, the desk is plain dark. Nothing stands in for it.
  * - Phones get it too (owner call, 2026-09-14) with a mag 4.5 cut.
+ * - Drag to pan (spec 2026-09-15 §3): mouse or pen on the desk in normal
+ *   mode, any pointer anywhere while stargazing; a critically damped spring
+ *   (lib/sky-pan.ts) brings the chart home on release, and the frame gate is
+ *   lifted while a drag or the spring is live so the motion stays smooth.
+ *   Reduced motion snaps home instead. The sky keeps turning throughout.
  *
  * `window.__sky` is a read-only snapshot for scripts/verify-redesign.mjs.
  */
@@ -44,12 +50,18 @@ const FRAME_MS_NARROW = 100;
 const BODY_REFRESH_SIM_MS = 10 * 60_000;
 const DPR_CAP = 2;
 const HOVER_PX = 24;
+/** Never start a pan on these: the page's own controls, and (Task 5) the card. */
+const PAN_BLOCKERS = "a, button, input, select, textarea, label, summary, [role='button'], [data-sky-card]";
 
 type SkySnapshot = {
   drawn: boolean;
   simMs: number;
   lstDeg: number;
   k: number;
+  cx: number;
+  cy: number;
+  offset: Vec;
+  dragging: boolean;
   frameMsMedian: number | null;
   highlight: string | null;
   label: { x: number; y: number; w: number; h: number } | null;
@@ -92,6 +104,15 @@ export function NightSky() {
     let running = false;
     let highlight: Highlight | null = null;
     const frameTimes: number[] = [];
+    // Drag to pan. `offset` slides the whole chart (lib/sky-math.ts chartFor);
+    // `velocity` is the return spring's, px/s.
+    type Drag = { id: number; startX: number; startY: number; base: Vec; moved: boolean };
+    let drag: Drag | null = null;
+    let offset: Vec = { x: 0, y: 0 };
+    let velocity: Vec = { x: 0, y: 0 };
+    let springing = false;
+    let springLast = 0;
+    let pendingPaint = 0;
 
     // ctx.font ignores CSS variables (CLAUDE.md trap): read the real family
     // list next/font put on <html>.
@@ -143,7 +164,7 @@ export function NightSky() {
         bodiesSim = sim;
       }
       const lst = lstDeg(sim);
-      const chart = chartFor(width, height, lst);
+      const chart = chartFor(width, height, lst, offset);
       // Read fresh every paint, not per pointer move: the sheet can scroll.
       // Stargaze mode steps the page aside, so nothing to avoid there.
       const sheetEl = isStargazing() ? null : document.querySelector("[data-sheet]");
@@ -174,6 +195,10 @@ export function NightSky() {
         simMs: sim,
         lstDeg: lst,
         k: chart.k,
+        cx: chart.cx,
+        cy: chart.cy,
+        offset: { ...offset },
+        dragging: drag !== null,
         frameMsMedian: sorted.length ? sorted[sorted.length >> 1] : null,
         highlight: highlight?.abbr ?? null,
         label: seen.label,
@@ -185,7 +210,16 @@ export function NightSky() {
       if (!running) return;
       raf = requestAnimationFrame(step);
       if (document.hidden) return;
-      if (t - last < (narrowQ.matches ? FRAME_MS_NARROW : FRAME_MS_WIDE)) return;
+      // A live drag or spring paints every frame; the idle sky keeps its gate.
+      const interacting = drag !== null || springing;
+      if (springing) {
+        const r = springStep(offset, velocity, springLast ? t - springLast : 1000 / 60);
+        springLast = t;
+        offset = r.p;
+        velocity = r.v;
+        if (r.settled) springing = false;
+      }
+      if (!interacting && t - last < (narrowQ.matches ? FRAME_MS_NARROW : FRAME_MS_WIDE)) return;
       last = t;
       paint();
     };
@@ -233,15 +267,72 @@ export function NightSky() {
       // motion) repaints only on change.
       if (!running) paint();
     };
+    // A still sky (reduced motion) has no loop: coalesce drag repaints to one per frame.
+    const requestPaint = () => {
+      if (running || pendingPaint) return;
+      pendingPaint = requestAnimationFrame(() => {
+        pendingPaint = 0;
+        paint();
+      });
+    };
+
+    // A pointer that never travelled CLICK_SLOP_PX. Stargaze keeps tap-to-name
+    // (touch has no hover); Task 5 turns this into the card.
+    const onSkyClick = (x: number, y: number) => {
+      if (isStargazing()) setHighlight(pick(x, y));
+    };
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button !== 0 || drag) return;
+      const stargazing = isStargazing();
+      // Normal-mode margins are 16px on a phone: a touch there must scroll the page.
+      if (e.pointerType === "touch" && !stargazing) return;
+      const target = e.target instanceof Element ? e.target : null;
+      if (target?.closest(PAN_BLOCKERS)) return;
+      if (!stargazing && (target?.closest("[data-sheet]") || sheetContains(e.clientX, e.clientY))) return;
+      if (!stargazing) e.preventDefault(); // no text selection starting in the margin
+      drag = { id: e.pointerId, startX: e.clientX, startY: e.clientY, base: { ...offset }, moved: false };
+      springing = false;
+      velocity = { x: 0, y: 0 };
+      try {
+        document.documentElement.setPointerCapture(e.pointerId);
+      } catch {
+        // Capture is a nicety (a release outside the window still ends the drag); never fatal.
+      }
+      document.documentElement.style.cursor = "grabbing";
+      setHighlight(null);
+    };
     const onPointerMove = (e: PointerEvent) => {
+      if (drag && e.pointerId === drag.id) {
+        const dx = e.clientX - drag.startX;
+        const dy = e.clientY - drag.startY;
+        if (!drag.moved && Math.hypot(dx, dy) >= CLICK_SLOP_PX) drag.moved = true;
+        offset = rubberBand({ x: drag.base.x + dx, y: drag.base.y + dy }, PAN_LIMIT_FRAC * Math.min(width, height));
+        requestPaint();
+        return; // hover is suspended while dragging
+      }
       if (e.pointerType === "touch") return;
       setHighlight(pick(e.clientX, e.clientY));
     };
-    const onPointerDown = (e: PointerEvent) => {
-      if (e.pointerType !== "touch" || !isStargazing()) return;
-      setHighlight(pick(e.clientX, e.clientY));
+    const endDrag = (e: PointerEvent) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const click = !drag.moved && e.type === "pointerup";
+      drag = null;
+      document.documentElement.style.cursor = "";
+      if (reducedQ.matches) {
+        offset = { x: 0, y: 0 };
+        velocity = { x: 0, y: 0 };
+        springing = false;
+        paint();
+      } else if (offset.x !== 0 || offset.y !== 0) {
+        springing = true;
+        springLast = 0;
+      }
+      if (click) onSkyClick(e.clientX, e.clientY);
     };
-    const onPointerLeave = () => setHighlight(null);
+    const onPointerLeave = () => {
+      if (!drag) setHighlight(null);
+    };
 
     resize();
     resolveFont();
@@ -274,6 +365,8 @@ export function NightSky() {
     reducedQ.addEventListener("change", applyMode);
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointerup", endDrag);
+    window.addEventListener("pointercancel", endDrag);
     document.documentElement.addEventListener("pointerleave", onPointerLeave);
     const unsubStargaze = subscribeStargaze(() => {
       highlight = null;
@@ -287,6 +380,10 @@ export function NightSky() {
       reducedQ.removeEventListener("change", applyMode);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointerup", endDrag);
+      window.removeEventListener("pointercancel", endDrag);
+      cancelAnimationFrame(pendingPaint);
+      document.documentElement.style.cursor = "";
       document.documentElement.removeEventListener("pointerleave", onPointerLeave);
       unsubStargaze();
     };

@@ -37,6 +37,9 @@ body[data-stargaze] main {
 }
 html:has(body[data-stargaze]) { overflow: hidden; }
 body[data-stargaze] [data-sky-credit] { position: fixed; inset-inline: 0; bottom: 0; }
+/* Stargaze: a touch drag pans the sky (NightSky, spec 2026-09-15 §3), so the
+   browser must not claim it for scrolling or pinch-zoom first. */
+html:has(body[data-stargaze]), body[data-stargaze] { touch-action: none; }
 @media (prefers-reduced-motion: reduce) {
   main, body[data-stargaze] main { transition: none; }
 }

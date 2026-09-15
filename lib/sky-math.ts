@@ -24,12 +24,19 @@ const OBLIQUITY_J2000 = 23.43928 * D2R;
 
 export const SKY_SPEEDUP = 180;
 export const MOFFETT = { latDeg: 37.4153, lonDeg: -122.0647 } as const;
-/** The declination that lands on the viewport's half-diagonal. */
-export const EDGE_DEC_DEG = -30;
+/** The declination that lands on the viewport corner farthest from the pole
+ *  (spec 2026-09-15 §2; keeps Sagittarius and the galactic core, dec −29°, on
+ *  screen when the sky turns them into view). */
+export const EDGE_DEC_DEG = -35;
+/** The site's one breakpoint (CLAUDE.md): kept for other sky-math consumers
+ *  (frame gates); it no longer selects the pole position (controller ruling
+ *  P1, 2026-09-15 — see poleFor). */
+export const WIDE_MIN_PX = 880;
 export const PLANETS = ["Mercury", "Venus", "Mars", "Jupiter", "Saturn"] as const;
 export type Planet = (typeof PLANETS)[number];
 export type Equatorial = { raDeg: number; decDeg: number };
 export type Chart = { cx: number; cy: number; k: number; lstDeg: number };
+export type Point = { x: number; y: number };
 
 const norm360 = (d: number) => ((d % 360) + 360) % 360;
 
@@ -212,11 +219,43 @@ export function moonPhase(moon: Equatorial, sun: Equatorial): { litFraction: num
   return { litFraction, brightLimbDeg: norm360(chi * R2D) };
 }
 
-/** Polar stereographic chart, pole at the viewport centre. */
-export function chartFor(width: number, height: number, lst: number): Chart {
-  const halfDiagonal = Math.hypot(width, height) / 2;
-  const k = halfDiagonal / Math.tan(((90 - EDGE_DEC_DEG) / 2) * D2R);
-  return { cx: width / 2, cy: height / 2, k, lstDeg: lst };
+/** Mirrors the layout: the sheet is at most 1000 px wide inside main's 16 px
+ *  gutters (components/manuscript/Sheet.tsx, app/page.tsx) and starts 56 px
+ *  down (Sheet's mt-14). Change these with the layout. */
+export const SHEET_MAX_PX = 1000;
+export const PAGE_GUTTER_PX = 16;
+export const SHEET_TOP_PX = 56;
+export const POLE_MIN_MARGIN_PX = 72;
+
+/**
+ * Where the north celestial pole sits on screen before any drag (controller
+ * ruling P1, 2026-09-15, overriding the original spec's fixed fractions):
+ * when the sheet leaves at least POLE_MIN_MARGIN_PX of margin beside it, the
+ * pole sits in that margin, 18% down the viewport; otherwise (the sheet
+ * nearly fills the width) it drops below the sheet's top edge instead.
+ */
+export function poleFor(width: number, height: number): Point {
+  const sheetW = Math.min(width - 2 * PAGE_GUTTER_PX, SHEET_MAX_PX);
+  const leftMargin = (width - sheetW) / 2;
+  if (leftMargin >= POLE_MIN_MARGIN_PX) return { x: leftMargin / 2, y: 0.18 * height };
+  return { x: 0.22 * width, y: SHEET_TOP_PX / 2 };
+}
+
+/**
+ * Polar stereographic chart, pole toward the top left. `k` puts EDGE_DEC_DEG
+ * on the viewport corner farthest from the pole. `offset` is the drag pan
+ * (lib/sky-pan.ts): it slides the whole chart and never changes the scale.
+ */
+export function chartFor(width: number, height: number, lst: number, offset: Point = { x: 0, y: 0 }): Chart {
+  const pole = poleFor(width, height);
+  const far = Math.max(
+    Math.hypot(pole.x, pole.y),
+    Math.hypot(width - pole.x, pole.y),
+    Math.hypot(pole.x, height - pole.y),
+    Math.hypot(width - pole.x, height - pole.y),
+  );
+  const k = far / Math.tan(((90 - EDGE_DEC_DEG) / 2) * D2R);
+  return { cx: pole.x + offset.x, cy: pole.y + offset.y, k, lstDeg: lst };
 }
 
 /**

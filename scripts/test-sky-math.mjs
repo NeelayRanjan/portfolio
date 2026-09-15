@@ -111,24 +111,55 @@ test("Moon phase: lit fraction within 0.03, bright limb faces the Sun", () => {
   }
 });
 
-test("projection: pole at centre, edge declination at the half-diagonal", () => {
-  const c = S.chartFor(1600, 1000, 0);
-  assert.deepEqual([c.cx, c.cy], [800, 500]);
-  const pole = S.project(c, 123, 90);
-  assert.ok(Math.abs(pole.x - 800) < 1e-9 && Math.abs(pole.y - 500) < 1e-9);
-  const edge = S.project(c, 45, S.EDGE_DEC_DEG);
-  const r = Math.hypot(edge.x - 800, edge.y - 500);
-  assert.ok(Math.abs(r - Math.hypot(1600, 1000) / 2) < 1e-6, `edge radius ${r}`);
+test("projection: pole toward the top left, farthest corner at the edge declination", () => {
+  assert.equal(S.EDGE_DEC_DEG, -35);
+  // Independently worked out from the layout (Sheet.tsx: max-width 1000px,
+  // centered, 16px page gutters, mt-14 = 56px top) per controller ruling P1
+  // (2026-09-15), not by calling S.poleFor: a sheet-width-1000 margin of at
+  // least 72px puts the pole at (margin/2, 0.18H); otherwise (0.22W, 28).
+  const cases = [
+    // [width, height, expected pole x, expected pole y]
+    [1600, 1000, 150, 180], // sheetW 1000, margin 300 >= 72
+    [1440, 900, 110, 162], // sheetW 1000, margin 220 >= 72
+    [1280, 800, 70, 144], // sheetW 1000, margin 140 >= 72
+    [1100, 800, 242, 28], // sheetW 1000, margin 50 < 72
+    [400, 800, 88, 28], // sheetW 368, margin 16 < 72
+  ];
+  for (const [W, H, ex, ey] of cases) {
+    const c = S.chartFor(W, H, 0);
+    assert.ok(Math.abs(c.cx - ex) < 1e-9 && Math.abs(c.cy - ey) < 1e-9, `${W}x${H}: pole at (${c.cx}, ${c.cy}), expected (${ex}, ${ey})`);
+    const pole = S.project(c, 123, 90);
+    assert.ok(Math.abs(pole.x - c.cx) < 1e-9 && Math.abs(pole.y - c.cy) < 1e-9, `${W}x${H}: dec +90 is not the pole`);
+    // The pole is in the top-left quadrant, so the bottom-right corner is the farthest.
+    const far = Math.hypot(W - ex, H - ey);
+    const edge = S.project(c, 45, S.EDGE_DEC_DEG);
+    const r = Math.hypot(edge.x - c.cx, edge.y - c.cy);
+    assert.ok(Math.abs(r - far) < 1e-6, `${W}x${H}: edge radius ${r} vs farthest corner ${far}`);
+  }
+  // Recorded for CLAUDE.md: the scale at 1440x900 under the new pole rule.
+  assert.ok(Math.abs(S.chartFor(1440, 900, 0).k - 791.8) < 0.1, `k at 1440x900 is ${S.chartFor(1440, 900, 0).k}`);
+});
+
+test("projection: an offset slides the whole chart and keeps its scale", () => {
+  const still = S.chartFor(1440, 900, 77);
+  const moved = S.chartFor(1440, 900, 77, { x: 120, y: -45 });
+  assert.equal(moved.k, still.k);
+  for (const [ra, dec] of [[0, 90], [279.23, 38.78], [266.42, -29.01]]) {
+    const a = S.project(still, ra, dec);
+    const b = S.project(moved, ra, dec);
+    assert.ok(Math.abs(b.x - a.x - 120) < 1e-9 && Math.abs(b.y - a.y + 45) < 1e-9, `(${ra}, ${dec}) did not slide by the offset`);
+  }
 });
 
 test("projection: sky view facing north, turning counterclockwise", () => {
   const lst = 200;
   const c = S.chartFor(1000, 1000, lst);
   const meridian = S.project(c, lst, 40);
-  assert.ok(Math.abs(meridian.x - 500) < 1e-9 && meridian.y < 500, "RA = LST must sit straight up");
+  assert.ok(Math.abs(meridian.x - c.cx) < 1e-9 && meridian.y < c.cy, "RA = LST must sit straight up from the pole");
   const east = S.project(c, lst + 90, 40);
-  assert.ok(east.x > 500 && Math.abs(east.y - 500) < 1e-9, "east of the meridian must be to the right");
+  assert.ok(east.x > c.cx && Math.abs(east.y - c.cy) < 1e-9, "east of the meridian must be to the right");
   // Six sidereal hours later that star has crossed the meridian: straight up.
-  const later = S.project(S.chartFor(1000, 1000, lst + 90), lst + 90, 40);
-  assert.ok(Math.abs(later.x - 500) < 1e-6 && later.y < 500, "the sky must turn counterclockwise");
+  const c2 = S.chartFor(1000, 1000, lst + 90);
+  const later = S.project(c2, lst + 90, 40);
+  assert.ok(Math.abs(later.x - c2.cx) < 1e-6 && later.y < c2.cy, "the sky must turn counterclockwise");
 });

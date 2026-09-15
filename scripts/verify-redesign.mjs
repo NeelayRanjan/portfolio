@@ -169,36 +169,70 @@ async function skyPresentAt400(browser) {
 const VEGA = { raDeg: 279.2347, decDeg: 38.7837 }; // J2000
 const MOFFETT_LON = -122.0647;
 
-/** The spec's projection (§2), written out independently of lib/sky-math.ts. */
+/**
+ * The pole position from controller ruling P1 (2026-09-15), written out
+ * independently of lib/sky-math.ts: Sheet.tsx is max-width 1000px, centered,
+ * inside 16px page gutters, its top 56px down. When that leaves at least 72px
+ * of margin beside it, the pole sits in that margin, 18% down the viewport;
+ * otherwise it drops to half the sheet's top offset instead.
+ */
+function specPole(width, height) {
+  const sheetW = Math.min(width - 32, 1000);
+  const leftMargin = (width - sheetW) / 2;
+  if (leftMargin >= 72) return { x: leftMargin / 2, y: 0.18 * height };
+  return { x: 0.22 * width, y: 28 };
+}
+/** The spec's projection (§2), written out independently of lib/sky-math.ts;
+ *  pole from specPole, k puts dec -35° on the corner farthest from the pole. */
 function specProject(width, height, lstDeg, raDeg, decDeg) {
   const D2R = Math.PI / 180;
-  const k = Math.hypot(width, height) / 2 / Math.tan(60 * D2R); // dec -30 at the half-diagonal
+  const pole = specPole(width, height);
+  const far = Math.max(
+    Math.hypot(pole.x, pole.y),
+    Math.hypot(width - pole.x, pole.y),
+    Math.hypot(pole.x, height - pole.y),
+    Math.hypot(width - pole.x, height - pole.y),
+  );
+  const k = far / Math.tan(62.5 * D2R); // (90° - (-35°)) / 2
   const rho = k * Math.tan(((90 - decDeg) / 2) * D2R);
   const phi = (raDeg - lstDeg) * D2R;
-  return { x: width / 2 + rho * Math.sin(phi), y: height / 2 - rho * Math.cos(phi) };
+  return { x: pole.x + rho * Math.sin(phi), y: pole.y - rho * Math.cos(phi) };
 }
 
 async function checkSkyOrientation(browser) {
   const W = 1600;
   const H = 1000;
   // The first 06:00 UTC from 2026-10-01 whose Moon is >30% lit and lands well
-  // inside the canvas, computed by astronomy-engine, not by the site.
+  // inside the canvas AND leaves Vega on-canvas too, computed by
+  // astronomy-engine, not by the site. Both constraints are needed now that
+  // the pole sits off-centre (controller ruling P1, 2026-09-15): unlike the
+  // old centred projection, a given LST can easily push a mid-declination
+  // star like Vega off the canvas even while the Moon stays on it, so the
+  // combined condition is rarer and needs a wider search window: at a fixed
+  // UTC hour LST drifts only ~0.9856°/day, so covering enough of the LST
+  // cycle to hit the combined condition at all takes on the order of a
+  // season, not a month (measured: the first hit against this pole and this
+  // margin, searching from 2026-10-01, lands on day 117).
   let when = null;
   let moon = null;
+  let vega = null;
   let lst = null;
-  for (let d = 0; d < 40 && !when; d++) {
+  for (let d = 0; d < 400 && !when; d++) {
     const date = new Date(Date.UTC(2026, 9, 1 + d, 6));
     const eq = Astronomy.EquatorFromVector(Astronomy.GeoMoon(date));
     const lstDeg = (((Astronomy.SiderealTime(date) * 15 + MOFFETT_LON) % 360) + 360) % 360;
     const p = specProject(W, H, lstDeg, eq.ra * 15, eq.dec);
+    const v = specProject(W, H, lstDeg, VEGA.raDeg, VEGA.decDeg);
     const lit = Astronomy.Illumination(Astronomy.Body.Moon, date).phase_fraction;
-    if (lit > 0.3 && p.x > 60 && p.x < W - 60 && p.y > 60 && p.y < H - 60) {
+    const onCanvas = (q) => q.x > 60 && q.x < W - 60 && q.y > 60 && q.y < H - 60;
+    if (lit > 0.3 && onCanvas(p) && onCanvas(v)) {
       when = date;
       moon = p;
+      vega = v;
       lst = lstDeg;
     }
   }
-  if (!when) throw new Error("no test night with a lit, on-canvas Moon in 40 days");
+  if (!when) throw new Error("no test night with a lit, on-canvas Moon and on-canvas Vega in 400 days");
 
   return withPage(
     browser,
@@ -211,13 +245,17 @@ async function checkSkyOrientation(browser) {
       let dl = Math.abs(siteLst - lst) % 360;
       if (dl > 180) dl = 360 - dl;
       if (dl > 0.05) throw new Error(`site LST ${siteLst.toFixed(3)}° vs astronomy-engine ${lst.toFixed(3)}°`);
+      const pole = specPole(W, H);
+      const site = await page.evaluate(() => ({ cx: window.__sky.cx, cy: window.__sky.cy, offset: window.__sky.offset }));
+      if (Math.abs(site.cx - pole.x) > 0.01 || Math.abs(site.cy - pole.y) > 0.01 || site.offset.x !== 0 || site.offset.y !== 0) {
+        throw new Error(`pole at (${site.cx}, ${site.cy}) offset ${JSON.stringify(site.offset)}, expected (${pole.x}, ${pole.y}) at rest`);
+      }
 
-      const vega = specProject(W, H, lst, VEGA.raDeg, VEGA.decDeg);
       const vegaPeak = await skyPeak(page, vega.x, vega.y, 3);
       const moonPeak = await skyPeak(page, moon.x, moon.y, 4);
       if (vegaPeak < 150) throw new Error(`no bright pixel at Vega's expected (${vega.x.toFixed(0)}, ${vega.y.toFixed(0)}): peak ${vegaPeak}`);
       if (moonPeak < 150) throw new Error(`no bright pixel at the Moon's expected (${moon.x.toFixed(0)}, ${moon.y.toFixed(0)}): peak ${moonPeak}`);
-      return `${when.toISOString()}: LST off by ${dl.toFixed(4)}°, Vega peak ${vegaPeak.toFixed(0)}, Moon peak ${moonPeak.toFixed(0)}`;
+      return `${when.toISOString()}: LST off by ${dl.toFixed(4)}°, pole at (${pole.x}, ${pole.y}), Vega peak ${vegaPeak.toFixed(0)}, Moon peak ${moonPeak.toFixed(0)}`;
     },
   );
 }
@@ -268,8 +306,10 @@ async function checkSkyHover(browser) {
       }
 
       // The name must land somewhere the visitor can actually read it: on
-      // screen, and clear of the sheet (fix round 1, finding I1 — near-pole
-      // anchors like UMa's project near canvas centre, under the page).
+      // screen, and clear of the sheet (fix round 1, finding I1). Since the
+      // pole moved top left (2026-09-15) near-pole anchors sit near the
+      // sheet's top-left corner, and on 1280-1440px viewports that corner is
+      // still under the page, so the avoidance still matters.
       const { label, sheet, viewport } = await page.evaluate(() => {
         const r = document.querySelector("[data-sheet]").getBoundingClientRect();
         return {
@@ -295,6 +335,98 @@ async function checkSkyHover(browser) {
       return `${target.abbr}: line brightened ${before.toFixed(0)} -> ${after.toFixed(0)}; label ${label.w.toFixed(0)}x${label.h.toFixed(0)} at (${label.x.toFixed(0)}, ${label.y.toFixed(0)}), clear of the sheet; cleared over the sheet`;
     },
   );
+}
+
+/** Press at (x, y), move by (dx, dy) in `steps` real mouse moves, and hold (no release). */
+async function dragBy(page, x, y, dx, dy, steps = 12) {
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + dx, y + dy, { steps });
+}
+
+const skyOffset = (page) => page.evaluate(() => window.__sky.offset);
+
+/**
+ * A desk point in the left margin at mid-height with nothing clickable under
+ * it: the sheet is 1000px wide and centred, so at 1440 the margin is 220px.
+ */
+async function leftMarginPoint(page) {
+  const p = await page.evaluate(() => {
+    const sheet = document.querySelector("[data-sheet]").getBoundingClientRect();
+    const x = Math.round(sheet.left / 2);
+    const y = Math.round(window.innerHeight / 2);
+    const el = document.elementFromPoint(x, y);
+    return { x, y, blocked: !!el?.closest("a, button, input, [data-sheet]"), sheetLeft: sheet.left };
+  });
+  if (p.sheetLeft < 100) throw new Error(`desk margin only ${p.sheetLeft}px wide`);
+  if (p.blocked) throw new Error(`(${p.x}, ${p.y}) is over a control or the sheet`);
+  return p;
+}
+
+async function checkSkyDrag(browser) {
+  const notes = [];
+  // Animated sky: drag in the margin, measure the spring home.
+  await withPage(browser, { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await waitSkyDrawn(page);
+    const { x, y } = await leftMarginPoint(page);
+
+    await dragBy(page, x, y, 150, 80);
+    await page.waitForFunction(() => window.__sky.dragging === true, null, { timeout: 2000 });
+    const held = await skyOffset(page);
+    if (Math.abs(held.x - 150) > 2 || Math.abs(held.y - 80) > 2) {
+      throw new Error(`dragged (150, 80) but the offset is ${JSON.stringify(held)}`);
+    }
+    const hl = await page.evaluate(() => window.__sky.highlight);
+    if (hl !== null) throw new Error(`hover highlight "${hl}" stayed on during a drag`);
+    const t0 = Date.now();
+    await page.mouse.up();
+    await page.waitForFunction(() => window.__sky.offset.x === 0 && window.__sky.offset.y === 0, null, {
+      timeout: 1500,
+      polling: "raf",
+    });
+    notes.push(`(150, 80) held, home in ${Date.now() - t0}ms`);
+
+    // Rubber band: 900px of drag must move the chart past the limit but less than 1.5x it.
+    const limit = 0.45 * 900;
+    await dragBy(page, x, y, 900, 0, 20);
+    const far = await skyOffset(page);
+    await page.mouse.up();
+    if (!(far.x > limit && far.x < 1.5 * limit)) throw new Error(`900px drag gave offset ${far.x}, limit ${limit}`);
+    await page.waitForFunction(() => window.__sky.offset.x === 0 && window.__sky.offset.y === 0, null, { timeout: 2500 });
+    notes.push(`900px drag banded to ${far.x.toFixed(0)}px`);
+
+    // Starting on the sheet never pans (and the page text is not a drag handle).
+    const sheetPoint = await page.evaluate(() => {
+      const r = document.querySelector("[data-sheet]").getBoundingClientRect();
+      return { x: Math.round(r.left + 60), y: Math.round(Math.max(r.top, 0) + 200) };
+    });
+    await dragBy(page, sheetPoint.x, sheetPoint.y, -150, 40);
+    const onSheet = await page.evaluate(() => ({ offset: window.__sky.offset, dragging: window.__sky.dragging }));
+    await page.mouse.up();
+    if (onSheet.dragging || onSheet.offset.x !== 0 || onSheet.offset.y !== 0) {
+      throw new Error(`a drag that started on the sheet panned the sky: ${JSON.stringify(onSheet)}`);
+    }
+    notes.push("sheet drag ignored");
+  });
+
+  // Reduced motion: the drag still works, the release snaps home.
+  await withPage(
+    browser,
+    { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, reducedMotion: "reduce" },
+    async (page) => {
+      await page.goto(BASE, { waitUntil: "networkidle" });
+      await waitSkyDrawn(page);
+      const { x, y } = await leftMarginPoint(page);
+      await dragBy(page, x, y, 100, 0);
+      await page.waitForFunction(() => Math.abs(window.__sky.offset.x - 100) < 2, null, { timeout: 2000 });
+      await page.mouse.up();
+      // One paint, no spring: home at once.
+      await page.waitForFunction(() => window.__sky.offset.x === 0 && window.__sky.offset.y === 0, null, { timeout: 100 });
+      notes.push("reduced motion: dragged, snapped home");
+    },
+  );
+  return notes.join("; ");
 }
 
 /* ---------------------------------------------------------------------- */
@@ -1705,6 +1837,7 @@ const CHECKS = [
   ["sky-present-400", skyPresentAt400],
   ["sky-orientation", checkSkyOrientation],
   ["sky-hover", checkSkyHover],
+  ["sky-drag", checkSkyDrag],
   ["no-h-scroll-home-400", checkNoHorizontalScroll("/")],
   ["no-h-scroll-lab-400", checkNoHorizontalScroll("/lab")],
   ["no-early-heavy-payload-400", checkNoEarlyHeavyPayload],

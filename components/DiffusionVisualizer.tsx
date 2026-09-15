@@ -17,6 +17,7 @@ import {
   type AsciiTrajSet,
 } from "@/lib/ascii-traj";
 import { copy } from "@/content/copy";
+import { useStargazing } from "@/lib/stargaze";
 
 type Mode = "pixel" | "ascii";
 
@@ -57,6 +58,7 @@ export function DiffusionVisualizer() {
   const posRef = useRef(0);
   const [playing, setPlaying] = useState(true);
   const [visible, setVisible] = useState(false);
+  const stargazing = useStargazing();
 
   // The component itself is mounted on scroll-in by DeferredMount (app/lab),
   // so there is no boot gate left to wait on: fetch on first render.
@@ -89,7 +91,7 @@ export function DiffusionVisualizer() {
 
   // Continuous playback. Paused off-screen so a scrolled-past figure costs nothing.
   useEffect(() => {
-    if (!playing || !frames || !visible) return;
+    if (!playing || !frames || !visible || stargazing) return;
     const end = frames.length - 1;
     let raf = 0;
     let last = 0;
@@ -124,7 +126,7 @@ export function DiffusionVisualizer() {
 
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing, frames, visible]);
+  }, [playing, frames, visible, stargazing]);
 
   const reset = useCallback(() => {
     posRef.current = 0;

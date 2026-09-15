@@ -28,6 +28,7 @@
  * still pays off for it: by the time someone draws, the runtime half is done.
  */
 import { loadChessEngine } from "./chess-engine";
+import { isStargazing } from "./stargaze";
 
 /** Once per fresh load, never per render or per remount. */
 let started = false;
@@ -92,6 +93,11 @@ export function warmBackground(): void {
   // and the desk field. The point is to be ready
   // before the visitor scrolls, not to be ready one second sooner.
   whenIdle(() => {
+    // Stargazing is the visitor asking the page's heavy work to stop. The
+    // `started` flag is already set, so this warm-up is skipped for good; the
+    // chess panel still loads normally when it is reached.
+    if (isStargazing()) return;
+
     // The real loader, not a raw fetch of the same URL. Every loader here is a
     // memoized promise, so the chess panel's own call later returns THIS promise
     // rather than starting a second download — and nothing depends on whether

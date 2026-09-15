@@ -775,6 +775,22 @@ export const copy = {
     },
   },
 
+  /** Stargaze mode + the night-sky credit (components/manuscript/
+   *  StargazeToggle.tsx, SkyCredit.tsx). `enter` is the owner's own wording.
+   *  ⚠️ `credit` states the speed-up; it must match SKY_SPEEDUP in
+   *  lib/sky-math.ts (180). `creditStill` is the reduced-motion variant: that
+   *  sky never turns, so the "180 times faster" sentence would be false there. */
+  stargaze: {
+    enter: "stargaze for a bit?",
+    exit: "back to the page",
+    hintPointer: "hover a constellation",
+    hintTouch: "tap a constellation",
+    credit:
+      "The sky over NASA Ames from the moment you arrived, turning 180 times faster than the real one. Stars from the Extended Hipparcos Compilation; lines and names from d3-celestial.",
+    creditStill:
+      "The sky over NASA Ames at the moment you arrived. Stars from the Extended Hipparcos Compilation; lines and names from d3-celestial.",
+  },
+
   /** The 404 page, restyled to the "reference not found" conceit (spec §2).
    *  `app/not-found.tsx` reads this shape directly. */
   notFound: {

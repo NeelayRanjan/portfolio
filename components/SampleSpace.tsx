@@ -17,6 +17,7 @@ import {
   type Vec,
 } from "@/lib/sample-space";
 import { copy } from "@/content/copy";
+import { isStargazing, subscribeStargaze } from "@/lib/stargaze";
 
 /**
  * `--target` is genuinely live; `--compare` never was.
@@ -168,8 +169,9 @@ function SamplePanel({
       render();
     };
 
+    let inView = false;
     const start = () => {
-      if (running || reduced) return;
+      if (running || reduced || isStargazing()) return;
       running = true;
       elapsed = 0;
       raf = requestAnimationFrame(step);
@@ -183,12 +185,20 @@ function SamplePanel({
     render();
 
     const io = new IntersectionObserver(
-      ([entry]) => (entry.isIntersecting ? start() : stop()),
+      ([entry]) => {
+        inView = entry.isIntersecting;
+        if (inView) start();
+        else stop();
+      },
       { threshold: 0 },
     );
     io.observe(canvas);
     const onVisibility = () => (document.hidden ? stop() : start());
     document.addEventListener("visibilitychange", onVisibility);
+    const unsubStargaze = subscribeStargaze((gazing) => {
+      if (gazing) stop();
+      else if (inView && !document.hidden) start();
+    });
 
     let resizeTimer = 0;
     const onResize = () => {
@@ -202,6 +212,7 @@ function SamplePanel({
 
     return () => {
       stop();
+      unsubStargaze();
       io.disconnect();
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("resize", onResize);

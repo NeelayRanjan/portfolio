@@ -1229,6 +1229,84 @@ async function checkAnalyticsQueue(browser) {
 }
 
 /* ---------------------------------------------------------------------- */
+/* Stargaze mode (lib/stargaze.ts, components/manuscript/StargazeToggle)  */
+/* ---------------------------------------------------------------------- */
+
+const STARGAZE_ENTER = "stargaze for a bit?";
+const STARGAZE_EXIT = "back to the page";
+
+/** The toggle stamps data-ready in its mount effect: clicking the
+ *  server-rendered button before hydration would do nothing. */
+async function waitStargazeReady(page) {
+  await page.waitForSelector("[data-stargaze-toggle][data-ready]", { state: "attached", timeout: 15000 });
+}
+
+function stargazeEventCount(page) {
+  return page.evaluate(
+    () =>
+      (window.vaq ?? []).filter(
+        ([kind, ev]) => kind === "event" && ev?.name === "demo_used" && ev?.data?.demo === "stargaze",
+      ).length,
+  );
+}
+
+async function checkStargazeHidesPage(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await waitStargazeReady(page);
+    const enter = page.getByRole("button", { name: STARGAZE_ENTER });
+
+    await enter.click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    await page.waitForTimeout(600); // the 400ms fade has to have finished: elapsed time is the assertion
+    const on = await page.evaluate(() => ({
+      inert: [...document.querySelectorAll("main")].every((m) => m.inert),
+      visibility: getComputedStyle(document.querySelector("main")).visibility,
+      overflow: getComputedStyle(document.documentElement).overflow,
+      focused: document.activeElement?.textContent?.trim(),
+    }));
+    if (!on.inert) throw new Error("main is not inert while stargazing");
+    if (on.visibility !== "hidden") throw new Error(`main visibility is ${on.visibility}`);
+    if (on.overflow !== "hidden") throw new Error(`page still scrolls (html overflow ${on.overflow})`);
+    if (on.focused !== STARGAZE_EXIT) throw new Error(`focus is on "${on.focused}", not the exit control`);
+
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    const off = await page.evaluate(() => ({
+      inert: [...document.querySelectorAll("main")].some((m) => m.inert),
+      focused: document.activeElement?.textContent?.trim(),
+    }));
+    if (off.inert) throw new Error("main stayed inert after Escape");
+    if (off.focused !== STARGAZE_ENTER) throw new Error(`focus returned to "${off.focused}"`);
+
+    // A second visit must not count twice.
+    await enter.click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    await page.getByRole("button", { name: STARGAZE_EXIT }).click();
+    await page.waitForFunction(() => !document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    const n = await stargazeEventCount(page);
+    if (n !== 1) throw new Error(`demo_used{stargaze} queued ${n} times across two visits, expected 1`);
+    return "page hidden + inert + scroll-locked, focus moved both ways, Escape exits, demo_used{stargaze} once";
+  });
+}
+
+async function checkStargazeNoFetch(browser) {
+  // 400px: below lib/warm.ts's 768px gate, so any heavy request after the
+  // click can only have come from entering stargaze.
+  return withPage(browser, { viewport: { width: 400, height: 800 } }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await waitStargazeReady(page);
+    const urls = [];
+    page.on("request", (req) => urls.push(req.url()));
+    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await page.waitForTimeout(3000); // anything stargaze might start has had time to start
+    const heavy = urls.filter((u) => HEAVY_RE.test(u));
+    if (heavy.length) throw new Error(`heavy request(s) after entering stargaze: ${heavy.join(", ")}`);
+    return `${urls.length} requests after entering, none model-sized`;
+  });
+}
+
+/* ---------------------------------------------------------------------- */
 /* driver                                                                  */
 /* ---------------------------------------------------------------------- */
 
@@ -1248,6 +1326,8 @@ const CHECKS = [
   ["jepa-triple-equality-mixed", checkJepaTripleEqualityOnMixedQuery],
   ["headshot-samples-photo", checkHeadshotSamplesPhoto],
   ["analytics-queue", checkAnalyticsQueue],
+  ["stargaze-hides-page", checkStargazeHidesPage],
+  ["stargaze-no-fetch", checkStargazeNoFetch],
 ];
 
 async function main() {

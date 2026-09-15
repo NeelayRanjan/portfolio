@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { InstrumentFigure } from "@/components/manuscript/InstrumentFigure";
 import { copy } from "@/content/copy";
+import { useStargazing } from "@/lib/stargaze";
 
 /**
  * Figure 3 — the flight day: `flight_lm_day.mp4`, a trained transformer's
@@ -24,6 +25,7 @@ import { copy } from "@/content/copy";
 export function FlightFigure() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const stargazing = useStargazing();
 
   useEffect(() => {
     const query = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -33,8 +35,15 @@ export function FlightFigure() {
     return () => query.removeEventListener("change", onChange);
   }, []);
 
+  // A hidden video still intersects, so the observer alone would keep it
+  // playing behind the sky. This also covers a reduced-motion visitor who
+  // started it with the native controls.
   useEffect(() => {
-    if (reducedMotion) return;
+    if (stargazing) videoRef.current?.pause();
+  }, [stargazing]);
+
+  useEffect(() => {
+    if (reducedMotion || stargazing) return;
     const video = videoRef.current;
     if (!video) return;
 
@@ -50,7 +59,7 @@ export function FlightFigure() {
     );
     observer.observe(video);
     return () => observer.disconnect();
-  }, [reducedMotion]);
+  }, [reducedMotion, stargazing]);
 
   return (
     <InstrumentFigure n="3" caption={copy.research.figFlight.caption}>

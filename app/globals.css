@@ -25,3 +25,18 @@
 html { background: var(--color-desk); color-scheme: dark; }
 body { background: transparent; color: var(--color-ink); }
 :focus-visible { outline: 2px solid var(--color-red-ink); outline-offset: 3px; }
+
+/* Stargaze mode (lib/stargaze.ts). Content fades, then leaves the hit-test
+   and a11y paths (visibility, plus `inert` set from JS); nothing unmounts,
+   so games, drawings and scroll position survive. */
+main { transition: opacity 400ms ease; }
+body[data-stargaze] main {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 400ms ease, visibility 0s linear 400ms;
+}
+html:has(body[data-stargaze]) { overflow: hidden; }
+body[data-stargaze] [data-sky-credit] { position: fixed; inset-inline: 0; bottom: 0; }
+@media (prefers-reduced-motion: reduce) {
+  main, body[data-stargaze] main { transition: none; }
+}

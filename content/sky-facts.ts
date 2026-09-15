@@ -106,6 +106,18 @@ function hubbleMessier(n: number, title: string, accessed: string): Citation {
   };
 }
 
+/** A Wikipedia article pinned to one revision (the year is the revision's). */
+function wikipedia(title: string, oldid: number, year: string, accessed: string): Citation {
+  return {
+    author: "Wikipedia contributors",
+    year,
+    title: `${title} (revision ${oldid})`,
+    site: "Wikipedia",
+    url: `https://en.wikipedia.org/w/index.php?title=${encodeURIComponent(title.replace(/ /g, "_"))}&oldid=${oldid}`,
+    accessed,
+  };
+}
+
 export const SKY_FACTS: readonly SkyFact[] = [
   /* ---- deep-sky objects and landmarks ---- */
   {
@@ -308,6 +320,227 @@ export const SKY_FACTS: readonly SkyFact[] = [
         accessed: "2026-09-15",
       },
     ],
+  },
+
+  /* ---- spacecraft and named stars ---- */
+  {
+    id: "voyager-1",
+    kind: "Spacecraft · launched 1977",
+    oneLiner: "No spacecraft has gone farther",
+    body: [
+      "On Aug. 25, 2012, it became the first spacecraft to leave the heliosphere and start measuring interstellar space.",
+      "Its last 64 images, taken 40 AU from the Sun, made a family portrait of six planets, and its image of Earth inspired the Pale Blue Dot.",
+      "It carries a gold-plated copper record with greetings in 55 languages and 90 minutes of music.",
+    ],
+    visibility: "Not visible; the marker is a direction, computed by JPL Horizons for the date shown",
+    citations: [
+      HORIZONS,
+      {
+        author: "NASA Science",
+        year: "n.d.",
+        title: "Voyager 1",
+        site: "NASA Science",
+        url: "https://science.nasa.gov/mission/voyager/voyager-1/",
+        accessed: "2026-09-15",
+      },
+    ],
+  },
+  {
+    id: "voyager-2",
+    kind: "Spacecraft · launched 1977",
+    oneLiner: "The only spacecraft to fly past Uranus and Neptune",
+    body: [
+      "On Dec. 10, 2018, it became the second spacecraft to enter interstellar space.",
+      "At Uranus it found 10 new moons, whose names were taken from Shakespeare.",
+      "At its speed relative to the Sun, it would take about 19,390 years to cross a single light-year.",
+    ],
+    visibility: "Not visible; the marker is a direction, computed by JPL Horizons for the date shown",
+    citations: [
+      HORIZONS,
+      {
+        author: "NASA Science",
+        year: "n.d.",
+        title: "Voyager 2",
+        site: "NASA Science",
+        url: "https://science.nasa.gov/mission/voyager/voyager-2/",
+        accessed: "2026-09-15",
+      },
+    ],
+  },
+  {
+    id: "polaris",
+    kind: "Yellow supergiant · Ursa Minor",
+    oneLiner: "The North Star, less than 1° from the pole",
+    body: [
+      "It sits less than 1° from the north celestial pole, which makes it the current northern pole star.",
+      "To the naked eye it is one point of light, but it is a system of three stars.",
+      "The name is short for the Neo-Latin stella polaris, “polar star”, first printed in the Alfonsine Tables of 1492.",
+    ],
+    visibility: "Naked eye",
+    citations: [wikipedia("Polaris", 1374743634, "2026", "2026-09-15")],
+  },
+  {
+    id: "sirius",
+    kind: "Binary star · 8.6 light-years",
+    oneLiner: "The Dog Star, the brightest star in the night sky",
+    body: [
+      "The name comes from the Ancient Greek Seirios, “glowing” or “scorcher”.",
+      "Its faint companion, the white dwarf Sirius B, orbits with it every 50 years.",
+      "The heliacal rising of Sirius marked the Nile flood in Ancient Egypt.",
+    ],
+    visibility: "Naked eye",
+    citations: [wikipedia("Sirius", 1374864849, "2026", "2026-09-15")],
+  },
+  {
+    id: "arcturus",
+    kind: "Red giant · 36.7 light-years",
+    oneLiner: "The brightest star in the northern celestial hemisphere",
+    body: [
+      "The name means “Guardian of the Bear”, from the Greek words for bear and watcher.",
+      "It has about the Sun’s mass but has expanded to 25 times its size.",
+    ],
+    visibility: "Naked eye; the fourth-brightest star in the night sky",
+    citations: [wikipedia("Arcturus", 1373255978, "2026", "2026-09-15")],
+  },
+  {
+    id: "vega",
+    kind: "Star · 25 light-years",
+    oneLiner: "The pole star around 12000 BCE, and again around 13724",
+    body: [
+      "It was the first star other than the Sun to have its image and spectrum photographed.",
+      "It spins at 236 km/s at its equator, fast enough to make the equator bulge.",
+      "The name comes from the Arabic an-nasr al-wāqi’, “the falling eagle”.",
+    ],
+    visibility: "Naked eye; the fifth-brightest star in the night sky",
+    citations: [wikipedia("Vega", 1374446348, "2026", "2026-09-15")],
+  },
+  {
+    id: "capella",
+    kind: "Quadruple star · 42.9 light-years",
+    oneLiner: "The “little goat”, the brightest star in Auriga",
+    body: [
+      "It looks like one star but is two pairs: two yellow giants, and two faint red dwarfs around 10,000 AU away from them.",
+      "The two giants orbit each other every 104 days.",
+      "In Greek mythology it was the goat Amalthea, who suckled Zeus.",
+    ],
+    visibility: "Naked eye; never sets for observers north of 44°N",
+    citations: [wikipedia("Capella", 1374633159, "2026", "2026-09-15")],
+  },
+  {
+    id: "rigel",
+    kind: "Blue supergiant · about 850 light-years",
+    oneLiner: "Orion’s foot, usually its brightest star",
+    body: [
+      "The name comes from the Arabic Rijl Jauzah al Yusrā, “the left leg (foot) of Jauzah”, Jauzah being a name for Orion.",
+      "The single blue-white point the eye sees is a system of at least four stars.",
+      "It is expected to end its life as a Type II supernova.",
+    ],
+    visibility: "Naked eye; generally the seventh-brightest star in the night sky",
+    citations: [wikipedia("Rigel", 1374810813, "2026", "2026-09-15")],
+  },
+  {
+    id: "procyon",
+    kind: "Binary star · 11.46 light-years",
+    oneLiner: "“Before the dog”: it crosses the sky ahead of Sirius",
+    body: [
+      "The name comes from the Ancient Greek Prokyon, “before the dog”, because it precedes the Dog Star, Sirius, across the sky.",
+      "A faint white dwarf, Procyon B, orbits it every 40.84 years.",
+    ],
+    visibility: "Naked eye; usually the eighth-brightest star in the night sky",
+    citations: [wikipedia("Procyon", 1366891007, "2026", "2026-09-15")],
+  },
+  {
+    id: "betelgeuse",
+    kind: "Red supergiant · Orion",
+    oneLiner: "A red supergiant at Orion’s shoulder",
+    body: [
+      "Put in the Sun’s place, its surface would lie beyond the asteroid belt.",
+      "From October 2019 to mid-February 2020 it faded by a factor of about 3; a Hubble study suggests the cause was dust formed from material its surface threw off.",
+      "It is expected to explode as a supernova, most likely within 100,000 years, and life on Earth will be unharmed.",
+    ],
+    visibility: "Naked eye; distinctly reddish",
+    citations: [wikipedia("Betelgeuse", 1375003089, "2026", "2026-09-15")],
+  },
+  {
+    id: "altair",
+    kind: "Star · 16.7 light-years",
+    oneLiner: "One corner of the Summer Triangle",
+    body: [
+      "It spins at about 286 km/s at its equator, fast enough to flatten it at the poles.",
+      "The name is short for the Arabic Al-Nasr Al-Ṭā’ir, “the flying eagle”.",
+    ],
+    visibility: "Naked eye; the twelfth-brightest star in the night sky",
+    citations: [wikipedia("Altair", 1374232322, "2026", "2026-09-15")],
+  },
+  {
+    id: "aldebaran",
+    kind: "Red giant · about 67 light-years",
+    oneLiner: "“The follower”, which trails the Pleiades",
+    body: [
+      "The name comes from the Arabic for “the bright one of the follower”, because it follows the Pleiades.",
+      "It lies along the line of sight to the Hyades cluster but is unrelated to it, and much older.",
+      "Pioneer 10 is heading in its general direction and should make its closest approach in about two million years.",
+    ],
+    visibility: "Naked eye; typically the fourteenth-brightest star in the night sky",
+    citations: [wikipedia("Aldebaran", 1373519418, "2026", "2026-09-15")],
+  },
+  {
+    id: "antares",
+    kind: "Red supergiant · about 550 light-years",
+    oneLiner: "“Rival to Ares”, the heart of the scorpion",
+    body: [
+      "The name comes from the Ancient Greek for “rival to Ares”, because its reddish colour looks like Mars.",
+      "Put in the Sun’s place, it would reach somewhere into the asteroid belt.",
+      "Babylonian star catalogues from at least 1100 BCE call it “the Breast of the Scorpion”.",
+    ],
+    visibility: "Naked eye; distinctly reddish",
+    citations: [wikipedia("Antares", 1374164910, "2026", "2026-09-15")],
+  },
+  {
+    id: "spica",
+    kind: "Binary star · 250 light-years",
+    oneLiner: "The virgin’s ear of grain, the brightest star in Virgo",
+    body: [
+      "The name is from the Latin spīca virginis, “the virgin’s ear of [wheat] grain”.",
+      "Its two stars are so close together that they are egg-shaped, and only their spectra tell them apart.",
+    ],
+    visibility: "Naked eye; one of the 20 brightest stars in the night sky",
+    citations: [wikipedia("Spica", 1374779636, "2026", "2026-09-15")],
+  },
+  {
+    id: "pollux",
+    kind: "Red giant · 34 light-years",
+    oneLiner: "The closest giant star to the Sun",
+    body: [
+      "Since 1943 its spectrum has been one of the stable anchor points used to classify other stars.",
+      "A planet orbiting it was announced in 2006 and later named Thestias.",
+    ],
+    visibility: "Naked eye; the brightest star in Gemini",
+    citations: [wikipedia("Pollux (star)", 1374546808, "2026", "2026-09-15")],
+  },
+  {
+    id: "deneb",
+    kind: "Blue supergiant · Cygnus",
+    oneLiner: "The “tail of the hen”, head of the Northern Cross",
+    body: [
+      "The name comes from the Arabic Dhanab al-Dajājah, “tail of the hen”.",
+      "Its distance is poorly known: estimates run from 1,400 to 2,600 light-years.",
+      "It rivals Rigel as the most luminous first-magnitude star.",
+    ],
+    visibility: "Naked eye; the 19th brightest star in the night sky",
+    citations: [wikipedia("Deneb", 1374679105, "2026", "2026-09-15")],
+  },
+  {
+    id: "regulus",
+    kind: "Quadruple star · about 79 light-years",
+    oneLiner: "“Little king”, the brightest star in Leo",
+    body: [
+      "The name is Latin for “prince” or “little king”.",
+      "It looks like a single star but is four stars in two pairs.",
+      "With five dimmer stars it makes the Sickle, the asterism that marks the lion’s head.",
+    ],
+    visibility: "Naked eye",
+    citations: [wikipedia("Regulus", 1374633235, "2026", "2026-09-15")],
   },
 
   /* ---- constellations ---- */

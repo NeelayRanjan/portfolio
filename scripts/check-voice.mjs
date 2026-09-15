@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Voice gate for content/copy.ts (CLAUDE.md's Voice section, binding for all
- * visitor-facing copy).
+ * Voice gate for content/copy.ts and content/sky-facts.ts (CLAUDE.md's Voice
+ * section, binding for all visitor-facing copy; the sky facts joined
+ * 2026-09-15, spec docs/superpowers/specs/2026-09-15-sky-objects-design.md §7).
  *
  * Scans only STRING LITERALS in the file (a small hand-rolled scanner, not a
  * full TS parser: it walks the source char by char, tracking whether it is
@@ -25,13 +26,26 @@
  * URL-shaped strings (http(s)://, mailto:, or a bare "/path") are skipped
  * for every check: they are not prose, and "references" itself is exactly
  * where these live (résumé/CV/GitHub/ORCID/email links, the /lab route).
+ *
+ * In content/sky-facts.ts the citation fields (author, year, title, site,
+ * url, accessed, and anything inside a `citations:` list) are skipped too:
+ * they are the SOURCE's own words, reproduced for the reference list, not
+ * this site's voice. Everything a card says in its own words (kind, oneLiner,
+ * body, visibility) is scanned with the same rules as copy.ts. A verbatim
+ * quote in a body that would trip a rule is not an exemption: paraphrase it.
  */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const COPY_PATH = path.join(__dirname, "..", "content", "copy.ts");
+const FILES = [
+  { rel: "content/copy.ts", skipKeys: new Set() },
+  {
+    rel: "content/sky-facts.ts",
+    skipKeys: new Set(["author", "year", "title", "site", "url", "accessed", "citations"]),
+  },
+];
 
 const BANNED_WORDS = [
   "delve",
@@ -236,25 +250,28 @@ function checkString(key, value, line) {
 }
 
 function main() {
-  const raw = readFileSync(COPY_PATH, "utf8");
-  const strings = extractStrings(raw);
-
   const violations = [];
-  for (const { key, value, line } of strings) {
-    violations.push(...checkString(key, value, line));
+  const scanned = [];
+  for (const { rel, skipKeys } of FILES) {
+    const raw = readFileSync(path.join(__dirname, "..", rel), "utf8");
+    const strings = extractStrings(raw).filter(({ key }) => !skipKeys.has(key));
+    scanned.push(`${strings.length} in ${rel}`);
+    for (const { key, value, line } of strings) {
+      violations.push(...checkString(key, value, line).map((v) => ({ ...v, rel })));
+    }
   }
 
   if (violations.length > 0) {
-    console.error(`check-voice: ${violations.length} violation(s) in content/copy.ts\n`);
+    console.error(`check-voice: ${violations.length} violation(s)\n`);
     for (const v of violations) {
       const preview = v.value.length > 90 ? v.value.slice(0, 90) + "…" : v.value;
-      console.error(`  content/copy.ts:${v.line}  key "${v.key}"  ${v.issue}`);
+      console.error(`  ${v.rel}:${v.line}  key "${v.key}"  ${v.issue}`);
       console.error(`    "${preview}"`);
     }
     process.exit(1);
   }
 
-  console.log(`check-voice: passed (${strings.length} string literals scanned)`);
+  console.log(`check-voice: passed (string literals scanned: ${scanned.join(", ")})`);
   process.exit(0);
 }
 

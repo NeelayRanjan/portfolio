@@ -32,6 +32,7 @@
  * itself IS about elapsed time (the desk field's two-samples-apart check).
  */
 import { firefox } from "playwright";
+import * as Astronomy from "astronomy-engine";
 
 const BASE = "http://localhost:3000";
 
@@ -83,69 +84,142 @@ async function scrollUntilAttached(page, selector, { maxScrolls = 20, step = 700
 }
 
 /* ---------------------------------------------------------------------- */
-/* 1. Desk field (components/manuscript/DeskField.tsx)                    */
+/* 1. Night sky (components/manuscript/NightSky.tsx)                      */
 /* ---------------------------------------------------------------------- */
 
-/** The desk field is the sole direct-child canvas of <body> (see
- *  app/layout.tsx); every other canvas on the page (the Dice CDF strip's
- *  masks, the draw demo's pixel grids) lives inside <main>. */
-const DESK_CANVAS = "body > canvas";
+/** The sky is the sole direct-child canvas of <body> (app/layout.tsx); every
+ *  other canvas on the page lives inside <main>. */
+const SKY_CANVAS = "body > canvas";
 
-async function deskFieldAnimatesAt1280(browser) {
+async function waitSkyDrawn(page) {
+  await page.waitForFunction(() => window.__sky?.drawn === true, null, { timeout: 15000 });
+}
+
+/** Brightest mean-RGB value in a (2r+1)px box of the sky canvas, CSS coords. */
+function skyPeak(page, x, y, r) {
+  return page.evaluate(
+    ([sel, x, y, r]) => {
+      const c = document.querySelector(sel);
+      const s = c.width / window.innerWidth;
+      const size = Math.round(2 * r * s) + 1;
+      const { data } = c.getContext("2d").getImageData(Math.round((x - r) * s), Math.round((y - r) * s), size, size);
+      let best = 0;
+      for (let i = 0; i < data.length; i += 4) best = Math.max(best, (data[i] + data[i + 1] + data[i + 2]) / 3);
+      return best;
+    },
+    [SKY_CANVAS, x, y, r],
+  );
+}
+
+async function skyAnimatesAt1280(browser) {
   return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
     await page.goto(BASE, { waitUntil: "networkidle" });
-    const canvas = page.locator(DESK_CANVAS);
-    await canvas.waitFor({ state: "attached", timeout: 10000 });
-    // Gate confirmation: >=880px must show it.
-    await page.waitForFunction(
-      (sel) => getComputedStyle(document.querySelector(sel)).display !== "none",
-      DESK_CANVAS,
-      { timeout: 5000 },
-    );
+    await waitSkyDrawn(page);
+    const canvas = page.locator(SKY_CANVAS);
     const sample = () => canvas.evaluate((el) => el.toDataURL());
     const a = await sample();
-    await page.waitForTimeout(500); // real elapsed time is the point of this assertion
+    await page.waitForTimeout(1500); // real elapsed time is the point of this assertion
     const b = await sample();
-    if (a === b) throw new Error("two samples 500ms apart are byte-identical (field is not animating)");
-    return `visible, samples differ (${a.length} vs ${b.length} chars)`;
+    if (a === b) throw new Error("two samples 1.5s apart are byte-identical (the sky is not turning)");
+    const ms = await page.evaluate(() => window.__sky.frameMsMedian);
+    return `samples differ; median frame draw ${ms?.toFixed(2)}ms (headless Firefox: a floor, not a claim)`;
   });
 }
 
-async function deskFieldStaticUnderReducedMotion(browser) {
+async function skyStaticUnderReducedMotion(browser) {
   return withPage(
     browser,
     { viewport: { width: 1280, height: 900 }, reducedMotion: "reduce" },
     async (page) => {
       await page.goto(BASE, { waitUntil: "networkidle" });
-      const canvas = page.locator(DESK_CANVAS);
-      await canvas.waitFor({ state: "attached", timeout: 10000 });
-      await page.waitForFunction(
-        (sel) => getComputedStyle(document.querySelector(sel)).display !== "none",
-        DESK_CANVAS,
-        { timeout: 5000 },
-      );
+      await waitSkyDrawn(page);
+      const canvas = page.locator(SKY_CANVAS);
       const sample = () => canvas.evaluate((el) => el.toDataURL());
       const a = await sample();
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(1500);
       const b = await sample();
-      if (a !== b) throw new Error("reduced-motion field changed between two samples 500ms apart");
-      return "visible, two samples 500ms apart are identical";
+      if (a !== b) throw new Error("reduced-motion sky changed between two samples 1.5s apart");
+      const credit = await page.locator("[data-sky-credit]").innerText();
+      if (/faster/.test(credit)) throw new Error(`reduced-motion credit still claims a speed-up: "${credit}"`);
+      return "drawn, static for 1.5s, credit carries the still wording";
     },
   );
 }
 
-async function deskFieldAbsentAt500(browser) {
-  return withPage(browser, { viewport: { width: 500, height: 800 } }, async (page) => {
+async function skyPresentAt400(browser) {
+  // Inverted from the old desk-field-absent-500: the owner wants the sky on phones.
+  return withPage(browser, { viewport: { width: 400, height: 800 } }, async (page) => {
     await page.goto(BASE, { waitUntil: "networkidle" });
-    const canvas = page.locator(DESK_CANVAS);
-    await canvas.waitFor({ state: "attached", timeout: 10000 });
-    await page.waitForFunction(
-      (sel) => getComputedStyle(document.querySelector(sel)).display === "none",
-      DESK_CANVAS,
-      { timeout: 5000 },
-    );
-    return "canvas present in DOM but display:none below the 880px gate";
+    await waitSkyDrawn(page);
+    const { display, lit } = await page.evaluate((sel) => {
+      const c = document.querySelector(sel);
+      const { data } = c.getContext("2d").getImageData(0, 0, c.width, c.height);
+      let lit = 0;
+      for (let i = 0; i < data.length; i += 4) if (data[i] + data[i + 1] + data[i + 2] > 300) lit++;
+      return { display: getComputedStyle(c).display, lit };
+    }, SKY_CANVAS);
+    if (display === "none") throw new Error("sky canvas is display:none at 400px");
+    if (lit < 50) throw new Error(`only ${lit} bright pixels at 400px`);
+    const credit = await page.locator("[data-sky-credit]").innerText();
+    if (!/Hipparcos/.test(credit)) throw new Error(`credit line missing or wrong: "${credit}"`);
+    return `visible, ${lit} bright pixels, credit present`;
   });
+}
+
+const VEGA = { raDeg: 279.2347, decDeg: 38.7837 }; // J2000
+const MOFFETT_LON = -122.0647;
+
+/** The spec's projection (§2), written out independently of lib/sky-math.ts. */
+function specProject(width, height, lstDeg, raDeg, decDeg) {
+  const D2R = Math.PI / 180;
+  const k = Math.hypot(width, height) / 2 / Math.tan(60 * D2R); // dec -30 at the half-diagonal
+  const rho = k * Math.tan(((90 - decDeg) / 2) * D2R);
+  const phi = (raDeg - lstDeg) * D2R;
+  return { x: width / 2 + rho * Math.sin(phi), y: height / 2 - rho * Math.cos(phi) };
+}
+
+async function checkSkyOrientation(browser) {
+  const W = 1600;
+  const H = 1000;
+  // The first 06:00 UTC from 2026-10-01 whose Moon is >30% lit and lands well
+  // inside the canvas, computed by astronomy-engine, not by the site.
+  let when = null;
+  let moon = null;
+  let lst = null;
+  for (let d = 0; d < 40 && !when; d++) {
+    const date = new Date(Date.UTC(2026, 9, 1 + d, 6));
+    const eq = Astronomy.EquatorFromVector(Astronomy.GeoMoon(date));
+    const lstDeg = (((Astronomy.SiderealTime(date) * 15 + MOFFETT_LON) % 360) + 360) % 360;
+    const p = specProject(W, H, lstDeg, eq.ra * 15, eq.dec);
+    const lit = Astronomy.Illumination(Astronomy.Body.Moon, date).phase_fraction;
+    if (lit > 0.3 && p.x > 60 && p.x < W - 60 && p.y > 60 && p.y < H - 60) {
+      when = date;
+      moon = p;
+      lst = lstDeg;
+    }
+  }
+  if (!when) throw new Error("no test night with a lit, on-canvas Moon in 40 days");
+
+  return withPage(
+    browser,
+    { viewport: { width: W, height: H }, reducedMotion: "reduce", deviceScaleFactor: 1 },
+    async (page) => {
+      await page.clock.setFixedTime(when);
+      await page.goto(BASE, { waitUntil: "networkidle" });
+      await waitSkyDrawn(page);
+      const siteLst = await page.evaluate(() => window.__sky.lstDeg);
+      let dl = Math.abs(siteLst - lst) % 360;
+      if (dl > 180) dl = 360 - dl;
+      if (dl > 0.05) throw new Error(`site LST ${siteLst.toFixed(3)}° vs astronomy-engine ${lst.toFixed(3)}°`);
+
+      const vega = specProject(W, H, lst, VEGA.raDeg, VEGA.decDeg);
+      const vegaPeak = await skyPeak(page, vega.x, vega.y, 3);
+      const moonPeak = await skyPeak(page, moon.x, moon.y, 4);
+      if (vegaPeak < 150) throw new Error(`no bright pixel at Vega's expected (${vega.x.toFixed(0)}, ${vega.y.toFixed(0)}): peak ${vegaPeak}`);
+      if (moonPeak < 150) throw new Error(`no bright pixel at the Moon's expected (${moon.x.toFixed(0)}, ${moon.y.toFixed(0)}): peak ${moonPeak}`);
+      return `${when.toISOString()}: LST off by ${dl.toFixed(4)}°, Vega peak ${vegaPeak.toFixed(0)}, Moon peak ${moonPeak.toFixed(0)}`;
+    },
+  );
 }
 
 /* ---------------------------------------------------------------------- */
@@ -177,8 +251,8 @@ async function checkNoEarlyHeavyPayload(browser) {
   return withPage(browser, { viewport: { width: 400, height: 800 } }, async (page) => {
     const urls = [];
     page.on("request", (req) => urls.push(req.url()));
-    // 400px is below lib/warm.ts's 768px idle-warm gate AND DeskField's 880px
-    // gate, and no demo is in the initial viewport + DeferredMount's 200px
+    // 400px is below lib/warm.ts's 768px idle-warm gate, and no demo is in
+    // the initial viewport + DeferredMount's 200px
     // rootMargin at this width — so nothing heavy should be in flight yet.
     await page.goto(BASE, { waitUntil: "networkidle" });
     await page.waitForTimeout(1500); // catch anything an idle callback might still fire
@@ -1311,9 +1385,10 @@ async function checkStargazeNoFetch(browser) {
 /* ---------------------------------------------------------------------- */
 
 const CHECKS = [
-  ["desk-field-animates-1280", deskFieldAnimatesAt1280],
-  ["desk-field-static-reduced-motion", deskFieldStaticUnderReducedMotion],
-  ["desk-field-absent-500", deskFieldAbsentAt500],
+  ["sky-animates-1280", skyAnimatesAt1280],
+  ["sky-static-reduced-motion", skyStaticUnderReducedMotion],
+  ["sky-present-400", skyPresentAt400],
+  ["sky-orientation", checkSkyOrientation],
   ["no-h-scroll-home-400", checkNoHorizontalScroll("/")],
   ["no-h-scroll-lab-400", checkNoHorizontalScroll("/lab")],
   ["no-early-heavy-payload-400", checkNoEarlyHeavyPayload],

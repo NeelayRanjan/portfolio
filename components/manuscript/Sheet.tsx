@@ -14,7 +14,7 @@ import type { ReactNode } from "react";
  */
 export function Sheet({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto mt-14 max-w-[1000px] border border-rule bg-paper px-[clamp(20px,5vw,56px)] py-[clamp(28px,5vw,64px)] shadow-[0_0_90px_rgba(0,0,0,0.55)]">
+    <div data-sheet className="mx-auto mt-14 max-w-[1000px] border border-rule bg-paper px-[clamp(20px,5vw,56px)] py-[clamp(28px,5vw,64px)] shadow-[0_0_90px_rgba(0,0,0,0.55)]">
       {children}
     </div>
   );

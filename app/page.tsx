@@ -25,7 +25,7 @@ import { copy } from "@/content/copy";
 // The 16px page gutter is owned here (`px-4` on `main`), not by `Sheet` —
 // `Sheet` only clamps its own inline padding once already inside the
 // viewport margin. `body` stays background-transparent (see app/layout.tsx),
-// which `DeskField`'s stacking depends on.
+// which `NightSky`'s stacking depends on.
 export default function Home() {
   const noteData = copy.research.noteBars[0];
   const noteCredit = copy.research.noteBars[1];

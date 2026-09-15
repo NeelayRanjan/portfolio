@@ -3,7 +3,8 @@ import { STIX_Two_Text, Spline_Sans_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { copy } from "@/content/copy";
-import { DeskField } from "@/components/manuscript/DeskField";
+import { NightSky } from "@/components/manuscript/NightSky";
+import { SkyCredit } from "@/components/manuscript/SkyCredit";
 import { StargazeToggle } from "@/components/manuscript/StargazeToggle";
 
 const stix = STIX_Two_Text({
@@ -68,9 +69,10 @@ export default function RootLayout({
       <head />
 
       <body className="min-h-full flex flex-col font-serif">
-        <DeskField />
+        <NightSky />
         <StargazeToggle />
         {children}
+        <SkyCredit />
         {/* Vercel Web Analytics: cookieless page views, plus the custom events
             in lib/track.ts. In production it loads same-origin from
             /_vercel/insights/, so the COOP/COEP headers never block it. */}

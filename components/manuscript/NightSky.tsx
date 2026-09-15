@@ -2,7 +2,14 @@
 
 import { useEffect, useRef } from "react";
 import { loadSky, type SkyData } from "@/lib/sky-data";
-import { drawSky, nearestConstellation, type Bodies, type Highlight, type Projected } from "@/lib/sky-render";
+import {
+  drawSky,
+  nearestConstellation,
+  precomputeStarFills,
+  type Bodies,
+  type Highlight,
+  type Projected,
+} from "@/lib/sky-render";
 import {
   PLANETS,
   chartFor,
@@ -64,8 +71,18 @@ export function NightSky() {
 
     let alive = true;
     let sky: SkyData | null = null;
+    let starFills: string[] = [];
     let width = 0;
     let height = 0;
+    // The canvas's actual backing-store pixel size and DPR at last
+    // reallocation, so a resize that lands on the same values (iOS URL-bar
+    // collapse fires `resize` repeatedly, often without changing either) can
+    // skip re-allocating the backing store and re-running setTransform —
+    // both of which clear/scale the canvas and are wasted work when nothing
+    // about its pixel dimensions actually changed.
+    let lastPxW = -1;
+    let lastPxH = -1;
+    let lastDpr = -1;
     let bodies: Bodies | null = null;
     let bodiesSim = Number.NEGATIVE_INFINITY;
     let projected: Projected | null = null;
@@ -89,9 +106,20 @@ export function NightSky() {
       const dpr = Math.min(window.devicePixelRatio || 1, DPR_CAP);
       width = window.innerWidth;
       height = window.innerHeight;
-      canvas.width = Math.round(width * dpr);
-      canvas.height = Math.round(height * dpr);
+      const pxW = Math.round(width * dpr);
+      const pxH = Math.round(height * dpr);
+      // Same backing-store size and DPR as last time: the projection's own
+      // `width`/`height` bookkeeping above is still refreshed every call (a
+      // narrow<->wide crossover changes magLimit and the frame-rate gate
+      // without necessarily changing the rounded pixel size), but skip the
+      // reallocation itself and the setTransform that goes with it.
+      if (pxW === lastPxW && pxH === lastPxH && dpr === lastDpr) return;
+      canvas.width = pxW;
+      canvas.height = pxH;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      lastPxW = pxW;
+      lastPxH = pxH;
+      lastDpr = dpr;
     };
 
     const bodiesAt = (sim: number): Bodies => {
@@ -135,6 +163,7 @@ export function NightSky() {
         fontFamily,
         highlight,
         avoid,
+        starFills,
       });
       frameTimes.push(performance.now() - t0);
       if (frameTimes.length > 60) frameTimes.shift();
@@ -223,6 +252,9 @@ export function NightSky() {
       .then((s) => {
         if (!alive) return;
         sky = s;
+        // Once per catalog load, not once per frame: a star's fill colour
+        // depends only on its catalog mag/bv, never on time or hover state.
+        starFills = s ? precomputeStarFills(s.stars) : [];
         paint();
       })
       .catch((err) => {

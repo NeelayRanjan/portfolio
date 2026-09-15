@@ -35,6 +35,12 @@ export type FrameInput = {
   fontFamily: string;
   highlight: Highlight | null;
   avoid: Avoid | null;
+  /** One rgba fill style per `sky.stars` entry, same order, from
+   *  `precomputeStarFills`. A star's colour and brightness never change
+   *  frame to frame (both come only from its catalog mag/bv), so building
+   *  these 1,627 template strings is wasted work at ~20 fps; compute once
+   *  per catalog load instead. */
+  starFills: string[];
 };
 
 const DESK = "#0c0b09";
@@ -55,6 +61,17 @@ function starRgb(bv: number): string {
   }
   const u = (t - 0.45) / 0.55;
   return `${mix(234, 240, u)},${mix(229, 196, u)},${mix(218, 150, u)}`;
+}
+
+/**
+ * One rgba fill style per `sky.stars` entry, same order. A star's mag/bv
+ * never change after the catalog loads, so its fill string doesn't either:
+ * call this once when `loadSky()` resolves (NightSky does) and hand the
+ * result back into every `drawSky` call as `starFills`, rather than building
+ * ~1,627 template strings inside the ~20 fps paint loop.
+ */
+export function precomputeStarFills(stars: SkyData["stars"]): string[] {
+  return stars.map(([, , mag, bv]) => `rgba(${starRgb(bv)},${clamp(1 - (mag + 1.5) * 0.12, 0.25, 1)})`);
 }
 
 export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInput): Projected {
@@ -131,13 +148,14 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
   ctx.stroke();
 
   // Stars, brightest first, so the magnitude cut is a break.
-  for (const [ra, dec, mag, bv] of sky.stars) {
+  for (let i = 0; i < sky.stars.length; i++) {
+    const [ra, dec, mag] = sky.stars[i];
     if (mag > f.magLimit) break;
     const p = project(c, ra, dec);
     if (!onCanvas(p, 4)) continue;
     ctx.beginPath();
     ctx.arc(p.x, p.y, clamp(2.1 - 0.32 * mag, 0.5, 2.6), 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(${starRgb(bv)},${clamp(1 - (mag + 1.5) * 0.12, 0.25, 1)})`;
+    ctx.fillStyle = f.starFills[i];
     ctx.fill();
   }
 

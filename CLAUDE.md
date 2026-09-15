@@ -41,10 +41,52 @@ its whiskers went faint, chess moved ahead of draw, Vercel Web Analytics was
 wired (see Stack), and the headline framing became "generative modeling"
 (title, tagline, share blurb; OG card regenerated to match).
 
-**Verification: `scripts/verify-redesign.mjs`** — 15 named checks,
+**2026-09-15: the desk's particle swarm (`DeskField`) was replaced by a real
+star chart of the sky over NASA Ames**, same on `/`, `/lab` and the 404.
+`scripts/prepare-sky.mjs` builds `public/sky/sky.json` (~57 KB: 1,627 stars to
+magnitude 5, 88 constellations with thin lines, English meanings transcribed
+from Wikipedia's Meaning column rather than d3-celestial's own `en` field
+which calls Ursa Major "Big Dipper", Serpens' two halves merged into one
+constellation) from a commit-pinned d3-celestial. `lib/sky-math.ts` computes
+the projection (GMST/LST, the planets, the Moon) with no imports, so
+`scripts/test-sky-math.mjs` pins it against `astronomy-engine` in plain node.
+`components/manuscript/NightSky.tsx` runs a simulated clock at 180x real time
+from the load instant (one turn every ~8 minutes), pole hidden behind the
+sheet; reduced motion paints one frame at load and stays still. Hovering near
+a constellation brightens its lines and names it in both languages ("Ursa
+Major (Great Bear)", Latin larger and brighter), the label placed beside the
+pointer in the page margin, never under the sheet. A "stargaze for a bit?"
+button (`StargazeToggle.tsx`, state in `lib/stargaze.ts`) hides every page's
+content with CSS plus `inert`, never unmounting (a chess game, a drawing, and
+scroll position all survive the round trip), and counts once per page load as
+`demo_used {demo: "stargaze"}`. A model run in flight is cancelled by throwing
+`StargazeAbort` from the panel's own `onFrame`, never by returning early
+(returning skips the vendored sampler's event-loop yield and locks the page).
+**Restore rule**: the chess worker is terminated outright (pending moves
+reject with `EngineUnloaded`) and reloads on return only if it had been
+loaded or loading before stargazing, never if only the idle warm-up loaded
+it; draw and headshot release their ORT sessions once the cancelled run
+settles, draw reloads on return if it had been wanted, headshot waits for the
+next press (as the first press always has). Load-generation tags on every
+panel stop a load that resolves after an unload from installing a released
+session or a terminated worker; the loaders themselves await any pending
+unload before building a new session, so two sessions never coexist. The
+honest limit: the main-thread ORT wasm heap never actually shrinks, only the
+chess worker's termination truly frees memory. `window.__sky` and
+`window.__offload` are verify hooks, not UI.
+
+**Verification: `scripts/verify-redesign.mjs`** — 23 named checks,
 Playwright-Firefox against a real `npm run build && npm start` on :3000, never
 the dev server; pass check-name substrings as args to run subsets. Covers the
-desk field (motion / reduced-motion / absent below 880px), no horizontal
+night sky (turning at 1280px with a measured median frame draw around 3-4ms
+in headless Firefox, a floor not a claim; static under reduced motion;
+present in the 400px margins; orientation checked against an independently
+computed astronomy-engine LST and two expected bright pixels; hovering
+brightening a constellation and naming it clear of the sheet), stargaze mode
+(hiding the page with `inert` and firing no page-content fetch; offloading
+the chess worker and the draw/headshot sessions; cancelling a run in flight
+without ever showing it as a failure or counting `demo_used`; surviving
+stargaze entered mid-download plus an immediate exit/re-entry), no horizontal
 scroll at 400px on both pages, nothing model-sized before scroll, the
 label-efficiency sweep (readouts and the computed lead/trail sentence vs the
 SERVED `label_efficiency.json` at the first and last budgets, including the
@@ -70,7 +112,17 @@ hand-run script, **`scripts/verify-headshot-256.mjs`** (same prod build on
 :3000; drives the site's vendored module in node against the SERVED bytes,
 with MAD thresholds the browser check doesn't carry). Run the suite after any
 change touching a demo, a figure, or the page shell.
-`scripts/check-voice.mjs` gates every copy.ts edit.
+`scripts/check-voice.mjs` gates every copy.ts edit. **`node --test
+scripts/test-sky-data.mjs scripts/test-sky-math.mjs`** runs outside Playwright,
+in plain node: the first pins the committed `sky.json`'s shape (star
+count/order/ranges, Polaris and Sirius by position and magnitude, all 88
+constellations with Serpens merged and bilingual names) against hand edits
+and bad regenerations; the second pins `lib/sky-math.ts`'s projection math
+(GMST 1.13 s worst error, Saturn 0.088°, Moon 0.043°, all against
+`astronomy-engine`, a devDependency used only here and by the verify suite).
+Node prints a `MODULE_TYPELESS_PACKAGE_JSON` warning for `lib/sky-math.ts`
+when these run — known, harmless, not worth chasing (this repo's
+`package.json` has no `"type"` field and that's staying as-is).
 
 **Open items, roughly in order:**
 1. **The mobile draw-demo crash got worse** (owner, 2026-09-14, iPhone 17 Pro):
@@ -91,10 +143,7 @@ change touching a demo, a figure, or the page shell.
 4. **The CV is hidden** (owner, 2026-09-14: "shouldn't be public facing yet").
    Removed from `masthead.links` and `references.items`; its URL stays below.
    The Drive doc itself is still shared "anyone with the link".
-5. **The desk field becomes a night sky** (owner, 2026-09-14): a slowly
-   rotating star field meant to merge the paper and NASA aesthetics. In
-   brainstorming; replaces `DeskField`'s flow field.
-6. Much later: a third headliner demo, a **live network-security honeypot**
+5. Much later: a third headliner demo, a **live network-security honeypot**
    (exposed Pi, malicious ssh/https logged, LLM-categorized into a live UMAP
    of attack families). Needs a live-data seam the static site doesn't have;
    the systems figure column is trivially appendable when it comes.
@@ -280,7 +329,10 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   them), `onnxruntime-web` 1.27 (every model on the page) and
   `@vercel/analytics` 2 (see Analytics below). `playwright` is a
   devDependency (Firefox only installed) for canvas verification and the two
-  artifact-rendering scripts.
+  artifact-rendering scripts. `astronomy-engine` is also devDependency-only:
+  it never ships to the browser, and exists solely so `scripts/test-sky-math.mjs`
+  and `scripts/verify-redesign.mjs` have an independent reference to pin
+  `lib/sky-math.ts`'s projection math against.
 - Deploy: Vercel, custom domain neelayranjan.dev. Repo is private
   (`NeelayRanjan/portfolio`).
 - **Analytics (wired 2026-09-13): Vercel Web Analytics.** `<Analytics />` in
@@ -320,13 +372,17 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   useless "no available backend found". If ORT changes what it fetches, the
   network tab names the file — don't guess.
 - `scripts/gen-icons.py` (fontTools + cairosvg venv; fetches the STIX variable
-  TTF, see its header) and `scripts/gen-og.mjs` (Playwright) are **hand-run,
-  never wired to prebuild** — Vercel's image has neither toolchain. Their
-  outputs are committed. The favicon is the owner's mark (2026-09-12): STIX "N"
+  TTF, see its header), `scripts/gen-og.mjs` (Playwright) and
+  `scripts/prepare-sky.mjs` (fetches the star catalog from a commit-pinned
+  d3-celestial on GitHub raw) are **hand-run, never wired to prebuild** —
+  Vercel's image has neither toolchain and Vercel's build has no network
+  access to fetch the catalog. Their outputs are committed. The favicon is the owner's mark (2026-09-12): STIX "N"
   in ink on the paper tile with stamp-red corner brackets; edit the script's
   token constants and re-run rather than hand-editing the four app/ icon files. The OG card screenshots the TOP of the live page
   (name, tagline, abstract, headshot rail; it refuses to write a card whose h1
-  is outside the frame), so re-run it after ANY masthead copy or layout change; `metadataBase` in `layout.tsx` is required
+  is outside the frame), waiting on `window.__sky?.drawn` (2026-09-15, not the
+  old DeskField-specific readiness check it used to poll) before it shoots, so
+  re-run it after ANY masthead copy or layout change; `metadataBase` in `layout.tsx` is required
   or `/og.png` never resolves in unfurls.
 - The chess worker must stay a literal
   `new Worker(new URL("./chess-worker.ts", import.meta.url), { type: "module" })`
@@ -366,8 +422,97 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   `npm run build && npm start`, not the dev server.
 - **Playwright's Firefox lacks `screenshot({omitBackground})`** — the icon script
   rasterizes via canvas `toDataURL` instead.
+- **A re-render that flips a load-triggering prop null→loaded→null→loaded can
+  silently re-fire an effect meant to run once.** Night sky's stargaze restore
+  reloads the draw model on return, so `model` (null→loaded) now cycles on
+  every round trip; a pre-existing `useEffect(() => { if (!model || !hasInk)
+  return; autoPick(); }, [model])` had assumed that transition happens once
+  per page load and started re-classifying (and transiently disabling the
+  generate button) on every restore. The failure mode was a genuinely flaky
+  Playwright check, not an obvious one: the button's native disabled-click
+  suppression swallows a `.click()` that lands in the disabled window with no
+  thrown error and no handler firing, so the symptom was a `waitForFunction`
+  timeout with nothing in between to blame. Measured before the fix: 3 runs at
+  67924ms (pass, lucky timing), 169033ms and 169431ms (fail, 400ms apart,
+  which is what said "real race" over "slow machine"); after adding a ref that
+  suppresses the re-classify specifically on a stargaze-triggered reload, 5
+  runs clustered at 52969-54392ms, all pass. The general shape (an effect
+  keyed on a value assumed monotonic that a new code path made cyclic) is
+  worth checking for anywhere else a model-loaded flag gets a second producer.
 
 ## The demos — contracts and traps (these carry into the redesign)
+
+### Night sky + stargaze (every page)
+- **Frame**: J2000 equatorial throughout (the catalog's epoch; the Moon and
+  planets are computed in the same frame so everything agrees). **Projection**:
+  polar stereographic centred on the north celestial pole, which sits at the
+  centre of the viewport (behind the sheet on desktop); `r = k · tan((90° −
+  dec) / 2)`, `k` chosen by eye so the viewport's half-diagonal reaches dec
+  −30° (measured `k = 490.2` at 1440x900). **Orientation**: up from the pole
+  points at the zenith over Moffett Field (37.4153°N, 122.0647°W), east is to
+  the right, and a star's screen angle is `RA − LST` measured from straight up
+  — so as LST advances the sky turns counterclockwise, same as the real sky
+  around Polaris.
+- **`lib/sky-math.ts` has no imports**, on purpose, so it can be pinned in
+  plain node (`scripts/test-sky-math.mjs`) against `astronomy-engine`
+  (devDependency only, never shipped): gated at GMST within 2 s, the planets
+  within 0.25°, the Moon within 0.3° (measured worst case tighter: GMST
+  1.13 s, Saturn 0.088°, Moon 0.043°). `lib/sky-render.ts` is the pure
+  per-frame drawer (no state, no clock) that reads its projected output.
+- **English constellation names are transcribed from Wikipedia's "IAU
+  designated constellations" Meaning column**, never d3-celestial's own `en`
+  field — that field names asterisms, not the constellation ("Big Dipper" for
+  Ursa Major, which is wrong for a name that should read "Great Bear"). A
+  meaning that's a mythological figure, or that would just repeat the Latin
+  (Lynx, Phoenix, Sculptor), is `null` and the label shows the Latin alone.
+  Serpens' two halves (Caput and Cauda) are merged into one constellation
+  entry, matching the IAU's 88, not 89.
+- **The catalog gate** (`lib/sky-data.ts`, same discipline as the model
+  loaders): a failed fetch or 404 resolves `null` and the desk stays plain
+  dark, no stand-in sky ever drawn; a malformed catalog (bad version/epoch,
+  too few stars, not 88 constellations) throws, because that's an export bug
+  to see, not hide — `NightSky` catches it at the component boundary and logs
+  it with `console.error` rather than swallowing it silently.
+- **Reduced motion** paints one real frame at load from the actual current
+  time and never advances; `SkyCredit`'s moving/still wording swap is pure CSS
+  (`motion-reduce:` variants on two spans), not a JS branch, so a
+  reduced-motion visitor never reads the "180 times" language for a sky that,
+  for them, never turns.
+- **Stargaze mode hides the page with CSS (`body[data-stargaze]`) plus
+  `inert` on every `main`, and never unmounts anything** — a chess game, a
+  half-drawn digit and the scroll position all survive the round trip
+  (`lib/stargaze.ts`, a module-level store, not React context, since loaders
+  outside any component tree need to report offloads into it too).
+- **Cancelling a model run**: throw `StargazeAbort` from the panel's own
+  `onFrame`, never return early — returning skips the vendored sampler's
+  event-loop yield and locks the page (the draw demo's existing trap 3, now
+  the load-bearing precedent for this too). Each panel releases its session
+  only **after** the cancelled run's promise actually settles, never
+  eagerly — releasing underneath an in-flight step is what would corrupt the
+  shared ORT session.
+- **Load generations**: each panel tags its own loads with a counter that
+  stargaze bumps on unload, so a load that resolves after an unload (or after
+  a newer load started) is discarded instead of installing a released session
+  or a terminated worker into state. The loaders themselves (`lib/draw-
+  model.ts`, `lib/headshot-model.ts`) additionally await any pending unload
+  before building a new session, so two sessions never coexist even across
+  a rapid exit/re-entry.
+- **Restore rule** (the one the spec's original "nothing preloads on return"
+  got wrong at plan time): on return, a model that was loaded or loading
+  before stargazing reloads; one that never loaded stays unloaded. The
+  headshot model is the deliberate exception: its next press loads it, same
+  as the very first press always has, so no reload fires on return. A chess
+  engine loaded only by the idle warm-up (never actually played against) is
+  unloaded and **not** restored — nothing wanted it.
+- **The honest memory limit**: the main-thread ORT wasm heap never actually
+  shrinks after `release()` (only a full page reload does that); of the three
+  offloaded models, only the chess worker's termination truly frees memory,
+  since terminating a worker frees its whole heap. Stargazing on a phone that
+  already loaded the draw model does not fix that phone's memory pressure —
+  see Known bugs, item 1.
+- `window.__sky` (`drawn`, `simMs`, `lstDeg`, `k`, `frameMsMedian`,
+  `highlight`, `segmentsFor`, `label`) and `window.__offload` (a per-kind
+  offload counter) are verify hooks for `scripts/verify-redesign.mjs`, not UI.
 
 ### Draw-a-digit (SDEdit, live MNIST diffusion) — page 1
 - Division of labour: all model math lives in `lib/ascii-diffusion.js`, vendored
@@ -704,6 +849,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 | `public/diffusion_traj.json` | 3.0 MB | pixel trajectories, 10 digits x 32 frames |
 | `public/ascii_traj.json` | 586 KB | discrete/mask trajectories, same shape |
 | `public/chess_activations.json` | 43 KB | precomputed saliency, 8 curated positions |
+| `public/sky/sky.json` | ~57 KB | star catalog behind every page: 1,627 stars, 88 constellations, built by `scripts/prepare-sky.mjs` from a pinned d3-celestial commit |
 | `public/jepa/manifest.json` | 483 KB | JEPA bundle: labels, UMAPs, neighbours, metrics |
 | `public/jepa/sprites.webp` | 3.6 MB | 4096 thumbnails, 64x64 atlas |
 | `public/models/mnist_x0.onnx` | 26 MB | the pixel model, live draw-a-digit |

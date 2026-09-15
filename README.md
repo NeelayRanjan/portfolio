@@ -30,34 +30,43 @@ build time.
 ### Verify before believing
 
 ```bash
-node scripts/verify-redesign.mjs           # all 15 checks, against npm start on :3000
+node scripts/verify-redesign.mjs           # all 23 checks, against npm start on :3000
 node scripts/verify-redesign.mjs chess cdf # any check-name substrings run a subset
 node scripts/verify-headshot-256.mjs       # hand-run: the 256 headshot + morph, in node
 node scripts/check-voice.mjs               # copy.ts voice gate (banned words, em-dashes)
+node --test scripts/test-sky-data.mjs scripts/test-sky-math.mjs
+                                            # plain node: the committed star catalog's shape,
+                                            # and the projection math pinned against astronomy-engine
 ```
 
 The suite is Playwright-Firefox against a real production build and asserts
-behavior, not HTTP 200s: the desk field pauses under reduced motion, the chess
-hint returns validation vector D, the sampled headshot pixel-matches the photo
-that was pressed, the label-efficiency readouts match the served JSON, and a
-Resume click queues the analytics event production would send.
+behavior, not HTTP 200s: the night sky turns and pauses under reduced motion,
+stargaze mode hides the page and offloads the models without ever faking a
+completed run, the chess hint returns validation vector D, the sampled
+headshot pixel-matches the photo that was pressed, the label-efficiency
+readouts match the served JSON, and a Resume click queues the analytics event
+production would send.
 
 ## The pages
 
-`/` is the paper and carries ~95% of the site: masthead (name, tagline,
-abstract, the sampled author photo, the paper-status stamp linking `/lab`),
-Table 1, three research figures (the label-efficiency sweep with a mask strip,
-the pannable Dice CDF, the synthetic flight-day map), the two live demos (the
-chess engine, then draw-a-digit), the experience board, references. `/lab` is
-the supplementary material: the trajectory viewer, MAE-vs-I-JEPA retrieval,
-and a hand-built (and labeled) DDPM-vs-flow-matching illustration.
+Every page shares a real star chart of the sky over NASA Ames turning slowly
+behind the paper, and a "stargaze for a bit?" button that hides the page and
+gives the sky the screen (the models in flight get cancelled and offloaded,
+never faked as finished). `/` is the paper and carries ~95% of the site:
+masthead (name, tagline, abstract, the sampled author photo, the paper-status
+stamp linking `/lab`), Table 1, three research figures (the label-efficiency
+sweep with a mask strip, the pannable Dice CDF, the synthetic flight-day map),
+the two live demos (the chess engine, then draw-a-digit), the experience
+board, references. `/lab` is the supplementary material: the trajectory
+viewer, MAE-vs-I-JEPA retrieval, and a hand-built (and labeled)
+DDPM-vs-flow-matching illustration.
 
 ## Layout
 
 ```
 app/               routes (/, /lab, 404), globals.css (@theme tokens; no tailwind.config)
 components/
-  manuscript/      the design system: Sheet, Row/Note, InstrumentFigure, DeskField, TrackedLink, …
+  manuscript/      the design system: Sheet, Row/Note, InstrumentFigure, NightSky, StargazeToggle, TrackedLink, …
   figures/         the research figures + headshot toy, and shared mask-paint
   *.tsx            the demo panels (ChessPanel, DrawDigit, JepaPanel, …)
 lib/               loaders, encoders, vendored model math (never reimplemented), track.ts
@@ -87,6 +96,7 @@ recorded locally; the verify suite reads the pending `window.vaq` queue instead.
 | `gen-icons.py` | the STIX-N favicon set from site tokens | python venv (fontTools, cairosvg) + the STIX variable TTF (see header) |
 | `gen-og.mjs` | screenshots the top of the page into `public/og.png`; rerun after any masthead copy or layout change | Playwright, server on :3000 |
 | `measure-mono.mjs` | measures a mono's advance (why the ASCII grids keep Geist Mono) | Playwright, dev server |
+| `prepare-sky.mjs` | derives `public/sky/sky.json`, the star catalog behind every page, from a commit-pinned d3-celestial | network access to GitHub raw |
 
 Outputs are committed; Vercel never runs any of these.
 

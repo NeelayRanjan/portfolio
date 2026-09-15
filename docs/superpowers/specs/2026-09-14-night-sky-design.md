@@ -1,6 +1,6 @@
 # Night sky + stargaze mode: design spec
 
-Date: 2026-09-14 · Status: reviewed by the owner (open questions resolved, §12)
+Date: 2026-09-14 · Status: implemented (plan docs/superpowers/plans/2026-09-14-night-sky.md)
 Replaces: `components/manuscript/DeskField.tsx` (the flow-field particles).
 Binding context: CLAUDE.md (Constitution, Voice, Stack, traps). Where this spec
 and CLAUDE.md disagree, CLAUDE.md wins until this spec is approved and folded in.
@@ -346,4 +346,11 @@ sections they name.
 5. **Verification (§10).** `stargaze-offload` is split into
    `stargaze-offload-chess` and `stargaze-offload-draw`, and a
    `stargaze-hides-page` check covers hiding, `inert`, scroll lock, focus and
-   the once-per-load event. 21 checks in total.
+   the once-per-load event, plus `stargaze-cancels-run` (a run in flight when
+   stargaze is pressed is cancelled, never shown as failed, never counts
+   `demo_used`). **23 checks in total, not 21**: the plan's own count already
+   undercounted this list by one (22, not 21), and Task 7's fix rounds added a
+   further check, `stargaze-during-download`, for an edge case found while
+   debugging a flake: entering stargaze before a model has ever finished
+   loading, and a rapid exit then re-entry before the prior exit's reload has
+   settled, must still restore working fit scores rather than losing them.

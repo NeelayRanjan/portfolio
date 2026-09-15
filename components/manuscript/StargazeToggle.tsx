@@ -69,6 +69,7 @@ export function StargazeToggle() {
             <button
               ref={exitRef}
               type="button"
+              data-stargaze-exit
               onClick={() => setStargazing(false)}
               className="text-ink underline decoration-dotted underline-offset-[3px] transition-colors hover:text-warm"
             >

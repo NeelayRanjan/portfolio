@@ -110,8 +110,9 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
   const { width, height, chart: c } = f;
   // The id whose always-on name must be skipped this frame (fix round 1,
   // C1): the current hover wins over the current selection, since the
-  // hover's label is what is about to overdraw it. Task 5 wires real
-  // selection; today selectedId is always null from NightSky.tsx.
+  // hover's label is what is about to overdraw it. NightSky.tsx sets
+  // selectedId to the open card's subject (Task 5), so a selected object's
+  // own name stays suppressed while its card is open, the same as a hover.
   const suppressName = f.highlight?.kind === "hit" ? f.highlight.id : f.selectedId;
   const view: View = { chart: c, width, height, fontFamily: f.fontFamily, names: f.names, suppressName };
   const onCanvas = (p: { x: number; y: number }, m: number) =>

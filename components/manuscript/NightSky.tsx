@@ -111,10 +111,40 @@ export function NightSky() {
   /** The effect's own paint, so a freshly committed card gets placed before the browser paints it. */
   const repaintRef = useRef<() => void>(() => {});
   const closeRef = useRef<() => void>(() => {});
+  /** Re-reads the open card's offsetWidth/offsetHeight into the effect's
+   *  cached size (fix round 1, promoted minor): called on open, on window
+   *  resize, and from the card's own ResizeObserver below, so followCard
+   *  never forces a layout read at ~20fps. */
+  const updateCardSizeRef = useRef<() => void>(() => {});
+  /** False for a close that's part of leaving stargaze entirely (fix round
+   *  1, I3): StargazeToggle already returns focus to its own entry button
+   *  in that case, so NightSky must not also grab it for the exit control. */
+  const focusRestoreRef = useRef(true);
+  const prevCardRef = useRef<CardModel | null>(null);
   const [card, setCard] = useState<CardModel | null>(null);
 
   useLayoutEffect(() => {
-    if (card) repaintRef.current();
+    if (card) {
+      updateCardSizeRef.current();
+      repaintRef.current();
+      cardRef.current?.focus({ preventScroll: true });
+      prevCardRef.current = card;
+      const el = cardRef.current;
+      if (!el || typeof ResizeObserver === "undefined") return;
+      // The card's own size can change after it opens (a shower's four data
+      // lines vs. a star's none, or a width crossing 880px) without `card`
+      // itself changing, which is why this can't just run once on open.
+      const ro = new ResizeObserver(() => {
+        updateCardSizeRef.current();
+        repaintRef.current();
+      });
+      ro.observe(el);
+      return () => ro.disconnect();
+    }
+    if (prevCardRef.current && focusRestoreRef.current) {
+      document.querySelector<HTMLElement>("[data-stargaze-exit]")?.focus({ preventScroll: true });
+    }
+    prevCardRef.current = null;
   }, [card]);
 
   useEffect(() => {
@@ -156,6 +186,12 @@ export function NightSky() {
     let highlight: Highlight | null = null;
     /** The open card's subject; mirrors `card` state, readable synchronously. */
     let selected: { kind: Highlight["kind"]; id: string } | null = null;
+    /** The open card's offsetWidth/offsetHeight, cached (fix round 1,
+     *  promoted minor): followCard reads this instead of the DOM every paint
+     *  (~20fps), which would otherwise force a layout outside the measured
+     *  frame time. Refreshed by updateCardSize, never read from the DOM
+     *  inline in the paint loop. */
+    let cardSize: { w: number; h: number } | null = null;
     const frameTimes: number[] = [];
     // Drag to pan. `offset` slides the whole chart (lib/sky-math.ts chartFor);
     // `velocity` is the return spring's, px/s.
@@ -173,6 +209,15 @@ export function NightSky() {
       const fam = getComputedStyle(document.documentElement).getPropertyValue("--font-spline-mono").trim();
       if (fam) fontFamily = fam;
     };
+
+    // The only place that reads the card's offsetWidth/offsetHeight off the
+    // DOM (fix round 1, promoted minor): called on open, on window resize,
+    // and from the card's own ResizeObserver, never from inside followCard.
+    const updateCardSize = () => {
+      const el = cardRef.current;
+      cardSize = el ? { w: el.offsetWidth, h: el.offsetHeight } : null;
+    };
+    updateCardSizeRef.current = updateCardSize;
 
     const simNow = () => (reducedQ.matches ? loadMs : simTimeMs(loadMs, Date.now()));
 
@@ -305,9 +350,14 @@ export function NightSky() {
       setCard(model);
       paint();
     };
-    const closeCard = () => {
+    const closeCard = (opts?: { restoreFocus?: boolean }) => {
       if (!selected) return;
       selected = null;
+      cardSize = null;
+      // Default true: a close that leaves stargaze mode (below) passes
+      // false, since StargazeToggle already returns focus to its own entry
+      // button in that case and must not be fought for it.
+      focusRestoreRef.current = opts?.restoreFocus ?? true;
       setCard(null);
       paint();
     };
@@ -343,8 +393,14 @@ export function NightSky() {
         el.style.top = "";
         return;
       }
-      const w = el.offsetWidth;
-      const h = el.offsetHeight;
+      // Cached by updateCardSize (fix round 1, promoted minor): reading
+      // offsetWidth/offsetHeight here, every paint at ~20fps, forces a
+      // layout the frame-time measurement never saw. The DOM read is the
+      // fallback only for the rare paint that lands before the card's own
+      // open effect has cached a size yet.
+      if (!cardSize) updateCardSize();
+      const w = cardSize?.w ?? el.offsetWidth;
+      const h = cardSize?.h ?? el.offsetHeight;
       let x = at.x + 18;
       if (x + w > width - 16) x = at.x - 18 - w;
       x = Math.min(Math.max(x, 16), width - 16 - w);
@@ -397,6 +453,7 @@ export function NightSky() {
     };
     const onResize = () => {
       resize();
+      updateCardSize();
       paint();
     };
 
@@ -574,7 +631,10 @@ export function NightSky() {
     document.documentElement.addEventListener("pointerleave", onPointerLeave);
     const unsubStargaze = subscribeStargaze((on) => {
       highlight = null;
-      if (!on) closeCard();
+      // Leaving stargaze closes any open card too, but focus is
+      // StargazeToggle's job here (it returns focus to its own entry
+      // button), not the exit control NightSky would otherwise reach for.
+      if (!on) closeCard({ restoreFocus: false });
       paint();
     });
     repaintRef.current = () => {

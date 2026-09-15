@@ -35,6 +35,8 @@ import { firefox } from "playwright";
 import * as Astronomy from "astronomy-engine";
 import { readFileSync } from "node:fs";
 import { SKY_FACTS } from "../content/sky-facts.ts";
+import { moonEquatorial, planetEquatorial } from "../lib/sky-math.ts";
+import { copy } from "../content/copy.ts";
 
 const BASE = "http://localhost:3000";
 
@@ -2025,6 +2027,32 @@ async function checkStargazeDuringDownload(browser) {
 /** The 88 abbreviations, from the committed catalog (the snapshot's segmentsFor takes one at a time). */
 const ABBRS = Object.keys(JSON.parse(readFileSync(new URL("../public/sky/sky.json", import.meta.url), "utf8")).constellations);
 
+/** The committed objects catalog (fix round 1, I2): Voyager 1's RA/Dec and
+ *  spacecraft data (distanceAu, positionDate) come from here, not a
+ *  hardcoded copy, so a re-export can't silently drift from the assertion. */
+const OBJECTS_DATA = JSON.parse(readFileSync(new URL("../public/sky/objects.json", import.meta.url), "utf8"));
+const VOYAGER1 = OBJECTS_DATA.objects.find((o) => o.id === "voyager-1");
+
+/** Mirrors SkyCard.tsx's own `longDate`: "2026-09-15" -> "September 15, 2026". */
+const CARD_LONG_DATE = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+const cardLongDate = (iso) => CARD_LONG_DATE.format(new Date(`${iso}T00:00:00Z`));
+
+/** Like findInstant, but for a body that moves (the Moon, a planet):
+ *  `posAt(ms)` returns its RA/Dec at that instant. Reduced motion pins
+ *  window.__sky's simulated clock to the page's fixed real clock exactly
+ *  (no 180x speedup), so `ms` here is the same instant pinnedSkyPage's
+ *  `date` will later set. */
+function findInstantMoving(from, W, H, posAt, margin) {
+  for (let i = 0; i < 288; i++) {
+    const date = new Date(from.getTime() + i * 600_000);
+    const lst = lstAt(date);
+    const eq = posAt(date.getTime());
+    const p = specProject(W, H, lst, eq.raDeg, eq.decDeg);
+    if (p.x > margin && p.x < W - margin && p.y > margin && p.y < H - margin) return { date, lst, p };
+  }
+  throw new Error(`nothing lands ${margin}px inside ${W}x${H} in the two days from ${from.toISOString()}`);
+}
+
 /**
  * A point of genuinely empty sky: at least 30px from every drawn symbol and
  * every constellation line (so a click there selects nothing), off the card,
@@ -2058,12 +2086,39 @@ function emptySkyPoint(page, awayFrom) {
   );
 }
 
+/**
+ * Opens the card for a drawn hit (found by id in window.__sky.hits, not a
+ * hardcoded pixel) at a pinned instant, and returns its content (fix round
+ * 1, I2: exercises the spacecraft/planet/Moon title and extra-line branches
+ * the M31-only check never touched).
+ */
+async function openHitCard(browser, { W, H, date, hitId }) {
+  return pinnedSkyPage(browser, { W, H, date }, async (page) => {
+    await page.waitForFunction(() => window.__sky.layers.facts === "ready", null, { timeout: 10000 });
+    await waitStargazeReady(page);
+    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    const at = await page.evaluate((id) => window.__sky.hits.find((h) => h.id === id) ?? null, hitId);
+    if (!at) throw new Error(`${hitId} is not among the drawn hits at ${date.toISOString()}`);
+    const card = page.locator("[data-sky-card]");
+    await page.mouse.click(at.x, at.y);
+    await card.waitFor({ state: "visible", timeout: 3000 });
+    return card.evaluate((el) => ({
+      id: el.getAttribute("data-sky-card"),
+      title: el.querySelector("h2")?.textContent,
+      kind: el.querySelector("[data-sky-card-kind]")?.textContent,
+      oneLiner: el.querySelector("[data-sky-card-oneliner]")?.textContent,
+      dataLines: [...el.querySelectorAll("[data-sky-card-data]")].map((p) => p.textContent),
+    }));
+  });
+}
+
 async function checkStargazeCard(browser) {
   const W = 1600;
   const H = 1000;
   const { date, p } = findInstant(new Date(Date.UTC(2026, 9, 1)), W, H, M31, 120);
   const m31Fact = SKY_FACTS.find((f) => f.id === "m31");
-  return pinnedSkyPage(browser, { W, H, date }, async (page) => {
+  const m31Summary = await pinnedSkyPage(browser, { W, H, date }, async (page) => {
     await page.waitForFunction(() => window.__sky.layers.facts === "ready", null, { timeout: 10000 });
     await waitStargazeReady(page);
     await page.getByRole("button", { name: STARGAZE_ENTER }).click();
@@ -2102,6 +2157,12 @@ async function checkStargazeCard(browser) {
     const { box } = content;
     if (box.left < 0 || box.top < 0 || box.right > W || box.bottom > H) throw new Error(`card ${JSON.stringify(box)} leaves the viewport`);
 
+    // Fix round 1, I3: opening a card moves focus inside it (Tab reaches the
+    // close button and the source links without first passing back through
+    // the page).
+    const focusedInCard = await page.evaluate(() => !!document.activeElement?.closest("[data-sky-card]"));
+    if (!focusedInCard) throw new Error("focus did not move into the opened card");
+
     // The card follows its subject while the sky is dragged (from empty sky).
     const empty = await emptySkyPoint(page, { x: p.x, y: p.y, r: 420 });
     if (!empty) throw new Error("no empty sky to drag from");
@@ -2120,6 +2181,12 @@ async function checkStargazeCard(browser) {
     if (!(await page.evaluate(() => document.body.hasAttribute("data-stargaze")))) {
       throw new Error("the first Escape exited stargaze instead of closing the card");
     }
+    // Fix round 1, I3: focus returns to the stargaze exit control, not lost
+    // to the body, once the card it was on is gone.
+    const focusedAfterEscape = await page.evaluate(() => document.activeElement?.textContent?.trim());
+    if (focusedAfterEscape !== STARGAZE_EXIT) {
+      throw new Error(`focus after closing the card is on "${focusedAfterEscape}", not the exit control`);
+    }
     await page.keyboard.press("Escape");
     await page.waitForFunction(() => !document.body.hasAttribute("data-stargaze"), null, { timeout: 3000 });
 
@@ -2132,8 +2199,46 @@ async function checkStargazeCard(browser) {
     if (!blank) throw new Error("no empty sky to click");
     await page.mouse.click(blank.x, blank.y);
     await card.waitFor({ state: "detached", timeout: 2000 });
-    return `drag opened nothing; card "${content.title}" / "${content.kind}" with one-liner "${content.oneLiner}" and ${content.links.length} source link(s); followed a -100px drag; Escape closed it, second Escape exited; empty click closed it`;
+    return `drag opened nothing; card "${content.title}" / "${content.kind}" with one-liner "${content.oneLiner}" and ${content.links.length} source link(s); followed a -100px drag; Escape closed it, second Escape exited; empty click closed it; focus moved into the card and back to the exit control after Escape`;
   });
+
+  // Fix round 1, I2: the spacecraft branch (Voyager 1), a planet, and the
+  // Moon, each opened at its own pinned instant (three separate page loads,
+  // like checkSkyObjects does for multiple bodies) so their title and
+  // extra-line branches are actually exercised, not just M31's.
+  const CW = 1440;
+  const CH = 900;
+
+  const voyagerFact = SKY_FACTS.find((f) => f.id === "voyager-1");
+  const vInstant = findInstant(new Date(Date.UTC(2026, 9, 1)), CW, CH, { raDeg: VOYAGER1.raDeg, decDeg: VOYAGER1.decDeg }, 100);
+  const voyager = await openHitCard(browser, { W: CW, H: CH, date: vInstant.date, hitId: "voyager-1" });
+  if (voyager.id !== "voyager-1" || voyager.title !== VOYAGER1.name) {
+    throw new Error(`voyager card opened for ${voyager.id} "${voyager.title}"`);
+  }
+  if (voyager.oneLiner !== voyagerFact.oneLiner) {
+    throw new Error(`voyager one-liner "${voyager.oneLiner}", fact says "${voyagerFact.oneLiner}"`);
+  }
+  const spacecraftLine = `${copy.stargaze.card.spacecraftPre}${cardLongDate(VOYAGER1.positionDate)}${copy.stargaze.card.spacecraftMid}${VOYAGER1.distanceAu.toFixed(1)}${copy.stargaze.card.spacecraftPost}`;
+  if (!voyager.dataLines.includes(spacecraftLine)) {
+    throw new Error(`voyager data lines ${JSON.stringify(voyager.dataLines)} missing "${spacecraftLine}"`);
+  }
+
+  const marsFact = SKY_FACTS.find((f) => f.id === "mars");
+  const mInstant = findInstantMoving(new Date(Date.UTC(2026, 9, 1)), CW, CH, (ms) => planetEquatorial("Mars", ms), 100);
+  const mars = await openHitCard(browser, { W: CW, H: CH, date: mInstant.date, hitId: "mars" });
+  if (mars.id !== "mars" || mars.title !== "Mars") throw new Error(`planet card opened for ${mars.id} "${mars.title}"`);
+  if (mars.kind !== marsFact.kind) throw new Error(`Mars kind "${mars.kind}", fact says "${marsFact.kind}"`);
+  if (mars.oneLiner !== marsFact.oneLiner) throw new Error(`Mars one-liner "${mars.oneLiner}", fact says "${marsFact.oneLiner}"`);
+
+  const moonFact = SKY_FACTS.find((f) => f.id === "moon");
+  const moonInstant = findInstantMoving(new Date(Date.UTC(2026, 9, 1)), CW, CH, (ms) => moonEquatorial(ms), 100);
+  const moon = await openHitCard(browser, { W: CW, H: CH, date: moonInstant.date, hitId: "moon" });
+  if (moon.id !== "moon" || moon.title !== copy.stargaze.card.titleMoon) {
+    throw new Error(`Moon card opened for ${moon.id} "${moon.title}"`);
+  }
+  if (moon.oneLiner !== moonFact.oneLiner) throw new Error(`Moon one-liner "${moon.oneLiner}", fact says "${moonFact.oneLiner}"`);
+
+  return `${m31Summary}; voyager-1 card "${voyager.title}" data "${spacecraftLine}"; planet card "${mars.title}" / "${mars.kind}"; Moon card "${moon.title}" / "${moon.kind}"`;
 }
 
 /* ---------------------------------------------------------------------- */

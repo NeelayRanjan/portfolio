@@ -33,6 +33,7 @@
  */
 import { firefox } from "playwright";
 import * as Astronomy from "astronomy-engine";
+import { readFileSync } from "node:fs";
 import { SKY_FACTS } from "../content/sky-facts.ts";
 
 const BASE = "http://localhost:3000";
@@ -2021,6 +2022,120 @@ async function checkStargazeDuringDownload(browser) {
   });
 }
 
+/** The 88 abbreviations, from the committed catalog (the snapshot's segmentsFor takes one at a time). */
+const ABBRS = Object.keys(JSON.parse(readFileSync(new URL("../public/sky/sky.json", import.meta.url), "utf8")).constellations);
+
+/**
+ * A point of genuinely empty sky: at least 30px from every drawn symbol and
+ * every constellation line (so a click there selects nothing), off the card,
+ * off any control, and at least `awayFrom.r` px from `awayFrom`.
+ */
+function emptySkyPoint(page, awayFrom) {
+  return page.evaluate(
+    ([abbrs, away]) => {
+      const segs = abbrs.flatMap((a) => window.__sky.segmentsFor(a));
+      const distToSeg = (x, y, [x1, y1, x2, y2]) => {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const len2 = dx * dx + dy * dy;
+        const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / len2));
+        return Math.hypot(x - (x1 + t * dx), y - (y1 + t * dy));
+      };
+      const card = document.querySelector("[data-sky-card]")?.getBoundingClientRect();
+      for (let y = 120; y < window.innerHeight - 120; y += 23) {
+        for (let x = 120; x < window.innerWidth - 120; x += 29) {
+          if (Math.hypot(x - away.x, y - away.y) < away.r) continue;
+          if (card && x > card.left - 20 && x < card.right + 20 && y > card.top - 20 && y < card.bottom + 20) continue;
+          if (window.__sky.hits.some((h) => Math.hypot(h.x - x, h.y - y) < 30)) continue;
+          if (segs.some((s) => distToSeg(x, y, s) < 30)) continue;
+          if (document.elementFromPoint(x, y)?.closest("button, a, [data-sky-card]")) continue;
+          return { x, y };
+        }
+      }
+      return null;
+    },
+    [ABBRS, awayFrom],
+  );
+}
+
+async function checkStargazeCard(browser) {
+  const W = 1600;
+  const H = 1000;
+  const { date, p } = findInstant(new Date(Date.UTC(2026, 9, 1)), W, H, M31, 120);
+  const m31Fact = SKY_FACTS.find((f) => f.id === "m31");
+  return pinnedSkyPage(browser, { W, H, date }, async (page) => {
+    await page.waitForFunction(() => window.__sky.layers.facts === "ready", null, { timeout: 10000 });
+    await waitStargazeReady(page);
+    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    const card = page.locator("[data-sky-card]");
+
+    // A drag that starts on Andromeda is a drag, not a click: no card.
+    await page.mouse.move(p.x, p.y);
+    await page.mouse.down();
+    await page.mouse.move(p.x + 40, p.y + 10, { steps: 6 });
+    await page.mouse.up();
+    await page.waitForFunction(() => window.__sky.offset.x === 0 && window.__sky.offset.y === 0, null, { timeout: 1000 });
+    if ((await card.count()) !== 0) throw new Error("a drag opened a card");
+
+    // A click on Andromeda opens its card: title, kind line, one-liner, a real citation link.
+    await page.mouse.click(p.x, p.y);
+    await card.waitFor({ state: "visible", timeout: 3000 });
+    const content = await card.evaluate((el) => ({
+      id: el.getAttribute("data-sky-card"),
+      title: el.querySelector("h2")?.textContent,
+      kind: el.querySelector("[data-sky-card-kind]")?.textContent,
+      oneLiner: el.querySelector("[data-sky-card-oneliner]")?.textContent,
+      links: [...el.querySelectorAll("[data-sky-card-sources] a")].map((a) => ({
+        href: a.getAttribute("href"),
+        target: a.getAttribute("target"),
+        rel: a.getAttribute("rel"),
+      })),
+      box: el.getBoundingClientRect().toJSON(),
+    }));
+    if (content.id !== "m31" || content.title !== "Andromeda Galaxy") throw new Error(`card opened for ${content.id} "${content.title}"`);
+    if (content.kind !== m31Fact.kind) throw new Error(`kind line "${content.kind}", fact says "${m31Fact.kind}"`);
+    if (content.oneLiner !== m31Fact.oneLiner) throw new Error(`one-liner "${content.oneLiner}", fact says "${m31Fact.oneLiner}"`);
+    if (!content.links.length || !content.links.every((l) => /^https?:\/\//.test(l.href) && l.target === "_blank" && l.rel === "noopener")) {
+      throw new Error(`citation links ${JSON.stringify(content.links)}`);
+    }
+    const { box } = content;
+    if (box.left < 0 || box.top < 0 || box.right > W || box.bottom > H) throw new Error(`card ${JSON.stringify(box)} leaves the viewport`);
+
+    // The card follows its subject while the sky is dragged (from empty sky).
+    const empty = await emptySkyPoint(page, { x: p.x, y: p.y, r: 420 });
+    if (!empty) throw new Error("no empty sky to drag from");
+    await page.mouse.move(empty.x, empty.y);
+    await page.mouse.down();
+    await page.mouse.move(empty.x - 100, empty.y, { steps: 10 });
+    await page.waitForFunction(() => Math.abs(window.__sky.offset.x + 100) < 2, null, { timeout: 2000 });
+    const dragged = await card.evaluate((el) => el.getBoundingClientRect().left);
+    await page.mouse.up();
+    if (Math.abs(dragged - (box.left - 100)) > 3) throw new Error(`card at ${dragged} during a -100px drag, was ${box.left}`);
+    if ((await card.count()) !== 1) throw new Error("the drag closed the card");
+
+    // Escape closes the card first; stargaze stays on. A second Escape exits.
+    await page.keyboard.press("Escape");
+    await card.waitFor({ state: "detached", timeout: 2000 });
+    if (!(await page.evaluate(() => document.body.hasAttribute("data-stargaze")))) {
+      throw new Error("the first Escape exited stargaze instead of closing the card");
+    }
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.body.hasAttribute("data-stargaze"), null, { timeout: 3000 });
+
+    // Back in: a click on empty sky closes an open card.
+    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    await page.mouse.click(p.x, p.y);
+    await card.waitFor({ state: "visible", timeout: 3000 });
+    const blank = await emptySkyPoint(page, { x: p.x, y: p.y, r: 60 });
+    if (!blank) throw new Error("no empty sky to click");
+    await page.mouse.click(blank.x, blank.y);
+    await card.waitFor({ state: "detached", timeout: 2000 });
+    return `drag opened nothing; card "${content.title}" / "${content.kind}" with one-liner "${content.oneLiner}" and ${content.links.length} source link(s); followed a -100px drag; Escape closed it, second Escape exited; empty click closed it`;
+  });
+}
+
 /* ---------------------------------------------------------------------- */
 /* driver                                                                  */
 /* ---------------------------------------------------------------------- */
@@ -2051,6 +2166,7 @@ const CHECKS = [
   ["stargaze-offload-draw", checkStargazeOffloadDraw],
   ["stargaze-cancels-run", checkStargazeCancelsRun],
   ["stargaze-during-download", checkStargazeDuringDownload],
+  ["stargaze-card", checkStargazeCard],
 ];
 
 async function main() {

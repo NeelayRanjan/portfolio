@@ -783,12 +783,39 @@ export const copy = {
   stargaze: {
     enter: "stargaze for a bit?",
     exit: "back to the page",
-    hintPointer: "hover a constellation",
-    hintTouch: "tap a constellation",
+    hintPointer: "drag to look around, click a name to read about it",
+    hintTouch: "drag to look around, tap a name to read about it",
     credit:
       "The sky over NASA Ames from the moment you arrived, turning 180 times faster than the real one. Stars from the Extended Hipparcos Compilation; lines and Latin names from d3-celestial; English names from Wikipedia.",
     creditStill:
       "The sky over NASA Ames at the moment you arrived. Stars from the Extended Hipparcos Compilation; lines and Latin names from d3-celestial; English names from Wikipedia.",
+    /** The stargaze card (components/manuscript/SkyCard.tsx). Numbers and
+     *  dates between these fragments come from the data files; the facts
+     *  themselves live in content/sky-facts.ts. */
+    card: {
+      close: "close",
+      closeAria: "Close this card",
+      sources: "Sources",
+      /** "Retrieved September 15, 2026, from https://…" (APA). */
+      retrieved: "Retrieved",
+      from: "from",
+      titleMoon: "Moon",
+      titleIss: "International Space Station",
+      titleMilkyWay: "Milky Way",
+      /** "Active Jul 17 to Aug 24, peak Aug 13. Peak rate ZHR 100." */
+      showerActive: "Active ",
+      showerTo: " to ",
+      showerPeak: ", peak ",
+      showerZhr: ". Peak rate ZHR ",
+      showerParent: "Parent body: ",
+      showerDrift:
+        "The burst marks the radiant at the peak. The real radiant creeps a little each night, and this chart leaves that out.",
+      showerTable: "Dates, radiant and rate from the IMO 2026 Meteor Shower Calendar, Table 5.",
+      /** "Position on September 15, 2026: 171.8 au from Earth." */
+      spacecraftPre: "Position on ",
+      spacecraftMid: ": ",
+      spacecraftPost: " au from Earth.",
+    },
   },
 
   /** The 404 page, restyled to the "reference not found" conceit (spec §2).

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { copy } from "@/content/copy";
 import type { SkyFact } from "@/content/sky-facts";
 import { loadSky, type SkyData } from "@/lib/sky-data";
 import {
@@ -34,6 +35,7 @@ import {
 } from "@/lib/sky-math";
 import { CLICK_SLOP_PX, PAN_LIMIT_FRAC, rubberBand, springStep, type Vec } from "@/lib/sky-pan";
 import { isStargazing, subscribeStargaze } from "@/lib/stargaze";
+import { SkyCard, type CardModel } from "./SkyCard";
 
 /**
  * NightSky: the real sky over NASA Ames behind every page, replacing v2's
@@ -59,6 +61,12 @@ import { isStargazing, subscribeStargaze } from "@/lib/stargaze";
  *   gated on its own (absent: the sky draws without it; malformed: logged).
  *   The one-liners come from content/sky-facts.ts, a lazy chunk, so first
  *   paint never carries ~138 entries of prose.
+ *
+ * - Cards (spec 2026-09-15 §6): in stargaze mode a click (under
+ *   CLICK_SLOP_PX of travel) on a selectable opens its SkyCard, a click on
+ *   empty sky closes it, Escape closes it before it can reach
+ *   StargazeToggle's exit. The card follows its subject as the sky turns and
+ *   while dragging, and closes when the subject leaves the viewport.
  *
  * `window.__sky` is a read-only snapshot for scripts/verify-redesign.mjs.
  */
@@ -91,6 +99,7 @@ type SkySnapshot = {
   hits: { id: string; x: number; y: number }[];
   radiants: string[];
   layers: { objects: LayerState; milkyWay: LayerState; facts: LayerState };
+  card: string | null;
   segmentsFor: (abbr: string) => number[][];
 };
 
@@ -98,6 +107,15 @@ type LayerState = "loading" | "ready" | "absent" | "error";
 
 export function NightSky() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const cardRef = useRef<HTMLElement>(null);
+  /** The effect's own paint, so a freshly committed card gets placed before the browser paints it. */
+  const repaintRef = useRef<() => void>(() => {});
+  const closeRef = useRef<() => void>(() => {});
+  const [card, setCard] = useState<CardModel | null>(null);
+
+  useLayoutEffect(() => {
+    if (card) repaintRef.current();
+  }, [card]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -136,6 +154,8 @@ export function NightSky() {
     let last = 0;
     let running = false;
     let highlight: Highlight | null = null;
+    /** The open card's subject; mirrors `card` state, readable synchronously. */
+    let selected: { kind: Highlight["kind"]; id: string } | null = null;
     const frameTimes: number[] = [];
     // Drag to pan. `offset` slides the whole chart (lib/sky-math.ts chartFor);
     // `velocity` is the return spring's, px/s.
@@ -225,7 +245,7 @@ export function NightSky() {
         showers: activeShowers,
         names: !narrowQ.matches,
         oneLiner: (id) => facts?.get(id)?.oneLiner ?? null,
-        selectedId: null,
+        selectedId: selected?.id ?? null,
       });
       frameTimes.push(performance.now() - t0);
       if (frameTimes.length > 60) frameTimes.shift();
@@ -248,8 +268,96 @@ export function NightSky() {
         hits: seen.hits.map(({ id, x, y }) => ({ id, x, y })),
         radiants: activeShowers.map((s) => s.id),
         layers: { ...layers },
+        card: selected?.id ?? null,
         segmentsFor: (abbr) => (seen.segments.get(abbr) ?? []).map((s) => [...s]),
       };
+      if (selected) followCard(seen);
+    };
+
+    // ---- cards ----
+    const buildCard = (h: { kind: Highlight["kind"]; id: string }): CardModel | null => {
+      const fact = facts?.get(h.id);
+      if (!fact || !sky) return null;
+      if (h.kind === "constellation") {
+        const con = sky.constellations[h.id];
+        return con ? { id: h.id, title: con.english ? `${con.latin} (${con.english})` : con.latin, fact, extra: { type: "none" } } : null;
+      }
+      const shower = objectsData?.showers.find((x) => x.id === h.id);
+      if (shower) return { id: h.id, title: shower.name, fact, extra: { type: "shower", shower } };
+      const object = objectsData?.objects.find((x) => x.id === h.id);
+      if (object) {
+        const extra: CardModel["extra"] =
+          object.distanceAu !== undefined && object.positionDate
+            ? { type: "spacecraft", distanceAu: object.distanceAu, positionDate: object.positionDate }
+            : { type: "none" };
+        return { id: h.id, title: object.name, fact, extra };
+      }
+      const planet = PLANETS.find((name) => name.toLowerCase() === h.id);
+      if (planet) return { id: h.id, title: planet, fact, extra: { type: "none" } };
+      if (h.id === "moon") return { id: h.id, title: copy.stargaze.card.titleMoon, fact, extra: { type: "none" } };
+      if (h.id === "milky-way") return { id: h.id, title: copy.stargaze.card.titleMilkyWay, fact, extra: { type: "none" } };
+      return null;
+    };
+    const openCard = (h: Highlight) => {
+      const model = buildCard(h);
+      if (!model) return;
+      selected = { kind: h.kind, id: h.id };
+      setCard(model);
+      paint();
+    };
+    const closeCard = () => {
+      if (!selected) return;
+      selected = null;
+      setCard(null);
+      paint();
+    };
+    closeRef.current = closeCard;
+    /** Where the card's subject is this frame, or null once it has left the viewport. */
+    const subjectAt = (p: Projected): { x: number; y: number } | null => {
+      const sel = selected;
+      if (!sel) return null;
+      if (sel.kind === "hit") return p.hits.find((h) => h.id === sel.id) ?? null;
+      const inView = (p.segments.get(sel.id) ?? [])
+        .flatMap(([x1, y1, x2, y2]) => [
+          [x1, y1],
+          [x2, y2],
+        ])
+        .filter(([x, y]) => x >= 0 && x <= width && y >= 0 && y <= height);
+      if (!inView.length) return null;
+      return {
+        x: inView.reduce((sum, [x]) => sum + x, 0) / inView.length,
+        y: inView.reduce((sum, [, y]) => sum + y, 0) / inView.length,
+      };
+    };
+    const followCard = (p: Projected) => {
+      const at = subjectAt(p);
+      if (!at) {
+        // Deferred: this runs inside paint, and closeCard paints again.
+        queueMicrotask(closeCard);
+        return;
+      }
+      const el = cardRef.current;
+      if (!el) return;
+      if (narrowQ.matches) {
+        el.style.left = "";
+        el.style.top = "";
+        return;
+      }
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+      let x = at.x + 18;
+      if (x + w > width - 16) x = at.x - 18 - w;
+      x = Math.min(Math.max(x, 16), width - 16 - w);
+      const y = Math.min(Math.max(at.y - 24, 16), height - 16 - h);
+      el.style.left = `${x}px`;
+      el.style.top = `${y}px`;
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      // Capture phase: Escape closes the card first and never reaches
+      // StargazeToggle's exit handler; the next Escape exits stargaze.
+      if (e.key !== "Escape" || !selected) return;
+      e.stopImmediatePropagation();
+      closeCard();
     };
 
     const step = (t: number) => {
@@ -324,10 +432,13 @@ export function NightSky() {
       });
     };
 
-    // A pointer that never travelled CLICK_SLOP_PX. Stargaze keeps tap-to-name
-    // (touch has no hover); Task 5 turns this into the card.
+    // A pointer that never travelled CLICK_SLOP_PX: in stargaze mode, a card
+    // for whatever is under it, or closing the open card on empty sky.
     const onSkyClick = (x: number, y: number) => {
-      if (isStargazing()) setHighlight(pick(x, y));
+      if (!isStargazing()) return;
+      const next = pick(x, y);
+      if (next) openCard(next);
+      else closeCard();
     };
 
     const onPointerDown = (e: PointerEvent) => {
@@ -360,6 +471,8 @@ export function NightSky() {
         return; // hover is suspended while dragging
       }
       if (e.pointerType === "touch") return;
+      // Over the open card: nothing under it is being pointed at.
+      if (e.target instanceof Element && e.target.closest("[data-sky-card]")) return setHighlight(null);
       setHighlight(pick(e.clientX, e.clientY));
     };
     const endDrag = (e: PointerEvent) => {
@@ -457,11 +570,17 @@ export function NightSky() {
     window.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("pointerup", endDrag);
     window.addEventListener("pointercancel", endDrag);
+    window.addEventListener("keydown", onKeyDown, { capture: true });
     document.documentElement.addEventListener("pointerleave", onPointerLeave);
-    const unsubStargaze = subscribeStargaze(() => {
+    const unsubStargaze = subscribeStargaze((on) => {
       highlight = null;
+      if (!on) closeCard();
       paint();
     });
+    repaintRef.current = () => {
+      if (!running) paint();
+      else if (projected) followCard(projected);
+    };
 
     return () => {
       alive = false;
@@ -472,6 +591,7 @@ export function NightSky() {
       window.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointerup", endDrag);
       window.removeEventListener("pointercancel", endDrag);
+      window.removeEventListener("keydown", onKeyDown, { capture: true });
       cancelAnimationFrame(pendingPaint);
       document.documentElement.style.cursor = "";
       document.documentElement.removeEventListener("pointerleave", onPointerLeave);
@@ -480,10 +600,13 @@ export function NightSky() {
   }, []);
 
   return (
-    <canvas
-      ref={canvasRef}
-      aria-hidden
-      className="pointer-events-none fixed inset-0 -z-10 h-full w-full"
-    />
+    <>
+      <canvas
+        ref={canvasRef}
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10 h-full w-full"
+      />
+      {card ? <SkyCard model={card} cardRef={cardRef} onClose={() => closeRef.current()} /> : null}
+    </>
   );
 }

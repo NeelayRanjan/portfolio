@@ -23,6 +23,18 @@ export const DEFAULT_GUIDANCE = 2.0;
 export const DEFAULT_DISSOLVE = 10;
 
 let cache: Promise<AsciiDiffusion | null> | null = null;
+/**
+ * The in-flight `unloadDrawModel()`, if any — set by that function to the
+ * exact work it's doing (releasing the previous session), cleared back to
+ * null once that work settles. `loadDrawModel()` awaits this before doing
+ * anything else: without it, a stargaze round trip quick enough to start a
+ * new download while the old session's `release()` is still pending could
+ * briefly hold two ~26MB sessions in the same never-shrinking main-thread
+ * wasm heap at once (task-7 fix round 2, N1/N2 — moved here from a
+ * component-level wait that only covered one of the two load call sites and
+ * lost track of "was the model wanted" while it waited).
+ */
+let unloading: Promise<void> | null = null;
 
 /**
  * Resolves the model, or null if the weights aren't deployed.
@@ -34,6 +46,9 @@ let cache: Promise<AsciiDiffusion | null> | null = null;
 export function loadDrawModel(): Promise<AsciiDiffusion | null> {
   if (cache) return cache;
   cache = (async () => {
+    // See `unloading`'s doc comment: a session still being released must
+    // finish before this one starts building a new one.
+    if (unloading) await unloading.catch(() => {});
     // Probe first: cheap, and it keeps the UI gated rather than throwing if the
     // weights aren't deployed.
     try {
@@ -77,13 +92,24 @@ export function loadDrawModel(): Promise<AsciiDiffusion | null> {
  * ⚠️ Honest limit: this frees space INSIDE the main thread's ORT WebAssembly
  * heap, which never shrinks; the tab's footprint stays at its high-water
  * mark until a reload. Only a worker (like chess) truly gives memory back.
+ *
+ * Records its own work in `unloading` so a `loadDrawModel()` that starts
+ * before this settles waits for it rather than racing it.
  */
 export async function unloadDrawModel(): Promise<void> {
   const pending = cache;
   cache = null;
   if (!pending) return;
-  const model = await pending.catch(() => null);
-  if (!model) return;
-  await model.session.release();
-  noteOffload("draw");
+  const work = (async () => {
+    const model = await pending.catch(() => null);
+    if (!model) return;
+    await model.session.release();
+    noteOffload("draw");
+  })();
+  unloading = work;
+  try {
+    await work;
+  } finally {
+    if (unloading === work) unloading = null;
+  }
 }

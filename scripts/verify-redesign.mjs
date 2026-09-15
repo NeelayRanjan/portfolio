@@ -1650,6 +1650,17 @@ async function checkStargazeCancelsRun(browser) {
  * the download — headless Firefox HTTP-caches the 26MB model fast enough
  * that this can lose the race on a warm run, so a landed-before-entry case
  * is reported in the detail rather than failed.
+ *
+ * Also covers N1 (task-7 fix round 2): a rapid exit -> re-entry, before the
+ * first exit's reload has had any time to settle, must not lose the
+ * restore for good. Round 1's exit branch waited on the pending unload
+ * before reloading, which let `probed` sit false during that wait — a
+ * quick re-entry in that gap recorded `wantedRef` as false and the model
+ * never came back. Round 2 made the exit branch synchronous again (the
+ * session-overlap guard this wait used to provide now lives inside
+ * `loadDrawModel`/`unloadDrawModel` themselves), which closes the gap
+ * entirely rather than narrowing it, so this doesn't depend on winning a
+ * timing race the way the download half above does.
  */
 async function checkStargazeDuringDownload(browser) {
   return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
@@ -1660,13 +1671,18 @@ async function checkStargazeDuringDownload(browser) {
     const fitsAtEntry = await page.evaluate(
       () => !!document.querySelector('#fig-draw button[aria-label*="fits your drawing"]'),
     );
-    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    const enter = page.getByRole("button", { name: STARGAZE_ENTER });
+    await enter.click();
+    // N1: exit, then re-enter immediately, before the first exit's reload
+    // (or the still-in-flight unload behind it) has settled.
+    await page.keyboard.press("Escape");
+    await enter.click();
     await page.waitForTimeout(2000); // let the download, and a cancelled classify if one started, land
     await page.keyboard.press("Escape");
     await waitDrawFits(page);
     return fitsAtEntry
-      ? "model landed and classified before stargaze was entered (too fast to reproduce the download race headlessly this run); restore still holds fit scores"
-      : "entered stargaze before the first classify ever ran (mid-download); restore still produced fit scores";
+      ? "model landed and classified before stargaze was entered (too fast to reproduce the download race headlessly this run); restore still holds fit scores after a rapid re-entry"
+      : "entered stargaze before the first classify ever ran (mid-download), then re-entered rapidly before the first exit's reload settled; restore still produced fit scores";
   });
 }
 

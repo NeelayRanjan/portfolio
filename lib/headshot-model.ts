@@ -70,6 +70,11 @@ export type HeadshotModel = {
 };
 
 let cache: Promise<HeadshotModel | null> | null = null;
+/** Same shape as `lib/draw-model.ts`'s `unloading`: the in-flight
+ *  `unloadHeadshotModel()`, if any, so `loadHeadshotModel()` waits for a
+ *  still-releasing session before building a new one (task-7 fix round 2,
+ *  N1/N2 — the 5.3 MB headshot session has the same overlap risk). */
+let unloading: Promise<void> | null = null;
 
 /** HEAD probe. Cheap, and it keeps the UI gated rather than throwing when the
  *  weights aren't deployed. */
@@ -153,6 +158,9 @@ function wantsPrimary(): boolean {
 export function loadHeadshotModel(): Promise<HeadshotModel | null> {
   if (cache) return cache;
   cache = (async () => {
+    // See `unloading`'s doc comment: a session still being released must
+    // finish before this one starts building a new one.
+    if (unloading) await unloading.catch(() => {});
     // 1. Presence first, budget second. The device policy picks an ORDER;
     // what is actually served decides. A deploy carrying only one family
     // (or a half-uploaded one) gets the family it has rather than a gate.
@@ -251,13 +259,24 @@ export function loadHeadshotModel(): Promise<HeadshotModel | null> {
  * Stargaze offload: release the session and reset the memo (see
  * unloadDrawModel for the same honest limit: the shared ORT heap does not
  * shrink). HeadshotToy calls this only when no run is in flight.
+ *
+ * Records its own work in `unloading` so a `loadHeadshotModel()` that starts
+ * before this settles waits for it rather than racing it.
  */
 export async function unloadHeadshotModel(): Promise<void> {
   const pending = cache;
   cache = null;
   if (!pending) return;
-  const model = await pending.catch(() => null);
-  if (!model) return;
-  await model.session.release();
-  noteOffload("headshot");
+  const work = (async () => {
+    const model = await pending.catch(() => null);
+    if (!model) return;
+    await model.session.release();
+    noteOffload("headshot");
+  })();
+  unloading = work;
+  try {
+    await work;
+  } finally {
+    if (unloading === work) unloading = null;
+  }
 }

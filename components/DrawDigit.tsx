@@ -338,24 +338,27 @@ export function DrawDigit() {
   const wantedRef = useRef(false);
   /**
    * True exactly when `fit`'s scores describe the ink currently on the
-   * canvas. Set after `setFit(...)` completes in `autoPick`; cleared by any
+   * canvas. Set `true` in `autoPick`, after a classify has both finished
+   * AND the ink hasn't moved on since (see `inkGenRef`); set `false` by any
    * new ink (`onDown`) or a wipe (`clear`) — the two ways the drawing can
-   * stop matching the scores. Consumed (and reset) by the model-load effect
+   * stop matching the scores. READ (never reset) by the model-load effect
    * below: a stargaze restore reloads the SAME model with the SAME ink, so
    * if the scores on screen are still fresh there is nothing to reclassify;
    * if they are not (stargaze landed mid-download, mid-classify, or inside
-   * the pen-up debounce, so no classify ever finished), the effect must
-   * still run one. A flag keyed on "was this a restore" got this wrong in
-   * all three of those cases (found 2026-09-15 review, task-7 fix round 1);
-   * this one is keyed on the actual invariant instead.
+   * the pen-up debounce, so no classify ever finished, or new ink arrived
+   * while an old classify was still running), the effect must still run
+   * one. A flag keyed on "was this a restore" got this wrong in all of
+   * those cases (found 2026-09-15 review, task-7 fix rounds 1-2); this one
+   * is keyed on the actual invariant instead.
    */
   const fitFreshRef = useRef(false);
-  /** The pending `unloadDrawModel()` promise from the most recent `release`,
-   *  so a restore can wait for a still-in-flight unload to finish releasing
-   *  its session before starting a new download — otherwise a round trip
-   *  begun mid-download can hold two ~26MB sessions in the same
-   *  never-shrinking wasm heap at once (task-7 fix round 1, P1). */
-  const unloadingRef = useRef<Promise<void> | null>(null);
+  /** Bumped by any event that changes the canvas's ink (`onDown`, `clear`).
+   *  `autoPick` captures this before it starts and only marks `fitFreshRef`
+   *  true if it still matches when the classify finishes — otherwise a
+   *  stroke that lands mid-classify would let that classify's (now stale)
+   *  completion mark scores for the OLD ink as fresh (task-7 fix round 2,
+   *  N3). */
+  const inkGenRef = useRef(0);
   const probed = useRef(false);
   const classifyTimer = useRef(0);
   /** The model-load effect's own 50ms timer (separate from `classifyTimer`,
@@ -472,13 +475,16 @@ export function DrawDigit() {
       });
   }, []);
 
-  /** Stargaze offload. Only ever called with the session idle. */
+  /** Stargaze offload. Only ever called with the session idle. The wait
+   *  against a concurrent load now lives in `unloadDrawModel`/`loadDrawModel`
+   *  themselves (task-7 fix round 2), not here — so this stays fire-and-forget
+   *  and `startLoad()` on exit stays synchronous. */
   const release = useCallback(() => {
     loadGenRef.current++;
     probed.current = false;
     setModel(null);
     setLoading(false);
-    unloadingRef.current = unloadDrawModel();
+    void unloadDrawModel();
   }, []);
 
   const onDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -487,7 +493,8 @@ export function DrawDigit() {
     // First stroke starts the ~26MB download, never page load. They can keep
     // drawing while it lands.
     if (!probed.current) startLoad();
-    fitFreshRef.current = false; // new ink: the scores on screen no longer describe it
+    inkGenRef.current++; // new ink: invalidate any classify already in flight for the old ink
+    fitFreshRef.current = false; // the scores on screen no longer describe it
     e.currentTarget.setPointerCapture(e.pointerId);
     drawing.current = true;
     const { x, y } = at(e);
@@ -527,6 +534,10 @@ export function DrawDigit() {
   const autoPick = async () => {
     const canvas = canvasRef.current;
     if (!canvas || !model || running || classifyingRef.current) return;
+    // Captured before the classify starts: if new ink lands while it runs,
+    // this classify's result describes ink that no longer exists, and
+    // fitFreshRef must not be marked true on its behalf (see inkGenRef).
+    const gen = inkGenRef.current;
     classifyingRef.current = true;
     setClassifying(true);
     try {
@@ -539,7 +550,8 @@ export function DrawDigit() {
       // Kept whatever the picker does with the guess: the scores describe the
       // DRAWING, so they stay true after a hand-pick overrides the label.
       setFit({ scores, margin });
-      fitFreshRef.current = true; // these scores now match the ink on screen
+      // Only fresh if the ink hasn't moved on since this classify started.
+      if (inkGenRef.current === gen) fitFreshRef.current = true;
       // Re-check: they may have picked by hand while this was running.
       setParams((p) => (autoLabelRef.current ? { ...p, digit: guess } : p));
     } catch {
@@ -559,6 +571,7 @@ export function DrawDigit() {
     setHasInk(false);
     setFrame(null);
     setFit(null); // the scores describe a drawing that no longer exists
+    inkGenRef.current++; // invalidate any classify already in flight for the old ink
     fitFreshRef.current = false;
     setAutoLabel(true); // fresh drawing, guess again
     window.clearTimeout(classifyTimer.current);
@@ -646,19 +659,14 @@ export function DrawDigit() {
           if (!runningRef.current && !classifyingRef.current) release();
         } else {
           abortRef.current = false;
-          if (wantedRef.current) {
-            // If `release` just started an unload (or one is still finishing
-            // from a cancel that landed a moment ago), wait for it to
-            // actually free its session before starting a new download —
-            // otherwise a round trip begun mid-download can hold two ~26MB
-            // sessions in the never-shrinking wasm heap at once (P1). The
-            // abortRef re-check guards a re-entry that happened while we
-            // were waiting: that later toggle already owns the decision.
-            const pending = unloadingRef.current;
-            void Promise.resolve(pending).then(() => {
-              if (!abortRef.current) startLoad();
-            });
-          }
+          // Synchronous, not a wait on the pending unload (task-7 fix round
+          // 2, N1): `probed` (and so `wantedRef` on the NEXT entry) has to
+          // become true again immediately, or a quick re-entry before an
+          // async wait resolved would read the model as unwanted and lose
+          // the reload for good. The actual session-overlap guard this
+          // used to provide now lives inside `loadDrawModel`/
+          // `unloadDrawModel` themselves, so it still holds either way.
+          if (wantedRef.current) startLoad();
         }
       }),
     [release, startLoad],

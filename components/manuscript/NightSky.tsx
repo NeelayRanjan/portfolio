@@ -1,13 +1,25 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import type { SkyFact } from "@/content/sky-facts";
 import { loadSky, type SkyData } from "@/lib/sky-data";
+import {
+  isShowerActive,
+  loadMilkyWay,
+  loadObjects,
+  prepareMilkyWay,
+  smallCircle,
+  type PreparedMilkyWay,
+  type SkyObjectsData,
+} from "@/lib/sky-objects";
 import {
   drawSky,
   nearestConstellation,
+  nearestHit,
   precomputeStarFills,
   type Bodies,
   type Highlight,
+  type LabelText,
   type Projected,
 } from "@/lib/sky-render";
 import {
@@ -42,6 +54,12 @@ import { isStargazing, subscribeStargaze } from "@/lib/stargaze";
  *   lifted while a drag or the spring is live so the motion stays smooth.
  *   Reduced motion snaps home instead. The sky keeps turning throughout.
  *
+ * - The objects layers (spec 2026-09-15 §4, §9): objects.json and
+ *   milkyway.json are fetched after first paint alongside sky.json, each
+ *   gated on its own (absent: the sky draws without it; malformed: logged).
+ *   The one-liners come from content/sky-facts.ts, a lazy chunk, so first
+ *   paint never carries ~138 entries of prose.
+ *
  * `window.__sky` is a read-only snapshot for scripts/verify-redesign.mjs.
  */
 
@@ -50,6 +68,8 @@ const FRAME_MS_NARROW = 100;
 const BODY_REFRESH_SIM_MS = 10 * 60_000;
 const DPR_CAP = 2;
 const HOVER_PX = 24;
+/** Symbols (objects, stars, planets, the Moon, radiants) win within this, before any line (spec §5). */
+const HOVER_HIT_PX = 12;
 /** Never start a pan on these: the page's own controls, and (Task 5) the card. */
 const PAN_BLOCKERS = "a, button, input, select, textarea, label, summary, [role='button'], [data-sky-card]";
 
@@ -65,8 +85,14 @@ type SkySnapshot = {
   frameMsMedian: number | null;
   highlight: string | null;
   label: { x: number; y: number; w: number; h: number } | null;
+  labelText: LabelText | null;
+  hits: { id: string; x: number; y: number }[];
+  radiants: string[];
+  layers: { objects: LayerState; milkyWay: LayerState; facts: LayerState };
   segmentsFor: (abbr: string) => number[][];
 };
+
+type LayerState = "loading" | "ready" | "absent" | "error";
 
 export function NightSky() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -84,6 +110,11 @@ export function NightSky() {
     let alive = true;
     let sky: SkyData | null = null;
     let starFills: string[] = [];
+    let objectsData: SkyObjectsData | null = null;
+    let objectRings = new Map<string, [number, number][]>();
+    let milkyWay: PreparedMilkyWay | null = null;
+    let facts: Map<string, SkyFact> | null = null;
+    const layers: SkySnapshot["layers"] = { objects: "loading", milkyWay: "loading", facts: "loading" };
     let width = 0;
     let height = 0;
     // The canvas's actual backing-store pixel size and DPR at last
@@ -174,6 +205,7 @@ export function NightSky() {
             return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
           })()
         : null;
+      const activeShowers = objectsData ? objectsData.showers.filter((s) => isShowerActive(s, sim)) : [];
       const t0 = performance.now();
       projected = drawSky(ctx, sky, {
         width,
@@ -185,6 +217,13 @@ export function NightSky() {
         highlight,
         avoid,
         starFills,
+        milkyWay,
+        objects: objectsData?.objects ?? [],
+        objectRings,
+        showers: activeShowers,
+        names: !narrowQ.matches,
+        oneLiner: (id) => facts?.get(id)?.oneLiner ?? null,
+        selectedId: null,
       });
       frameTimes.push(performance.now() - t0);
       if (frameTimes.length > 60) frameTimes.shift();
@@ -200,8 +239,12 @@ export function NightSky() {
         offset: { ...offset },
         dragging: drag !== null,
         frameMsMedian: sorted.length ? sorted[sorted.length >> 1] : null,
-        highlight: highlight?.abbr ?? null,
+        highlight: highlight?.id ?? null,
         label: seen.label,
+        labelText: seen.labelText,
+        hits: seen.hits.map(({ id, x, y }) => ({ id, x, y })),
+        radiants: activeShowers.map((s) => s.id),
+        layers: { ...layers },
         segmentsFor: (abbr) => (seen.segments.get(abbr) ?? []).map((s) => [...s]),
       };
     };
@@ -257,8 +300,10 @@ export function NightSky() {
     const pick = (x: number, y: number): Highlight | null => {
       if (!projected) return null;
       if (!isStargazing() && sheetContains(x, y)) return null;
+      const hit = nearestHit(projected, x, y, HOVER_HIT_PX);
+      if (hit) return { kind: "hit", id: hit.id, pointer: { x, y } };
       const abbr = nearestConstellation(projected, x, y, HOVER_PX);
-      return abbr ? { abbr, pointer: { x, y } } : null;
+      return abbr ? { kind: "constellation", id: abbr, pointer: { x, y } } : null;
     };
     const setHighlight = (next: Highlight | null) => {
       if (next === null && highlight === null) return;
@@ -354,6 +399,48 @@ export function NightSky() {
         // purpose (never swallowed silently): an export bug is something to
         // see, not hide, even though there is no visitor-facing UI for it.
         console.error("NightSky: the star catalog is malformed; the desk stays plain dark.", err);
+      });
+    // The objects layers, each on its own gate (spec §9).
+    loadObjects()
+      .then((d) => {
+        if (!alive) return;
+        objectsData = d;
+        objectRings = new Map(
+          (d?.objects ?? [])
+            .filter((o) => o.symbol === "field" && o.radiusDeg)
+            .map((o) => [o.id, smallCircle(o.raDeg, o.decDeg, o.radiusDeg as number)]),
+        );
+        layers.objects = d ? "ready" : "absent";
+        paint();
+      })
+      .catch((err) => {
+        layers.objects = "error";
+        console.error("NightSky: objects.json is malformed; the sky draws without its objects.", err);
+        if (alive) paint();
+      });
+    loadMilkyWay()
+      .then((d) => {
+        if (!alive) return;
+        milkyWay = d ? prepareMilkyWay(d) : null;
+        layers.milkyWay = d ? "ready" : "absent";
+        paint();
+      })
+      .catch((err) => {
+        layers.milkyWay = "error";
+        console.error("NightSky: milkyway.json is malformed; the sky draws without the band.", err);
+        if (alive) paint();
+      });
+    import("@/content/sky-facts")
+      .then(({ SKY_FACTS }) => {
+        if (!alive) return;
+        facts = new Map(SKY_FACTS.map((f) => [f.id, f]));
+        layers.facts = "ready";
+        paint();
+      })
+      .catch((err) => {
+        layers.facts = "error";
+        console.error("NightSky: the sky facts chunk failed to load; hover shows names only.", err);
+        if (alive) paint();
       });
     void document.fonts?.ready.then(() => {
       if (!alive) return;

@@ -2,18 +2,23 @@
  * Draws one frame of the night sky. No state, no clock, no DOM beyond the
  * context it is handed: NightSky owns time, sizing and input.
  *
- * Layers, back to front (spec §2): desk fill, graticule, ecliptic,
- * constellation lines, stars, planets, the Moon. Colors are the site tokens
- * (desk #0c0b09, ink #eae5da, mut #9a948a, warm #d9a45b) at low alpha; no
- * red, which stays reviewer's ink.
+ * Layers, back to front (spec 2026-09-15 §4): desk fill, Milky Way band,
+ * graticule, ecliptic, constellation lines, stars, objects, meteor radiants,
+ * planets, the Moon, the ISS, then the hover/selection layer. Colors are the
+ * site tokens (desk #0c0b09, ink #eae5da, mut #9a948a, warm #d9a45b) at low
+ * alpha; no red, which stays reviewer's ink.
  *
  * Planet names and "Moon" are rendered straight from the PLANETS enum and a
  * literal, the way copy.ts's header allows enum values; they are proper
- * nouns, not prose.
+ * nouns, not prose. The hover one-liners come from content/sky-facts.ts,
+ * handed in through `oneLiner`.
  */
 import type { SkyData } from "./sky-data";
-import { eclipticToEquatorial, project, type Chart, type Equatorial, type Planet } from "./sky-math";
+import { drawMilkyWay, drawObjects, drawRadiants, type Hit, type View } from "./sky-layers";
+import type { PreparedMilkyWay, SkyObject, SkyShower } from "./sky-objects";
+import { eclipticToEquatorial, project, type Chart, type Equatorial, type Planet, type Point } from "./sky-math";
 
+export type { Hit };
 export type Bodies = {
   planets: { name: Planet; eq: Equatorial }[];
   moon: Equatorial;
@@ -24,8 +29,17 @@ export type Segment = [x1: number, y1: number, x2: number, y2: number];
 export type Avoid = { left: number; top: number; right: number; bottom: number };
 /** The box a hover label was actually drawn in, CSS px, top-left + size. */
 export type LabelBox = { x: number; y: number; w: number; h: number };
-export type Projected = { segments: Map<string, Segment[]>; label: LabelBox | null };
-export type Highlight = { abbr: string; pointer: { x: number; y: number } };
+/** What a hover label says: the name (constellations: Latin, then English) and the one-liner. */
+export type LabelText = { title: string; english: string | null; sub: string | null };
+export type Projected = {
+  segments: Map<string, Segment[]>;
+  /** Everything selectable that is on screen this frame, in draw order. */
+  hits: Hit[];
+  label: LabelBox | null;
+  labelText: LabelText | null;
+};
+/** A hovered (or tapped) thing: a constellation by abbreviation, or a Hit by id. */
+export type Highlight = { kind: "constellation" | "hit"; id: string; pointer: Point };
 export type FrameInput = {
   width: number;
   height: number;
@@ -41,6 +55,20 @@ export type FrameInput = {
    *  these 1,627 template strings is wasted work at ~20 fps; compute once
    *  per catalog load instead. */
   starFills: string[];
+  /** Prepared once per load (lib/sky-objects.ts); null until it lands or if absent. */
+  milkyWay: PreparedMilkyWay | null;
+  /** objects.json's objects; empty until it lands or if absent. */
+  objects: SkyObject[];
+  /** Small-circle outlines by object id (the Kepler field), prepared once per load. */
+  objectRings: ReadonlyMap<string, [number, number][]>;
+  /** Only the showers active on the simulated date. */
+  showers: SkyShower[];
+  /** Always-on names beside symbols (false below 880px, spec §4). */
+  names: boolean;
+  /** The desk one-liner for an id, from content/sky-facts.ts; null until the facts load. */
+  oneLiner: (id: string) => string | null;
+  /** The id whose card is open (Task 5), ringed like a hover. */
+  selectedId: string | null;
 };
 
 const DESK = "#0c0b09";
@@ -76,13 +104,21 @@ export function precomputeStarFills(stars: SkyData["stars"]): string[] {
 
 export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInput): Projected {
   const { width, height, chart: c } = f;
+  const view: View = { chart: c, width, height, fontFamily: f.fontFamily, names: f.names };
   const onCanvas = (p: { x: number; y: number }, m: number) =>
     p.x > -m && p.x < width + m && p.y > -m && p.y < height + m;
   const radiusAt = (dec: number) => c.k * Math.tan(((90 - dec) / 2) * D2R);
+  const hits: Hit[] = [];
 
   ctx.fillStyle = DESK;
   ctx.fillRect(0, 0, width, height);
   ctx.lineWidth = 1;
+
+  // Milky Way band, under everything else.
+  if (f.milkyWay) {
+    const mwHit = drawMilkyWay(ctx, view, f.milkyWay);
+    if (mwHit) hits.push(mwHit);
+  }
   ctx.font = `10px ${f.fontFamily}`;
 
   // Graticule: declination circles, hour spokes, labels.
@@ -125,7 +161,7 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
   ctx.setLineDash([]);
 
   // Constellation lines; the projected segments go back to NightSky for
-  // hit-testing (Task 5) and the verify snapshot.
+  // hit-testing and the verify snapshot.
   const segments = new Map<string, Segment[]>();
   ctx.beginPath();
   for (const [abbr, polylines] of Object.entries(sky.lines)) {
@@ -159,147 +195,10 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
     ctx.fill();
   }
 
-  // Hover: the constellation's lines and vertex stars brighten to ink, and
-  // its name appears near the pointer. Latin in ink at 12px, then the
-  // English meaning, smaller and in mut.
-  const hot = f.highlight;
-  const hotSegs = hot ? segments.get(hot.abbr) : undefined;
-  const con = hot ? sky.constellations[hot.abbr] : undefined;
-  let label: LabelBox | null = null;
-  if (hot && hotSegs && con) {
-    ctx.beginPath();
-    for (const [x1, y1, x2, y2] of hotSegs) {
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-    }
-    ctx.lineWidth = 1.25;
-    ctx.strokeStyle = `rgba(${INK},0.85)`;
-    ctx.stroke();
-    ctx.lineWidth = 1;
-    ctx.fillStyle = `rgba(${INK},0.95)`;
-    for (const [x1, y1, x2, y2] of hotSegs) {
-      for (const [vx, vy] of [[x1, y1], [x2, y2]]) {
-        ctx.beginPath();
-        ctx.arc(vx, vy, 1.6, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-
-    let anchor = project(c, con.labels[0][0], con.labels[0][1]);
-    for (const [ra, dec] of con.labels.slice(1)) {
-      const q = project(c, ra, dec);
-      if (Math.hypot(q.x - hot.pointer.x, q.y - hot.pointer.y) < Math.hypot(anchor.x - hot.pointer.x, anchor.y - hot.pointer.y)) {
-        anchor = q;
-      }
-    }
-
-    const englishParen = con.english ? `(${con.english})` : "";
-    ctx.font = `12px ${f.fontFamily}`;
-    const latinW = ctx.measureText(con.latin).width;
-    ctx.font = `10px ${f.fontFamily}`;
-    const inlineEnglishW = englishParen ? ctx.measureText(` ${englishParen}`).width : 0;
-    const parenW = englishParen ? ctx.measureText(englishParen).width : 0;
-    const oneLineW = latinW + inlineEnglishW;
-
-    const ASCENT = 9;
-    const DESCENT = 4;
-    const LINE_GAP = 13; // baseline-to-baseline drop to the stacked English line
-    const boxH = (lines: 1 | 2) => (lines === 1 ? ASCENT + DESCENT : ASCENT + LINE_GAP + DESCENT);
-    const boxAt = (x: number, baselineY: number, w: number, lines: 1 | 2): LabelBox => ({
-      x,
-      y: baselineY - ASCENT,
-      w,
-      h: boxH(lines),
-    });
-
-    // Default: one line at the catalog label anchor, as spec §4 describes.
-    let boxX = clamp(anchor.x - oneLineW / 2, 8, width - 8 - oneLineW);
-    let baselineY = clamp(anchor.y, 18, height - 8);
-    let lines: 1 | 2 = 1;
-    let boxW = oneLineW;
-    let box = boxAt(boxX, baselineY, boxW, lines);
-
-    const avoid = f.avoid;
-    const AVOID_PAD = 4;
-    const overlapsAvoid = (b: LabelBox) =>
-      !!avoid &&
-      b.x < avoid.right + AVOID_PAD &&
-      b.x + b.w > avoid.left - AVOID_PAD &&
-      b.y < avoid.bottom + AVOID_PAD &&
-      b.y + b.h > avoid.top - AVOID_PAD;
-
-    // Deliberate deviation from spec §4 ("one line at the label anchor"):
-    // the catalog label anchor sits near the equatorial pole for the
-    // far-north constellations (UMa, UMi, Cas, Cep, Dra, Cam), and that
-    // pole projects close to the canvas centre, which is exactly where the
-    // sheet sits at typical viewport sizes. Drawing at the anchor
-    // unconditionally would silently hide the name behind the page for the
-    // constellations most likely to be hovered, so when the anchor's box
-    // would land on the sheet, the label follows the pointer into whichever
-    // desk margin it's actually in instead.
-    if (avoid && overlapsAvoid(box)) {
-      const { x: px, y: py } = hot.pointer;
-      let avail: number;
-      let xFor: (w: number) => number;
-      if (px < avoid.left) {
-        avail = avoid.left - 6 - 8;
-        xFor = (w) => clamp(avoid.left - 6 - w, 8, avoid.left - 6);
-      } else if (px > avoid.right) {
-        avail = width - 8 - (avoid.right + 6);
-        xFor = (w) => clamp(avoid.right + 6, avoid.right + 6, width - 8 - w);
-      } else {
-        // Above the sheet (the common case: pointer.y < avoid.top) or, on a
-        // page shorter than the viewport, below it — neither is bounded by
-        // the sheet horizontally, only vertically, so the full width is
-        // available and the label follows the pointer's x.
-        avail = width - 16;
-        xFor = (w) => clamp(px - w / 2, 8, width - 8 - w);
-      }
-
-      const twoLineW = englishParen ? Math.max(latinW, parenW) : oneLineW;
-      if (oneLineW <= avail) {
-        lines = 1;
-        boxW = oneLineW;
-      } else if (englishParen && twoLineW <= avail) {
-        lines = 2;
-        boxW = twoLineW;
-      } else {
-        // Best effort (spec §4 tail): nothing fits the margin. Use whichever
-        // layout is narrower and place it as close to the pointer as the
-        // viewport allows, even if it grazes the sheet.
-        lines = englishParen && twoLineW < oneLineW ? 2 : 1;
-        boxW = lines === 2 ? twoLineW : oneLineW;
-      }
-      boxX = xFor(boxW);
-
-      const h = boxH(lines);
-      if (px < avoid.left || px > avoid.right) {
-        // Left/right margins: the box's x-range already clears the sheet,
-        // so any y is safe — just keep the label near the pointer.
-        baselineY = clamp(py - 14, 18, height - 8);
-      } else if (py < avoid.top) {
-        baselineY = clamp(py - 14, 18, Math.min(height - 8, avoid.top - 4 - (h - ASCENT)));
-      } else {
-        // Below the sheet: not one of spec's named margins, but a real
-        // hover can land here on a page shorter than the viewport. Mirror
-        // "above".
-        baselineY = clamp(py + 14, Math.max(18, avoid.bottom + 4 + ASCENT), height - 8);
-      }
-      box = boxAt(boxX, baselineY, boxW, lines);
-    }
-
-    ctx.font = `12px ${f.fontFamily}`;
-    ctx.fillStyle = `rgba(${INK},0.95)`;
-    ctx.fillText(con.latin, boxX, baselineY);
-    if (englishParen) {
-      ctx.font = `10px ${f.fontFamily}`;
-      ctx.fillStyle = `rgba(${MUT},0.85)`;
-      if (lines === 1) ctx.fillText(` ${englishParen}`, boxX + latinW, baselineY);
-      else ctx.fillText(englishParen, boxX, baselineY + LINE_GAP);
-    }
-    ctx.font = `10px ${f.fontFamily}`;
-    label = box;
-  }
+  // Objects, then the active radiants.
+  hits.push(...drawObjects(ctx, view, f.objects, f.objectRings));
+  hits.push(...drawRadiants(ctx, view, f.showers));
+  ctx.font = `10px ${f.fontFamily}`;
 
   // Planets.
   for (const { name, eq } of f.bodies.planets) {
@@ -311,6 +210,7 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
     ctx.fill();
     ctx.fillStyle = `rgba(${WARM},0.75)`;
     ctx.fillText(name, p.x + 6, p.y + 3);
+    if (onCanvas(p, 0)) hits.push({ id: name.toLowerCase(), name, x: p.x, y: p.y });
   }
 
   // The Moon, with its real phase. Screen directions of celestial north and
@@ -353,9 +253,212 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
     ctx.restore();
     ctx.fillStyle = `rgba(${INK},0.7)`;
     ctx.fillText("Moon", mp.x + 8, mp.y + 3);
+    if (onCanvas(mp, 0)) hits.push({ id: "moon", name: "Moon", x: mp.x, y: mp.y });
   }
 
-  return { segments, label };
+  // Hover and selection, on top of everything.
+  const ring = (id: string | null) => {
+    const h = id ? hits.find((x) => x.id === id) : undefined;
+    if (!h) return;
+    ctx.beginPath();
+    ctx.arc(h.x, h.y, 9, 0, Math.PI * 2);
+    ctx.lineWidth = 1.25;
+    ctx.strokeStyle = `rgba(${INK},0.85)`;
+    ctx.stroke();
+    ctx.lineWidth = 1;
+  };
+  const brighten = (abbr: string | null) => {
+    const segs = abbr ? segments.get(abbr) : undefined;
+    if (!segs) return;
+    ctx.beginPath();
+    for (const [x1, y1, x2, y2] of segs) {
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+    }
+    ctx.lineWidth = 1.25;
+    ctx.strokeStyle = `rgba(${INK},0.85)`;
+    ctx.stroke();
+    ctx.lineWidth = 1;
+    ctx.fillStyle = `rgba(${INK},0.95)`;
+    for (const [x1, y1, x2, y2] of segs) {
+      for (const [vx, vy] of [[x1, y1], [x2, y2]]) {
+        ctx.beginPath();
+        ctx.arc(vx, vy, 1.6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  };
+  if (f.selectedId && f.selectedId !== f.highlight?.id) {
+    if (sky.constellations[f.selectedId]) brighten(f.selectedId);
+    else ring(f.selectedId);
+  }
+
+  const hot = f.highlight;
+  let label: LabelBox | null = null;
+  let labelText: LabelText | null = null;
+  if (hot?.kind === "constellation" && segments.has(hot.id) && sky.constellations[hot.id]) {
+    const con = sky.constellations[hot.id];
+    brighten(hot.id);
+    let anchor = project(c, con.labels[0][0], con.labels[0][1]);
+    for (const [ra, dec] of con.labels.slice(1)) {
+      const q = project(c, ra, dec);
+      if (Math.hypot(q.x - hot.pointer.x, q.y - hot.pointer.y) < Math.hypot(anchor.x - hot.pointer.x, anchor.y - hot.pointer.y)) {
+        anchor = q;
+      }
+    }
+    labelText = { title: con.latin, english: con.english, sub: f.oneLiner(hot.id) };
+    label = drawLabel(ctx, f, labelText, anchor, "center", hot.pointer);
+  } else if (hot?.kind === "hit") {
+    const h = hits.find((x) => x.id === hot.id);
+    if (h) {
+      ring(h.id);
+      labelText = { title: h.name, english: null, sub: f.oneLiner(h.id) };
+      label = drawLabel(ctx, f, labelText, h, "beside", hot.pointer);
+    }
+  }
+  ctx.font = `10px ${f.fontFamily}`;
+
+  return { segments, hits, label, labelText };
+}
+
+const ASCENT = 9;
+const DESCENT = 4;
+const LINE_GAP = 13; // baseline-to-baseline drop to each following line
+
+/**
+ * A hover label: the title in ink at 12px, the English meaning in mut at
+ * 10px (inline in parentheses, or stacked on its own line when the margin is
+ * narrow), and the one-liner in mut at 10px on its own line(s) below,
+ * word-wrapped to whatever width the label is allowed. "center" places it on
+ * the anchor (a constellation's catalog label point); "beside" places it just
+ * right of a symbol.
+ */
+function drawLabel(
+  ctx: CanvasRenderingContext2D,
+  f: FrameInput,
+  text: LabelText,
+  anchor: Point,
+  align: "center" | "beside",
+  pointer: Point,
+): LabelBox {
+  const { width, height } = f;
+  const englishParen = text.english ? `(${text.english})` : "";
+  ctx.font = `12px ${f.fontFamily}`;
+  const titleW = ctx.measureText(text.title).width;
+  ctx.font = `10px ${f.fontFamily}`;
+  const inlineEnglishW = englishParen ? ctx.measureText(` ${englishParen}`).width : 0;
+  const parenW = englishParen ? ctx.measureText(englishParen).width : 0;
+
+  /** Greedy word wrap at 10px; a single word wider than maxW gets its own line. */
+  const wrap = (s: string, maxW: number): string[] => {
+    const out: string[] = [];
+    let line = "";
+    for (const word of s.split(" ")) {
+      const next = line ? `${line} ${word}` : word;
+      if (line && ctx.measureText(next).width > maxW) {
+        out.push(line);
+        line = word;
+      } else {
+        line = next;
+      }
+    }
+    if (line) out.push(line);
+    return out;
+  };
+  type Layout = { stacked: boolean; sub: string[]; w: number; rows: number };
+  const layout = (stacked: boolean, maxW: number): Layout => {
+    const sub = text.sub ? wrap(text.sub, maxW) : [];
+    const headW = stacked && englishParen ? Math.max(titleW, parenW) : titleW + inlineEnglishW;
+    const w = Math.max(headW, ...sub.map((l) => ctx.measureText(l).width));
+    return { stacked, sub, w, rows: 1 + (stacked && englishParen ? 1 : 0) + sub.length };
+  };
+  const heightFor = (rows: number) => ASCENT + (rows - 1) * LINE_GAP + DESCENT;
+  const boxAt = (x: number, baselineY: number, w: number, rows: number): LabelBox => ({
+    x,
+    y: baselineY - ASCENT,
+    w,
+    h: heightFor(rows),
+  });
+
+  // Default: inline English, at the anchor, wrapped only to the viewport.
+  let lay = layout(false, width - 16);
+  let boxX =
+    align === "center" ? clamp(anchor.x - lay.w / 2, 8, width - 8 - lay.w) : clamp(anchor.x + 10, 8, width - 8 - lay.w);
+  let baselineY = clamp(anchor.y + (align === "beside" ? 4 : 0), 18, height - 8 - (lay.rows - 1) * LINE_GAP);
+  let box = boxAt(boxX, baselineY, lay.w, lay.rows);
+
+  const avoid = f.avoid;
+  const AVOID_PAD = 4;
+  const overlapsAvoid = (b: LabelBox) =>
+    !!avoid &&
+    b.x < avoid.right + AVOID_PAD &&
+    b.x + b.w > avoid.left - AVOID_PAD &&
+    b.y < avoid.bottom + AVOID_PAD &&
+    b.y + b.h > avoid.top - AVOID_PAD;
+
+  // When the anchor's box would land on the sheet (a far-north
+  // constellation's catalog anchor, or a symbol near the sheet's edge), the
+  // label follows the pointer into whichever desk margin it is actually in,
+  // wrapping the one-liner to the margin's width, so the name is never
+  // silently hidden behind the page.
+  if (avoid && overlapsAvoid(box)) {
+    const { x: px, y: py } = pointer;
+    let avail: number;
+    let xFor: (w: number) => number;
+    if (px < avoid.left) {
+      avail = avoid.left - 6 - 8;
+      xFor = (w) => clamp(avoid.left - 6 - w, 8, avoid.left - 6);
+    } else if (px > avoid.right) {
+      avail = width - 8 - (avoid.right + 6);
+      xFor = (w) => clamp(avoid.right + 6, avoid.right + 6, width - 8 - w);
+    } else {
+      // Above the sheet (the common case) or, on a page shorter than the
+      // viewport, below it: bounded only vertically, so the label follows
+      // the pointer's x across the full width.
+      avail = width - 16;
+      xFor = (w) => clamp(px - w / 2, 8, width - 8 - w);
+    }
+
+    const inline = layout(false, avail);
+    const stacked = layout(true, avail);
+    if (inline.w <= avail) lay = inline;
+    else if (englishParen && stacked.w <= avail) lay = stacked;
+    // Best effort: nothing fits the margin (a word or the title is wider
+    // than it). Use the narrower layout, as close to the pointer as the
+    // viewport allows, even if it grazes the sheet.
+    else lay = englishParen && stacked.w < inline.w ? stacked : inline;
+    boxX = xFor(lay.w);
+
+    const h = heightFor(lay.rows);
+    if (px < avoid.left || px > avoid.right) {
+      baselineY = clamp(py - 14, 18, height - 8 - (lay.rows - 1) * LINE_GAP);
+    } else if (py < avoid.top) {
+      baselineY = clamp(py - 14, 18, Math.min(height - 8, avoid.top - 4 - (h - ASCENT)));
+    } else {
+      baselineY = clamp(py + 14, Math.max(18, avoid.bottom + 4 + ASCENT), height - 8 - (lay.rows - 1) * LINE_GAP);
+    }
+    box = boxAt(boxX, baselineY, lay.w, lay.rows);
+  }
+
+  ctx.font = `12px ${f.fontFamily}`;
+  ctx.fillStyle = `rgba(${INK},0.95)`;
+  ctx.fillText(text.title, boxX, baselineY);
+  let nextBaseline = baselineY + LINE_GAP;
+  ctx.font = `10px ${f.fontFamily}`;
+  ctx.fillStyle = `rgba(${MUT},0.85)`;
+  if (englishParen) {
+    if (lay.stacked) {
+      ctx.fillText(englishParen, boxX, nextBaseline);
+      nextBaseline += LINE_GAP;
+    } else {
+      ctx.fillText(` ${englishParen}`, boxX + titleW, baselineY);
+    }
+  }
+  for (const line of lay.sub) {
+    ctx.fillText(line, boxX, nextBaseline);
+    nextBaseline += LINE_GAP;
+  }
+  return box;
 }
 
 /** Distance from (x, y) to a segment, CSS px. */
@@ -378,6 +481,20 @@ export function nearestConstellation(p: Projected, x: number, y: number, maxPx: 
         bestD = d;
         best = abbr;
       }
+    }
+  }
+  return best;
+}
+
+/** The nearest drawn selectable within maxPx, or null. */
+export function nearestHit(p: Projected, x: number, y: number, maxPx: number): Hit | null {
+  let best: Hit | null = null;
+  let bestD = maxPx;
+  for (const h of p.hits) {
+    const d = Math.hypot(h.x - x, h.y - y);
+    if (d <= bestD) {
+      bestD = d;
+      best = h;
     }
   }
   return best;

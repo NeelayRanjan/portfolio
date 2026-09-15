@@ -180,3 +180,44 @@ test("milky way: five levels, within the vertex and byte budgets", async () => {
   const { size } = await stat(MILKYWAY);
   assert.ok(size < 90_000, `milkyway.json is ${size} bytes`);
 });
+
+// ---- lib/sky-objects.ts helpers (added with the renderer, Task 4) ----
+const O = await import("../lib/sky-objects.ts");
+
+test("isShowerActive: inclusive windows, and windows that wrap the new year", () => {
+  const per = data.showers.find((s) => s.id === "perseids"); // 07-17 .. 08-24
+  const qua = data.showers.find((s) => s.id === "quadrantids"); // 12-28 .. 01-12
+  const at = (y, m, d, h = 12) => Date.UTC(y, m - 1, d, h);
+  assert.equal(O.isShowerActive(per, at(2026, 7, 16, 23)), false);
+  assert.equal(O.isShowerActive(per, at(2026, 7, 17, 0)), true);
+  assert.equal(O.isShowerActive(per, at(2026, 8, 24, 23)), true);
+  assert.equal(O.isShowerActive(per, at(2026, 8, 25, 0)), false);
+  assert.equal(O.isShowerActive(qua, at(2026, 12, 31)), true);
+  assert.equal(O.isShowerActive(qua, at(2027, 1, 12)), true);
+  assert.equal(O.isShowerActive(qua, at(2027, 1, 13)), false);
+  assert.equal(O.isShowerActive(qua, at(2026, 12, 27)), false);
+});
+
+test("smallCircle: every point at the requested angular radius", () => {
+  const D2R = Math.PI / 180;
+  const kepler = byId.get("kepler-field");
+  const ring = O.smallCircle(kepler.raDeg, kepler.decDeg, kepler.radiusDeg);
+  assert.equal(ring.length, 48);
+  for (const [ra, dec] of ring) {
+    const c =
+      Math.sin(dec * D2R) * Math.sin(kepler.decDeg * D2R) +
+      Math.cos(dec * D2R) * Math.cos(kepler.decDeg * D2R) * Math.cos((ra - kepler.raDeg) * D2R);
+    const sep = Math.acos(Math.min(1, c)) / D2R;
+    assert.ok(Math.abs(sep - kepler.radiusDeg) < 1e-9, `point at ${sep}°`);
+    assert.ok(ra >= 0 && ra < 360);
+  }
+});
+
+test("prepareMilkyWay: RA in radians and tan of half the colatitude, per vertex", () => {
+  const prepared = O.prepareMilkyWay(mw);
+  const [ra, dec] = mw.levels[0][0][0];
+  const flat = prepared.levels[0][0];
+  assert.equal(flat.length, mw.levels[0][0].length * 2);
+  assert.ok(Math.abs(flat[0] - (ra * Math.PI) / 180) < 1e-12);
+  assert.ok(Math.abs(flat[1] - Math.tan(((90 - dec) / 2) * (Math.PI / 180))) < 1e-12);
+});

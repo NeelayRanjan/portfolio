@@ -33,6 +33,7 @@
  */
 import { firefox } from "playwright";
 import * as Astronomy from "astronomy-engine";
+import { SKY_FACTS } from "../content/sky-facts.ts";
 
 const BASE = "http://localhost:3000";
 
@@ -121,8 +122,20 @@ async function skyAnimatesAt1280(browser) {
     await page.waitForTimeout(1500); // real elapsed time is the point of this assertion
     const b = await sample();
     if (a === b) throw new Error("two samples 1.5s apart are byte-identical (the sky is not turning)");
+    // Spec 2026-09-15 §10: with every layer loaded, the median frame draw may
+    // not exceed twice the 2.96 ms measured before the objects layers existed.
+    // The median covers the last 60 frames, so wait for 60 frames (~3 s at
+    // 20 fps) of the full sky before reading it.
+    await page.waitForFunction(
+      () => window.__sky.layers.objects === "ready" && window.__sky.layers.milkyWay === "ready",
+      null,
+      { timeout: 10000 },
+    );
+    await page.waitForTimeout(3200); // elapsed frames are the point: the median must be all full-sky frames
     const ms = await page.evaluate(() => window.__sky.frameMsMedian);
-    return `samples differ; median frame draw ${ms?.toFixed(2)}ms (a headless Firefox number, not a device number)`;
+    const BUDGET_MS = 2 * 2.96;
+    if (!(ms <= BUDGET_MS)) throw new Error(`median frame draw ${ms?.toFixed(2)}ms exceeds ${BUDGET_MS}ms (2x the pre-objects 2.96ms)`);
+    return `samples differ; median frame draw ${ms.toFixed(2)}ms with every layer, budget ${BUDGET_MS}ms (a headless Firefox number, not a device number)`;
   });
 }
 
@@ -133,6 +146,11 @@ async function skyStaticUnderReducedMotion(browser) {
     async (page) => {
       await page.goto(BASE, { waitUntil: "networkidle" });
       await waitSkyDrawn(page);
+      await page.waitForFunction(
+        () => Object.values(window.__sky.layers).every((state) => state !== "loading"),
+        null,
+        { timeout: 10000 },
+      );
       const canvas = page.locator(SKY_CANVAS);
       const sample = () => canvas.evaluate((el) => el.toDataURL());
       const a = await sample();
@@ -269,6 +287,11 @@ async function checkSkyHover(browser) {
     async (page) => {
       await page.goto(BASE, { waitUntil: "networkidle" });
       await waitSkyDrawn(page);
+      await page.waitForFunction(
+        () => window.__sky.layers.objects === "ready" && window.__sky.layers.facts === "ready",
+        null,
+        { timeout: 10000 },
+      );
       const target = await page.evaluate(() => {
         const sheet = document.querySelector("[data-sheet]").getBoundingClientRect();
         const W = window.innerWidth;
@@ -279,11 +302,15 @@ async function checkSkyHover(browser) {
         const abbrs = ["UMa", "Ori", "Cas", "Cyg", "Lyr", "Leo", "Sco", "Peg", "And", "Per", "Aur", "Gem",
           "Tau", "Boo", "Her", "Dra", "Cep", "UMi", "Cnc", "Vir", "Sgr", "Aql", "Aqr", "Cap", "Psc", "Ari",
           "CMa", "Hya", "Oph", "Ser"];
+        // Symbols win over lines within 12px (spec 2026-09-15 §5), so a
+        // midpoint near any drawn object, star name, planet or radiant is
+        // not a line hover.
+        const clearOfHits = (x, y) => window.__sky.hits.every((h) => Math.hypot(h.x - x, h.y - y) > 20);
         for (const abbr of abbrs) {
           for (const [x1, y1, x2, y2] of window.__sky.segmentsFor(abbr)) {
             const x = (x1 + x2) / 2;
             const y = (y1 + y2) / 2;
-            if (Math.hypot(x2 - x1, y2 - y1) > 30 && inMargin(x, y)) return { abbr, x, y, x1, y1, x2, y2 };
+            if (Math.hypot(x2 - x1, y2 - y1) > 30 && inMargin(x, y) && clearOfHits(x, y)) return { abbr, x, y, x1, y1, x2, y2 };
           }
         }
         return null;
@@ -319,6 +346,11 @@ async function checkSkyHover(browser) {
         };
       });
       if (!label) throw new Error(`${target.abbr} highlighted but window.__sky.label is null`);
+      const text = await page.evaluate(() => window.__sky.labelText);
+      const oneLiner = SKY_FACTS.find((f) => f.id === target.abbr)?.oneLiner;
+      if (!oneLiner || text?.sub !== oneLiner) {
+        throw new Error(`${target.abbr} label's second line is ${JSON.stringify(text?.sub)}, expected the fact's one-liner ${JSON.stringify(oneLiner)}`);
+      }
       if (label.x < 0 || label.y < 0 || label.x + label.w > viewport.width || label.y + label.h > viewport.height) {
         throw new Error(
           `${target.abbr} label box ${JSON.stringify(label)} falls outside the ${viewport.width}x${viewport.height} viewport`,
@@ -335,6 +367,117 @@ async function checkSkyHover(browser) {
       return `${target.abbr}: line brightened ${before.toFixed(0)} -> ${after.toFixed(0)}; label ${label.w.toFixed(0)}x${label.h.toFixed(0)} at (${label.x.toFixed(0)}, ${label.y.toFixed(0)}), clear of the sheet; cleared over the sheet`;
     },
   );
+}
+
+const M31 = { raDeg: 10.6751, decDeg: 41.2667 }; // objects.json, from d3-celestial
+const SGR_A_STAR = { raDeg: 266.41683, decDeg: -29.00781 }; // spec §4: 17h45m40.04s, -29°00'28.1"
+const PERSEID_RADIANT = { raDeg: 48, decDeg: 58 }; // IMO 2026 Table 5
+/** A mean sidereal day: 40 of them later, the chart has the same orientation to 0.001°. */
+const SIDEREAL_DAY_MS = 86_164_090.5;
+
+const lstAt = (date) => (((Astronomy.SiderealTime(date) * 15 + MOFFETT_LON) % 360) + 360) % 360;
+
+/** The first instant from `from`, in 10-minute steps over two days, where `body` lands `margin` px inside W x H. */
+function findInstant(from, W, H, body, margin) {
+  for (let i = 0; i < 288; i++) {
+    const date = new Date(from.getTime() + i * 600_000);
+    const lst = lstAt(date);
+    const p = specProject(W, H, lst, body.raDeg, body.decDeg);
+    if (p.x > margin && p.x < W - margin && p.y > margin && p.y < H - margin) return { date, lst, p };
+  }
+  throw new Error(`nothing lands ${margin}px inside ${W}x${H} in the two days from ${from.toISOString()}`);
+}
+
+/** A reduced-motion page pinned to `date`, with the sky and (unless `blockObjects`) its objects layer loaded. */
+async function pinnedSkyPage(browser, { W, H, date, blockObjects = false }, fn) {
+  return withPage(browser, { viewport: { width: W, height: H }, reducedMotion: "reduce", deviceScaleFactor: 1 }, async (page, context) => {
+    if (blockObjects) await context.route("**/sky/objects.json", (route) => route.fulfill({ status: 404, body: "" }));
+    await page.clock.setFixedTime(date);
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await waitSkyDrawn(page);
+    await page.waitForFunction(
+      (blocked) =>
+        window.__sky.layers.objects === (blocked ? "absent" : "ready") && window.__sky.layers.milkyWay === "ready",
+      blockObjects,
+      { timeout: 10000 },
+    );
+    return fn(page);
+  });
+}
+
+async function checkSkyObjects(browser) {
+  const W = 1600;
+  const H = 1000;
+  const notes = [];
+
+  // Andromeda and the galactic core, each at an instant it is well on screen:
+  // its computed position holds pixels with objects.json served, and holds
+  // clearly fewer with objects.json 404ing (which must still draw the sky).
+  for (const [id, body, radius] of [["m31", M31, 6], ["sgr-a-star", SGR_A_STAR, 7]]) {
+    const { date, lst, p } = findInstant(new Date(Date.UTC(2026, 9, 1)), W, H, body, 60);
+    const withObjects = await pinnedSkyPage(browser, { W, H, date }, async (page) => {
+      const hit = await page.evaluate((id) => window.__sky.hits.find((h) => h.id === id) ?? null, id);
+      if (!hit) throw new Error(`${id} is not among the drawn hits at ${date.toISOString()}`);
+      if (Math.hypot(hit.x - p.x, hit.y - p.y) > 1.5) {
+        throw new Error(`${id} drawn at (${hit.x.toFixed(1)}, ${hit.y.toFixed(1)}), spec projection says (${p.x.toFixed(1)}, ${p.y.toFixed(1)})`);
+      }
+      return skyPeak(page, p.x, p.y, radius);
+    });
+    const without = await pinnedSkyPage(browser, { W, H, date, blockObjects: true }, async (page) => {
+      const hits = await page.evaluate(() => window.__sky.hits.map((h) => h.id));
+      if (hits.includes(id)) throw new Error(`${id} drawn although objects.json 404'd`);
+      return skyPeak(page, p.x, p.y, radius);
+    });
+    if (withObjects - without < 40) {
+      throw new Error(`${id} at (${p.x.toFixed(0)}, ${p.y.toFixed(0)}), LST ${lst.toFixed(2)}°: peak ${withObjects} with objects, ${without} without`);
+    }
+    notes.push(`${id} peak ${without} -> ${withObjects}`);
+  }
+
+  // The Perseid radiant: drawn on 2026-08-12 (inside Jul 17..Aug 24), not 40
+  // sidereal days later (outside), at the same chart orientation.
+  const inside = findInstant(new Date(Date.UTC(2026, 7, 12)), W, H, PERSEID_RADIANT, 80);
+  const outsideDate = new Date(inside.date.getTime() + 40 * SIDEREAL_DAY_MS);
+  const radiantAt = (date) =>
+    pinnedSkyPage(browser, { W, H, date }, async (page) => {
+      const snap = await page.evaluate(() => ({ radiants: window.__sky.radiants, hits: window.__sky.hits }));
+      const crowd = snap.hits.filter((h) => h.id !== "perseids" && Math.hypot(h.x - inside.p.x, h.y - inside.p.y) < 20);
+      if (crowd.length) throw new Error(`${crowd.map((h) => h.id)} sit on the radiant at ${date.toISOString()}; pick another start`);
+      return { radiants: snap.radiants, peak: await skyPeak(page, inside.p.x, inside.p.y, 7) };
+    });
+  const on = await radiantAt(inside.date);
+  const off = await radiantAt(outsideDate);
+  if (!on.radiants.includes("perseids")) throw new Error(`Perseids not active on ${inside.date.toISOString()}: ${on.radiants}`);
+  if (off.radiants.includes("perseids")) throw new Error(`Perseids still active on ${outsideDate.toISOString()}`);
+  if (on.peak - off.peak < 40) throw new Error(`radiant peak ${on.peak} inside the window vs ${off.peak} outside`);
+  notes.push(`Perseid radiant ${off.peak} (${outsideDate.toISOString().slice(0, 10)}) -> ${on.peak} (${inside.date.toISOString().slice(0, 10)})`);
+
+  // Desk one-liner (spec §5): hover a symbol in the desk margin, get its name and its fact's one-liner.
+  const hovered = await pinnedSkyPage(browser, { W, H, date: inside.date }, async (page) => {
+    await page.waitForFunction(() => window.__sky.layers.facts === "ready", null, { timeout: 10000 });
+    const target = await page.evaluate(() => {
+      const sheet = document.querySelector("[data-sheet]").getBoundingClientRect();
+      const hits = window.__sky.hits;
+      return (
+        hits.find(
+          (h) =>
+            (h.x < sheet.left - 40 || h.x > sheet.right + 40) &&
+            h.y > 40 &&
+            h.y < window.innerHeight - 40 &&
+            hits.every((o) => o === h || Math.hypot(o.x - h.x, o.y - h.y) > 30),
+        ) ?? null
+      );
+    });
+    if (!target) throw new Error(`no lone symbol in the desk margin at ${inside.date.toISOString()}`);
+    await page.mouse.move(target.x + 2, target.y + 1);
+    await page.waitForFunction((id) => window.__sky.highlight === id, target.id, { timeout: 3000 });
+    const text = await page.evaluate(() => window.__sky.labelText);
+    const oneLiner = SKY_FACTS.find((f) => f.id === target.id)?.oneLiner;
+    if (!oneLiner || text?.sub !== oneLiner) throw new Error(`${target.id}: label ${JSON.stringify(text)}, fact one-liner ${JSON.stringify(oneLiner)}`);
+    return `${target.id} "${text.title}" / "${text.sub}"`;
+  });
+  notes.push(`hover ${hovered}`);
+  return notes.join("; ");
 }
 
 /** Press at (x, y), move by (dx, dy) in `steps` real mouse moves, and hold (no release). */
@@ -1838,6 +1981,7 @@ const CHECKS = [
   ["sky-orientation", checkSkyOrientation],
   ["sky-hover", checkSkyHover],
   ["sky-drag", checkSkyDrag],
+  ["sky-objects", checkSkyObjects],
   ["no-h-scroll-home-400", checkNoHorizontalScroll("/")],
   ["no-h-scroll-lab-400", checkNoHorizontalScroll("/lab")],
   ["no-early-heavy-payload-400", checkNoEarlyHeavyPayload],

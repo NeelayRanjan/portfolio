@@ -215,7 +215,7 @@ committed, never run on Vercel.
 
 ## 7. Ephemeris
 
-`lib/sky-ephemeris.ts`, small and dependency-free.
+`lib/sky-math.ts`, small and dependency-free.
 
 - **Sidereal time:** GMST from the standard IAU 1982 expression, plus Moffett
   Field's longitude.
@@ -229,7 +229,7 @@ committed, never run on Vercel.
   lunar parallax (≤ 1°) is ignored and noted here.
 - **Sun** (for the Moon's phase): the negative of the barycentre's
   heliocentric vector.
-- **Validation, not trust:** `scripts/verify-sky-ephemeris.mjs` compares against
+- **Validation, not trust:** `scripts/test-sky-math.mjs` compares against
   `astronomy-engine` (MIT), added as a **devDependency only**, over a grid of
   dates 2026–2030: GMST within 1 s; planets within 0.25° (JPL's own stated
   errors for Jupiter and Saturn are several arcminutes); the Moon within 0.3°.
@@ -259,8 +259,8 @@ it. Reduced motion makes the fade instant.
 
 New: `components/manuscript/NightSky.tsx` (replaces `DeskField.tsx`, which is
 deleted), `components/manuscript/StargazeToggle.tsx`, `lib/sky-data.ts` (loader
-+ types), `lib/sky-ephemeris.ts`, `lib/stargaze.ts` (mode store + offload
-orchestration), `scripts/prepare-sky.mjs`, `scripts/verify-sky-ephemeris.mjs`,
++ types), `lib/sky-math.ts`, `lib/stargaze.ts` (mode store + offload
+orchestration), `scripts/prepare-sky.mjs`, `scripts/test-sky-math.mjs`,
 `public/sky/sky.json`.
 
 Modified: `app/layout.tsx`, `app/globals.css`, `lib/chess-engine.ts`,
@@ -303,7 +303,7 @@ regenerated.
 - Frame cost: median frame draw time logged by the animates check (headless
   Firefox as a floor, not a claim), then eyeballed on the owner's iPhone.
 
-Plus `node scripts/verify-sky-ephemeris.mjs` (§7) and `gen-og.mjs` re-run.
+Plus `node scripts/test-sky-math.mjs` (§7) and `gen-og.mjs` re-run.
 
 ## 11. Out of scope
 
@@ -354,3 +354,12 @@ sections they name.
    debugging a flake: entering stargaze before a model has ever finished
    loading, and a rapid exit then re-entry before the prior exit's reload has
    settled, must still restore working fit scores rather than losing them.
+6. **GMST tolerance (§7).** §7's "GMST within 1 s" was the plan-time budget;
+   the shipped `scripts/test-sky-math.mjs` gates at 2 s, and that is the
+   correct number, not a loosened one. `astronomy-engine`'s `SiderealTime`
+   returns APPARENT sidereal time, which differs from mean GMST (what
+   `lib/sky-math.ts` computes) by up to about 1.1 s, the equation of the
+   equinoxes (nutation in longitude times the cosine of the obliquity);
+   measured worst case against the grid is 1.13 s. A 1 s gate would fail on
+   that reference discrepancy alone, not on an error in the projection math.
+   The test itself is unchanged by this finding.

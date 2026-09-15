@@ -17,9 +17,19 @@
  * produces. See lib/chess-mcts.ts.
  */
 import type { EngineBuild, EngineReply, Req, Res } from "./chess-protocol";
+import { noteOffload } from "./stargaze";
 
 export type { EngineReply, ScoredMove, EngineMode, EngineBuild } from "./chess-protocol";
 export { SEARCH_MODES, DEFAULT_SEARCH, THINK_SIMS, type SearchMode } from "./chess-protocol";
+
+/** A move or hint abandoned because stargaze mode unloaded the engine. The
+ *  panel treats it as "engine idle", never as an error to show. */
+export class EngineUnloaded extends Error {
+  constructor() {
+    super("chess engine unloaded");
+    this.name = "EngineUnloaded";
+  }
+}
 
 export type ChessEngine = {
   build: EngineBuild;
@@ -35,6 +45,9 @@ export type ChessEngine = {
   ): Promise<EngineReply>;
   /** Abandon the running search. Its answer is about a position that has moved on. */
   cancel(): void;
+  /** Stop the worker for good (stargaze offload). Every pending move rejects
+   *  with EngineUnloaded, so no caller is left awaiting a dead worker. */
+  terminate(): void;
 };
 
 let cache: Promise<ChessEngine | null> | null = null;
@@ -123,6 +136,11 @@ export function loadChessEngine(): Promise<ChessEngine | null> {
       cancel() {
         send({ type: "cancel" });
       },
+      terminate() {
+        worker.terminate();
+        for (const p of pending.values()) p.reject(new EngineUnloaded());
+        pending.clear();
+      },
     };
     return engine;
   })().catch((err) => {
@@ -130,4 +148,20 @@ export function loadChessEngine(): Promise<ChessEngine | null> {
     throw err;
   });
   return cache;
+}
+
+/**
+ * Stargaze offload: terminate the worker and reset the memo, so the next
+ * `loadChessEngine()` starts a fresh worker (the model and runtime come back
+ * from the HTTP cache). A worker's memory really does go back to the OS,
+ * unlike the main thread's ORT heap (spec §5).
+ */
+export async function unloadChessEngine(): Promise<void> {
+  const pendingLoad = cache;
+  cache = null;
+  if (!pendingLoad) return;
+  const engine = await pendingLoad.catch(() => null);
+  if (!engine) return;
+  engine.terminate();
+  noteOffload("chess");
 }

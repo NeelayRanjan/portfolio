@@ -1455,6 +1455,65 @@ async function checkStargazeNoFetch(browser) {
   });
 }
 
+/** Counts constructed and terminated Workers. Installed before any page
+ *  script runs, so the chess engine's worker is constructed through it. */
+function workerSpy() {
+  const Real = window.Worker;
+  window.__workers = [];
+  window.Worker = class extends Real {
+    constructor(...args) {
+      super(...args);
+      this.__terminated = false;
+      window.__workers.push(this);
+    }
+    terminate() {
+      this.__terminated = true;
+      super.terminate();
+    }
+  };
+}
+
+async function waitChessHintEnabled(page) {
+  await page.waitForFunction(
+    () => {
+      const btn = [...document.querySelectorAll("#fig-chess button")].find((b) => b.textContent.trim() === "hint");
+      return !!btn && !btn.disabled;
+    },
+    null,
+    { timeout: 90000 },
+  );
+}
+
+async function checkStargazeOffloadChess(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.addInitScript(workerSpy);
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await scrollUntilAttached(page, "#fig-chess");
+    await waitChessHintEnabled(page);
+    const before = await page.evaluate(() => window.__workers.length);
+    if (before < 1) throw new Error("no Worker was constructed for the chess engine");
+
+    await waitStargazeReady(page);
+    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await page.waitForFunction(() => (window.__offload?.chess ?? 0) >= 1, null, { timeout: 15000 });
+    const terminated = await page.evaluate(() => window.__workers.filter((w) => w.__terminated).length);
+    if (terminated < 1) throw new Error("stargaze reported a chess offload but no worker was terminated");
+
+    await page.keyboard.press("Escape");
+    await waitChessHintEnabled(page);
+    const after = await page.evaluate(() => window.__workers.length);
+    if (after <= before) throw new Error("the hint re-enabled without a new worker: the engine never really reloaded");
+
+    await page.locator("#fig-chess").getByRole("button", { name: "hint", exact: true }).click();
+    await page.waitForFunction(
+      () => document.querySelector("#fig-chess")?.innerText.includes("p=0.236"),
+      null,
+      { timeout: 20000 },
+    );
+    return `worker terminated on entry; new worker on return (${before} -> ${after}); hint again g3 p=0.236`;
+  });
+}
+
 /* ---------------------------------------------------------------------- */
 /* driver                                                                  */
 /* ---------------------------------------------------------------------- */
@@ -1479,6 +1538,7 @@ const CHECKS = [
   ["analytics-queue", checkAnalyticsQueue],
   ["stargaze-hides-page", checkStargazeHidesPage],
   ["stargaze-no-fetch", checkStargazeNoFetch],
+  ["stargaze-offload-chess", checkStargazeOffloadChess],
 ];
 
 async function main() {

@@ -27,8 +27,8 @@
  * Drawing takes deliberate interaction, so its own rule stands. Warming ORT here
  * still pays off for it: by the time someone draws, the runtime half is done.
  */
-import { loadChessEngine } from "./chess-engine";
-import { isStargazing } from "./stargaze";
+import { loadChessEngine, unloadChessEngine } from "./chess-engine";
+import { isStargazing, subscribeStargaze } from "./stargaze";
 
 /** Once per fresh load, never per render or per remount. */
 let started = false;
@@ -110,5 +110,17 @@ export function warmBackground(): void {
       // report properly when it is reached; the loaders clear their own cache on
       // failure. Swallowing here keeps an offline reader out of the console.
     });
+  });
+}
+
+/**
+ * The idle warm-up can load the engine for a chess panel the visitor never
+ * reaches, so no panel would be subscribed to unload it. Entering stargaze
+ * unloads it here too; unloading twice is a no-op (the memo is already
+ * null). Nothing reloads it on return: a mounted ChessPanel does that itself.
+ */
+if (typeof window !== "undefined") {
+  subscribeStargaze((on) => {
+    if (on) void unloadChessEngine();
   });
 }

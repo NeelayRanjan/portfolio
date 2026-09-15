@@ -7,13 +7,16 @@ import { InstrumentFigure } from "./manuscript/InstrumentFigure";
 import { ChessBoard } from "./ChessBoard";
 import { ChessActivations } from "./ChessActivations";
 import {
+  EngineUnloaded,
   loadChessEngine,
+  unloadChessEngine,
   SEARCH_MODES,
   DEFAULT_SEARCH,
   THINK_SIMS,
   type ChessEngine,
   type ScoredMove,
 } from "@/lib/chess-engine";
+import { subscribeStargaze } from "@/lib/stargaze";
 import { loadChessActivations, type ActivationSet } from "@/lib/chess-activations";
 import { copy } from "@/content/copy";
 
@@ -242,23 +245,59 @@ export function ChessPanel() {
   const [hint, setHint] = useState<ScoredMove | null>(null);
   const [hinting, setHinting] = useState(false);
 
+  /**
+   * Every engine load goes through here, tagged with a generation. Stargaze
+   * bumps the generation, so a load that resolves after the engine was
+   * unloaded (or after the visitor came back and a newer load started) lands
+   * nowhere instead of installing a terminated engine.
+   */
+  const loadGenRef = useRef(0);
+  const startEngineLoad = useCallback(() => {
+    const gen = ++loadGenRef.current;
+    setLoading(true);
+    loadChessEngine()
+      .then((e) => {
+        if (gen === loadGenRef.current) setEngine(e);
+      })
+      .catch((e: Error) => {
+        if (gen === loadGenRef.current) setErr(e.message);
+      })
+      .finally(() => {
+        if (gen === loadGenRef.current) setLoading(false);
+      });
+  }, []);
+
   // 553KB + the wasm runtime. Lazy, and still lazy: this component is mounted on
   // scroll-in by `DeferredMount`, which is where v1's boot gate went. So the
   // first render IS the moment the panel was reached, and there is nothing left
   // to wait on.
   useEffect(() => {
-    setLoading(true);
-    loadChessEngine()
-      .then(setEngine)
-      .catch((e: Error) => setErr(e.message))
-      .finally(() => setLoading(false));
+    startEngineLoad();
     // Resolves null while chess_activations.json isn't deployed, which hides the
     // toggle. Nothing here is fabricated: a plausible fake heatmap would teach
     // the wrong thing about what the model sees.
     loadChessActivations()
       .then(setActs)
       .catch(() => setActs(null));
-  }, []);
+  }, [startEngineLoad]);
+
+  // Stargaze: unload on entry (a running search is abandoned; the game, the
+  // mode and self-play survive), reload on return, because this panel had
+  // loaded it (spec §5's restore rule).
+  useEffect(
+    () =>
+      subscribeStargaze((on) => {
+        if (on) {
+          loadGenRef.current++;
+          setEngine(null);
+          setLoading(false);
+          void unloadChessEngine();
+        } else {
+          startEngineLoad();
+        }
+      }),
+    [startEngineLoad],
+  );
 
   const game = gameRef.current;
   const sync = useCallback(() => setFen(gameRef.current.fen()), []);
@@ -304,7 +343,8 @@ export function ChessPanel() {
       setLastReply({ ranked: reply.ranked, ms: reply.ms, mode: reply.mode, sims: reply.sims });
       sync();
     } catch (e) {
-      setErr((e as Error).message);
+      // Unloaded by stargaze mid-search: idle, not broken.
+      if (!(e instanceof EngineUnloaded)) setErr((e as Error).message);
     } finally {
       setThinking(false);
       setProgress(null);
@@ -336,7 +376,8 @@ export function ChessPanel() {
       );
       setHint(reply.best);
     } catch (e) {
-      setErr((e as Error).message);
+      // Unloaded by stargaze mid-search: idle, not broken.
+      if (!(e instanceof EngineUnloaded)) setErr((e as Error).message);
     } finally {
       setHinting(false);
       setProgress(null);

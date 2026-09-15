@@ -56,6 +56,9 @@ export type GenerateOptions = {
 
 export declare class AsciiDiffusion {
   readonly ready: boolean;
+  /** The ORT session the module was loaded with. The site only ever calls
+   *  `release()` on it (stargaze offload, lib/draw-model.ts). */
+  readonly session: { release(): Promise<void> };
   /** Starts the ~26MB ONNX download. `ort` is injected rather than imported by
    *  the module, so the caller controls wasmPaths and the execution providers. */
   static load(

@@ -15,6 +15,7 @@
  * All model math still lives in ascii-diffusion.js — this only calls it.
  */
 import type { AsciiDiffusion } from "./ascii-diffusion";
+import { StargazeAbort } from "./stargaze";
 
 /**
  * Noise level to judge at. HIGH, and counter-intuitively so.
@@ -95,11 +96,15 @@ export async function classifyDrawing(
   model: AsciiDiffusion,
   canvas: HTMLCanvasElement,
   x0Init: Float32Array,
+  shouldAbort?: () => boolean,
 ): Promise<Classification> {
   const noise = seededNoise(x0Init.length, NOISE_SEED);
   const scores: number[] = [];
 
   for (let digit = 0; digit < 10; digit++) {
+    // Stargaze cancel, checked between reconstructions: at most one forward
+    // late, and the session is idle here (the previous generate() settled).
+    if (shouldAbort?.()) throw new StargazeAbort();
     let pred: Float32Array | null = null;
     try {
       await model.generate({

@@ -6,6 +6,7 @@
  * That module owns all the math; this file owns loading it.
  */
 import type { AsciiDiffusion } from "./ascii-diffusion";
+import { noteOffload } from "./stargaze";
 
 export type { AsciiFrame, Phase } from "./ascii-diffusion";
 
@@ -65,4 +66,24 @@ export function loadDrawModel(): Promise<AsciiDiffusion | null> {
     throw err;
   });
   return cache;
+}
+
+/**
+ * Stargaze offload: release the session and reset the memo, so the next
+ * `loadDrawModel()` builds a fresh one (weights from the HTTP cache). Call
+ * only while nothing is running on the session: DrawDigit waits for its
+ * cancelled run to settle first (the one-session exclusion).
+ *
+ * ⚠️ Honest limit: this frees space INSIDE the main thread's ORT WebAssembly
+ * heap, which never shrinks; the tab's footprint stays at its high-water
+ * mark until a reload. Only a worker (like chess) truly gives memory back.
+ */
+export async function unloadDrawModel(): Promise<void> {
+  const pending = cache;
+  cache = null;
+  if (!pending) return;
+  const model = await pending.catch(() => null);
+  if (!model) return;
+  await model.session.release();
+  noteOffload("draw");
 }

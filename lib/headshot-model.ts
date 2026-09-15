@@ -21,6 +21,7 @@
  */
 import type { HeadshotMeta, generate as Generate } from "./headshot-diffusion";
 import { MODULE_SUPPORTS_TRANSITIONS } from "./headshot-module-info";
+import { noteOffload } from "./stargaze";
 
 /** The 256 primary: fp32 only, dynamic H/W axes, native training resolution.
  *  There is deliberately no int8 here — the bundle quantized it, measured
@@ -244,4 +245,19 @@ export function loadHeadshotModel(): Promise<HeadshotModel | null> {
     throw err;
   });
   return cache;
+}
+
+/**
+ * Stargaze offload: release the session and reset the memo (see
+ * unloadDrawModel for the same honest limit: the shared ORT heap does not
+ * shrink). HeadshotToy calls this only when no run is in flight.
+ */
+export async function unloadHeadshotModel(): Promise<void> {
+  const pending = cache;
+  cache = null;
+  if (!pending) return;
+  const model = await pending.catch(() => null);
+  if (!model) return;
+  await model.session.release();
+  noteOffload("headshot");
 }

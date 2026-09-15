@@ -1514,6 +1514,135 @@ async function checkStargazeOffloadChess(browser) {
   });
 }
 
+async function drawStroke(page) {
+  const canvas = page.locator("#fig-draw canvas").first();
+  await canvas.waitFor({ state: "visible", timeout: 10000 });
+  await canvas.scrollIntoViewIfNeeded();
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("drawing canvas has no bounding box");
+  const cx = box.x + box.width * 0.35;
+  const cy = box.y + box.height * 0.35;
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await page.mouse.move(cx + box.width * 0.3, cy + box.height * 0.3, { steps: 8 });
+  await page.mouse.up();
+}
+
+async function waitDrawFits(page) {
+  await page.waitForFunction(
+    () => !!document.querySelector('#fig-draw button[aria-label*="fits your drawing"]'),
+    null,
+    { timeout: 120000 },
+  );
+}
+
+function demoEvents(page, demo) {
+  return page.evaluate(
+    (demo) =>
+      (window.vaq ?? []).filter(([kind, ev]) => kind === "event" && ev?.name === "demo_used" && ev?.data?.demo === demo)
+        .length,
+    demo,
+  );
+}
+
+async function checkStargazeOffloadDraw(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await scrollUntilAttached(page, "#fig-draw");
+    await drawStroke(page);
+    await waitDrawFits(page); // the draw model is loaded and has run
+
+    await waitStargazeReady(page);
+    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await page.waitForFunction(() => (window.__offload?.draw ?? 0) >= 1, null, { timeout: 15000 });
+    await page.keyboard.press("Escape");
+
+    // Restore rule: it had been loaded, so it comes back without a new stroke.
+    const draw = page.locator("#fig-draw");
+    await draw.getByRole("button", { name: "clear", exact: true }).click();
+    await page.waitForFunction(
+      () => document.querySelector("#fig-draw")?.textContent.includes("hit generate"),
+      null,
+      { timeout: 120000 },
+    );
+    await drawStroke(page);
+    await waitDrawFits(page);
+    return "draw session released on entry, reloaded on return, a new stroke auto-labels again";
+  });
+}
+
+async function checkStargazeCancelsRun(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await waitStargazeReady(page);
+    const enter = page.getByRole("button", { name: STARGAZE_ENTER });
+    const settled = async (sel) => {
+      await page.waitForTimeout(1000); // let the cancel land: elapsed time is the assertion
+      const a = await page.locator(sel).evaluate((el) => el.textContent);
+      await page.waitForTimeout(2500);
+      const b = await page.locator(sel).evaluate((el) => el.textContent);
+      return { a, b };
+    };
+
+    // --- draw: cancel mid-generation ---
+    await scrollUntilAttached(page, "#fig-draw");
+    await drawStroke(page);
+    await waitDrawFits(page);
+    await page.locator("#fig-draw").getByRole("button", { name: "generate", exact: true }).click();
+    await page.waitForFunction(
+      () => document.querySelector("#fig-draw")?.textContent.includes("the model running"),
+      null,
+      { timeout: 60000 },
+    );
+    await enter.click();
+    const d = await settled("#fig-draw");
+    if (d.a !== d.b) throw new Error("the draw figure kept changing after stargaze: the run was not cancelled");
+    if (d.b.includes("the model running")) throw new Error("the draw figure still shows a half-finished run");
+    if (d.b.includes("model failed to load")) throw new Error("a cancelled draw run was reported as a failure");
+    if ((await demoEvents(page, "draw")) !== 0) throw new Error("a cancelled draw run queued demo_used{draw}");
+    await page.keyboard.press("Escape");
+
+    // --- headshot: cancel mid-sampling ---
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.getByRole("button", { name: /^Sample photo 1 of \d+ with the diffusion model$/ }).click();
+    await page.waitForFunction(
+      () => {
+        const c = document.querySelector("#headshot-toy canvas");
+        return !!c && !c.hidden;
+      },
+      null,
+      { timeout: 120000 },
+    );
+    await enter.click();
+    const h = await settled("#headshot-toy");
+    if (h.a !== h.b) throw new Error("the headshot kept changing after stargaze: the run was not cancelled");
+    if (h.b.includes("didn't load")) throw new Error("a cancelled headshot run was reported as a failure");
+    const canvasHidden = await page.evaluate(() => document.querySelector("#headshot-toy canvas").hidden);
+    if (!canvasHidden) throw new Error("a half-sampled headshot frame was left on screen");
+    if ((await demoEvents(page, "headshot")) !== 0) throw new Error("a cancelled headshot run queued demo_used{headshot}");
+    await page.keyboard.press("Escape");
+
+    const gazes = await demoEvents(page, "stargaze");
+    if (gazes !== 1) throw new Error(`demo_used{stargaze} queued ${gazes} times, expected 1`);
+
+    // --- after returning, a run completes normally ---
+    await scrollUntilAttached(page, "#fig-draw");
+    await page.waitForFunction(
+      () => document.querySelector("#fig-draw")?.textContent.includes("hit generate"),
+      null,
+      { timeout: 120000 },
+    );
+    await page.locator("#fig-draw").getByRole("button", { name: "generate", exact: true }).click();
+    await page.waitForFunction(
+      () =>
+        (window.vaq ?? []).some(([k, ev]) => k === "event" && ev?.name === "demo_used" && ev?.data?.demo === "draw"),
+      null,
+      { timeout: 120000 },
+    );
+    return "draw and headshot runs stopped within a step, no failure shown, no demo_used; a later generate completed";
+  });
+}
+
 /* ---------------------------------------------------------------------- */
 /* driver                                                                  */
 /* ---------------------------------------------------------------------- */
@@ -1539,6 +1668,8 @@ const CHECKS = [
   ["stargaze-hides-page", checkStargazeHidesPage],
   ["stargaze-no-fetch", checkStargazeNoFetch],
   ["stargaze-offload-chess", checkStargazeOffloadChess],
+  ["stargaze-offload-draw", checkStargazeOffloadDraw],
+  ["stargaze-cancels-run", checkStargazeCancelsRun],
 ];
 
 async function main() {

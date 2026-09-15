@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { trackDemoOnce } from "@/lib/track";
 import { copy } from "@/content/copy";
-import { loadHeadshotModel, PHOTO_BASE, type HeadshotModel } from "@/lib/headshot-model";
+import { loadHeadshotModel, unloadHeadshotModel, PHOTO_BASE, type HeadshotModel } from "@/lib/headshot-model";
+import { StargazeAbort, subscribeStargaze } from "@/lib/stargaze";
 
 /**
  * The author photo, sampled live.
@@ -91,6 +92,21 @@ export function HeadshotToy({
   /** Which story the finished run gets to claim in the readout: "sampled from
    *  noise" and "morphed from the last sample" are different true sentences. */
   const [wasMorph, setWasMorph] = useState(false);
+  /** The build the on-screen sample came from. Kept apart from `model`:
+   *  stargaze unloads the model, and the readout must still name the graph
+   *  that drew the picture still showing. */
+  const [shownBuild, setShownBuild] = useState("");
+  /** True while stargazing: the next onFrame throws StargazeAbort. */
+  const abortRef = useRef(false);
+
+  /** Stargaze offload. Only ever called with no run in flight. The morph
+   *  seed goes too: a transition must come from a completed run of the
+   *  model that is loaded, and there will be a new session next time. */
+  const release = useCallback(() => {
+    setModel(null);
+    lastFinalRef.current = null;
+    void unloadHeadshotModel();
+  }, []);
 
   /**
    * One frame onto the canvas.
@@ -167,6 +183,7 @@ export function HeadshotToy({
             setAbsent(true); // gated: keep showing the real photo
             return;
           }
+          if (abortRef.current) throw new StargazeAbort(); // stargaze began during the download
           setModel(m);
         }
         const res = m.meta.res;
@@ -207,10 +224,15 @@ export function HeadshotToy({
           // No `steps`: the module falls back to meta.steps_default, which is
           // the export's own number rather than one picked here.
           onFrame: ({ xt, step: i, total }) => {
+            // Stargaze cancel: THROW, never return early. The deliberate throw
+            // exits generate() between model steps (the pattern lib/classify.ts
+            // already uses); returning early would skip the module's
+            // event-loop yield and lock the page (the draw demo's trap 3).
+            // Nothing else in here may throw: an accidental throw would read
+            // as a failed run.
+            if (abortRef.current) throw new StargazeAbort();
             // Render INSIDE onFrame. The computation is the animation, so
-            // there is no spinner to design. ⚠️ Nothing in here may throw:
-            // the module's event-loop yield sits immediately after this call,
-            // and skipping it locks the page (the draw demo's trap 3).
+            // there is no spinner to design.
             paint(xt, m.meta.channels, res, true);
             setPainted(true);
             setStep({ i: i + 1, n: total });
@@ -222,8 +244,16 @@ export function HeadshotToy({
         paint(final, m.meta.channels, res, false);
         setPainted(true);
         lastFinalRef.current = { cls: idx, data: final.slice() };
+        setShownBuild(m.build);
         trackDemoOnce("headshot");
-      } catch {
+      } catch (err) {
+        if (err instanceof StargazeAbort) {
+          // Cancelled, not failed: back to the real photo, no failure text.
+          setPainted(false);
+          setStep(null);
+          lastFinalRef.current = null;
+          return;
+        }
         // ⚠️ `painted` has to go back to false, not just `failed` to true. A run
         // that dies mid-sampling after an earlier successful one would
         // otherwise leave whatever frame it got to (quite possibly raw noise)
@@ -236,9 +266,22 @@ export function HeadshotToy({
       } finally {
         runningRef.current = false;
         setRunning(false);
+        if (abortRef.current) release();
       }
     },
-    [model, paint],
+    [model, paint, release],
+  );
+
+  // Stargaze: a run in flight cancels itself at its next step and releases in
+  // its finally; an idle model releases now. No reload on return: the next
+  // press loads it, as the first press always has.
+  useEffect(
+    () =>
+      subscribeStargaze((on) => {
+        abortRef.current = on;
+        if (on && !runningRef.current) release();
+      }),
+    [release],
   );
 
   const altOf = (i: number) => t.photoAlts[i] ?? t.photoAltGeneric;
@@ -262,7 +305,7 @@ export function HeadshotToy({
         : running
           ? ""
           : painted
-            ? `${wasMorph ? t.statusMorphed : t.statusDone} · ${model?.build ?? ""}`
+            ? `${wasMorph ? t.statusMorphed : t.statusDone} · ${shownBuild}`
             : t.statusRest;
 
   return (

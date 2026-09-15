@@ -11,8 +11,10 @@ import {
   DEFAULT_STEPS,
   DEFAULT_STRENGTH,
   loadDrawModel,
+  unloadDrawModel,
   type AsciiFrame,
 } from "@/lib/draw-model";
+import { StargazeAbort, subscribeStargaze } from "@/lib/stargaze";
 import { copy } from "@/content/copy";
 
 /**
@@ -323,6 +325,25 @@ export function DrawDigit() {
    * classify begins.
    */
   const classifyingRef = useRef(false);
+  /** Mirrors `running` synchronously, for the stargaze handler (state would
+   *  be a render late). */
+  const runningRef = useRef(false);
+  /** True while stargazing: the next onFrame throws StargazeAbort. */
+  const abortRef = useRef(false);
+  /** Load generation: a load that resolves after an unload lands nowhere. */
+  const loadGenRef = useRef(0);
+  /** Whether the model had been asked for when stargaze began (restore rule). */
+  const wantedRef = useRef(false);
+  /**
+   * Set just before a stargaze restore's `startLoad()`, consumed by the
+   * auto-classify effect below. Without this, that effect (keyed only on
+   * `model`) fires on EVERY null->loaded transition, not just the first —
+   * so a restore re-runs a classify against a drawing whose fit scores are
+   * already on screen (`release()` never clears them), for nothing. Worse,
+   * it can transiently disable the generate button while it runs, which is
+   * how this raced a real test click (found 2026-09-15, see task-7 report).
+   */
+  const restoringRef = useRef(false);
   const probed = useRef(false);
   const classifyTimer = useRef(0);
 
@@ -348,9 +369,17 @@ export function DrawDigit() {
    * Keyed on `model` alone, so it fires on the null -> loaded transition and not
    * on every stroke. `hasInk` is guaranteed true here — the ink is what triggered
    * the load in the first place.
+   *
+   * ⚠️ A stargaze restore is ALSO a null -> loaded transition (see `release`),
+   * but not a fresh one worth reclassifying: the drawing hasn't changed and
+   * its fit scores are still on screen, so `restoringRef` skips it.
    */
   useEffect(() => {
     if (!model || !hasInk) return;
+    if (restoringRef.current) {
+      restoringRef.current = false;
+      return;
+    }
     const t = window.setTimeout(() => void autoPick(), 50);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -411,19 +440,37 @@ export function DrawDigit() {
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   };
 
+  const startLoad = useCallback(() => {
+    probed.current = true;
+    const gen = ++loadGenRef.current;
+    setLoading(true);
+    loadDrawModel()
+      .then((m) => {
+        if (gen === loadGenRef.current) setModel(m);
+      })
+      .catch((err: Error) => {
+        if (gen === loadGenRef.current) setLoadErr(err.message);
+      })
+      .finally(() => {
+        if (gen === loadGenRef.current) setLoading(false);
+      });
+  }, []);
+
+  /** Stargaze offload. Only ever called with the session idle. */
+  const release = useCallback(() => {
+    loadGenRef.current++;
+    probed.current = false;
+    setModel(null);
+    setLoading(false);
+    void unloadDrawModel();
+  }, []);
+
   const onDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const ctx = canvasRef.current?.getContext("2d");
     if (!ctx) return;
     // First stroke starts the ~26MB download, never page load. They can keep
     // drawing while it lands.
-    if (!probed.current) {
-      probed.current = true;
-      setLoading(true);
-      loadDrawModel()
-        .then(setModel)
-        .catch((err: Error) => setLoadErr(err.message))
-        .finally(() => setLoading(false));
-    }
+    if (!probed.current) startLoad();
     e.currentTarget.setPointerCapture(e.pointerId);
     drawing.current = true;
     const { x, y } = at(e);
@@ -470,6 +517,7 @@ export function DrawDigit() {
         model,
         canvas,
         modelSpace(model, canvas),
+        () => abortRef.current,
       );
       // Kept whatever the picker does with the guess: the scores describe the
       // DRAWING, so they stay true after a hand-pick overrides the label.
@@ -481,6 +529,7 @@ export function DrawDigit() {
     } finally {
       classifyingRef.current = false;
       setClassifying(false);
+      if (abortRef.current) release();
     }
   };
 
@@ -523,6 +572,7 @@ export function DrawDigit() {
       // here too, so the guard is what actually makes it safe.
       if (!canvas || !model || running || classifyingRef.current) return;
       if (echoMsg) setEcho(echoMsg);
+      runningRef.current = true;
       setRunning(true);
       try {
         const x0Init = modelSpace(model, canvas);
@@ -536,19 +586,53 @@ export function DrawDigit() {
           canvas,
           x0Init,
           ...p,
-          // Render as each frame computes. The computation IS the animation, so
-          // there is nothing to spin on — never await the run and then play it back.
-          onFrame: (f) => setFrame(f),
+          onFrame: (f) => {
+            // Stargaze cancel: THROW, never return early. Returning skips the
+            // module's event-loop yield and locks the page (CLAUDE.md draw
+            // trap 3); a throw exits generate() between model steps, with the
+            // session idle.
+            if (abortRef.current) throw new StargazeAbort();
+            setFrame(f);
+          },
         });
         trackDemoOnce("draw");
       } catch (err) {
-        setLoadErr((err as Error).message);
+        if (err instanceof StargazeAbort) {
+          setFrame(null); // a half-finished run must not sit there looking like a result
+        } else {
+          setLoadErr((err as Error).message);
+        }
       } finally {
+        runningRef.current = false;
         setRunning(false);
         setEcho(null);
+        if (abortRef.current) release();
       }
     },
-    [model, running, params, modelSpace],
+    [model, running, params, modelSpace, release],
+  );
+
+  // Stargaze: cancel whatever is running (it releases in its own finally),
+  // or release now if idle. On return, reload only if the model had been
+  // asked for (spec §5's restore rule); the drawing itself is canvas pixels
+  // and survives either way.
+  useEffect(
+    () =>
+      subscribeStargaze((on) => {
+        if (on) {
+          abortRef.current = true;
+          wantedRef.current = probed.current;
+          window.clearTimeout(classifyTimer.current);
+          if (!runningRef.current && !classifyingRef.current) release();
+        } else {
+          abortRef.current = false;
+          if (wantedRef.current) {
+            restoringRef.current = true; // skip the reload's auto-classify; see restoringRef
+            startLoad();
+          }
+        }
+      }),
+    [release, startLoad],
   );
 
   /** The ten label scores, ranked 0..1. Null until a classify has run. */

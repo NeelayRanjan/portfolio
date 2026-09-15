@@ -263,7 +263,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     oneLiner: "Sagittarius A*, the black hole at the Milky Way’s centre",
     body: [
       "It has four million times the mass of the Sun.",
-      "The Event Horizon Telescope released the first image of it on 12 May 2022; in our sky it is about the size of a doughnut on the Moon.",
+      "The Event Horizon Telescope released the first image of it on May 12, 2022; in our sky it is about the size of a doughnut on the Moon.",
     ],
     visibility: "Not visible; imaging it took eight radio observatories linked into one Earth-sized telescope",
     citations: [
@@ -342,7 +342,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Spacecraft · launched 1977",
     oneLiner: "No spacecraft has gone farther",
     body: [
-      "On Aug. 25, 2012, it became the first spacecraft to leave the heliosphere and start measuring interstellar space.",
+      "On August 25, 2012, it became the first spacecraft to leave the heliosphere and start measuring interstellar space.",
       "Its last 64 images, taken 40 AU from the Sun, made a family portrait of six planets, and its image of Earth inspired the Pale Blue Dot.",
       "It carries a gold-plated copper record with greetings in 55 languages and 90 minutes of music.",
     ],
@@ -364,8 +364,8 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Spacecraft · launched 1977",
     oneLiner: "The only spacecraft to fly past Uranus and Neptune",
     body: [
-      "On Dec. 10, 2018, it became the second spacecraft to enter interstellar space.",
-      "At Uranus it found 10 new moons, whose names were taken from Shakespeare.",
+      "On December 10, 2018, it became the second spacecraft to enter interstellar space.",
+      "At Uranus it found 10 new moons; the planet’s moons are named mostly for characters from Shakespeare, a couple for characters from Alexander Pope.",
       "At its speed relative to the Sun, it would take about 19,390 years to cross a single light-year.",
     ],
     visibility: "Not visible; the marker is a direction, computed by JPL Horizons for the date shown",
@@ -379,6 +379,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
         url: "https://science.nasa.gov/mission/voyager/voyager-2/",
         accessed: "2026-09-15",
       },
+      nasaScience("uranus/moons/", "Uranus Moons", "2026-09-15"),
     ],
   },
   {
@@ -386,9 +387,9 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Yellow supergiant · Ursa Minor",
     oneLiner: "The North Star, less than 1° from the pole",
     body: [
-      "It sits less than 1° from the north celestial pole, which makes it the current northern pole star.",
-      "To the naked eye it is one point of light, but it is a system of three stars.",
-      "The name is short for the Neo-Latin stella polaris, “polar star”, first printed in the Alfonsine Tables of 1492.",
+      "Less than 1° separates it from the north celestial pole, so for now it is the northern pole star.",
+      "William Herschel discovered its outer companion in August 1779; the inner pair was only confirmed in the early 20th century.",
+      "The Neo-Latin stella polaris, “polar star”, first appeared in print in the Alfonsine Tables of 1492.",
     ],
     visibility: "Naked eye",
     citations: [wikipedia("Polaris", 1374743634, "2026", "2026-09-15")],
@@ -398,9 +399,9 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Binary star · 8.6 light-years",
     oneLiner: "The Dog Star, the brightest star in the night sky",
     body: [
-      "The name comes from the Ancient Greek Seirios, “glowing” or “scorcher”.",
-      "Its faint companion, the white dwarf Sirius B, orbits with it every 50 years.",
-      "The heliacal rising of Sirius marked the Nile flood in Ancient Egypt.",
+      "In Ancient Egypt its heliacal rising marked the flooding of the Nile.",
+      "A faint white dwarf, Sirius B, goes around it every 50 years.",
+      "Its name, from the Ancient Greek Seirios (“glowing” or “scorcher”), is first recorded in Hesiod’s Works and Days, from the 7th century BC.",
     ],
     visibility: "Naked eye",
     citations: [wikipedia("Sirius", 1374864849, "2026", "2026-09-15")],
@@ -410,8 +411,8 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Red giant · 36.7 light-years",
     oneLiner: "The brightest star in the northern celestial hemisphere",
     body: [
-      "The name means “Guardian of the Bear”, from the Greek words for bear and watcher.",
-      "It has about the Sun’s mass but has expanded to 25 times its size.",
+      "It has about the Sun’s mass but has expanded to 25 times its size, and is around 170 times as luminous.",
+      "Its Greek name, Arktouros, means “Guardian of the Bear”.",
     ],
     visibility: "Naked eye; the fourth-brightest star in the night sky",
     citations: [wikipedia("Arcturus", 1373255978, "2026", "2026-09-15")],
@@ -423,7 +424,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     body: [
       "It was the first star other than the Sun to have its image and spectrum photographed.",
       "It spins at 236 km/s at its equator, fast enough to make the equator bulge.",
-      "The name comes from the Arabic an-nasr al-wāqi’, “the falling eagle”.",
+      "Webb found its disk of dust exceptionally smooth, with no evidence of shaping by massive planets.",
     ],
     visibility: "Naked eye; the fifth-brightest star in the night sky",
     citations: [wikipedia("Vega", 1374446348, "2026", "2026-09-15")],
@@ -433,8 +434,8 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Quadruple star · 42.9 light-years",
     oneLiner: "The “little goat”, the brightest star in Auriga",
     body: [
-      "It looks like one star but is two pairs: two yellow giants, and two faint red dwarfs around 10,000 AU away from them.",
-      "The two giants orbit each other every 104 days.",
+      "Two yellow giants orbit each other every 104 days, with a pair of faint red dwarfs around 10,000 AU away.",
+      "It is one of the brightest X-ray sources in the sky.",
       "In Greek mythology it was the goat Amalthea, who suckled Zeus.",
     ],
     visibility: "Naked eye; never sets for observers north of 44°N",
@@ -445,9 +446,9 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Blue supergiant · about 850 light-years",
     oneLiner: "Orion’s foot, usually its brightest star",
     body: [
-      "The name comes from the Arabic Rijl Jauzah al Yusrā, “the left leg (foot) of Jauzah”, Jauzah being a name for Orion.",
-      "The single blue-white point the eye sees is a system of at least four stars.",
-      "It is expected to end its life as a Type II supernova.",
+      "It is expected to end its life as a Type II supernova, leaving a neutron star or a black hole.",
+      "Rijl Jauzah al Yusrā, Arabic for “the left leg (foot) of Jauzah”, gave it its name; Jauzah was a name for Orion.",
+      "Pulsations in its unstable atmosphere make its brightness vary slightly, from magnitude 0.05 to 0.18.",
     ],
     visibility: "Naked eye; generally the seventh-brightest star in the night sky",
     citations: [wikipedia("Rigel", 1374810813, "2026", "2026-09-15")],
@@ -457,8 +458,9 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Binary star · 11.46 light-years",
     oneLiner: "“Before the dog”: it crosses the sky ahead of Sirius",
     body: [
-      "The name comes from the Ancient Greek Prokyon, “before the dog”, because it precedes the Dog Star, Sirius, across the sky.",
-      "A faint white dwarf, Procyon B, orbits it every 40.84 years.",
+      "Its Ancient Greek name, Prokyon, means “before the dog”, because it precedes the Dog Star, Sirius, across the sky.",
+      "Greek mythology links it with Maera, a hound belonging to Erigone, daughter of Icarius of Athens.",
+      "Its faint white dwarf companion, Procyon B, completes an orbit every 40.84 years.",
     ],
     visibility: "Naked eye; usually the eighth-brightest star in the night sky",
     citations: [wikipedia("Procyon", 1366891007, "2026", "2026-09-15")],
@@ -468,7 +470,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Red supergiant · Orion",
     oneLiner: "A red supergiant at Orion’s shoulder",
     body: [
-      "Put in the Sun’s place, its surface would lie beyond the asteroid belt.",
+      "If it sat at the centre of the Solar System, its surface would lie beyond the asteroid belt.",
       "From October 2019 to mid-February 2020 it faded by a factor of about 3; a Hubble study suggests the cause was dust formed from material its surface threw off.",
       "It is expected to explode as a supernova, most likely within 100,000 years, and life on Earth will be unharmed.",
     ],
@@ -480,8 +482,8 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Star · 16.7 light-years",
     oneLiner: "One corner of the Summer Triangle",
     body: [
-      "It spins at about 286 km/s at its equator, fast enough to flatten it at the poles.",
-      "The name is short for the Arabic Al-Nasr Al-Ṭā’ir, “the flying eagle”.",
+      "An interferometer study showed it is not spherical: spinning at about 286 km/s at the equator, it is flattened at the poles.",
+      "Medieval astrolabes of England and Western Europe drew it and Vega as birds.",
     ],
     visibility: "Naked eye; the twelfth-brightest star in the night sky",
     citations: [wikipedia("Altair", 1374232322, "2026", "2026-09-15")],
@@ -491,8 +493,8 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Red giant · about 67 light-years",
     oneLiner: "“The follower”, which trails the Pleiades",
     body: [
-      "The name comes from the Arabic for “the bright one of the follower”, because it follows the Pleiades.",
       "It lies along the line of sight to the Hyades cluster but is unrelated to it, and much older.",
+      "Its Arabic name meant “the bright one of the follower”, for the way it follows the Pleiades.",
       "Pioneer 10 is heading in its general direction and should make its closest approach in about two million years.",
     ],
     visibility: "Naked eye; typically the fourteenth-brightest star in the night sky",
@@ -503,8 +505,8 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Red supergiant · about 550 light-years",
     oneLiner: "“Rival to Ares”, the heart of the scorpion",
     body: [
-      "The name comes from the Ancient Greek for “rival to Ares”, because its reddish colour looks like Mars.",
-      "Put in the Sun’s place, it would reach somewhere into the asteroid belt.",
+      "It is one of the largest stars visible to the naked eye.",
+      "Its reddish hue, like that of Mars, is why the Ancient Greek name means “rival to Ares”.",
       "Babylonian star catalogues from at least 1100 BCE call it “the Breast of the Scorpion”.",
     ],
     visibility: "Naked eye; distinctly reddish",
@@ -515,8 +517,8 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Binary star · 250 light-years",
     oneLiner: "The virgin’s ear of grain, the brightest star in Virgo",
     body: [
-      "The name is from the Latin spīca virginis, “the virgin’s ear of [wheat] grain”.",
       "Its two stars are so close together that they are egg-shaped, and only their spectra tell them apart.",
+      "With Arcturus and Denebola, or Regulus in some accounts, it forms the Spring Triangle.",
     ],
     visibility: "Naked eye; one of the 20 brightest stars in the night sky",
     citations: [wikipedia("Spica", 1374779636, "2026", "2026-09-15")],
@@ -537,8 +539,8 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Blue supergiant · Cygnus",
     oneLiner: "The “tail of the hen”, head of the Northern Cross",
     body: [
-      "The name comes from the Arabic Dhanab al-Dajājah, “tail of the hen”.",
       "Its distance is poorly known: estimates run from 1,400 to 2,600 light-years.",
+      "Its luminosity is estimated at between 55,000 and 196,000 times the Sun’s.",
       "It rivals Rigel as the most luminous first-magnitude star.",
     ],
     visibility: "Naked eye; the 19th brightest star in the night sky",
@@ -549,9 +551,9 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Quadruple star · about 79 light-years",
     oneLiner: "“Little king”, the brightest star in Leo",
     body: [
-      "The name is Latin for “prince” or “little king”.",
-      "It looks like a single star but is four stars in two pairs.",
       "With five dimmer stars it makes the Sickle, the asterism that marks the lion’s head.",
+      "What appears to be a single star is four stars in two pairs.",
+      "Rēgulus is Latin for “prince” or “little king”; the Arabic Qalb al-Asad means “the heart of the lion”.",
     ],
     visibility: "Naked eye",
     citations: [wikipedia("Regulus", 1374633235, "2026", "2026-09-15")],
@@ -563,7 +565,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Planet · closest to the Sun",
     oneLiner: "Named for the swiftest of the Roman gods",
     body: [
-      "It is named for the swiftest of the ancient Roman gods, and it is the fastest planet, going around the Sun every 88 Earth days.",
+      "It is the fastest planet, going around the Sun every 88 Earth days, and it takes its name from the swiftest of the ancient Roman gods.",
       "One solar day there, a full cycle of day and night, lasts 176 Earth days.",
     ],
     visibility: "Naked eye",
@@ -574,8 +576,8 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Planet · second from the Sun",
     oneLiner: "The only planet named after a female god",
     body: [
-      "It is named for the Roman goddess of love and beauty, whom the Greeks knew as Aphrodite, and most features on it are named for women.",
       "A day there lasts 243 Earth days, longer than its 225-day year, and the Sun rises in the west.",
+      "Its namesake is the Roman goddess of love and beauty, whom the Greeks knew as Aphrodite, and most features on its surface are named for women.",
     ],
     visibility: "Naked eye; the brightest object in the night sky after the Moon",
     citations: [nasaScience("venus/facts/", "Venus: Facts", "2026-09-15")],
@@ -597,9 +599,9 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Planet · the largest",
     oneLiner: "The king of planets, named for the king of the gods",
     body: [
-      "It is named for Jupiter, king of the Roman gods, and most of its moons for figures tied to him or to Zeus.",
-      "Galileo first saw its four largest moons in 1610.",
       "A day there takes about 9.9 hours, the shortest in the solar system.",
+      "Galileo first saw its four largest moons in 1610.",
+      "Jupiter was king of the Roman gods, and most of the planet’s moons carry the names of figures tied to him or to Zeus.",
     ],
     visibility: "Naked eye",
     citations: [nasaScience("jupiter/facts/", "Jupiter Facts", "2026-09-15"), SKYWATCHING],
@@ -609,8 +611,8 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Planet · sixth from the Sun",
     oneLiner: "The farthest planet found with the unaided eye",
     body: [
-      "It is named for the Roman god of agriculture and wealth, who was also the father of Jupiter.",
       "As of March 2025 it had 274 confirmed moons, far more than any other planet.",
+      "Its namesake, the Roman god of agriculture and wealth, was also the father of Jupiter.",
     ],
     visibility: "Naked eye",
     citations: [nasaScience("saturn/facts/", "Saturn: Facts", "2026-09-15"), SKYWATCHING],
@@ -632,7 +634,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Space station · launched 1998",
     oneLiner: "People have lived aboard without a break for over 25 years",
     body: [
-      "November 2, 2025, marked 25 years of continuous human presence aboard.",
+      "Its principal partners are the space agencies of the United States, Russia, Europe, Japan and Canada.",
       "Over 280 people from 26 countries have visited it.",
     ],
     visibility: "Naked eye, within a few hours of sunrise or sunset; it looks like a very bright star moving steadily, with no flashing lights",
@@ -658,7 +660,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
   },
   {
     id: "milky-way",
-    kind: "Galaxy · ours, seen edge-on from inside",
+    kind: "Galaxy · our own",
     oneLiner: "The disk of our own galaxy, seen from within",
     body: [
       "The solar system lies inside the Milky Way’s disk, so we see the disk edge-on as a band across the sky.",
@@ -680,7 +682,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
       "The peak lasts only a few hours, because the stream is thin and Earth crosses it at a perpendicular angle.",
     ],
     visibility: "Naked eye; best from the Northern Hemisphere, at night and before dawn",
-    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/quadrantids/", "Quadrantids", "2026-09-15")],
+    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/quadrantids/", "Quadrantids", "2026-09-15"), SKYWATCHING],
   },
   {
     id: "lyrids",
@@ -692,7 +694,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
       "The meteors appear to come from near Vega, the brightest star in Lyra.",
     ],
     visibility: "Naked eye; best from the Northern Hemisphere, after moonset and before dawn",
-    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/lyrids/", "Lyrids", "2026-09-15")],
+    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/lyrids/", "Lyrids", "2026-09-15"), SKYWATCHING],
   },
   {
     id: "eta-aquariids",
@@ -704,7 +706,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
       "From the north its meteors more often appear as “Earthgrazers”, long streaks that seem to skim the horizon.",
     ],
     visibility: "Naked eye, in the pre-dawn hours; better from the Southern Hemisphere",
-    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/eta-aquarids/", "Eta Aquarids", "2026-09-15")],
+    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/eta-aquarids/", "Eta Aquarids", "2026-09-15"), SKYWATCHING],
   },
   {
     id: "southern-delta-aquariids",
@@ -716,19 +718,19 @@ export const SKY_FACTS: readonly SkyFact[] = [
       "The comet suspected to be its source goes around the Sun about once every five years.",
     ],
     visibility: "Naked eye, only without the Moon; best from the Southern Hemisphere",
-    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/delta-aquariids/", "Southern Delta Aquariids", "2026-09-15")],
+    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/delta-aquariids/", "Southern Delta Aquariids", "2026-09-15"), SKYWATCHING],
   },
   {
     id: "perseids",
     kind: "Meteor shower · radiant in Perseus",
-    oneLiner: "Often called the best meteor shower of the year",
+    oneLiner: "Swift, bright meteors that often leave long wakes of light",
     body: [
       "Giovanni Schiaparelli worked out in 1865 which comet it comes from.",
       "That comet’s nucleus is 16 miles across, almost twice the size of the object thought to have killed off the dinosaurs.",
       "Models expect lower background rates through 2026; in 2027 Earth passes parts of the stream that Jupiter has disturbed, which may raise them again.",
     ],
     visibility: "Naked eye; best from mid-northern latitudes, and poorly placed for most of the southern hemisphere",
-    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/perseids/", "Perseids", "2026-09-15")],
+    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/perseids/", "Perseids", "2026-09-15"), SKYWATCHING],
   },
   {
     id: "draconids",
@@ -736,23 +738,23 @@ export const SKY_FACTS: readonly SkyFact[] = [
     oneLiner: "Quiet most years, but it stormed in 1933 and 1946",
     body: [
       "It produced meteor storms in 1933 and 1946, and a predicted outburst in 2011 reached a ZHR of about 300.",
-      "Its meteors move exceptionally slowly.",
+      "The 2018 return gave a ZHR of about 150 for about 4 hours.",
       "The radiant never sets for observers north of about 45°N.",
     ],
     visibility: "Naked eye",
-    citations: [IMO_2026],
+    citations: [IMO_2026, SKYWATCHING],
   },
   {
     id: "southern-taurids",
-    kind: "Meteor shower · bright, slow meteors",
-    oneLiner: "The southern branch of the Taurids",
+    kind: "Meteor shower · near-ecliptic radiant",
+    oneLiner: "Southern branch of the Comet 2P/Encke debris complex",
     body: [
-      "It and the Northern Taurids are two branches of one debris complex.",
       "Many Taurids are bright and fairly slow, which makes them good targets for still photos.",
       "There is also an earlier maximum around October 13, a date often listed in the past as the main peak.",
+      "Koseki remarks that activity around that October maximum may be somewhat higher than average in 2026.",
     ],
     visibility: "Naked eye, from any latitude; the northern hemisphere is somewhat better placed",
-    citations: [IMO_2026],
+    citations: [IMO_2026, SKYWATCHING],
   },
   {
     id: "orionids",
@@ -764,30 +766,30 @@ export const SKY_FACTS: readonly SkyFact[] = [
       "Looking 45 to 90 degrees away from the radiant makes the meteors appear longer.",
     ],
     visibility: "Naked eye; the radiant is well up from about local midnight in either hemisphere",
-    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/orionids/", "Orionids", "2026-09-15")],
+    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/orionids/", "Orionids", "2026-09-15"), SKYWATCHING],
   },
   {
     id: "northern-taurids",
     kind: "Meteor shower · bright, slow meteors",
-    oneLiner: "The northern branch of the Taurids",
+    oneLiner: "Northern branch of the Comet 2P/Encke debris complex",
     body: [
       "Earlier results suggest its best rates hold for roughly ten days in early to mid November, so the peak is less sharp than one date implies.",
       "Its radiant is a large oval region, not a point.",
     ],
     visibility: "Naked eye, well placed through the night",
-    citations: [IMO_2026],
+    citations: [IMO_2026, SKYWATCHING],
   },
   {
     id: "leonids",
     kind: "Meteor shower · radiant in Leo",
-    oneLiner: "A possible meteor storm every 33 years or so",
+    oneLiner: "Bright, fast meteors, and a storm every 33 years or so",
     body: [
-      "Every 33 years or so Earth may get a Leonid storm, with hundreds to thousands of meteors per hour.",
-      "In 1966 thousands of meteors per minute fell during a 15-minute period.",
+      "A storm means at least 1,000 meteors per hour; in 1966 thousands of meteors per minute fell during a 15-minute period.",
+      "Every 33 years or so Earth may get a Leonid storm, but rates are often as low as about three meteors per hour.",
       "The last Leonid storm was in 2002.",
     ],
     visibility: "Naked eye; the meteors look longer away from the radiant",
-    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/leonids/", "Leonids", "2026-09-15")],
+    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/leonids/", "Leonids", "2026-09-15"), SKYWATCHING],
   },
   {
     id: "geminids",
@@ -799,7 +801,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
       "Its meteors tend to be yellow.",
     ],
     visibility: "Naked eye; best from middle and northern latitudes",
-    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/geminids/", "Geminids", "2026-09-15")],
+    citations: [IMO_2026, nasaScience("solar-system/meteors-meteorites/geminids/", "Geminids", "2026-09-15"), SKYWATCHING],
   },
   {
     id: "ursids",
@@ -811,7 +813,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
       "Outbursts can come when its parent comet is farthest from the Sun, because some meteoroids are trapped in a 7/6 orbital resonance with Jupiter.",
     ],
     visibility: "Naked eye",
-    citations: [IMO_2026, wikipedia("Ursids", 1328535157, "2025", "2026-09-15")],
+    citations: [IMO_2026, wikipedia("Ursids", 1328535157, "2025", "2026-09-15"), SKYWATCHING],
   },
 
   /* ---- constellations ---- */
@@ -1196,7 +1198,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
       "The Greeks called giraffes “camel leopards” because of their long necks and spots, which is where the name comes from.",
       "The Greeks left this part of the sky blank, because it has no stars brighter than fourth magnitude.",
     ],
-    visibility: "Naked eye, though no star in it is brighter than fourth magnitude",
+    visibility: "Naked eye, but faint",
     citations: [starTales("camelopardalis", "Camelopardalis", "2026-09-15"), IAU_TABLE, SKYWATCHING],
   },
   {
@@ -1311,11 +1313,11 @@ export const SKY_FACTS: readonly SkyFact[] = [
   {
     id: "Cru",
     kind: "Constellation · the smallest of the 88",
-    oneLiner: "Split from Centaurus by Plancius in 1589",
+    oneLiner: "First shown in modern form by Plancius and Hondius in 1598",
     body: [
       "The Greeks catalogued its stars as part of the hind legs of Centaurus.",
       "It holds the Coalsack, a dark cloud of dust seen in silhouette against the Milky Way.",
-      "Star Tales dates its first appearance in modern form to globes by Plancius and Hondius in 1598 and 1600.",
+      "Its brightest star, Acrux, is the most southerly first-magnitude star.",
     ],
     visibility: "Naked eye",
     citations: [starTales("crux", "Crux", "2026-09-15"), IAU_TABLE, SKYWATCHING],
@@ -1493,7 +1495,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
       "Mensa commemorates Table Mountain near Cape Town, where Lacaille catalogued the southern stars in 1751–52.",
       "Part of the Large Magellanic Cloud lies in it, capping it with a white cloud like the one sometimes seen over the real mountain.",
     ],
-    visibility: "Naked eye",
+    visibility: "Naked eye, but faint: the faintest of all the 88 constellations",
     citations: [starTales("mensa", "Mensa", "2026-09-15"), IAU_TABLE, SKYWATCHING],
   },
   {
@@ -1664,11 +1666,11 @@ export const SKY_FACTS: readonly SkyFact[] = [
   {
     id: "Sct",
     kind: "Constellation · 84th largest",
-    oneLiner: "Introduced by Hevelius in 1690",
+    oneLiner: "Introduced by Hevelius in 1684, in Acta Eruditorum",
     body: [
       "Hevelius named it Sobieski’s Shield, for King John III Sobieski of Poland, who helped him rebuild his observatory after a fire in 1679.",
       "It is the only constellation introduced for political reasons that is still in use.",
-      "Star Tales dates its introduction to 1684, in the journal Acta Eruditorum.",
+      "Flamsteed and later Baily left it out of their catalogues; Benjamin Gould’s catalogue of 1879 made it permanent.",
     ],
     visibility: "Naked eye",
     citations: [starTales("scutum", "Scutum", "2026-09-15"), IAU_TABLE, SKYWATCHING],
@@ -1745,8 +1747,8 @@ export const SKY_FACTS: readonly SkyFact[] = [
     oneLiner: "One of the 48 constellations in Ptolemy’s Almagest",
     body: [
       "The Greeks said the astronomer Thales of Miletus first named the Little Bear, and that the Phoenicians steered by it.",
-      "Aratus noted that it is smaller and fainter than the Great Bear but closer to the pole, so a better guide to true north.",
-      "Aratus called it Kynosoura, “dog’s tail”, the origin of the English word cynosure.",
+      "It is smaller and fainter than the Great Bear but closer to the pole, and so, Aratus pointed out, a better guide to true north.",
+      "Its Greek name Kynosoura, “dog’s tail”, is the origin of the English word cynosure.",
     ],
     visibility: "Naked eye",
     citations: [starTales("ursaminor", "Ursa Minor", "2026-09-15"), IAU_TABLE, SKYWATCHING],
@@ -1768,10 +1770,10 @@ export const SKY_FACTS: readonly SkyFact[] = [
     oneLiner: "Introduced by Plancius, Keyser and de Houtman in 1598",
     body: [
       "Volans is a flying fish, which can leap out of the water and glide through the air on wings.",
-      "In the sky it is chased by the predatory Dorado, as happens in reality.",
+      "In the sky the predatory Dorado chases it, just as real dolphinfish chase flying fish.",
     ],
     visibility: "Naked eye",
-    citations: [starTales("volans", "Volans", "2026-09-15"), IAU_TABLE, SKYWATCHING],
+    citations: [starTales("volans", "Volans", "2026-09-15"), starTales("dorado", "Dorado", "2026-09-15"), IAU_TABLE, SKYWATCHING],
   },
   {
     id: "Vul",

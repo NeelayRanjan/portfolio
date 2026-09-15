@@ -92,11 +92,27 @@ test("every citation is complete (APA fields, http(s) URL, a real access date)",
   }
 });
 
+/**
+ * Constellations whose one-liner follows Star Tales instead of the generated
+ * table, because the table's origin contradicts the constellation's own Star
+ * Tales page (controller ruling, Task 3 fix round 1). Same shape as a table
+ * row; the reconciliation below runs against the override. The other 86
+ * constellations stay on the table.
+ */
+const ORIGIN_OVERRIDES = {
+  // Table: Plancius 1589, split from Centaurus. Star Tales: that early cross was south of Eridanus;
+  // Crux "first appears in its modern form" on globes by Plancius and Hondius in 1598 and 1600.
+  Cru: { ancient: false, year: 1598, by: ["Plancius", "Hondius"], splitFrom: null },
+  // Table: Hevelius 1690 (his atlas). Star Tales: "introduced in 1684", first published in Acta Eruditorum.
+  Sct: { ancient: false, year: 1684, by: ["Hevelius"], splitFrom: null },
+};
+
 test("constellations: origin one-liner agrees with the generated table; sources", () => {
+  for (const abbr of Object.keys(ORIGIN_OVERRIDES)) assert.ok(CONSTELLATIONS.includes(abbr), `override for unknown id ${abbr}`);
   for (const abbr of CONSTELLATIONS) {
     const f = factFor(abbr);
     if (!f) continue;
-    const o = objects.constellations[abbr];
+    const o = ORIGIN_OVERRIDES[abbr] ?? objects.constellations[abbr];
     assert.match(f.kind, /^Constellation/, `${abbr}: kind "${f.kind}"`);
     if (o.ancient && o.year === null) {
       assert.match(f.oneLiner, /Ptolemy/, `${abbr}: ancient, but "${f.oneLiner}" doesn't name Ptolemy`);

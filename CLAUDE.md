@@ -176,8 +176,13 @@ origin table, and the Milky Way's vertex budget, plus (colour round) that
 every galaxy/nebula/cluster variant prepares exactly the geometry its draw
 function reads, that colour-off geometry is byte-unchanged for every glyph
 that predates the round, that the nebula and cluster palettes keep the
-false-colour rulings, and that every coloured object has a fact citing its
-colour source; `test-sky-facts` pins that
+false-colour rulings, and that every coloured object's card cites the source
+its colour rests on (`COLOUR_CITATION`, a hand-kept map of object id to the
+URL(s) whose page carries the sentence its palette draws, asserted complete
+against `OBJECT_COLOURS` and against the card's rendered Sources list,
+Lodriguss included; the older form only counted citations, which is how ten
+objects came to draw colours their cards sourced nothing for, final review
+C1/M4, 2026-09-16); `test-sky-facts` pins that
 every drawn object, planet, the Moon, all 88 constellations, every shower,
 both Voyagers and the ISS carry a complete, cited fact, plus (colour round)
 that the fifteen new objects cite only verified sources, ship the Double
@@ -234,7 +239,8 @@ page's OWN figures use colour to mean something (green is x0-diffusion, red
 is SAM, amber is an instrument readout); a colourful desk on every other page
 would compete with that system. No colour here claims to be what an eye would
 see: at these brightnesses vision runs on rod cells, which register none, so
-every colour follows a long exposure instead, and the credit line and each
+every colour follows a long exposure instead, and the credit line (its colour
+clause shown only while stargazing, since the other pages draw greys) and each
 coloured card's note say so. Colour is never invented: a colour may follow an
 emission line's OWN wavelength (O III really is blue-green at 500.7nm,
 H-alpha really is red at 656.3nm, cited to Lodriguss's *Color in astronomical
@@ -850,7 +856,12 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   cells, which register none, so every drawn colour follows a long exposure
   instead, and both the credit line and each coloured card's
   `copy.stargaze.card.colourNote` restate that mechanism, not just assert the
-  fact. M82 is the one deep-sky object with no colour note at all
+  fact. ⚠️ The credit renders on EVERY page in ordinary flow, so its colour
+  clause is its own span (`copy.stargaze.creditColour`, hidden by CSS unless
+  `body[data-stargaze]`, the same CSS-only trick as the motion wording): off
+  stargaze the sky behind it really is grey, and the line used to claim
+  colour there (final review m5, 2026-09-16). M82 is the one deep-sky object
+  with no colour note at all
   (`OBJECT_COLOURS[id]` is absent), verified in-browser rather than only in
   the table, which is the proof the gate is real and not blanket.
 - **The false-colour rule, ruling R-COLOUR-1**
@@ -877,6 +888,39 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   only. **[N II] = red stayed unsourced and unstated**: the only pages
   carrying it were unverified tutorials, so nothing on the site rests on it,
   even though it circulates as folk knowledge among astrophotographers.
+- **Every palette traces to a citation on ITS OWN card, and that is now
+  machine-checked** (final review C1/M4, fixed 2026-09-16). The ten objects
+  that had cards before the colour round were coloured without anyone
+  touching their citation lists, so six of them drew colours whose only
+  source was a page the card never linked, and M42's single source asserted
+  the competing false-colour reading. Fixed by fetching and adding the real
+  sources: APOD for M31's yellow nucleus and red knots, APOD plus EarthSky
+  for M13's giants and its white core, APOD for M44's yellow giants,
+  ClarkVision's calibrated true-colour measurement for M42's teal Trapezium
+  (its card now carries both readings and says which is which), ESO's
+  *Trifid Triple Treat* for M20's blue reflection lobe, and the Milky Way's
+  own card gaining the long-exposure APOD and the rod-vision paper behind its
+  colour note. Two entries changed instead of gaining a citation: **M33's
+  core went from a yellow-white nothing sourced to the "bright-white core"
+  NASA's own M33 page describes**, and **the Double Cluster's blue-white is
+  explicitly stellar temperature, not a quoted colour** — no page found on
+  2026-09-16 (NASA's Caldwell 14, three more APODs) names a colour for it,
+  and that is written into the palette comment rather than papered over.
+- **⚠️ M57 and M27 carry NO red rim** (final review M2, removed 2026-09-16,
+  along with the draw code and the test that pinned it). Both used to fringe
+  their outer edge "in H-alpha", which read as sourced and was not: APOD puts
+  M57's hydrogen in the INNER ring and its outer ring's red down to nitrogen
+  and sulphur, NASA's M27 stratification puts hydrogen in the MIDDLE shell,
+  and R-COLOUR-2 rules [N II] = red unsourced. A blue-green body inside a red
+  rim is the narrowband composite's own arrangement reached by another route.
+  They read as O III shells until a source puts H-alpha at the edge.
+- **A dark nebula draws its silhouette in BOTH modes** (final review M3,
+  fixed 2026-09-16): `drawPlainNebula` returned after the backdrop blobs, and
+  the `dark` variant always has blobs, so the silhouette branch was
+  unreachable and the Horsehead — the one object here defined by BLOCKING
+  light — rendered outside stargaze as a soft grey glow, treated exactly like
+  an emission nebula. The dust now goes down over the backdrop in grey mode
+  too. This is one of the two deliberate normal-mode changes in the round.
 - **Hit precedence** (`nearestHit` in `lib/sky-render.ts`, hover and
   stargaze clicks alike): a symbol the point is ON (within 6px by default,
   or a bigger glyph's own `core`, never past the caller's own hit radius)
@@ -903,9 +947,12 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   this round, and lying inside the band) landed 6-10px from the label and
   made that stretch of the band unclickable — any object added inside the
   band can recreate this. The label now prefers whichever anchor is clear of
-  every object drawn this frame AND of stargaze's own top hint bar and bottom
-  credit line, falling back to the closest anchor rather than ever dropping
-  the label.
+  every object drawn this frame AND, while stargazing, of stargaze's own top
+  hint bar and bottom credit line, falling back to the closest anchor rather
+  than ever dropping the label. The chrome half is gated on `v.colour`
+  (final review m6, 2026-09-16): the ordinary page fixes neither of those to
+  the viewport, and applying the margins there pushed the label out of 220px
+  of screen for nothing and moved it off where `main` draws it.
 - **A crowded object name steps down past every name box already drawn this
   frame** instead of printing on top of one (`drawnNameBoxes` in
   `lib/sky-layers.ts`, controller fix on Task 4): the Double Cluster's two
@@ -1384,7 +1431,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 | `public/sky/sky.json` | ~57 KB | star catalog behind every page: 1,627 stars, 88 constellations, built by `scripts/prepare-sky.mjs` from a pinned d3-celestial commit |
 | `public/sky/objects.json` | ~17 KB | 45 deep-sky picks (colour round, 2026-09-15, added 15: eight more Messier objects plus the Horsehead, the Flame, and the Double Cluster and the Veil as paired objects), Sgr A*, the Kepler field, the Hubble Deep Field, the 15 named stars, both Voyagers, the 12 meteor showers, the constellation origin table; built by `scripts/prepare-sky-objects.mjs` |
 | `public/sky/milkyway.json` | ~30 KB | the Milky Way band, 5 nested levels, 2,267 vertices after simplification (budget 1,500-4,000); same generator |
-| `content/sky-facts.ts` | 138 facts, 862 string literals (voice-scanned) | every card's and one-liner's facts and citations; single source, typed, no runtime imports |
+| `content/sky-facts.ts` | 153 facts, 969 string literals (voice-scanned) | every card's and one-liner's facts and citations; single source, typed, no runtime imports |
 | `public/jepa/manifest.json` | 483 KB | JEPA bundle: labels, UMAPs, neighbours, metrics |
 | `public/jepa/sprites.webp` | 3.6 MB | 4096 thumbnails, 64x64 atlas |
 | `public/models/mnist_x0.onnx` | 26 MB | the pixel model, live draw-a-digit |

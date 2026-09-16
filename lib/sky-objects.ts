@@ -246,16 +246,76 @@ export type GalaxyGlyph = {
    *  out perpendicular to the disk. */
   plumes: { x1: number; y1: number; x2: number; y2: number }[];
 };
-/** `blobs` are already-placed (dx, dy, r) offsets from the object's own
- *  projected point; `ring` (M57 only) is a plain annulus instead. */
+/**
+ * Which structured render a nebula gets (colour round, 2026-09-15), from its
+ * actual type: a glowing H II cloud, a shell thrown off a dying star, the
+ * debris of a supernova, dust reflecting a star's light, or dust blocking
+ * what is behind it.
+ */
+export type NebulaVariant = "emission" | "planetary" | "remnant" | "reflection" | "dark";
+/** A globular's tight old ball, or an open cluster's loose young scatter. */
+export type ClusterVariant = "globular" | "open";
+/**
+ * Which of the palette's colours a placed piece takes: 0 base, 1 accent,
+ * 2 core. Prepared here so the split is data, not a rule the paint loop
+ * re-derives: the Trifid's blue reflection lobe (1) against its pink
+ * emission lobes (0), and a cluster's minority blue and red giants against
+ * its common star colour. With colour off every tint draws the same ink, so
+ * this changes nothing outside stargaze.
+ */
+export type Tint = 0 | 1 | 2;
+export type TintedPlaced = Placed & { tint: Tint };
+/** A dust lane, pillar or notch in silhouette: a round-capped thick segment,
+ *  px offsets from the object's own projected point. */
+export type DustLane = { x1: number; y1: number; x2: number; y2: number; w: number };
+/** One filament strand of a supernova remnant, as a quadratic curve. */
+export type Filament = { x1: number; y1: number; cx: number; cy: number; x2: number; y2: number };
+/**
+ * `blobs` are already-placed (dx, dy, r) offsets from the object's own
+ * projected point; `ring` (M57 only) is a plain annulus instead.
+ *
+ * Everything below `corePx` is the colour round's structured geometry, placed
+ * here in px offsets so the paint loop only translates, and drawn ONLY on the
+ * coloured path: the plain grey glyph is the blobs (or the ring) exactly as
+ * before, so a nebula that had a glyph before this round renders identically
+ * with colour off. A variant with no use for a field gets the empty value,
+ * never `undefined`, so the prepared map round-trips through JSON unchanged.
+ */
 export type NebulaGlyph = {
   kind: "nebula";
-  blobs: { dx: number; dy: number; r: number }[];
+  variant: NebulaVariant;
+  blobs: TintedPlaced[];
   ring: { outerR: number; innerR: number } | null;
   corePx: number;
+  /** emission: a distinct inner region (M42's Trapezium), drawn over the
+   *  cloud in the palette's `core`. Kept out of `blobs` so the grey path,
+   *  which draws every blob, is untouched. */
+  coreBlob: Placed | null;
+  /** Dark dust in silhouette: M20's three lanes, M16's pillars, the Gulf of
+   *  Mexico notch in NGC 7000, the lanes across M8, M78 and the Flame. */
+  dust: DustLane[];
+  /** remnant only: the filamentary strands (M1's shell, the Veil's arc). */
+  filaments: Filament[];
+  /** Embedded or illuminating stars a source names by colour (M8's NGC 6530,
+   *  M78's young blue stars). Empty everywhere else. */
+  stars: Placed[];
+  /** dark (the Horsehead) only: the silhouette outline as a closed polygon of
+   *  px offsets, drawn over the backdrop blobs. Empty otherwise. */
+  silhouette: { dx: number; dy: number }[];
 };
-/** `stars` are already-placed (dx, dy, r) offsets, deterministic per cluster. */
-export type ClusterGlyph = { kind: "cluster"; stars: { dx: number; dy: number; r: number }[]; corePx: number };
+/**
+ * `stars` are already-placed (dx, dy, r) offsets, deterministic per cluster.
+ * `haze` is the globular's unresolved core glow and the Pleiades' reflection
+ * nebulosity, both coloured-path only, so the grey glyph stays the plain star
+ * scatter it was.
+ */
+export type ClusterGlyph = {
+  kind: "cluster";
+  variant: ClusterVariant;
+  stars: TintedPlaced[];
+  haze: Placed[];
+  corePx: number;
+};
 export type ObjectGlyph = GalaxyGlyph | NebulaGlyph | ClusterGlyph;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -285,11 +345,95 @@ const GALAXY_PX: Record<string, { majorPx: number; tiltDeg: number; variant: Gal
   m87: { majorPx: 10, tiltDeg: -35, variant: "elliptical" },
   m104: { majorPx: 13, tiltDeg: 8, variant: "edge-on" },
 };
-const NEBULA_PX: Record<string, number> = { m1: 8, m8: 9, m42: 10, m57: 8 };
-const CLUSTER_PX: Record<string, { extentPx: number; stars: number }> = {
-  m13: { extentPx: 7, stars: 11 }, // globular: a tight ball
-  m44: { extentPx: 10, stars: 9 },
-  m45: { extentPx: 11, stars: 7 },
+/**
+ * Nebula sizes and structure (colour round task 5). `extentPx` is the same
+ * number the pre-round table held for the four ids that had one, so their
+ * blobs are unchanged. `dust` places dark material in silhouette: `lane` is a
+ * chord across the cloud (M20's three lanes are what trisect the Trifid),
+ * `pillar` a column rising into it (M16), `notch` one fat bite out of its
+ * edge (NGC 7000's Gulf of Mexico, which is the foreground cloud LDN 935 and
+ * not a gap in the gas). `filaments` are a remnant's strands: `shell` wraps
+ * them around the middle (M1), `arc` lays them along one direction (the Veil,
+ * which is one thin slice of a shell 3 degrees across).
+ */
+type NebulaCfg = {
+  extentPx: number;
+  variant: NebulaVariant;
+  dust?: { n: number; kind: "lane" | "pillar" | "notch" };
+  filaments?: { n: number; kind: "shell" | "arc" };
+  /** Embedded stars a source names by colour. */
+  stars?: number;
+  /** A distinct inner region drawn in the palette's `core` (M42 only). */
+  coreBlob?: boolean;
+  /** Per-blob palette slot; missing or short means base (0). */
+  blobTints?: Tint[];
+};
+const NEBULA_PX: Record<string, NebulaCfg> = {
+  m1: { extentPx: 8, variant: "remnant", filaments: { n: 6, kind: "shell" } },
+  m8: { extentPx: 9, variant: "emission", dust: { n: 2, kind: "lane" }, stars: 3 },
+  m16: { extentPx: 9, variant: "emission", dust: { n: 3, kind: "pillar" } },
+  // The Trifid's identity is the split: two emission lobes (tint 0) and one
+  // reflection lobe (tint 1), cut apart by the lanes it is named for.
+  m20: { extentPx: 9, variant: "emission", dust: { n: 3, kind: "lane" }, blobTints: [0, 0, 1] },
+  m27: { extentPx: 7, variant: "planetary" },
+  m42: { extentPx: 10, variant: "emission", coreBlob: true },
+  m57: { extentPx: 8, variant: "planetary" },
+  m78: { extentPx: 7, variant: "reflection", dust: { n: 1, kind: "lane" }, stars: 3 },
+  flame: { extentPx: 7, variant: "emission", dust: { n: 1, kind: "lane" } },
+  horsehead: { extentPx: 11, variant: "dark" },
+  ngc7000: { extentPx: 11, variant: "emission", dust: { n: 1, kind: "notch" } },
+  ngc6960: { extentPx: 9, variant: "remnant", filaments: { n: 5, kind: "arc" } },
+  ngc6992: { extentPx: 9, variant: "remnant", filaments: { n: 5, kind: "arc" } },
+};
+/**
+ * The Horsehead's outline, in a unit frame (x right, y DOWN, as canvas
+ * measures it): the muzzle points up and to the left, the mane falls away to
+ * the right, and the neck runs off the bottom of the shape. Hand-traced to
+ * read at about 11px tall, which is all this chart gives it; it is a
+ * silhouette, so the shape is the whole object and nothing about it is a
+ * colour claim. Same not-to-scale rule as every other glyph here.
+ *
+ * The x scale below is nearly as big as the y one on purpose: a first pass
+ * drew it half as wide as tall, and at this size that reads as a dark thumb,
+ * not a head (screenshot-caught).
+ */
+const HORSEHEAD_OUTLINE: [number, number][] = [
+  [0.4, 1.0],
+  [0.42, 0.1],
+  [0.3, -0.45],
+  [0.18, -0.7],
+  [0.0, -0.88],
+  [-0.22, -0.92],
+  [-0.45, -0.7],
+  [-0.38, -0.45],
+  [-0.2, -0.3],
+  [-0.28, 0.2],
+  [-0.35, 1.0],
+];
+/** `haze` is the globular's unresolved core glow / the Pleiades' reflection
+ *  nebulosity; `accentShare` and `accent2Share` are the share of stars taking
+ *  the palette's accent (tint 1) and second accent (tint 2), where a source
+ *  names a minority star colour. The rest take the base. */
+type ClusterCfg = {
+  extentPx: number;
+  stars: number;
+  variant: ClusterVariant;
+  haze?: number;
+  accentShare?: number;
+  accent2Share?: number;
+};
+const CLUSTER_PX: Record<string, ClusterCfg> = {
+  // globular: a tight ball, most stars yellow-white, a few blue giants and a
+  // few red ones (APOD's colour-magnitude reading of M13).
+  m13: { extentPx: 7, stars: 11, variant: "globular", haze: 3, accentShare: 0.16, accent2Share: 0.16 },
+  // The Beehive's few yellowish red giants among its blue main-sequence stars.
+  m44: { extentPx: 10, stars: 9, variant: "open", accentShare: 0.22 },
+  m45: { extentPx: 11, stars: 7, variant: "open", haze: 5 },
+  // The Double Cluster's two halves are 0.4 degrees apart, which is about 3px
+  // here, so each half stays small and the pair reads as one rich double
+  // knot, which is what it looks like in binoculars.
+  ngc869: { extentPx: 6, stars: 9, variant: "open" },
+  ngc884: { extentPx: 6, stars: 9, variant: "open" },
 };
 
 /**
@@ -394,33 +538,164 @@ export function prepareObjectGlyphs(objects: readonly SkyObject[]): Map<string, 
         plumes,
       });
     } else if (o.symbol === "nebula") {
-      const extent = NEBULA_PX[o.id];
-      if (!extent) continue;
+      const cfg = NEBULA_PX[o.id];
+      if (!cfg) continue;
+      const extent = cfg.extentPx;
       const corePx = clamp(Math.round(extent * 0.7), 6, 10);
       if (o.id === "m57") {
         // The Ring Nebula reads as a ring, not a cloud of blobs.
-        out.set(o.id, { kind: "nebula", blobs: [], ring: { outerR: extent, innerR: extent * 0.42 }, corePx });
+        out.set(o.id, {
+          kind: "nebula",
+          variant: cfg.variant,
+          blobs: [],
+          ring: { outerR: extent, innerR: extent * 0.42 },
+          corePx,
+          coreBlob: null,
+          dust: [],
+          filaments: [],
+          stars: [],
+          silhouette: [],
+        });
         continue;
       }
-      // 3 blobs of noticeably different sizes, spread far enough apart to
-      // read as lumps rather than one bigger circle: an earlier attempt at
-      // 4-5 same-ish-sized blobs close to the centre just unioned into a
-      // smooth disc at this size (screenshot-caught, 2026-09-15) — a real
-      // nebula's own irregularity barely survives at a 16-20px glyph, so
-      // this leans on size contrast, not blob count, to show it.
+      // ⚠️ The blob loop below is byte-for-byte the pre-colour-round one, and
+      // every piece the colour round adds is drawn AFTER it, out of the same
+      // stream: a rnd() call inserted before or inside it would move every
+      // existing nebula's blobs, which have to stay identical with colour off.
       const rnd = mulberry32(hashSeed(o.id));
-      const blobs = Array.from({ length: 3 }, (_, i) => {
-        const angle = rnd() * Math.PI * 2;
-        const dist = (i === 0 ? 0 : 0.35 + rnd() * 0.35) * extent;
-        const r = extent * (i === 0 ? 0.75 + rnd() * 0.15 : 0.35 + rnd() * 0.25);
-        return { dx: Math.cos(angle) * dist, dy: Math.sin(angle) * dist, r };
+      const blobs: TintedPlaced[] = [];
+      if (cfg.variant === "dark") {
+        // The Horsehead's backdrop is IC 434, the lit gas BEHIND it, so it
+        // spreads wider than any other cloud here: the silhouette only reads
+        // as a silhouette if there is something to block.
+        // Wide enough to frame the head, no wider: a first pass spread the
+        // glow to 19px and made the Horsehead the biggest red patch in Orion,
+        // next to a Flame Nebula 5px away (screenshot-caught).
+        for (let i = 0; i < 3; i++) {
+          const angle = rnd() * Math.PI * 2;
+          const dist = (i === 0 ? 0 : 0.3 + rnd() * 0.3) * extent;
+          const r = extent * (i === 0 ? 0.85 : 0.45 + rnd() * 0.25);
+          blobs.push({ dx: Math.cos(angle) * dist, dy: Math.sin(angle) * dist, r, tint: 0 });
+        }
+      } else if (cfg.variant === "planetary") {
+        // M27: the apple core everyone draws, two lobes either side of a
+        // narrow waist, on one seeded axis.
+        const a = rnd() * Math.PI * 2;
+        const ux = Math.cos(a);
+        const uy = Math.sin(a);
+        blobs.push({ dx: 0, dy: 0, r: extent * 0.45, tint: 0 });
+        for (const s of [1, -1]) {
+          blobs.push({ dx: ux * extent * 0.55 * s, dy: uy * extent * 0.55 * s, r: extent * 0.62, tint: 0 });
+        }
+      } else if (cfg.filaments?.kind !== "arc") {
+        // 3 blobs of noticeably different sizes, spread far enough apart to
+        // read as lumps rather than one bigger circle: an earlier attempt at
+        // 4-5 same-ish-sized blobs close to the centre just unioned into a
+        // smooth disc at this size (screenshot-caught, 2026-09-15) — a real
+        // nebula's own irregularity barely survives at a 16-20px glyph, so
+        // this leans on size contrast, not blob count, to show it.
+        for (let i = 0; i < 3; i++) {
+          const angle = rnd() * Math.PI * 2;
+          const dist = (i === 0 ? 0 : 0.35 + rnd() * 0.35) * extent;
+          const r = extent * (i === 0 ? 0.75 + rnd() * 0.15 : 0.35 + rnd() * 0.25);
+          blobs.push({ dx: Math.cos(angle) * dist, dy: Math.sin(angle) * dist, r, tint: cfg.blobTints?.[i] ?? 0 });
+        }
+      }
+      // else: the Veil is lace with no body behind it, so it gets no blobs at
+      // all and draws as filaments alone.
+      const coreBlob = cfg.coreBlob ? { dx: 0, dy: 0, r: extent * 0.34 } : null;
+      const dust: DustLane[] = [];
+      if (cfg.dust) {
+        const { n, kind } = cfg.dust;
+        const a0 = rnd() * Math.PI * 2;
+        const ux = Math.cos(a0);
+        const uy = Math.sin(a0);
+        const px = -uy;
+        const py = ux;
+        if (kind === "notch") {
+          const d = extent * 0.5;
+          const h = extent * 0.18;
+          dust.push({ x1: ux * d - px * h, y1: uy * d - py * h, x2: ux * d + px * h, y2: uy * d + py * h, w: extent * 0.55 });
+        } else if (kind === "pillar") {
+          for (let i = 0; i < n; i++) {
+            const off = ((i - (n - 1) / 2) / Math.max(1, n - 1)) * extent * 1.05;
+            const len = extent * (0.8 + rnd() * 0.5);
+            const x1 = px * off - ux * extent * 0.7;
+            const y1 = py * off - uy * extent * 0.7;
+            dust.push({ x1, y1, x2: x1 + ux * len, y2: y1 + uy * len, w: extent * 0.2 });
+          }
+        } else {
+          for (let i = 0; i < n; i++) {
+            const a = a0 + (i * Math.PI) / n + (rnd() - 0.5) * 0.3;
+            const lx = Math.cos(a);
+            const ly = Math.sin(a);
+            const off = (rnd() - 0.5) * 0.4 * extent;
+            const half = extent * 1.05;
+            dust.push({
+              x1: -lx * half - ly * off,
+              y1: -ly * half + lx * off,
+              x2: lx * half - ly * off,
+              y2: ly * half + lx * off,
+              w: extent * 0.15,
+            });
+          }
+        }
+      }
+      const filaments: Filament[] = [];
+      if (cfg.filaments) {
+        const { n, kind } = cfg.filaments;
+        if (kind === "shell") {
+          // Strands wrapped around the middle, each bowing outward.
+          for (let i = 0; i < n; i++) {
+            const a = rnd() * Math.PI * 2;
+            const rr = extent * (0.5 + rnd() * 0.5);
+            const span = 0.5 + rnd() * 0.5;
+            const at = (t: number, k: number) => ({ x: Math.cos(a + t) * rr * k, y: Math.sin(a + t) * rr * k });
+            const s = at(-span, 1);
+            const e = at(span, 1);
+            const c = at(0, 1.35);
+            filaments.push({ x1: s.x, y1: s.y, cx: c.x, cy: c.y, x2: e.x, y2: e.y });
+          }
+        } else {
+          // The Veil: near-parallel strands along one seeded direction.
+          const a0 = rnd() * Math.PI * 2;
+          const ux = Math.cos(a0);
+          const uy = Math.sin(a0);
+          const px = -uy;
+          const py = ux;
+          for (let i = 0; i < n; i++) {
+            const off = ((i - (n - 1) / 2) / Math.max(1, n - 1)) * extent * 1.1 + (rnd() - 0.5) * extent * 0.2;
+            const half = extent * (0.6 + rnd() * 0.35);
+            const bow = (rnd() - 0.5) * extent * 0.8;
+            filaments.push({
+              x1: -ux * half + px * off,
+              y1: -uy * half + py * off,
+              cx: px * (off + bow),
+              cy: py * (off + bow),
+              x2: ux * half + px * off,
+              y2: uy * half + py * off,
+            });
+          }
+        }
+      }
+      const stars = Array.from({ length: cfg.stars ?? 0 }, () => {
+        const a = rnd() * Math.PI * 2;
+        const d = (0.2 + rnd() * 0.6) * extent;
+        return { dx: Math.cos(a) * d, dy: Math.sin(a) * d, r: 0.7 + rnd() * 0.45 };
       });
-      out.set(o.id, { kind: "nebula", blobs, ring: null, corePx });
+      const silhouette =
+        cfg.variant === "dark"
+          ? HORSEHEAD_OUTLINE.map(([x, y]) => ({ dx: x * extent * 0.95, dy: y * extent * 0.62 }))
+          : [];
+      out.set(o.id, { kind: "nebula", variant: cfg.variant, blobs, ring: null, corePx, coreBlob, dust, filaments, stars, silhouette });
     } else if (o.symbol === "cluster") {
       const cfg = CLUSTER_PX[o.id];
       if (!cfg) continue;
       const rnd = mulberry32(hashSeed(o.id));
-      const stars = Array.from({ length: cfg.stars }, () => {
+      // ⚠️ Same rule as the nebula blobs: this loop is unchanged from before
+      // the colour round, and the tints come out of a SECOND pass below, so
+      // every existing cluster's stars sit exactly where they did.
+      const placed = Array.from({ length: cfg.stars }, () => {
         const angle = rnd() * Math.PI * 2;
         // sqrt(rnd()) spreads points evenly over the disk's AREA, not bunched
         // at the centre the way a plain linear radius would.
@@ -428,7 +703,28 @@ export function prepareObjectGlyphs(objects: readonly SkyObject[]): Map<string, 
         const r = 0.7 + rnd() * 0.5;
         return { dx: Math.cos(angle) * dist, dy: Math.sin(angle) * dist, r };
       });
-      out.set(o.id, { kind: "cluster", stars, corePx: clamp(Math.round(cfg.extentPx * 0.6), 6, 9) });
+      const share1 = cfg.accentShare ?? 0;
+      const share2 = cfg.accent2Share ?? 0;
+      const stars: TintedPlaced[] = placed.map((s) => {
+        const t = rnd();
+        return { ...s, tint: t < share1 ? 1 : t < share1 + share2 ? 2 : 0 };
+      });
+      const haze = Array.from({ length: cfg.haze ?? 0 }, (_, i) => {
+        // A globular's haze is its own unresolved core, so it is concentric;
+        // the Pleiades' is the dust cloud it is drifting through, so it is
+        // scattered over the stars.
+        if (cfg.variant === "globular") return { dx: 0, dy: 0, r: cfg.extentPx * (1 - i * 0.28) };
+        const a = rnd() * Math.PI * 2;
+        const d = Math.sqrt(rnd()) * cfg.extentPx * 0.7;
+        return { dx: Math.cos(a) * d, dy: Math.sin(a) * d, r: cfg.extentPx * (0.45 + rnd() * 0.35) };
+      });
+      out.set(o.id, {
+        kind: "cluster",
+        variant: cfg.variant,
+        stars,
+        haze,
+        corePx: clamp(Math.round(cfg.extentPx * 0.6), 6, 9),
+      });
     }
   }
   return out;

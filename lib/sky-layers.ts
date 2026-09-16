@@ -12,7 +12,17 @@
  * Proper nouns ("Milky Way") are rendered straight from data or literals, the
  * way sky-render.ts renders planet names; they are names, not prose.
  */
-import type { GalaxyGlyph, NebulaGlyph, ObjectGlyph, PreparedMilkyWay, SkyObject, SkyShower } from "./sky-objects";
+import type {
+  ClusterGlyph,
+  DustLane,
+  GalaxyGlyph,
+  NebulaGlyph,
+  ObjectGlyph,
+  PreparedMilkyWay,
+  SkyObject,
+  SkyShower,
+  TintedPlaced,
+} from "./sky-objects";
 import { SPIRAL_DR, SPIRAL_R0, SPIRAL_TURNS } from "./sky-objects";
 import { project, type Chart, type Equatorial } from "./sky-math";
 
@@ -46,6 +56,9 @@ export type ObjectPalette = {
   /** Body/cloud fill. */ base: string;
   /** Core, bulge or inner region where the structure has one. */ core?: string;
   /** Arms, rim, filaments, knots or a jet where the structure has one. */ accent?: string;
+  /** A SECOND accent, only where a source names two distinct minority
+   *  colours in one object (task 5: M13's blue giants and its red ones). */
+  accent2?: string;
 };
 /**
  * Galaxies (colour round task 4). Every value below is the hex the object's
@@ -89,7 +102,110 @@ export const OBJECT_COLOURS: Record<string, ObjectPalette> = {
   // NASA/ESA: "a brilliant, white, bulbous core encircled by thick dust lanes
   // comprising the spiral structure". The lane IS the disk here.
   m104: { base: "245,240,225", accent: "36,28,22" },
+
+  /* ---- Nebulae (colour round task 5) ---------------------------------
+   * Six of these objects' famous pictures are narrowband maps, not colour.
+   * Ruling R-COLOUR-1 is what lets them be coloured at all: colour may
+   * follow an emission line's OWN wavelength, never a palette that moves a
+   * line to a channel it does not belong to. The wavelengths come from
+   * R-COLOUR-2's source, Lodriguss (AstroPix, "Color in astronomical
+   * objects"): hydrogen-alpha is "in the deep red at 656.28 nanometers", and
+   * planetary nebulae "are blue-green in color from emission lines of doubly
+   * ionized oxygen at 495.9 nanometers and 500.7 nanometers". [N II] = red is
+   * NOT sourced and nothing below rests on it.
+   */
+  // The tattered filaments are hydrogen (NASA: "The orange filaments... consist
+  // mostly of hydrogen"), so they take H-alpha's own red. NO core: the
+  // interior's blue is synchrotron light in a confirmed false-colour
+  // composite, and nothing sources what a plain camera would see there, so
+  // the Crab's interior draws in the site's own ink.
+  m1: { base: "232,115,74" },
+  // NASA: "wisps of pinkish-grey clouds fill the scene... Bright, blue-white
+  // stars shine through the cloud", with patches of dark dust over it.
+  m8: { base: "244,127,168", accent: "191,227,255" },
+  // The gold-on-teal Pillars are the Hubble palette (SHO), with H-alpha put
+  // on GREEN: NASA's own page calls the filters "narrowband... creating the
+  // enhanced color palette". What is left when that is stripped away is a
+  // hydrogen glow, which is red, and dust columns, which are opaque and take
+  // no colour at all.
+  m16: { base: "224,82,106" },
+  // The Trifid is two halves: "red is Hα/S II emission from gas ionized by
+  // hot young stars", and the blue lobe is dust scattering starlight, the
+  // same physics as the daytime sky (ESA/Hubble's WFC3 image; the split is
+  // physically real even though that image is a processed composite).
+  m20: { base: "217,69,95", accent: "74,127,209" },
+  // A planetary nebula, so the body is O III blue-green by Lodriguss's own
+  // sentence; the rim is hydrogen, which is red. NASA's own rendering puts
+  // hydrogen on green, which is the thing the ruling forbids following.
+  m27: { base: "111,214,232", accent: "217,83,106" },
+  // The one nebula here with a calibrated broadband measurement: ClarkVision
+  // finds the Trapezium region "blue-green, and best described as teal", with
+  // the wider cloud pink-red from H-alpha. NOT NASA's orange/green/red
+  // version of the same object, which is an explicit false-colour map.
+  m42: { base: "244,113,138", core: "79,224,200" },
+  // The Ring: O III blue-green through the ring, an H-alpha red rim. NASA's
+  // picture puts helium on blue and nitrogen on red through three narrowband
+  // filters; neither of those colours is here.
+  m57: { base: "111,224,200", accent: "217,83,79" },
+  // APOD: "The dust not only absorbs light, but also reflects the light of
+  // several bright blue stars... The same type of scattering that colors the
+  // daytime sky further enhances the blue color."
+  m78: { base: "111,143,212", accent: "159,184,232" },
+  // APOD: "the nebula's suggestive reddish color is due to the glow of
+  // hydrogen atoms", with "a dark lane of absorbing interstellar dust... in
+  // silhouette against the hydrogen glow".
+  flame: { base: "217,113,74" },
+  // The head itself is opaque dust and has no colour; what it blocks is
+  // IC 434's H-alpha backdrop, and the accent is the lit edge where Sigma
+  // Orionis is eroding it.
+  horsehead: { base: "224,82,106", accent: "242,143,163" },
+  // NASA: "Sensitive cameras can pick up the reddish color that is
+  // characteristic of hydrogen that dominates C20." Confirmed broadband: a
+  // plain long exposure really does come out red here. The Gulf of Mexico is
+  // the foreground cloud LDN 935 and draws as dust, not as a colour.
+  ngc7000: { base: "194,59,74" },
+  // ⚠️ THE LOUDEST FALSE-COLOUR TRAP ON THE CHART. The Veil's famous teal and
+  // red is ESA/Hubble's narrowband map, in its own caption: "blue shows
+  // oxygen, green shows sulphur, and red shows hydrogen". Broadband images of
+  // it are far dimmer and red-dominant, so both arcs draw thin hydrogen-red
+  // filaments at low alpha and carry NO oxygen teal, even though the ruling
+  // would technically allow O III its own colour: the teal is the half of
+  // that image everyone recognises, and reproducing it would read as the
+  // poster rather than as the object.
+  ngc6960: { base: "194,59,74" },
+  ngc6992: { base: "194,59,74" },
+
+  /* ---- Clusters (colour round task 5) ---------------------------------
+   * No gas here, no narrowband problem: a star's colour is its temperature,
+   * which is why these are the most solidly sourced entries in the table.
+   */
+  // APOD's colour-magnitude reading of M13: "Blue stars are hot and red stars
+  // are cool", over a core EarthSky describes as "so dense in the middle it
+  // looks solid white". Base is that core white, and the two accents are the
+  // blue giants and the red ones.
+  m13: { base: "247,241,222", accent: "188,217,255", accent2: "255,180,136" },
+  // APOD: "The cluster's few yellowish tinted, cool, red giants are scattered
+  // through the field of its brighter hot blue main sequence stars."
+  m44: { base: "188,215,255", accent: "240,180,106" },
+  // Hot blue-white stars inside blue reflection nebulosity: APOD's reflection
+  // -nebula page, on Merope in this cluster, "The blue color typical of
+  // reflection nebula is caused by blue light being more efficiently
+  // scattered by the carbon dust than red light."
+  m45: { base: "205,228,255", accent: "111,168,220" },
+  // ⚠️ Stars only, no gas. The Double Cluster's blue-white stars are ordinary
+  // stellar colour from temperature (APOD: "stars much younger and hotter
+  // than the Sun") and are citable; the pink hydrogen glow around them in
+  // that same image is narrowband enhancement, by its own caption, and is
+  // not. So neither half gets an accent and neither draws a haze.
+  ngc869: { base: "191,212,245" },
+  ngc884: { base: "191,212,245" },
 };
+/** Dark material in silhouette: the Horsehead's own suggested hex (#15100c),
+ *  near the desk's #0c0b09. Dust emits nothing, so this is the absence of a
+ *  colour claim rather than one: it is painted OVER lit gas, where it reads
+ *  as the hole it is, and never on bare sky. Same trick as the galaxies'
+ *  dust lanes (STARBURST_MONO.accent). */
+const DUST_DARK = "21,16,12";
 /** M82's neutrals, and the fallback for any galaxy whose palette names no
  *  dust colour. Near the desk (#0c0b09) so a lane painted over a body reads
  *  as a gap in it rather than as a coloured bar. */
@@ -502,11 +618,155 @@ function drawGalaxyGlyph(ctx: CanvasRenderingContext2D, p: { x: number; y: numbe
   }
 }
 
+/** Dust in silhouette: round-capped thick segments, painted over lit gas so
+ *  they subtract its light instead of adding a shape to bare sky. */
+function strokeDust(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, lanes: readonly DustLane[]): void {
+  if (!lanes.length) return;
+  ctx.strokeStyle = `rgba(${DUST_DARK},0.9)`;
+  ctx.lineCap = "round";
+  for (const d of lanes) {
+    ctx.lineWidth = d.w;
+    ctx.beginPath();
+    ctx.moveTo(p.x + d.x1, p.y + d.y1);
+    ctx.lineTo(p.x + d.x2, p.y + d.y2);
+    ctx.stroke();
+  }
+  ctx.lineCap = "butt";
+  ctx.lineWidth = 1;
+}
+/** A blob's colour from its prepared tint: base, accent, core. A missing slot
+ *  falls back to the base, so a palette that names fewer colours than a
+ *  variant could use simply draws fewer. */
+const tintOf = (pal: ObjectPalette, t: 0 | 1 | 2) => (t === 1 ? (pal.accent ?? pal.base) : t === 2 ? (pal.core ?? pal.base) : pal.base);
+function fillTinted(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, places: readonly TintedPlaced[], pal: ObjectPalette, alpha: number, slot2 = "core" as "core" | "accent2"): void {
+  for (const b of places) {
+    ctx.fillStyle = `rgba(${b.tint === 2 && slot2 === "accent2" ? (pal.accent2 ?? pal.base) : tintOf(pal, b.tint)},${alpha})`;
+    ctx.beginPath();
+    ctx.arc(p.x + b.dx, p.y + b.dy, b.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+/** An H II region: a glowing cloud with dark dust over it, and, where a
+ *  source names them, the young stars doing the ionizing. */
+function drawEmissionNebula(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, g: NebulaGlyph, pal: ObjectPalette): void {
+  fillTinted(ctx, p, g.blobs, pal, 0.17);
+  if (g.coreBlob && pal.core) fillPlaced(ctx, p, [g.coreBlob], pal.core, 0.22);
+  strokeDust(ctx, p, g.dust);
+  if (pal.accent && g.stars.length) fillPlaced(ctx, p, g.stars, pal.accent, 0.8);
+}
+/** A shell thrown off a dying star: the body in the blue-green of doubly
+ *  ionized oxygen, a hydrogen-red fringe at the outer edge. */
+function drawPlanetaryNebula(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, g: NebulaGlyph, pal: ObjectPalette): void {
+  if (g.ring) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, g.ring.outerR, 0, Math.PI * 2);
+    ctx.arc(p.x, p.y, g.ring.innerR, 0, Math.PI * 2, true);
+    // The grey ring is INK at 0.4; a saturated blue-green at that alpha made
+    // M57 the brightest thing on a 1440px chart (screenshot-caught), so the
+    // coloured one sits lower and the red rim carries the contrast instead.
+    ctx.fillStyle = `rgba(${pal.base},0.33)`;
+    ctx.fill("evenodd");
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, g.ring.innerR, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${pal.base},0.07)`;
+    ctx.fill();
+    if (pal.accent) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, g.ring.outerR - 0.4, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(${pal.accent},0.45)`;
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
+    return;
+  }
+  fillTinted(ctx, p, g.blobs, pal, 0.2);
+  if (pal.accent) {
+    // The fringe goes on the LOBES only: fringing the waist too drew a third
+    // circle through the middle of the Dumbbell (screenshot-caught).
+    ctx.strokeStyle = `rgba(${pal.accent},0.35)`;
+    for (const b of g.blobs) {
+      if (b.dx === 0 && b.dy === 0) continue;
+      ctx.beginPath();
+      ctx.arc(p.x + b.dx, p.y + b.dy, b.r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+}
+/** A supernova remnant: filaments, which is nearly all these objects are.
+ *  The Crab keeps a diffuse interior under them, and it draws in the site's
+ *  own ink, not in a colour: its blue is synchrotron light in a false-colour
+ *  composite and nothing sources what a camera would record there. */
+function drawRemnantNebula(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, g: NebulaGlyph, pal: ObjectPalette): void {
+  if (g.blobs.length) fillPlaced(ctx, p, g.blobs, INK, 0.1);
+  if (!g.filaments.length) return;
+  ctx.strokeStyle = `rgba(${pal.base},${g.blobs.length ? 0.5 : 0.34})`;
+  ctx.lineWidth = g.blobs.length ? 1 : 0.9;
+  ctx.beginPath();
+  for (const f of g.filaments) {
+    ctx.moveTo(p.x + f.x1, p.y + f.y1);
+    ctx.quadraticCurveTo(p.x + f.cx, p.y + f.cy, p.x + f.x2, p.y + f.y2);
+  }
+  ctx.stroke();
+  ctx.lineWidth = 1;
+}
+/** Dust scattering the light of the stars inside it, the same physics that
+ *  makes the daytime sky blue. */
+function drawReflectionNebula(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, g: NebulaGlyph, pal: ObjectPalette): void {
+  fillTinted(ctx, p, g.blobs, pal, 0.16);
+  strokeDust(ctx, p, g.dust);
+  if (pal.accent) fillPlaced(ctx, p, g.stars, pal.accent, 0.85);
+}
+/** The Horsehead. A dark nebula emits nothing, so the glyph is really the
+ *  backdrop it blocks: IC 434's hydrogen glow goes down first, the opaque
+ *  head over it, and a lit rim along the edge the radiation is eroding.
+ *  Without the backdrop this is a dark smudge on a dark sky. */
+function drawDarkNebula(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, g: NebulaGlyph, pal: ObjectPalette): void {
+  fillTinted(ctx, p, g.blobs, pal, 0.15);
+  if (!g.silhouette.length) return;
+  ctx.beginPath();
+  g.silhouette.forEach((s, i) => (i === 0 ? ctx.moveTo(p.x + s.dx, p.y + s.dy) : ctx.lineTo(p.x + s.dx, p.y + s.dy)));
+  ctx.closePath();
+  ctx.fillStyle = `rgba(${DUST_DARK},0.95)`;
+  ctx.fill();
+  if (pal.accent) {
+    ctx.strokeStyle = `rgba(${pal.accent},0.45)`;
+    ctx.lineWidth = 0.9;
+    ctx.stroke();
+    ctx.lineWidth = 1;
+  }
+}
+/**
+ * One draw path per variant, each picking its colours out of the palette it
+ * is handed; `null` (colour off, or an id with no palette entry) falls back
+ * to the plain grey glyph, which is unchanged from before the colour round.
+ */
+function drawNebulaGlyph(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, g: NebulaGlyph, pal: ObjectPalette | null): void {
+  if (!pal) return drawPlainNebula(ctx, p, g);
+  switch (g.variant) {
+    case "planetary":
+      return drawPlanetaryNebula(ctx, p, g, pal);
+    case "remnant":
+      return drawRemnantNebula(ctx, p, g, pal);
+    case "reflection":
+      return drawReflectionNebula(ctx, p, g, pal);
+    case "dark":
+      return drawDarkNebula(ctx, p, g, pal);
+    default:
+      return drawEmissionNebula(ctx, p, g, pal);
+  }
+}
+
 /** A few overlapping low-alpha blobs read as a soft, irregular cloud instead
  *  of a dotted circle; M57 (Ring Nebula) gets a plain annulus instead, since
  *  that is the shape its own card describes. Overlap brightening is ordinary
- *  alpha compositing, no extra blend mode. */
-function drawNebulaGlyph(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, g: NebulaGlyph): void {
+ *  alpha compositing, no extra blend mode.
+ *
+ *  The two tail branches are for the shapes that have no cloud to draw, both
+ *  of them objects the catalog only gained this round (the Veil's arcs and
+ *  the Horsehead): an id that had a glyph before still draws its blobs or its
+ *  ring and nothing else, which is what keeps colour-off output identical. */
+function drawPlainNebula(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, g: NebulaGlyph): void {
   if (g.ring) {
     ctx.beginPath();
     ctx.arc(p.x, p.y, g.ring.outerR, 0, Math.PI * 2);
@@ -519,12 +779,59 @@ function drawNebulaGlyph(ctx: CanvasRenderingContext2D, p: { x: number; y: numbe
     ctx.fill();
     return;
   }
-  ctx.fillStyle = `rgba(${INK},0.16)`;
-  for (const b of g.blobs) {
+  if (g.blobs.length) {
+    ctx.fillStyle = `rgba(${INK},0.16)`;
+    for (const b of g.blobs) {
+      ctx.beginPath();
+      ctx.arc(p.x + b.dx, p.y + b.dy, b.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    return;
+  }
+  if (g.silhouette.length) {
     ctx.beginPath();
-    ctx.arc(p.x + b.dx, p.y + b.dy, b.r, 0, Math.PI * 2);
+    g.silhouette.forEach((s, i) => (i === 0 ? ctx.moveTo(p.x + s.dx, p.y + s.dy) : ctx.lineTo(p.x + s.dx, p.y + s.dy)));
+    ctx.closePath();
+    ctx.strokeStyle = `rgba(${INK},0.5)`;
+    ctx.stroke();
+    return;
+  }
+  if (g.filaments.length) {
+    ctx.strokeStyle = `rgba(${INK},0.32)`;
+    ctx.beginPath();
+    for (const f of g.filaments) {
+      ctx.moveTo(p.x + f.x1, p.y + f.y1);
+      ctx.quadraticCurveTo(p.x + f.cx, p.y + f.cy, p.x + f.x2, p.y + f.y2);
+    }
+    ctx.stroke();
+  }
+}
+
+/** The plain grey cluster: the star scatter, unchanged from before the colour
+ *  round. The haze is coloured-path only. */
+function drawPlainCluster(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, g: ClusterGlyph): void {
+  ctx.fillStyle = `rgba(${INK},0.65)`;
+  for (const s of g.stars) {
+    ctx.beginPath();
+    ctx.arc(p.x + s.dx, p.y + s.dy, s.r, 0, Math.PI * 2);
     ctx.fill();
   }
+}
+/**
+ * A cluster is stars, and a star's colour is its temperature, so these are
+ * the least contested colours on the chart. The globular gets its unresolved
+ * core under the yellow-white swarm; an open cluster gets its blue-white
+ * stars, and the Pleiades the dust it is drifting through (that haze takes
+ * the accent, which is why the Double Cluster, whose only sourced colour is
+ * its stars, prepares no haze at all).
+ */
+function drawClusterGlyph(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, g: ClusterGlyph, pal: ObjectPalette | null): void {
+  if (!pal) return drawPlainCluster(ctx, p, g);
+  if (g.haze.length) {
+    const haze = g.variant === "globular" ? pal.base : (pal.accent ?? pal.base);
+    fillPlaced(ctx, p, g.haze, haze, g.variant === "globular" ? 0.08 : 0.07);
+  }
+  fillTinted(ctx, p, g.stars, pal, 0.7, "accent2");
 }
 
 /**
@@ -570,7 +877,7 @@ export function drawObjects(
       }
       case "nebula": {
         if (glyph && glyph.kind === "nebula") {
-          drawNebulaGlyph(ctx, p, glyph);
+          drawNebulaGlyph(ctx, p, glyph, v.colour ? (OBJECT_COLOURS[o.id] ?? null) : null);
           break;
         }
         ctx.beginPath();
@@ -583,12 +890,7 @@ export function drawObjects(
       }
       case "cluster": {
         if (glyph && glyph.kind === "cluster") {
-          ctx.fillStyle = `rgba(${INK},0.65)`;
-          for (const s of glyph.stars) {
-            ctx.beginPath();
-            ctx.arc(p.x + s.dx, p.y + s.dy, s.r, 0, Math.PI * 2);
-            ctx.fill();
-          }
+          drawClusterGlyph(ctx, p, glyph, v.colour ? (OBJECT_COLOURS[o.id] ?? null) : null);
           break;
         }
         ctx.fillStyle = `rgba(${INK},0.65)`;

@@ -434,6 +434,188 @@ test("M82 is deliberately absent from the palette, every other galaxy is in it",
   assert.equal(OBJECT_COLOURS.m81.accent, undefined, "M81 must not draw knots");
 });
 
+// ---- sky-colour task 5: the nebula and cluster variants ----
+
+test("nebula and cluster glyphs carry the right variant", () => {
+  const g = O.prepareObjectGlyphs(data.objects);
+  const EXPECTED = {
+    m1: "remnant", ngc6960: "remnant", ngc6992: "remnant",
+    m8: "emission", m16: "emission", m20: "emission", m42: "emission", ngc7000: "emission", flame: "emission",
+    m27: "planetary", m57: "planetary",
+    m78: "reflection",
+    horsehead: "dark",
+    m13: "globular",
+    m44: "open", m45: "open", ngc869: "open", ngc884: "open",
+  };
+  for (const [id, variant] of Object.entries(EXPECTED)) {
+    assert.ok(g.get(id), `${id} prepares no glyph`);
+    assert.equal(g.get(id).variant, variant, id);
+  }
+  // Every nebula and cluster in the catalog now has a glyph, so none falls
+  // back to drawObjects' dashed circle or six-dot ring.
+  for (const o of data.objects) {
+    if (o.symbol === "nebula" || o.symbol === "cluster") assert.ok(g.get(o.id), `${o.id} has no glyph`);
+  }
+});
+
+test("no palette entry lacks a variant to draw it", async () => {
+  const { OBJECT_COLOURS } = await import("../lib/sky-layers.ts");
+  const g = O.prepareObjectGlyphs(data.objects);
+  for (const id of Object.keys(OBJECT_COLOURS)) {
+    assert.ok(g.get(id), `${id} has a palette but prepares no glyph`);
+    assert.match(OBJECT_COLOURS[id].base, /^\d{1,3},\d{1,3},\d{1,3}$/, `${id} base is not "r,g,b"`);
+  }
+});
+
+test("each nebula and cluster variant prepares the geometry its draw function reads", () => {
+  const g = O.prepareObjectGlyphs(data.objects);
+  // The Trifid's identity is its split: emission lobes plus one reflection
+  // lobe, cut apart by the three dust lanes it is named for.
+  const m20 = g.get("m20");
+  assert.equal(m20.dust.length, 3, "the Trifid needs its three lanes");
+  assert.equal(m20.blobs.filter((b) => b.tint === 1).length, 1, "the Trifid needs one reflection lobe");
+  assert.equal(m20.blobs.filter((b) => b.tint === 0).length, 2, "the Trifid needs its emission lobes");
+  // The Horsehead is a silhouette, so it carries both the dark shape and the
+  // backdrop that shape blocks: a dark outline alone on a dark sky is nothing.
+  const hh = g.get("horsehead");
+  assert.ok(hh.silhouette.length >= 8, "the Horsehead needs an outline");
+  assert.ok(hh.blobs.length > 0, "the Horsehead needs its IC 434 backdrop");
+  const headH = Math.max(...hh.silhouette.map((s) => s.dy)) - Math.min(...hh.silhouette.map((s) => s.dy));
+  const backR = Math.max(...hh.blobs.map((b) => Math.hypot(b.dx, b.dy) + b.r));
+  assert.ok(backR > headH * 0.6, `the backdrop (${backR.toFixed(1)}px) must read around the head (${headH.toFixed(1)}px tall)`);
+  assert.ok(g.get("horsehead").silhouette.every((s) => Number.isFinite(s.dx) && Number.isFinite(s.dy)));
+  // Remnants are filaments. The Veil is one thin slice of a shell 3 degrees
+  // across, so it is lace with no body: filaments and nothing else.
+  for (const id of ["ngc6960", "ngc6992"]) {
+    const v = g.get(id);
+    assert.equal(v.blobs.length, 0, `${id} should draw no cloud`);
+    assert.equal(v.filaments.length, 5, `${id} filaments`);
+  }
+  const m1 = g.get("m1");
+  assert.equal(m1.filaments.length, 6);
+  assert.ok(m1.blobs.length > 0, "the Crab keeps its diffuse interior");
+  for (const f of [...m1.filaments, ...g.get("ngc6960").filaments]) {
+    for (const n of [f.x1, f.y1, f.cx, f.cy, f.x2, f.y2]) assert.ok(Number.isFinite(n));
+    assert.ok(Math.hypot(f.x2 - f.x1, f.y2 - f.y1) > 1, "a filament needs length");
+  }
+  // Planetary nebulae: M57 is the annulus it always was, M27 an apple core of
+  // two lobes about a waist.
+  assert.ok(g.get("m57").ring);
+  const m27 = g.get("m27");
+  assert.equal(m27.ring, null);
+  assert.equal(m27.blobs.length, 3);
+  const lobes = m27.blobs.filter((b) => Math.hypot(b.dx, b.dy) > 0);
+  assert.equal(lobes.length, 2, "the Dumbbell needs two lobes");
+  assert.ok(Math.abs(lobes[0].dx + lobes[1].dx) < 1e-9 && Math.abs(lobes[0].dy + lobes[1].dy) < 1e-9, "opposite sides of the waist");
+  // M42's Trapezium core is kept OUT of blobs so the grey path, which draws
+  // every blob, is untouched by it.
+  assert.ok(g.get("m42").coreBlob, "M42 needs its core region");
+  assert.equal(g.get("m8").coreBlob, null);
+  assert.equal(g.get("m8").stars.length, 3, "M8's embedded blue-white stars");
+  assert.equal(g.get("m16").dust.length, 3, "the Eagle's pillars");
+  assert.equal(g.get("ngc7000").dust.length, 1, "the Gulf of Mexico notch");
+  // Clusters: tints are a minority of the stars, never all of them, and the
+  // Double Cluster carries no haze, because the pink gas in its famous image
+  // is narrowband enhancement (colour-sources.md corrections).
+  const m13 = g.get("m13");
+  assert.equal(m13.stars.length, 11);
+  assert.ok(m13.haze.length > 0, "a globular's unresolved core");
+  assert.ok(m13.stars.some((s) => s.tint === 1) && m13.stars.some((s) => s.tint === 2), "M13's blue and red giants");
+  assert.ok(m13.stars.filter((s) => s.tint === 0).length > m13.stars.length / 2, "most of a globular is its common colour");
+  assert.ok(g.get("m45").haze.length > 0, "the Pleiades' reflection nebulosity");
+  for (const id of ["ngc869", "ngc884"]) {
+    assert.equal(g.get(id).haze.length, 0, `${id} must draw no gas`);
+    assert.ok(g.get(id).stars.every((s) => s.tint === 0), `${id} stars are one sourced colour`);
+  }
+});
+
+test("colour-off geometry is unchanged for every glyph that existed before the colour round", () => {
+  // Recorded from HEAD~ (the pre-round lib/sky-objects.ts) and pinned here:
+  // the Global Constraint is that with colour off the chart renders exactly
+  // as it did, and the grey path draws these numbers and nothing else. A
+  // rnd() call inserted before or inside either placement loop moves all of
+  // them at once, which is the failure this catches.
+  const BEFORE = {
+    m1: [[0, 0, 6.780019], [1.731545, -3.749743, 4.614483], [-5.07385, 0.084356, 3.227873]],
+    m8: [[0, 0, 7.17359], [-2.723536, -3.124637, 3.175588], [0.70862, -5.588762, 5.203734]],
+    m42: [[0, 0, 7.638677], [2.73876, 4.86814, 4.693195], [4.358007, 2.716654, 3.62308]],
+    m13: [[0.679642, 1.083148, 1.029468], [-4.074239, 5.348776, 0.842976], [2.546159, 0.86389, 1.107533],
+      [-1.24546, -1.92219, 0.887456], [0.029783, 2.024421, 0.844557], [-4.94824, -0.294202, 1.191002],
+      [2.496401, -5.782248, 0.944421], [4.624135, -4.194965, 0.725891], [3.295001, 6.011263, 1.083903],
+      [-5.786105, 2.751467, 1.101721], [-4.155542, -4.546985, 1.124866]],
+    m44: [[6.246202, 3.061123, 0.852055], [-1.830355, 0.506407, 0.997816], [-0.910846, -9.341291, 1.103128],
+      [0.257536, -8.737051, 1.090642], [-3.863856, -4.761445, 1.124502], [5.937319, 4.09741, 0.838163],
+      [3.633071, -0.683399, 0.912189], [-8.360601, -2.158915, 1.083316], [-6.004138, 4.172917, 1.071017]],
+    m45: [[3.246976, 4.063393, 1.122904], [-7.441785, 2.78475, 0.85367], [-0.383844, 10.741678, 0.971434],
+      [8.274036, -2.222437, 1.115885], [4.209389, -2.144613, 1.000309], [-5.294123, 7.546798, 0.995052],
+      [-2.708962, 10.12979, 0.980841]],
+  };
+  const g = O.prepareObjectGlyphs(data.objects);
+  for (const [id, rows] of Object.entries(BEFORE)) {
+    const glyph = g.get(id);
+    const now = glyph.kind === "nebula" ? glyph.blobs : glyph.stars;
+    assert.equal(now.length, rows.length, `${id} count`);
+    rows.forEach(([dx, dy, r], i) => {
+      assert.ok(near(now[i].dx, dx, 1e-6) && near(now[i].dy, dy, 1e-6) && near(now[i].r, r, 1e-6),
+        `${id}[${i}] moved: ${JSON.stringify(now[i])} vs ${JSON.stringify([dx, dy, r])}`);
+    });
+  }
+  const m57 = g.get("m57");
+  assert.deepEqual(m57.ring, { outerR: 8, innerR: 3.36 });
+  assert.equal(m57.blobs.length, 0);
+  for (const id of ["m1", "m8", "m42", "m13", "m44", "m45", "m57"]) assert.equal(g.get(id).corePx, { m42: 7, m45: 7 }[id] ?? 6, id);
+});
+
+test("the nebula and cluster palettes keep the false-colour rulings", async () => {
+  const { OBJECT_COLOURS } = await import("../lib/sky-layers.ts");
+  const rgb = (s) => s.split(",").map(Number);
+  // The Veil's famous teal and red is the Hubble palette (ESA's own caption:
+  // blue oxygen, green sulphur, red hydrogen). A broadband Veil is dimmer and
+  // red-dominant, so neither arc may carry a blue-green anywhere.
+  for (const id of ["ngc6960", "ngc6992"]) {
+    const p = OBJECT_COLOURS[id];
+    assert.ok(p, `${id} palette`);
+    const [r, g2, b] = rgb(p.base);
+    assert.ok(r > g2 && r > b, `${id} broadband appearance is red-dominant, got ${p.base}`);
+    assert.equal(p.accent, undefined, `${id} must not carry the narrowband oxygen teal`);
+    assert.equal(p.core, undefined, `${id} must not carry the narrowband oxygen teal`);
+  }
+  // The Eagle's gold pillars on teal is the SHO palette, with H-alpha put on
+  // green. Its glow follows the line's own wavelength instead: red.
+  const [r16, g16, b16] = rgb(OBJECT_COLOURS.m16.base);
+  assert.ok(r16 > g16 * 1.5 && r16 > b16, `M16 must not read gold or teal, got ${OBJECT_COLOURS.m16.base}`);
+  // Planetary nebulae are blue-green from doubly ionized oxygen, which is
+  // where M57's and M27's bodies come from; the rim is hydrogen, which is red.
+  for (const id of ["m57", "m27"]) {
+    const [r, g2, b] = rgb(OBJECT_COLOURS[id].base);
+    assert.ok(g2 > r && b > r, `${id} body should be the blue-green of O III, got ${OBJECT_COLOURS[id].base}`);
+    const [ar, ag, ab] = rgb(OBJECT_COLOURS[id].accent);
+    assert.ok(ar > ag && ar > ab, `${id} rim should be the red of H-alpha, got ${OBJECT_COLOURS[id].accent}`);
+  }
+  // Nothing in this table may be GREEN. Blue-green is fine and sourced (O III
+  // at 495.9 and 500.7 nm, and M42's calibrated teal), so the test allows a
+  // green channel that a nearly equal blue comes with; what it refuses is a
+  // green that leaves blue behind, which is what the Hubble palette's
+  // H-alpha-on-green looks like, the canonical false-colour offence.
+  for (const [id, p] of Object.entries(OBJECT_COLOURS)) {
+    for (const [slot, value] of Object.entries(p)) {
+      const [r, g2, b] = rgb(value);
+      assert.ok(!(g2 > r && g2 > b * 1.15), `${id}.${slot} is green (${value}), not blue-green: that is the Hubble palette's own tell`);
+    }
+  }
+  // The Double Cluster's stars are ordinary stellar colour and citable; the
+  // pink hydrogen around them in the famous image is narrowband enhancement
+  // and is not. Stars only, so no second colour.
+  for (const id of ["ngc869", "ngc884"]) {
+    assert.ok(OBJECT_COLOURS[id].base, `${id} stars`);
+    assert.equal(OBJECT_COLOURS[id].accent, undefined, `${id} must not colour the enhanced hydrogen glow`);
+  }
+  // The Crab's interior blue is synchrotron light in a confirmed false-colour
+  // composite, so only its hydrogen filaments carry a colour.
+  assert.ok(OBJECT_COLOURS.m1.base);
+  assert.equal(OBJECT_COLOURS.m1.core, undefined, "the Crab's synchrotron interior has no sourced visible colour");
+});
+
 test("every coloured object has a fact that cites its colour source", async () => {
   const { OBJECT_COLOURS } = await import("../lib/sky-layers.ts");
   const { SKY_FACTS } = await import("../content/sky-facts.ts");

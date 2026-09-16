@@ -270,7 +270,7 @@ export function NightSky() {
     });
     const unsubStargaze = subscribeStargaze((on) => {
       s.highlight = null;
-      if (on) invite.hide(true);
+      if (on) invite.spend();
       pointer.clearPointerCursor();
       if (on) {
         tryStartEntryRings();

@@ -11,12 +11,14 @@ import type { SkyState } from "./state";
  * Rules, each load-bearing:
  * - Never on `(hover: none)`: a phone has no pointer to drift onto the sky.
  * - Never in stargaze, never over the sheet, `pointer-events: none`.
- * - Only once the star catalog has drawn: a caption about "the real sky"
- *   over a plain dark desk would be a claim with nothing behind it. An entry
+ * - Only once the star catalog has drawn: a caption about "a real chart of
+ *   the sky" over a plain dark desk would be a claim with nothing behind it. An entry
  *   that can't show it (no sky yet, no room in that margin) doesn't spend it.
  * - Once per session through `sessionStorage`; if storage throws (a private
  *   window, blocked site data), once per page load instead.
  * - Reduced motion: it appears and goes without a fade.
+ * - Entering stargaze, by either door, spends it (final review m4): the
+ *   invite points at a feature, and this visitor has already found it.
  *
  * `s.inviteShown` (mirrored to `window.__sky.inviteShown`) is true once it
  * has shown in THIS page load; `s.inviteBox` is its box while it is up.
@@ -182,5 +184,11 @@ export function createInvite(s: SkyState, el: HTMLElement | null) {
     window.removeEventListener("scroll", onScroll);
   };
 
-  return { maybeShow, hide, dispose };
+  /** Stargaze was entered: hide any showing caption and never show it this session. */
+  const spend = () => {
+    hide(true);
+    markShown();
+  };
+
+  return { maybeShow, hide, spend, dispose };
 }

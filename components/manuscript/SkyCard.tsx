@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type Ref } from "react";
 import { copy } from "@/content/copy";
-import type { Citation, SkyFact } from "@/content/sky-facts";
+import { EMISSION_LINE_COLOUR, type Citation, type SkyFact } from "@/content/sky-facts";
 import type { SkyShower } from "@/lib/sky-objects";
 
 /**
@@ -59,6 +59,17 @@ export type CardModel = {
    *  2026-09-15): their glyphs are drawn far bigger than life, so the card
    *  says so, the same honesty rule as the credit line. */
   notToScale?: boolean;
+  /** Set for anything actually drawn in sourced colour (colour round task 7):
+   *  an id in `OBJECT_COLOURS`, plus the Milky Way's band. The card then says
+   *  the colours come from long exposures and that the eye sees grey. M82 has
+   *  no palette, so its card gets no note, which is what keeps this line
+   *  honest rather than blanket. */
+  colourNote?: boolean;
+  /** Of those, the ones whose palette rests on an emission line's own
+   *  wavelength (`EMISSION_LINE_COLOURED`): the note gains a sentence and the
+   *  Sources list gains `EMISSION_LINE_COLOUR`. Only read when `colourNote`
+   *  is set. */
+  colourEmissionLines?: boolean;
 };
 
 const LONG_DATE = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
@@ -83,6 +94,20 @@ function CitationItem({ c }: { c: Citation }) {
       </a>
     </li>
   );
+}
+
+/**
+ * The card's own sources, plus the emission-line colour source on the cards
+ * whose colour note names emission lines (colour round task 7). It is one
+ * shared citation for a claim fifteen cards would otherwise each have to
+ * carry, so it is appended here rather than written into every fact. Deduped
+ * by url in case a fact ever cites the same page itself.
+ */
+function cardCitations(model: CardModel): Citation[] {
+  const base = model.fact.citations;
+  if (!model.colourNote || !model.colourEmissionLines) return base;
+  if (base.some((c) => c.url === EMISSION_LINE_COLOUR.url)) return base;
+  return [...base, EMISSION_LINE_COLOUR];
 }
 
 function extraLines(extra: CardExtra): string[] {
@@ -206,13 +231,19 @@ export function SkyCard({
             {t.notToScale}
           </p>
         ) : null}
+        {model.colourNote ? (
+          <p data-sky-card-colour-note className="mt-1">
+            {t.colourNote}
+            {model.colourEmissionLines ? ` ${t.colourNoteLines}` : ""}
+          </p>
+        ) : null}
         <p className="mt-3 font-serif text-[13px] leading-snug text-ink/90">{model.fact.body.join(" ")}</p>
         <p data-sky-card-visibility className="mt-2">
           {model.fact.visibility}
         </p>
         <h3 className="mt-3 text-[12px] text-mut/80 min-[880px]:text-[10px]">{t.sources}</h3>
         <ol data-sky-card-sources className="mt-1 space-y-1 text-[12px] leading-snug min-[880px]:text-[10px]">
-          {model.fact.citations.map((c) => (
+          {cardCitations(model).map((c) => (
             <CitationItem key={c.url} c={c} />
           ))}
         </ol>

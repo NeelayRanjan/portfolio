@@ -791,10 +791,16 @@ export const copy = {
     /** The screen-reader name of the stargaze keyboard list (NightSky, F2):
      *  one button per selectable currently on screen. */
     listLabel: "On screen now",
+    /** The colour clause (colour round task 7) rides inside the existing
+     *  not-to-scale sentence rather than adding a fourth one: the line was
+     *  already long. "Every position is real" then stands alone, where it
+     *  answers the size claim and the colour claim at once. The grey is
+     *  sourced (Chakraborty et al. 2015, .superpowers/sdd/colour-sources.md,
+     *  "Milky Way band"): at that brightness the eye is running on rods. */
     credit:
-      "The sky over NASA Ames from the moment you arrived, turning 180 times faster than the real one. Stars from the Extended Hipparcos Compilation; lines, Latin names, the Milky Way and the Messier objects from d3-celestial; English names and constellation origins from Wikipedia; spacecraft positions from JPL Horizons; meteor showers from the IMO; the ISS from CelesTrak. Every card cites its sources. The galaxies, nebulae, clusters and the Milky Way's band are drawn far bigger than they'd really look; every position is real.",
+      "The sky over NASA Ames from the moment you arrived, turning 180 times faster than the real one. Stars from the Extended Hipparcos Compilation; lines, Latin names, the Milky Way and the Messier objects from d3-celestial; English names and constellation origins from Wikipedia; spacecraft positions from JPL Horizons; meteor showers from the IMO; the ISS from CelesTrak. Every card cites its sources. The galaxies, nebulae, clusters and the Milky Way's band are drawn far bigger than they'd really look, in colours only a long exposure records; your own eyes would see them grey. Every position is real.",
     creditStill:
-      "The sky over NASA Ames at the moment you arrived. Stars from the Extended Hipparcos Compilation; lines, Latin names, the Milky Way and the Messier objects from d3-celestial; English names and constellation origins from Wikipedia; spacecraft positions from JPL Horizons; meteor showers from the IMO; the ISS from CelesTrak. Every card cites its sources. The galaxies, nebulae, clusters and the Milky Way's band are drawn far bigger than they'd really look; every position is real.",
+      "The sky over NASA Ames at the moment you arrived. Stars from the Extended Hipparcos Compilation; lines, Latin names, the Milky Way and the Messier objects from d3-celestial; English names and constellation origins from Wikipedia; spacecraft positions from JPL Horizons; meteor showers from the IMO; the ISS from CelesTrak. Every card cites its sources. The galaxies, nebulae, clusters and the Milky Way's band are drawn far bigger than they'd really look, in colours only a long exposure records; your own eyes would see them grey. Every position is real.",
     /** The stargaze card (components/manuscript/SkyCard.tsx). Numbers and
      *  dates between these fragments come from the data files; the facts
      *  themselves live in content/sky-facts.ts. */
@@ -815,6 +821,19 @@ export const copy = {
        *  card ("clutter" follow-up, 2026-09-15): their glyphs are drawn far
        *  bigger than life; the position is not. */
       notToScale: "This symbol is drawn far bigger than the object actually looks from Earth; its position is real.",
+      /** Shown only on cards whose object is actually drawn in sourced
+       *  colour (colour round task 7: an id in lib/sky-layers.ts's
+       *  OBJECT_COLOURS, plus the Milky Way's band). M82 has no palette, so
+       *  its card carries no colour note. The grey is sourced, same
+       *  citation as the credit line's. */
+      colourNote:
+        "These colours follow long-exposure photographs; your own eyes would see it grey, because at that brightness vision runs on rod cells, which register no colour.",
+      /** Appended to the note on the nebulae and remnants whose palette
+       *  rests on an emission line's own wavelength (EMISSION_LINE_COLOURED),
+       *  and the reason those cards also list Lodriguss under Sources. Star
+       *  colour is temperature, so the clusters and the galaxies get neither. */
+      colourNoteLines:
+        "The colour is what this object's own emission lines emit, not a narrowband palette that maps those lines onto other colours.",
       /** "Active Jul 17 to Aug 24, peak Aug 13. Zenithal hourly rate (ZHR) at peak: 100." */
       showerActive: "Active ",
       showerTo: " to ",

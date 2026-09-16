@@ -200,6 +200,33 @@ export const OBJECT_COLOURS: Record<string, ObjectPalette> = {
   ngc869: { base: "191,212,245" },
   ngc884: { base: "191,212,245" },
 };
+/**
+ * Of the palettes above, the ones that rest on an emission line's own
+ * wavelength rather than on a star's temperature (colour round task 7,
+ * ruling R-COLOUR-2). Their cards' colour note carries the Lodriguss
+ * citation for what a line photographs as; every other coloured card does
+ * not need it, because star colour is temperature and each card already
+ * sources its own.
+ *
+ * The line is drawn at the BASE colour: M20's blue lobe and M45's blue haze
+ * are dust scattering starlight, and M78 is nothing but that, so M78 is
+ * absent here even though it is a nebula. An id absent from OBJECT_COLOURS
+ * entirely (M82) gets no note at all, emission or otherwise.
+ */
+export const EMISSION_LINE_COLOURED: ReadonlySet<string> = new Set([
+  "m1", // hydrogen filaments
+  "m8", // hydrogen ionized by the embedded cluster
+  "m16", // the hydrogen glow left when the SHO palette is stripped off
+  "m20", // the red half is Hα/S II; the blue lobe is scattering
+  "m27", // O III body, hydrogen rim
+  "m42", // H-alpha cloud around an O III teal Trapezium region
+  "m57", // O III ring, hydrogen rim
+  "flame", // hydrogen glow behind its dust lane
+  "horsehead", // the backdrop it blocks is IC 434's hydrogen
+  "ngc7000", // hydrogen, confirmed broadband red
+  "ngc6960", // supernova remnant, hydrogen filaments only
+  "ngc6992",
+]);
 /** Dark material in silhouette: the Horsehead's own suggested hex (#15100c),
  *  near the desk's #0c0b09. Dust emits nothing, so this is the absence of a
  *  colour claim rather than one: it is painted OVER lit gas, where it reads

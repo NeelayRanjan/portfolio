@@ -82,6 +82,30 @@ export const CELESTRAK_ISS: Citation = {
   accessed: "2026-09-15",
 };
 
+/**
+ * The link between an emission line and the colour it photographs as
+ * (controller ruling R-COLOUR-2, .superpowers/sdd/sky-colour/progress.md).
+ * Its own words: hydrogen-alpha is "in the deep red at 656.28 nanometers",
+ * and planetary nebulae "are blue-green in color from emission lines of
+ * doubly ionized oxygen at 495.9 nanometers and 500.7 nanometers".
+ *
+ * A freely published book by a career astrophotographer, which is exactly
+ * whose field this is. It sits below NASA/ESA in authority, so it is cited as
+ * him and never dressed up as an institution. It is carried by the colour
+ * note on the cards whose palette rests on a line's own wavelength (task 7),
+ * not by the card bodies: one shared citation beats fifteen edited
+ * paragraphs. [N II] = red is NOT sourced by it or by anything else here, and
+ * nothing on the site states it.
+ */
+export const EMISSION_LINE_COLOUR: Citation = {
+  author: "Lodriguss, J.",
+  year: "n.d.",
+  title: "Color in astronomical objects",
+  site: "Beginner's Guide to Astronomical Image Processing (AstroPix)",
+  url: "https://www.astropix.com/books/BGAIP/chapter1/103.html",
+  accessed: "2026-09-15",
+};
+
 /** Ian Ridpath's Star Tales page for one constellation (http only: the site has no TLS). */
 function starTales(slug: string, title: string, accessed: string): Citation {
   return {

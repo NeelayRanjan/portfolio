@@ -41,6 +41,7 @@ import {
   simTimeMs,
   sunEquatorial,
 } from "@/lib/sky-math";
+import { EMISSION_LINE_COLOURED, OBJECT_COLOURS } from "@/lib/sky-layers";
 import { CLICK_SLOP_PX, PAN_LIMIT_FRAC, STARGAZE_PAN_LIMIT_FRAC, rubberBand, springStep, type Vec } from "@/lib/sky-pan";
 import { isStargazing, subscribeStargaze } from "@/lib/stargaze";
 import { SkyCard, type CardModel } from "./SkyCard";
@@ -444,7 +445,18 @@ export function NightSky() {
           object.distanceAu !== undefined && object.positionDate
             ? { type: "spacecraft", distanceAu: object.distanceAu, positionDate: object.positionDate }
             : { type: "none" };
-        return { id: h.id, title: object.name, fact, extra, notToScale: NOT_TO_SCALE_SYMBOLS.has(object.symbol) };
+        return {
+          id: h.id,
+          title: object.name,
+          fact,
+          extra,
+          notToScale: NOT_TO_SCALE_SYMBOLS.has(object.symbol),
+          // The palette table itself decides, so a colour added or dropped in
+          // sky-layers.ts carries its own note with it. M82 is deliberately
+          // absent from that table (ruling R-COLOUR-1) and so gets no note.
+          colourNote: OBJECT_COLOURS[object.id] !== undefined,
+          colourEmissionLines: EMISSION_LINE_COLOURED.has(object.id),
+        };
       }
       const planet = PLANETS.find((name) => name.toLowerCase() === h.id);
       if (planet) return { id: h.id, title: planet, fact, extra: { type: "none" } };
@@ -465,7 +477,12 @@ export function NightSky() {
         };
       }
       if (h.id === "milky-way") {
-        return { id: h.id, title: copy.stargaze.card.titleMilkyWay, fact, extra: { type: "none" }, notToScale: true };
+        // The band is warmed in stargaze too (task 6), from the same kind of
+        // long exposure, so it carries the note as well. It has no palette in
+        // OBJECT_COLOURS (its ramp is its own), so it is set here directly,
+        // the same way notToScale is. Its colour is star and dust colour, not
+        // line emission, so no emission sentence and no Lodriguss citation.
+        return { id: h.id, title: copy.stargaze.card.titleMilkyWay, fact, extra: { type: "none" }, notToScale: true, colourNote: true };
       }
       return null;
     };

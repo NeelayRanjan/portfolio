@@ -35,9 +35,37 @@ import { firefox } from "playwright";
 import * as Astronomy from "astronomy-engine";
 import * as satellite from "satellite.js";
 import { readFileSync } from "node:fs";
-import { SKY_FACTS } from "../content/sky-facts.ts";
+import { register } from "node:module";
+import { EMISSION_LINE_COLOUR, SKY_FACTS } from "../content/sky-facts.ts";
 import { moonEquatorial, planetEquatorial } from "../lib/sky-math.ts";
 import { copy } from "../content/copy.ts";
+
+/**
+ * The colour round's `sky-colour` and the card checks read the palette table
+ * itself, so a colour added or dropped in lib/sky-layers.ts carries its own
+ * assertions with it instead of being mirrored into a list here. That module
+ * is a real drawing module with runtime imports written the bundler way
+ * (`./sky-objects`, no extension), which node's ESM resolver refuses, so this
+ * registers the same resolve hook scripts/test-sky-objects.mjs uses: scoped to
+ * this process, it retries a failed relative specifier with ".ts". The static
+ * imports above are already resolved by the time this runs; only the dynamic
+ * import below goes through it.
+ */
+register(
+  `data:text/javascript,${encodeURIComponent(`
+export async function resolve(specifier, context, nextResolve) {
+  try {
+    return await nextResolve(specifier, context);
+  } catch (err) {
+    if (specifier.startsWith(".") && !/\\.[a-zA-Z0-9]+$/.test(specifier)) {
+      return nextResolve(specifier + ".ts", context);
+    }
+    throw err;
+  }
+}`)}`,
+  import.meta.url,
+);
+const { OBJECT_COLOURS, EMISSION_LINE_COLOURED } = await import("../lib/sky-layers.ts");
 
 const BASE = "http://localhost:3000";
 
@@ -2212,6 +2240,179 @@ async function openHitCard(browser, { W, H, date, hitId }) {
   });
 }
 
+/* ---------------------------------------------------------------------- */
+/* colour round (2026-09-15): sourced colour, stargaze only                */
+/* ---------------------------------------------------------------------- */
+
+/**
+ * One fixed instant, 1600x1000, chosen (measured, not guessed) because it
+ * puts ten of the palette table's objects on the canvas at once and covers
+ * all three glyph families: galaxy (M81), nebula (M1, M42, Flame, Horsehead,
+ * M78) and cluster (M44, M45, NGC 869/884) — plus M82, the one deep-sky
+ * object in the catalog that deliberately has NO palette, which the card
+ * check needs. The checks assert that coverage rather than assuming it, so a
+ * catalog change that empties the frame fails loudly instead of passing on
+ * two objects.
+ */
+const SKY_COLOUR_INSTANT = new Date("2026-10-01T06:00:00.000Z");
+/** Catalog ids that draw in sourced colour, and the deep-sky ids overall. */
+const COLOURED_IDS = Object.keys(OBJECT_COLOURS);
+const DEEP_SKY_IDS = OBJECTS_DATA.objects.filter((o) => ["galaxy", "nebula", "cluster"].includes(o.symbol)).map((o) => o.id);
+
+/**
+ * A square of canvas centred on a drawn hit, in CSS px, for each of `ids`
+ * that is drawn and fully on screen. The point is taken from
+ * `window.__sky.hits` rather than hardcoded, so a catalog or projection
+ * change moves the sample with the object instead of silently sampling bare
+ * sky. Returns the raw RGBA plus the device-pixel rect, so the same rect can
+ * be re-read in the other mode and compared pixel for pixel.
+ */
+function sampleObjectDiscs(page, ids, r) {
+  return page.evaluate(
+    ([sel, ids, r]) => {
+      const c = document.querySelector(sel);
+      const s = c.width / window.innerWidth;
+      const g = c.getContext("2d");
+      const out = {};
+      for (const h of window.__sky.hits) {
+        if (!ids.includes(h.id)) continue;
+        const x0 = Math.round((h.x - r) * s);
+        const y0 = Math.round((h.y - r) * s);
+        const n = Math.round(2 * r * s) + 1;
+        if (x0 < 0 || y0 < 0 || x0 + n > c.width || y0 + n > c.height) continue;
+        out[h.id] = { x: h.x, y: h.y, x0, y0, n, data: [...g.getImageData(x0, y0, n, n).data] };
+      }
+      return out;
+    },
+    [SKY_CANVAS, ids, r],
+  );
+}
+/** How far apart a pixel's channels are: 0 is grey, 255 is fully saturated. */
+const chromaAt = (data, i) => Math.max(data[i], data[i + 1], data[i + 2]) - Math.min(data[i], data[i + 1], data[i + 2]);
+/** The most chromatic pixel of a sampled square, with where it is. */
+function worstChroma(disc) {
+  let best = 0;
+  let at = 0;
+  for (let i = 0; i < disc.data.length; i += 4) {
+    const c = chromaAt(disc.data, i);
+    if (c > best) {
+      best = c;
+      at = i;
+    }
+  }
+  const px = (at / 4) % disc.n;
+  return { chroma: best, i: at, x: disc.x0 + px, y: disc.y0 + Math.floor(at / 4 / disc.n), rgb: disc.data.slice(at, at + 3).join(",") };
+}
+/**
+ * Measured on this build, ten objects at SKY_COLOUR_INSTANT: with colour off
+ * the most chromatic pixel anywhere in a 10px disc was 9-15; with colour on
+ * the most chromatic pixel that had been neutral was 41-112. The two
+ * thresholds sit inside that gap, each with room on its own side, so neither
+ * a faint tint leaking into normal mode nor colour quietly vanishing in
+ * stargaze can pass.
+ */
+const NEUTRAL_MAX_CHROMA = 24;
+const CHROMATIC_MIN_CHROMA = 30;
+/** 10 CSS px: inside the drawn glyph for all three enlarged families, and
+ *  clear of the always-on name that sits beside the symbol. */
+const COLOUR_DISC_R = 10;
+
+/**
+ * Task 8 step 1: colour is stargaze-only, asserted from both sides at the
+ * same points, the way Figure 1's hidden-model contract is asserted from both
+ * sides. The clock is pinned and motion reduced (sky-hover's lesson), so the
+ * chart cannot turn between the two reads and the sample squares are the same
+ * canvas pixels in both modes.
+ *
+ * ⚠️ M82 is NOT a pixel control here even though it is the palette table's
+ * one deliberate omission: it is drawn 4.7px from M81 at this instant, so any
+ * disc around it is mostly M81's colour. Its gate is the card's colour note
+ * (checkStargazeCard below), where the two are separable.
+ */
+async function checkSkyColour(browser) {
+  const W = 1600;
+  const H = 1000;
+  return pinnedSkyPage(browser, { W, H, date: SKY_COLOUR_INSTANT }, async (page) => {
+    await waitStargazeReady(page);
+
+    const off = await sampleObjectDiscs(page, COLOURED_IDS, COLOUR_DISC_R);
+    const ids = Object.keys(off).sort();
+    if (ids.length < 6) {
+      const drawn = await page.evaluate(() => window.__sky.hits.map((h) => h.id));
+      throw new Error(
+        `only ${ids.length} of the ${COLOURED_IDS.length} coloured objects (${ids.join(", ") || "none"}) are fully on a ${W}x${H} canvas at ${SKY_COLOUR_INSTANT.toISOString()}; drawn hits were ${drawn.join(", ")} — pick another SKY_COLOUR_INSTANT`,
+      );
+    }
+    const familyOf = (id) => OBJECTS_DATA.objects.find((o) => o.id === id)?.symbol;
+    const families = new Set(ids.map(familyOf));
+    for (const want of ["galaxy", "nebula", "cluster"]) {
+      if (!families.has(want)) {
+        throw new Error(`no ${want} among the sampled coloured objects (${ids.map((id) => `${id}:${familyOf(id)}`).join(", ")}); the check would not cover that family's draw path`);
+      }
+    }
+
+    // Side 1: colour off. Nothing inside any of those squares may be coloured.
+    const neutral = {};
+    for (const id of ids) {
+      const w = worstChroma(off[id]);
+      neutral[id] = w;
+      if (w.chroma > NEUTRAL_MAX_CHROMA) {
+        throw new Error(
+          `colour is off, but ${id}'s disc has a coloured pixel: rgb(${w.rgb}) at device px (${w.x}, ${w.y}), channel spread ${w.chroma} over the ${NEUTRAL_MAX_CHROMA} neutral tolerance`,
+        );
+      }
+    }
+
+    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    const on = await sampleObjectDiscs(page, COLOURED_IDS, COLOUR_DISC_R);
+
+    // Side 2: colour on, at the SAME pixels. Each object must own a pixel that
+    // was neutral a moment ago and is chromatic now.
+    const notes = [];
+    for (const id of ids) {
+      const a = off[id];
+      const b = on[id];
+      if (!b) throw new Error(`${id} was drawn with colour off but is not among the hits in stargaze`);
+      if (b.x0 !== a.x0 || b.y0 !== a.y0) {
+        throw new Error(`${id} moved from (${a.x.toFixed(1)}, ${a.y.toFixed(1)}) to (${b.x.toFixed(1)}, ${b.y.toFixed(1)}) on entering stargaze; the two samples are not the same pixels`);
+      }
+      let best = { chroma: -1, i: -1 };
+      for (let i = 0; i < b.data.length; i += 4) {
+        // Only pixels this check already proved neutral with colour off, so a
+        // star's own B-V tint (which is not a stargaze feature) can never be
+        // what passes this.
+        if (chromaAt(a.data, i) > NEUTRAL_MAX_CHROMA) continue;
+        const c = chromaAt(b.data, i);
+        if (c > best.chroma) best = { chroma: c, i };
+      }
+      if (best.chroma < CHROMATIC_MIN_CHROMA) {
+        throw new Error(
+          `${id} (${familyOf(id)}) draws no colour in stargaze: its most chromatic previously-neutral pixel is rgb(${b.data.slice(best.i, best.i + 3).join(",")}), channel spread ${best.chroma}, under the ${CHROMATIC_MIN_CHROMA} threshold (worst pixel with colour off was ${neutral[id].chroma})`,
+        );
+      }
+      const px = (best.i / 4) % b.n;
+      notes.push(`${id} (${px + b.x0}, ${Math.floor(best.i / 4 / b.n) + b.y0}) rgb(${a.data.slice(best.i, best.i + 3).join(",")})/${chromaAt(a.data, best.i)} -> rgb(${b.data.slice(best.i, best.i + 3).join(",")})/${best.chroma}`);
+    }
+
+    // Side 1 again: leaving stargaze puts the greys back, so the flag really
+    // is what drives it rather than a one-way switch thrown on entry.
+    await page.getByRole("button", { name: STARGAZE_EXIT }).click();
+    await page.waitForFunction(() => !document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    const back = await sampleObjectDiscs(page, COLOURED_IDS, COLOUR_DISC_R);
+    for (const id of ids) {
+      if (!back[id]) throw new Error(`${id} is not drawn any more after leaving stargaze`);
+      const w = worstChroma(back[id]);
+      if (w.chroma > NEUTRAL_MAX_CHROMA) {
+        throw new Error(`${id} kept a coloured pixel after leaving stargaze: rgb(${w.rgb}) at device px (${w.x}, ${w.y}), channel spread ${w.chroma}`);
+      }
+    }
+
+    const worstOff = Math.max(...ids.map((id) => neutral[id].chroma));
+    return `${ids.length} coloured objects across ${[...families].sort().join("/")}; worst channel spread with colour off ${worstOff} (<= ${NEUTRAL_MAX_CHROMA}), grey again after exit; in stargaze each has a previously-neutral pixel over ${CHROMATIC_MIN_CHROMA}: ${notes.join("; ")}`;
+  });
+}
+
 async function checkStargazeCard(browser) {
   const W = 1600;
   const H = 1000;
@@ -2233,7 +2434,17 @@ async function checkStargazeCard(browser) {
     await page.mouse.down();
     await page.mouse.move(p.x + 40, p.y + 10, { steps: 6 });
     await page.mouse.up();
-    await page.waitForFunction(() => window.__sky.dragging === false, null, { timeout: 1000 });
+    // Colour round task 8: these two 1 s waits used to fail as a bare
+    // "Timeout 1000ms exceeded" naming neither the wait nor the state, which
+    // is the dead end this round already paid for once. Measured here: this
+    // first one timed out on 1 of 3 full-suite runs (the check passes in
+    // 10.2-10.6 s otherwise), always right after the heaviest checks in the
+    // suite, so the suspicion is a loaded machine rather than a real
+    // regression. The diagnostics are so the next failure says which.
+    await page.waitForFunction(() => window.__sky.dragging === false, null, { timeout: 1000 }).catch(async () => {
+      const snap = await page.evaluate(() => ({ dragging: window.__sky.dragging, offset: window.__sky.offset }));
+      throw new Error(`the release of the (40, 10) stargaze drag never cleared window.__sky.dragging within 1s: ${JSON.stringify(snap)}`);
+    });
     if ((await card.count()) !== 0) throw new Error("a drag opened a card");
     const heldInStargaze = await page.evaluate(() => ({ ...window.__sky.offset }));
     if (heldInStargaze.x === 0 && heldInStargaze.y === 0) {
@@ -2243,7 +2454,12 @@ async function checkStargazeCard(browser) {
     await page.mouse.down();
     await page.mouse.move(p.x, p.y, { steps: 6 });
     await page.mouse.up();
-    await page.waitForFunction(() => window.__sky.offset.x === 0 && window.__sky.offset.y === 0, null, { timeout: 1000 });
+    await page.waitForFunction(() => window.__sky.offset.x === 0 && window.__sky.offset.y === 0, null, { timeout: 1000 }).catch(async () => {
+      const snap = await page.evaluate(() => ({ dragging: window.__sky.dragging, offset: window.__sky.offset }));
+      throw new Error(
+        `the reverse drag did not put the sky back at offset (0, 0) within 1s: ${JSON.stringify(snap)} — every position-dependent assertion below assumes it did`,
+      );
+    });
 
     // A click on Andromeda opens its card: title, kind line, one-liner, a real citation link.
     await page.mouse.click(p.x, p.y);
@@ -2473,7 +2689,105 @@ async function checkStargazeCard(browser) {
   }
   if (moon.oneLiner !== moonFact.oneLiner) throw new Error(`Moon one-liner "${moon.oneLiner}", fact says "${moonFact.oneLiner}"`);
 
-  return `${m31Summary}; voyager-1 card "${voyager.title}" data "${spacecraftLine}"; planet card "${mars.title}" / "${mars.kind}"; Moon card "${moon.title}" / "${moon.kind}"`;
+  // ---- colour round task 8 step 2: the deep-sky objects this round added,
+  // and the colour note's gate. One page load at SKY_COLOUR_INSTANT opens
+  // every galaxy/nebula/cluster card on screen, rather than a page load per
+  // object; each is opened through its keyboard-list button, which is both
+  // the reliable way to reach M81 and M82 (4.7px apart, so a canvas click
+  // cannot separate them) and an `element.click()` inside page.evaluate, the
+  // only form those buttons respond to.
+  const objectCards = await pinnedSkyPage(browser, { W, H, date: SKY_COLOUR_INSTANT }, async (page) => {
+    await page.waitForFunction(() => window.__sky.layers.facts === "ready", null, { timeout: 10000 });
+    await waitStargazeReady(page);
+    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    await page.waitForFunction(() => document.querySelectorAll("[data-sky-list-item]").length > 0, null, { timeout: 5000 });
+
+    const onScreen = await page.evaluate((ids) => window.__sky.hits.filter((h) => ids.includes(h.id)).map((h) => h.id), DEEP_SKY_IDS);
+    const open = onScreen.slice().sort();
+    const coloured = open.filter((id) => OBJECT_COLOURS[id] !== undefined);
+    const emission = coloured.filter((id) => EMISSION_LINE_COLOURED.has(id));
+    // The colour note is only worth checking if both sides are represented.
+    // M82 is named explicitly because it is the ONLY catalog object with no
+    // palette: without it this is a check that every card shows the note.
+    if (!open.includes("m82")) {
+      throw new Error(`M82, the one deep-sky object with no palette, is not drawn at ${SKY_COLOUR_INSTANT.toISOString()}; the colour note's gate would be untested. Drawn deep-sky objects: ${open.join(", ") || "none"}`);
+    }
+    if (coloured.length < 3) throw new Error(`only ${coloured.length} coloured deep-sky objects on screen (${coloured.join(", ") || "none"}); the brief wants at least three`);
+    if (!emission.length) throw new Error(`no emission-line-coloured object among ${coloured.join(", ")}; the Lodriguss citation's gate would be untested`);
+    if (emission.length === coloured.length) throw new Error(`every coloured object on screen (${coloured.join(", ")}) is emission-line coloured; the "no Lodriguss citation" side would be untested`);
+
+    const seen = [];
+    for (const id of open) {
+      const button = page.locator(`[data-sky-list-item="${id}"]`);
+      if ((await button.count()) !== 1) throw new Error(`${id} is drawn but has no keyboard-list button`);
+      await button.evaluate((el) => el.click());
+      const card = page.locator(`[data-sky-card="${id}"]`);
+      await card.waitFor({ state: "visible", timeout: 3000 }).catch(async () => {
+        const opened = await page.evaluate(() => window.__sky.card);
+        throw new Error(`the keyboard-list button for ${id} opened ${JSON.stringify(opened)} instead of ${id}'s card`);
+      });
+      const content = await card.evaluate((el) => ({
+        title: el.querySelector("h2")?.textContent,
+        kind: el.querySelector("[data-sky-card-kind]")?.textContent,
+        colourNote: el.querySelector("[data-sky-card-colour-note]")?.textContent ?? null,
+        links: [...el.querySelectorAll("[data-sky-card-sources] a")].map((a) => ({
+          href: a.getAttribute("href"),
+          target: a.getAttribute("target"),
+          rel: a.getAttribute("rel"),
+        })),
+      }));
+      const object = OBJECTS_DATA.objects.find((o) => o.id === id);
+      const fact = SKY_FACTS.find((f) => f.id === id);
+      if (content.title !== object.name) throw new Error(`${id}'s card is titled ${JSON.stringify(content.title)}, the catalog says ${JSON.stringify(object.name)}`);
+      if (!fact) throw new Error(`${id} opens a card but has no entry in content/sky-facts.ts`);
+      if (content.kind !== fact.kind) throw new Error(`${id}'s kind line is ${JSON.stringify(content.kind)}, its fact says ${JSON.stringify(fact.kind)}`);
+      const cited = content.links.filter((l) => /^https?:\/\//.test(l.href) && l.target === "_blank" && l.rel === "noopener");
+      if (!cited.length) throw new Error(`${id}'s card carries no citation link; its Sources list is ${JSON.stringify(content.links)}`);
+
+      // The note is gated on the palette table, not blanket. M82 is what
+      // makes this assertion mean anything: it has a card, a kind line and
+      // citations like every other object, and no colour note.
+      const wantNote = OBJECT_COLOURS[id] !== undefined;
+      if (wantNote !== (content.colourNote !== null)) {
+        throw new Error(
+          wantNote
+            ? `${id} is drawn in sourced colour (OBJECT_COLOURS has a palette for it) but its card shows no colour note`
+            : `${id} has NO palette in OBJECT_COLOURS, so it draws grey, yet its card shows the colour note ${JSON.stringify(content.colourNote)} — the note is blanket, not gated`,
+        );
+      }
+      if (wantNote) {
+        if (!content.colourNote.startsWith(copy.stargaze.card.colourNote)) {
+          throw new Error(`${id}'s colour note reads ${JSON.stringify(content.colourNote)}, which does not start with copy.stargaze.card.colourNote`);
+        }
+        // The emission-line sentence, and the Lodriguss citation that backs
+        // it, ride the same set: present on both sides or neither.
+        const wantLines = EMISSION_LINE_COLOURED.has(id);
+        const hasLines = content.colourNote.includes(copy.stargaze.card.colourNoteLines);
+        if (wantLines !== hasLines) {
+          throw new Error(
+            wantLines
+              ? `${id} is in EMISSION_LINE_COLOURED but its colour note omits the emission-line sentence: ${JSON.stringify(content.colourNote)}`
+              : `${id} is NOT in EMISSION_LINE_COLOURED (its colour is star temperature or scattering) yet its note claims emission lines: ${JSON.stringify(content.colourNote)}`,
+          );
+        }
+        const hasLodriguss = content.links.some((l) => l.href === EMISSION_LINE_COLOUR.url);
+        // A fact may cite the same page itself; SkyCard dedupes, so only an
+        // id whose own fact does not cite it proves the appending.
+        const factCites = fact.citations.some((c) => c.url === EMISSION_LINE_COLOUR.url);
+        if (wantLines && !hasLodriguss) throw new Error(`${id}'s note names emission lines but its Sources list lacks ${EMISSION_LINE_COLOUR.url}`);
+        if (!wantLines && !factCites && hasLodriguss) {
+          throw new Error(`${id} does not rest on an emission line, and its own fact does not cite Lodriguss, yet the citation is on its card`);
+        }
+      }
+      seen.push(`${id}${wantNote ? (EMISSION_LINE_COLOURED.has(id) ? "+note+lines" : "+note") : "+NO note"}/${cited.length} cite`);
+      await page.keyboard.press("Escape");
+      await card.waitFor({ state: "detached", timeout: 2000 });
+    }
+    return `${open.length} deep-sky cards at ${SKY_COLOUR_INSTANT.toISOString()} (${coloured.length} coloured, ${emission.length} emission-line, M82 grey): ${seen.join(", ")}`;
+  });
+
+  return `${m31Summary}; voyager-1 card "${voyager.title}" data "${spacecraftLine}"; planet card "${mars.title}" / "${mars.kind}"; Moon card "${moon.title}" / "${moon.kind}"; ${objectCards}`;
 }
 
 /**
@@ -2814,6 +3128,7 @@ const CHECKS = [
   ["sky-hover", checkSkyHover],
   ["sky-drag", checkSkyDrag],
   ["sky-objects", checkSkyObjects],
+  ["sky-colour", checkSkyColour],
   ["no-h-scroll-home-400", checkNoHorizontalScroll("/")],
   ["no-h-scroll-lab-400", checkNoHorizontalScroll("/lab")],
   ["no-early-heavy-payload-400", checkNoEarlyHeavyPayload],

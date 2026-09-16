@@ -18,6 +18,8 @@ type Listener = () => void;
 
 let counts: CardCounts | null = null;
 let panelOpen = false;
+/** Whether the stargaze list holds anything right now (NightSky's keyboard list). */
+let listHasItems = false;
 /** The hint bar's bottom edge in px, 0 while it isn't on screen. */
 let hintBottom = 0;
 const listeners = new Set<Listener>();
@@ -60,6 +62,25 @@ export function getCardCounts(): CardCounts | null {
 
 export function useCardCounts(): CardCounts | null {
   return useSyncExternalStore(subscribeBrowse, getCardCounts, () => null);
+}
+
+/**
+ * "browse the list" depends on the list having something in it, not on the
+ * counts: with objects.json absent the counts never publish, but the list
+ * still holds constellations, planets and the Moon (final review m2).
+ */
+export function setListHasItems(next: boolean): void {
+  if (next === listHasItems) return;
+  listHasItems = next;
+  emit();
+}
+
+export function getListHasItems(): boolean {
+  return listHasItems;
+}
+
+export function useListHasItems(): boolean {
+  return useSyncExternalStore(subscribeBrowse, getListHasItems, () => false);
 }
 
 export function isListPanelOpen(): boolean {

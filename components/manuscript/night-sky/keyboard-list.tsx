@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { copy } from "@/content/copy";
 import { constellationAt, type Highlight } from "@/lib/sky-render";
 import { isStargazing } from "@/lib/stargaze";
-import { isListPanelOpen, setListPanelOpen, useListPanelOpen } from "@/lib/stargaze-browse";
+import { isListPanelOpen, setListHasItems, setListPanelOpen, subscribeBrowse, useListPanelOpen } from "@/lib/stargaze-browse";
 import type { CardModel } from "../SkyCard";
 import type { CardController } from "./card-controller";
 import type { SkyState } from "./state";
@@ -43,6 +43,14 @@ import type { SkyState } from "./state";
  *   "browse the list"), or on an Escape with focus on nothing; focus in an
  *   open card stays there.
  * - Leaving stargaze closes the panel (NightSky's stargaze subscriber).
+ * - While the panel is open its rows are frozen (final review m3): the 2s
+ *   refresh skips, so a row can't move under a pointer aiming at it as the
+ *   sky turns. The list refreshes once on opening and again on closing, and
+ *   the timer's refresh resumes after close. A row whose subject has left
+ *   the screen still opens its card, which then shows the out-of-view line
+ *   (card-controller's followCard). Frozen means open, not only visible: on
+ *   a phone the panel hidden under a docked card comes back with the rows
+ *   the visitor left.
  */
 
 /** How often the stargaze keyboard list re-reads what's on screen. */
@@ -71,6 +79,7 @@ export function createKeyboardList(s: SkyState, deps: KeyboardListDeps) {
   const { buildCard, positionOf } = cards;
   let listTimer = 0;
   let listSignature = "";
+  let panelWasOpen = isListPanelOpen();
 
   /** The panel is open and actually on screen (not hidden under a phone's docked card). */
   const panelVisible = () => isListPanelOpen() && !(s.narrowQ.matches && s.selected);
@@ -133,16 +142,29 @@ export function createKeyboardList(s: SkyState, deps: KeyboardListDeps) {
     if (signature === listSignature) return;
     listSignature = signature;
     setListItems(items);
+    setListHasItems(items.length > 0);
   };
+  /** The timer's refresh: skipped while the panel is open (its rows are frozen). */
+  const tick = () => {
+    if (!isListPanelOpen()) refreshList();
+  };
+  // Opening refreshes once, then freezes; closing refreshes once, then the timer resumes.
+  const unsubBrowse = subscribeBrowse(() => {
+    const open = isListPanelOpen();
+    if (open === panelWasOpen) return;
+    panelWasOpen = open;
+    refreshList();
+  });
   const startList = () => {
     refreshList();
-    if (!listTimer) listTimer = window.setInterval(refreshList, LIST_REFRESH_MS);
+    if (!listTimer) listTimer = window.setInterval(tick, LIST_REFRESH_MS);
   };
   const stopList = () => {
     window.clearInterval(listTimer);
     listTimer = 0;
     listSignature = "";
     setListItems([]);
+    setListHasItems(false);
   };
   const actions: ListActions = {
     open: (item, el) => {
@@ -164,7 +186,10 @@ export function createKeyboardList(s: SkyState, deps: KeyboardListDeps) {
     closePanel: () => closePanel(),
   };
   /** Unmount only: clears the timer without a setState on an unmounting component. */
-  const dispose = () => window.clearInterval(listTimer);
+  const dispose = () => {
+    window.clearInterval(listTimer);
+    unsubBrowse();
+  };
 
   return { startList, stopList, actions, dispose, onKeyDown, closePanel };
 }

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { copy } from "@/content/copy";
 import { getStargazeEntry, isStargazing, setStargazing, useStargazing } from "@/lib/stargaze";
 import { StarMark } from "./StarMark";
-import { isListPanelOpen, setHintBottom, setListPanelOpen, useCardCounts, useListPanelOpen } from "@/lib/stargaze-browse";
+import { isListPanelOpen, setHintBottom, setListPanelOpen, useCardCounts, useListHasItems, useListPanelOpen } from "@/lib/stargaze-browse";
 
 /**
  * "stargaze for a bit?" in the desk margin above the sheet, and, while
@@ -32,9 +32,12 @@ import { isListPanelOpen, setHintBottom, setListPanelOpen, useCardCounts, useLis
  * Counts and the list (discoverability spec §4): once the sky's data has
  * landed the bar also says how many objects and constellations have cards,
  * both counted from the loaded data by NightSky (lib/stargaze-browse.ts),
- * and offers "browse the list", which opens NightSky's keyboard list as a
- * visible panel. Until the counts exist the bar shows the hint alone; it
- * never shows a zero standing in for data that hasn't arrived.
+ * and more, and offers "browse the list", which opens NightSky's keyboard
+ * list as a visible panel. Until the counts exist the bar shows no counts; it
+ * never shows a zero standing in for data that hasn't arrived. The browse
+ * control follows the list itself, not the counts: it shows whenever the
+ * list has something in it (or the panel is open), so an absent objects.json
+ * doesn't hide a list that still holds constellations (final review m2).
  *
  * The bar's measured bottom edge is published (setHintBottom) because it
  * wraps on a narrow screen: phone names keep clear of its real height, and
@@ -54,6 +57,7 @@ export function StargazeToggle() {
   const barRef = useRef<HTMLDivElement>(null);
   const counts = useCardCounts();
   const panelOpen = useListPanelOpen();
+  const listHasItems = useListHasItems();
   const wasOn = useRef(false);
   const [ready, setReady] = useState(false);
   const [touch, setTouch] = useState(false);
@@ -126,6 +130,10 @@ export function StargazeToggle() {
                     <span data-stargaze-count-constellations>{counts.constellations}</span>
                     {t.countsConstellations}
                   </span>
+                </>
+              ) : null}
+              {listHasItems || panelOpen ? (
+                <>
                   <span aria-hidden> · </span>
                   <button
                     type="button"

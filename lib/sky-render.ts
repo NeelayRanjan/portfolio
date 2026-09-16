@@ -134,10 +134,14 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
   ctx.fillRect(0, 0, width, height);
   ctx.lineWidth = 1;
 
-  // Milky Way band, under everything else.
+  // Milky Way band, under everything else. The objects are projected here,
+  // though they draw much later: the band's label has to know where they
+  // land so it can pick an anchor none of them is sitting on (see
+  // drawMilkyWay). Pure arithmetic over ~45 points, no drawing, once a frame.
+  const objectPoints = f.objects.map((o) => project(c, o.raDeg, o.decDeg));
   let milkyWayAnchor: { x: number; y: number } | null = null;
   if (f.milkyWay) {
-    const mw = drawMilkyWay(ctx, view, f.milkyWay);
+    const mw = drawMilkyWay(ctx, view, f.milkyWay, objectPoints);
     if (mw.hit) hits.push(mw.hit);
     milkyWayAnchor = mw.anchor;
   }

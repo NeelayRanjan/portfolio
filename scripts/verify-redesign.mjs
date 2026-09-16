@@ -2320,17 +2320,44 @@ async function checkStargazeCard(browser) {
     const nameTarget = (wantMilkyWay) =>
       page.evaluate((wantMilkyWay) => {
         const hits = window.__sky.hits;
+        // Why each candidate was rejected. Without this, "not clickable" is a
+        // dead end: the colour round hit exactly that when the Double Cluster
+        // landed on the band's label, and the message named neither the
+        // culprit nor the reason (colour round, 2026-09-15).
+        const why = [];
+        // The contract is that the drawn NAME is a hit target, not that one
+        // exact pixel of it is. A name box is ~55-80px wide and the sky is
+        // crowded, so a neighbouring symbol can easily cover its midpoint
+        // while most of the text stays clickable. Probe across the box and
+        // take the first clear point (colour round, 2026-09-15: the Double
+        // Cluster sits inside the Milky Way and lands on the band's label at
+        // several of the band's anchors, which is not a defect so much as two
+        // real objects occupying the same patch of sky).
+        const spanOf = (box) => {
+          const y = box.y + box.h / 2;
+          const pts = [];
+          for (const f of [0.5, 0.3, 0.7, 0.18, 0.82]) pts.push({ x: box.x + box.w * f, y });
+          return pts;
+        };
         for (const h of hits) {
           if (!h.box || (h.id === "milky-way") !== wantMilkyWay) continue;
-          const x = h.box.x + h.box.w / 2;
-          const y = h.box.y + h.box.h / 2;
-          if (!wantMilkyWay && Math.hypot(x - h.x, y - h.y) < 20) continue;
-          if (y < 80 || y > window.innerHeight - 120 || x < 20 || x > window.innerWidth - 20) continue;
-          if (hits.some((o) => o !== h && ((o.box && x >= o.box.x && x <= o.box.x + o.box.w && y >= o.box.y && y <= o.box.y + o.box.h) || Math.hypot(o.x - x, o.y - y) < 20))) continue;
-          if (document.elementFromPoint(x, y)?.closest("button, a, [data-sky-card], [data-sky-credit]")) continue;
-          return { id: h.id, x, y, symbolDist: Math.hypot(x - h.x, y - h.y) };
+          let picked = null;
+          const reasons = [];
+          for (const cand of spanOf(h.box)) {
+            const cx = cand.x;
+            const cy = cand.y;
+            if (!wantMilkyWay && Math.hypot(cx - h.x, cy - h.y) < 20) { reasons.push("too near its own symbol"); continue; }
+            if (cy < 80 || cy > window.innerHeight - 120 || cx < 20 || cx > window.innerWidth - 20) { reasons.push(`(${cx.toFixed(0)}, ${cy.toFixed(0)}) outside the safe area`); continue; }
+            const blk = hits.filter((o) => o !== h && ((o.box && cx >= o.box.x && cx <= o.box.x + o.box.w && cy >= o.box.y && cy <= o.box.y + o.box.h) || Math.hypot(o.x - cx, o.y - cy) < 20));
+            if (blk.length) { reasons.push(`(${cx.toFixed(0)}, ${cy.toFixed(0)}) covered by ${blk.map((o) => `${o.id}@${Math.hypot(o.x - cx, o.y - cy).toFixed(0)}px`).join(", ")}`); continue; }
+            if (document.elementFromPoint(cx, cy)?.closest("button, a, [data-sky-card], [data-sky-credit]")) { reasons.push(`(${cx.toFixed(0)}, ${cy.toFixed(0)}) under page chrome`); continue; }
+            picked = { id: h.id, x: cx, y: cy, symbolDist: Math.hypot(cx - h.x, cy - h.y) };
+            break;
+          }
+          if (picked) return picked;
+          why.push(`${h.id}: ${reasons.join("; ")}`);
         }
-        return null;
+        return { none: true, why };
       }, wantMilkyWay);
     const clickName = async (t) => {
       await page.mouse.click(t.x, t.y);
@@ -2342,10 +2369,12 @@ async function checkStargazeCard(browser) {
       await card.waitFor({ state: "detached", timeout: 2000 });
     };
     const named = await nameTarget(false);
-    if (!named) throw new Error("no clickable object name box on screen");
+    if (named.none) throw new Error(`no clickable object name box on screen: ${named.why.join("; ") || "no candidates at all"}`);
     await clickName(named);
     const mwName = await nameTarget(true);
-    if (!mwName) throw new Error("the Milky Way's label box is not clickable on screen");
+    if (mwName.none) {
+      throw new Error(`the Milky Way's label box is not clickable on screen: ${mwName.why.join("; ") || "the band drew no label"}`);
+    }
     await clickName(mwName);
 
     // Final review F3: a subject leaving the viewport leaves its card open,

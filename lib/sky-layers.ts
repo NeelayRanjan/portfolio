@@ -81,6 +81,17 @@ const onCanvas = (p: { x: number; y: number }, v: View, m: number) =>
 
 /** Padding around a name's text box, so a click on the glyphs' edge still lands. */
 const NAME_PAD = 3;
+/** How far the Milky Way's label centre must clear a drawn object's symbol
+ *  before that anchor counts as usable. Comfortably past the widest on-symbol
+ *  hit radius (a big glyph's `core`, capped at 12) so the band's box, and not
+ *  the object, wins a click aimed at the label. */
+const LABEL_CLEARANCE_PX = 30;
+/** Stargaze's own chrome: the hint line across the top and the credit block
+ *  along the bottom. The band's label avoids both, so it is neither hard to
+ *  read nor hard to click. Generous on the bottom because the credit wraps to
+ *  three lines on a narrow window. */
+const CHROME_TOP_PX = 90;
+const CHROME_BOTTOM_PX = 130;
 /**
  * The box a name occupies when drawn with fillText at (x, baseline) in the
  * context's CURRENT font of `px` size: measured width, a cap height of
@@ -103,6 +114,9 @@ export function drawMilkyWay(
   ctx: CanvasRenderingContext2D,
   v: View,
   mw: PreparedMilkyWay,
+  /** Already-projected object points the label should not sit on; see the
+   *  anchor-picking comment below. Empty is fine and keeps the old behaviour. */
+  avoid: readonly { x: number; y: number }[] = [],
 ): { hit: Hit | null; anchor: { x: number; y: number } | null } {
   const c = v.chart;
   const lst = c.lstDeg * D2R;
@@ -139,12 +153,43 @@ export function drawMilkyWay(
   });
   // One "Milky Way" label: the on-canvas anchor closest to the pole, which is
   // the most stable choice as the sky turns.
+  //
+  // ⚠️ Anchors that a drawn object sits on are passed over first (colour
+  // round, 2026-09-15). The band is selectable by its label box ALONE
+  // (`boxOnly`), and hit precedence runs the on-symbol pass before any box,
+  // so an object within a few px of the label makes the Milky Way
+  // unclickable there. That is not hypothetical: adding the Double Cluster
+  // put NGC 869 and NGC 884 6 and 10px from the label's own centre, which is
+  // no accident — the Double Cluster lies IN the band, and the band's
+  // anchors are in the band by construction, so this collision class recurs
+  // every time a new object lands in the Milky Way.
+  //
+  // Two things spoil an anchor: a drawn object sitting on it, and the page's
+  // own chrome. Stargaze puts a hint line across the top and a credit block
+  // along the bottom, so a label parked there is both hard to read and hard
+  // to click. Both are scored, clear beats crowded, and closeness to the pole
+  // only breaks ties within a tier. If EVERY anchor is spoiled we still take
+  // the closest rather than drop the label: a band a visitor has to hunt to
+  // click still beats an unlabelled one.
+  ctx.font = `9px ${v.fontFamily}`;
+  const labelHalfW = ctx.measureText("Milky Way").width / 2;
+  const spoiled = (p: { x: number; y: number }) => {
+    if (p.y < CHROME_TOP_PX || p.y > v.height - CHROME_BOTTOM_PX) return true;
+    return avoid.some((o) => Math.hypot(o.x - (p.x + labelHalfW), o.y - p.y) < LABEL_CLEARANCE_PX);
+  };
   let best: { x: number; y: number } | null = null;
   let bestRho = Infinity;
+  let bestSpoiled = true;
   for (const [ra, dec] of mw.labels) {
     const p = project(c, ra, dec);
+    if (!onCanvas(p, v, -40)) continue;
     const rho = Math.hypot(p.x - c.cx, p.y - c.cy);
-    if (onCanvas(p, v, -40) && rho < bestRho) {
+    const isSpoiled = spoiled(p);
+    if (bestSpoiled && !isSpoiled) {
+      best = p;
+      bestRho = rho;
+      bestSpoiled = false;
+    } else if (isSpoiled === bestSpoiled && rho < bestRho) {
       best = p;
       bestRho = rho;
     }

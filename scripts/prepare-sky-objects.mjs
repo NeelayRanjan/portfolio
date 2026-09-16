@@ -111,10 +111,68 @@ const MESSIER = {
   M57: { id: "m57", name: "Ring Nebula" },
   M87: { id: "m87", name: "M87" },
 };
+/**
+ * Eight more Messier picks added for the colour round
+ * (docs/superpowers/sdd/sky-colour/task-1-brief.md, task 1). Kept as a
+ * second table, processed by a second `addMessierPicks` call below rather
+ * than merged into `MESSIER` above, so the original ten objects keep their
+ * exact position in `objects` and the diff against the committed
+ * objects.json shows only additions at the end.
+ */
+const MESSIER_2 = {
+  M16: { id: "m16", name: "Eagle Nebula" },
+  M20: { id: "m20", name: "Trifid Nebula" },
+  M27: { id: "m27", name: "Dumbbell Nebula" },
+  M33: { id: "m33", name: "Triangulum Galaxy" },
+  M78: { id: "m78", name: "M78" },
+  M81: { id: "m81", name: "Bode's Galaxy" },
+  M82: { id: "m82", name: "Cigar Galaxy" },
+  M104: { id: "m104", name: "Sombrero Galaxy" },
+};
+/**
+ * Non-Messier deep-sky picks (same colour-round task): four from
+ * `dsos.6.json` (Horsehead, Flame, the Double Cluster pair, North America)
+ * and the Veil pair from `dsos.14.json`, since `dsos.6.json` does not carry
+ * the Veil despite the "6" nominally naming a limiting magnitude (NGC
+ * 2024's own nominal mag of `"999"` in `dsos.6.json` shows that isn't a
+ * hard filter either). Keyed by the dsos feature's `desig`.
+ *
+ * dsos entries carry no name field. `name` here is either the
+ * dsonames.json join (checked in the assert-before-write section below) or
+ * a hand label: dsonames.json names the Double Cluster's and the Veil's
+ * individual pieces ("h Persei", "χ Persei", "Filamentary Nebula", "East
+ * Veil Nebula"), never the popular pair name, so "Double Cluster" and
+ * "Veil Nebula" below are hand-typed, the same way some Messier `name`s
+ * above are hand-typed rather than read verbatim from `alt`. The Double
+ * Cluster and the Veil are each represented as two separate sourced
+ * objects (real, independently-catalogued positions), never a fabricated
+ * midpoint.
+ */
+const DSOS6_PICKS = {
+  "B 33": { id: "horsehead" },
+  "NGC 2024": { id: "flame" },
+  "NGC 869": { id: "ngc869", name: "Double Cluster (h Persei)" },
+  "NGC 884": { id: "ngc884", name: "Double Cluster (χ Persei)" },
+  "NGC 7000": { id: "ngc7000" },
+};
+const DSOS14_PICKS = {
+  "NGC 6960": { id: "ngc6960", name: "Veil Nebula (west)" },
+  "NGC 6992": { id: "ngc6992", name: "Veil Nebula (east)" },
+};
+/**
+ * A dsos `mag` at or above this is d3-celestial's own "not meaningfully
+ * measured" sentinel (NGC 2024 carries the literal string "999" in
+ * dsos.6.json), not a real magnitude, and must never reach a card.
+ */
+const DSOS_MAG_SENTINEL = 900;
 /** d3-celestial `type` codes: galaxies draw as an ellipse, nebulae and remnants a dotted circle, clusters a ring of dots. */
 const SYMBOL_FOR_TYPE = {
   s: "galaxy", e: "galaxy", i: "galaxy",
   snr: "nebula", sfr: "nebula", pn: "nebula", rn: "nebula",
+  // dn (dark nebula, Horsehead/B33) and bn (bright nebula, North America/NGC
+  // 7000) added for the colour round's dsos.6.json picks: absent from the
+  // original table, which only ever saw messier.json's narrower type set.
+  dn: "nebula", bn: "nebula",
   oc: "cluster", gc: "cluster",
 };
 
@@ -180,11 +238,14 @@ const RECORDED_HORIZONS = {
 /* Fetch                                                                   */
 /* ---------------------------------------------------------------------- */
 
-const [messier, mw, starnames, stars6, wikitext, imoPdf, skyJson] = await Promise.all([
+const [messier, mw, starnames, stars6, dsos6, dsos14, dsonames, wikitext, imoPdf, skyJson] = await Promise.all([
   get(`${RAW}/messier.json`, "json"),
   get(`${RAW}/mw.json`, "json"),
   get(`${RAW}/starnames.json`, "json"),
   get(`${RAW}/stars.6.json`, "json"),
+  get(`${RAW}/dsos.6.json`, "json"),
+  get(`${RAW}/dsos.14.json`, "json"),
+  get(`${RAW}/dsonames.json`, "json"),
   get(WIKI_RAW, "text"),
   get(IMO_PDF, "bytes"),
   readFile(SKY_JSON, "utf8").then(JSON.parse),
@@ -293,26 +354,29 @@ const voyagerPositionDate = (v) => (v.mode === "recorded" ? RECORDED_HORIZONS.qu
 
 const objects = [];
 
-for (const [name, pick] of Object.entries(MESSIER)) {
-  const f = messier.features.find((x) => x.properties.name === name);
-  if (!f) fail(`${name} missing from messier.json`);
-  const { type, dim, desig, mag } = f.properties;
-  const symbol = SYMBOL_FOR_TYPE[type];
-  if (!symbol) fail(`${name}: unknown d3-celestial type "${type}"`);
-  const [a, b] = String(dim).split("x").map(Number);
-  objects.push({
-    id: pick.id,
-    name: pick.name,
-    designation: desig ? `${name} · ${desig}` : name,
-    symbol,
-    raDeg: r5(ra360(f.geometry.coordinates[0])),
-    decDeg: r5(f.geometry.coordinates[1]),
-    mag,
-    // Galaxy ellipse axis ratio from the catalog's size, clamped so a thin
-    // disc still reads as an ellipse at 8px. A symbol, not a picture.
-    ...(symbol === "galaxy" ? { axisRatio: r2(Math.min(1, Math.max(0.35, b && a ? b / a : 1))) } : {}),
-  });
+function addMessierPicks(table) {
+  for (const [name, pick] of Object.entries(table)) {
+    const f = messier.features.find((x) => x.properties.name === name);
+    if (!f) fail(`${name} missing from messier.json`);
+    const { type, dim, desig, mag } = f.properties;
+    const symbol = SYMBOL_FOR_TYPE[type];
+    if (!symbol) fail(`${name}: unknown d3-celestial type "${type}"`);
+    const [a, b] = String(dim).split("x").map(Number);
+    objects.push({
+      id: pick.id,
+      name: pick.name,
+      designation: desig ? `${name} · ${desig}` : name,
+      symbol,
+      raDeg: r5(ra360(f.geometry.coordinates[0])),
+      decDeg: r5(f.geometry.coordinates[1]),
+      mag,
+      // Galaxy ellipse axis ratio from the catalog's size, clamped so a thin
+      // disc still reads as an ellipse at 8px. A symbol, not a picture.
+      ...(symbol === "galaxy" ? { axisRatio: r2(Math.min(1, Math.max(0.35, b && a ? b / a : 1))) } : {}),
+    });
+  }
 }
+addMessierPicks(MESSIER);
 
 // Sagittarius A*, J2000 (spec §4): RA 17h45m40.04s, Dec −29°00′28.1″.
 objects.push({
@@ -375,6 +439,41 @@ for (const [id, name, hip] of NAMED_STARS) {
     hip,
   });
 }
+
+/**
+ * The eight new Messier picks and the seven dsos picks (colour round, task
+ * 1), added here, after the original 30 pushes, so the existing objects
+ * keep their exact array position and the diff against the committed
+ * objects.json shows only additions at the end.
+ */
+addMessierPicks(MESSIER_2);
+
+function addDsosPicks(features, picks, fileLabel) {
+  for (const [desig, pick] of Object.entries(picks)) {
+    const f = features.find((x) => x.properties.desig === desig);
+    if (!f) fail(`${desig} missing from ${fileLabel}`);
+    const { type, mag } = f.properties;
+    const symbol = SYMBOL_FOR_TYPE[type];
+    if (!symbol) fail(`${desig}: unknown d3-celestial type "${type}"`);
+    const joinedName = dsonames[desig]?.name;
+    if (!pick.name && !joinedName) fail(`${desig}: no dsonames.json entry and no hand label`);
+    const numericMag = Number(mag);
+    const magOk = Number.isFinite(numericMag) && numericMag < DSOS_MAG_SENTINEL;
+    objects.push({
+      id: pick.id,
+      name: pick.name ?? joinedName,
+      designation: desig,
+      symbol,
+      raDeg: r5(ra360(f.geometry.coordinates[0])),
+      decDeg: r5(f.geometry.coordinates[1]),
+      // NGC 2024's mag is d3-celestial's own "999" sentinel: omitted, never
+      // shown as a real number (see DSOS_MAG_SENTINEL above).
+      ...(magOk ? { mag: numericMag } : {}),
+    });
+  }
+}
+addDsosPicks(dsos6.features, DSOS6_PICKS, "dsos.6.json");
+addDsosPicks(dsos14.features, DSOS14_PICKS, "dsos.14.json");
 
 /* Constellation origins, parsed from the pinned wikitext. */
 function parseOrigins(src) {
@@ -520,7 +619,7 @@ const milkyway = {
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
 const byId = new Map(objects.map((o) => [o.id, o]));
 if (byId.size !== objects.length) fail("duplicate object ids");
-if (objects.length !== 30) fail(`${objects.length} objects, expected 30`);
+if (objects.length !== 45) fail(`${objects.length} objects, expected 45`);
 
 const m31 = byId.get("m31");
 if (!near(m31.raDeg, 10.6751, 0.001) || !near(m31.decDeg, 41.2667, 0.001)) fail(`M31 at ${m31.raDeg}, ${m31.decDeg}`);
@@ -533,6 +632,31 @@ const polaris = byId.get("polaris");
 if (!near(polaris.decDeg, 89.2641, 0.001)) fail(`Polaris at dec ${polaris.decDeg}`);
 if (!near(byId.get("sirius").mag, -1.44, 0.01)) fail("Sirius magnitude");
 for (const [id] of NAMED_STARS) if (!(byId.get(id).mag <= 2.0)) fail(`${id} is fainter than mag 2`);
+
+// Colour-round additions (task 1): positions transcribed in
+// .superpowers/sdd/position-sources.md, re-checked here against the same
+// pinned d3-celestial commit so a source shift can never slip through.
+const m33b = byId.get("m33");
+if (!near(m33b.raDeg, 23.475, 0.001) || !near(m33b.decDeg, 30.65, 0.001)) fail(`M33 at ${m33b.raDeg}, ${m33b.decDeg}`);
+if (byId.get("m33").symbol !== "galaxy") fail("M33 symbol");
+const horsehead = byId.get("horsehead");
+if (!near(horsehead.raDeg, 85.2458, 0.001) || !near(horsehead.decDeg, -2.4583, 0.001)) fail(`Horsehead at ${horsehead.raDeg}, ${horsehead.decDeg}`);
+if (horsehead.name !== "Horsehead Nebula") fail(`horsehead dsonames join drifted: "${horsehead.name}"`);
+const flame = byId.get("flame");
+if (!near(flame.raDeg, 85.429, 0.001) || !near(flame.decDeg, -1.842, 0.001)) fail(`Flame at ${flame.raDeg}, ${flame.decDeg}`);
+if (flame.name !== "Flame Nebula") fail(`flame dsonames join drifted: "${flame.name}"`);
+if (flame.mag !== undefined) fail(`Flame (NGC 2024) mag ${flame.mag} should be omitted, it is d3-celestial's own 999 sentinel`);
+const northAmerica = byId.get("ngc7000");
+if (!near(northAmerica.raDeg, 314.696, 0.001) || !near(northAmerica.decDeg, 44.33, 0.001)) fail(`NGC 7000 at ${northAmerica.raDeg}, ${northAmerica.decDeg}`);
+if (northAmerica.name !== "North America Nebula") fail(`ngc7000 dsonames join drifted: "${northAmerica.name}"`);
+const dc1 = byId.get("ngc869");
+const dc2 = byId.get("ngc884");
+if (!near(dc1.raDeg, 34.75, 0.001) || !near(dc1.decDeg, 57.128, 0.001)) fail(`NGC 869 at ${dc1.raDeg}, ${dc1.decDeg}`);
+if (!near(dc2.raDeg, 35.596, 0.001) || !near(dc2.decDeg, 57.125, 0.001)) fail(`NGC 884 at ${dc2.raDeg}, ${dc2.decDeg}`);
+const veilW = byId.get("ngc6960");
+const veilE = byId.get("ngc6992");
+if (!near(veilW.raDeg, 311.4083, 0.001) || !near(veilW.decDeg, 30.7083, 0.001)) fail(`NGC 6960 at ${veilW.raDeg}, ${veilW.decDeg}`);
+if (!near(veilE.raDeg, 314.079, 0.001) || !near(veilE.decDeg, 31.743, 0.001)) fail(`NGC 6992 at ${veilE.raDeg}, ${veilE.decDeg}`);
 
 // Voyager 1 sits in Ophiuchus near dec +12°, Voyager 2 far south in Pavo; both recede ~3-4 au a year.
 if (!(v1.raDeg > 255 && v1.raDeg < 262 && v1.decDeg > 10 && v1.decDeg < 14 && v1.distanceAu > 165 && v1.distanceAu < 185))

@@ -22,6 +22,11 @@ const EXPECTED_IDS = [
   "sgr-a-star", "kepler-field", "hubble-deep-field", "voyager-1", "voyager-2",
   "polaris", "sirius", "arcturus", "vega", "capella", "rigel", "procyon", "betelgeuse",
   "altair", "aldebaran", "antares", "spica", "pollux", "deneb", "regulus",
+  // Colour round (task 1) additions, in the order prepare-sky-objects.mjs
+  // pushes them: the eight new Messier picks, then the five dsos.6.json
+  // picks, then the two dsos.14.json (Veil) picks.
+  "m16", "m20", "m27", "m33", "m78", "m81", "m82", "m104",
+  "horsehead", "flame", "ngc869", "ngc884", "ngc7000", "ngc6960", "ngc6992",
 ];
 const SYMBOLS = new Set(["galaxy", "nebula", "cluster", "core", "field", "square", "chevron", "star"]);
 
@@ -245,12 +250,22 @@ test("prepareObjectGlyphs: deterministic, and only galaxies/nebulae/clusters wit
   const a = O.prepareObjectGlyphs(data.objects);
   const b = O.prepareObjectGlyphs(data.objects);
   assert.deepEqual(a, b, "not deterministic across two calls");
+  // sky-colour task 1 added 15 catalog objects (8 Messier, 7 dsos) with no
+  // tuned glyph size yet -- that tuning is task 4's job, and
+  // prepareObjectGlyphs's own doc comment says an untuned galaxy/nebula/
+  // cluster id correctly resolves no glyph ("not an error"). So a glyph is
+  // required only for a symbol NOT in this shape set (must never draw one)
+  // or for one of the ids already tuned before this task; a present glyph,
+  // whichever id it's for, must still match its object's own symbol.
+  const TUNED = ["m1", "m8", "m13", "m31", "m42", "m44", "m45", "m51", "m57", "m87"];
   for (const o of data.objects) {
     const glyph = a.get(o.id);
     if (["galaxy", "nebula", "cluster"].includes(o.symbol)) {
-      assert.ok(glyph, `${o.id} (${o.symbol}) has no glyph`);
-      assert.equal(glyph.kind, o.symbol);
-      assert.ok(glyph.corePx >= 6, `${o.id} corePx ${glyph.corePx} below the default SYMBOL_CORE_PX`);
+      if (TUNED.includes(o.id)) assert.ok(glyph, `${o.id} (${o.symbol}) has no glyph`);
+      if (glyph) {
+        assert.equal(glyph.kind, o.symbol);
+        assert.ok(glyph.corePx >= 6, `${o.id} corePx ${glyph.corePx} below the default SYMBOL_CORE_PX`);
+      }
     } else {
       assert.equal(glyph, undefined, `${o.id} (${o.symbol}) unexpectedly has a glyph`);
     }
@@ -277,5 +292,31 @@ test("prepareObjectGlyphs: deterministic, and only galaxies/nebulae/clusters wit
   assert.equal(m13.stars.length, 11);
   for (const s of m13.stars) {
     assert.ok(Math.hypot(s.dx, s.dy) <= 7 + 1e-9, `m13 star outside its 7px extent: ${JSON.stringify(s)}`);
+  }
+});
+
+// ---- sky-colour task 1: the fifteen new deep-sky objects ----
+
+test("objects.json carries the colour-round additions", () => {
+  const ids = new Set(data.objects.map((o) => o.id));
+  for (const id of ["horsehead", "flame", "m20", "m27", "m16", "m33", "m81", "m82", "m104", "m78",
+                    "ngc869", "ngc884", "ngc6960", "ngc6992", "ngc7000"]) {
+    assert.ok(ids.has(id), `${id} missing from objects.json`);
+  }
+  assert.equal(data.objects.length, 45);
+});
+
+test("no object displays a sentinel magnitude", () => {
+  for (const o of data.objects) {
+    if (o.mag === undefined) continue;
+    assert.ok(o.mag > -30 && o.mag < 30, `${o.id} mag ${o.mag} is a sentinel, not a magnitude`);
+  }
+});
+
+test("every object is north of the chart edge and has a usable position", () => {
+  for (const o of data.objects) {
+    if (o.id === "voyager-2") continue; // known: dec -59.8, has a card but never draws
+    assert.ok(o.decDeg > -35, `${o.id} at dec ${o.decDeg} is south of the chart edge`);
+    assert.ok(Number.isFinite(o.raDeg) && o.raDeg >= 0 && o.raDeg < 360, `${o.id} bad ra`);
   }
 });

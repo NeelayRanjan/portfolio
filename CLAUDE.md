@@ -317,9 +317,15 @@ stargaze" below for the full contracts, including the Milky Way label's
 anchor now avoiding drawn objects, and crowded object names stepping down
 instead of overlapping.
 
-**2026-09-16: the discoverability round, branch `discoverability`** (spec
+**2026-09-16: the discoverability round, LIVE since `538fe63`** (merged and
+deployed the same day after the owner reviewed the preview; spec
 `docs/superpowers/specs/2026-09-16-discoverability-design.md`, ledger with
-every ruling in `.superpowers/sdd/discoverability/progress.md`). It answers
+every ruling in `.superpowers/sdd/discoverability/progress.md`). ⚠️ Every
+round's SDD ledgers, research files (`colour-sources.md`,
+`position-sources.md`), task reports and review screenshots are archived in
+this checkout's `.superpowers/sdd/`, which is gitignored: they exist on the
+owner's machine only. This file is the durable, versioned record; the ledgers
+are the audit trail behind it. It answers
 Open items 1 and 2 as they stood, and closed the old item 8 (splitting
 `NightSky.tsx`, then past 800 lines). **The owner reversed
 "colour is stargaze-only"**: the ordinary page shows the sky's sourced colour
@@ -361,9 +367,11 @@ into `components/manuscript/night-sky/` first, with no behaviour change. See
    since the panel's title says "on screen now", but a visitor reading "44
    objects" can't reach most of them from the list). The invite is
    hover-only, so on a phone the footer door and the toggle are the only
-   ways in. The owner still owes a read of the invite's wording ("a real
-   chart of the sky over NASA Ames", final review m1: the chart runs 180x, so
-   "the real sky" read as live) and of the credit's tail.
+   ways in. The owner reviewed and approved the round's copy on the preview
+   (2026-09-16): the invite ("a real chart of the sky over NASA Ames", final
+   review m1: the chart runs 180x, so "the real sky" read as live), the footer
+   lead, and the credit's tail; at merge time they also cut the credit's
+   speed-up clause themselves.
 2. **Stargaze on a phone: names drawn, still thinner than desktop.** Below
    880px, since 2026-09-16, the coloured objects draw names that are tap
    targets (planets and the Moon always drew theirs, and now keep clear of the

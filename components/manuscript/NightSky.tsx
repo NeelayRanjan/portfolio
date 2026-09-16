@@ -66,7 +66,7 @@ import { createSkyState } from "./night-sky/state";
  * - layer-loaders.ts: every fetch behind the sky.
  *
  * - Colour (discoverability spec §3): the deep-sky objects and the band draw
- *   their sourced colour at PAPER_SATURATION on the page and at full
+ *   their sourced colour at PAPER_COLOUR_SHARE on the page and at full
  *   saturation while stargazing or while the pointer is over the sky; the
  *   pointer controller picks the target, the frame loop eases toward it on
  *   real elapsed ms, reduced motion snaps.

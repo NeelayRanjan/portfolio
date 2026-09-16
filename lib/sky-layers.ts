@@ -25,7 +25,7 @@ import type {
 } from "./sky-objects";
 import { SPIRAL_DR, SPIRAL_R0, SPIRAL_TURNS } from "./sky-objects";
 import { project, type Chart, type Equatorial } from "./sky-math";
-import { lerpNum, lerpRgb, saturateRgb } from "./sky-colour";
+import { bandMix, lerpNum, lerpRgb, saturateRgb } from "./sky-colour";
 
 /** A rectangle, CSS px, top-left + size. */
 export type Box = { x: number; y: number; w: number; h: number };
@@ -388,8 +388,12 @@ function colourMemo(s: number): void {
     if (pal.accent2 !== undefined) out.accent2 = saturateRgb(pal.accent2, s);
     memoPalettes.set(id, out);
   }
-  memoBandRgb = MILKY_WAY_LEVEL_RGB_STARGAZE.map((rgb) => lerpRgb(INK, rgb, s));
-  memoBandGain = lerpNum(1, MILKY_WAY_STARGAZE_ALPHA_GAIN, s);
+  // The band runs on its own curve (lib/sky-colour.ts bandMix): a linear
+  // lerp over a 2-5% alpha wash left paper mode's band exactly as warm as
+  // the grey chart's.
+  const b = bandMix(s);
+  memoBandRgb = MILKY_WAY_LEVEL_RGB_STARGAZE.map((rgb) => lerpRgb(INK, rgb, b));
+  memoBandGain = lerpNum(1, MILKY_WAY_STARGAZE_ALPHA_GAIN, b);
 }
 /** The palette an object draws with at this view's saturation, or null for
  *  the plain grey glyph (saturation 0, or no sourced palette: M82). */
@@ -462,7 +466,7 @@ export function drawMilkyWay(
     return { x: c.cx + rho * Math.sin(phi), y: c.cy - rho * Math.cos(phi) };
   };
   // Hue lerps INK -> the stargaze tan and the alpha gain 1 -> 2.6, both by
-  // saturation: 0 is plain INK at gain 1, 1 is the stargaze band.
+  // bandMix(saturation): 0 is plain INK at gain 1, 1 is the stargaze band.
   colourMemo(v.saturation);
   const bandRgb = (li: number) => memoBandRgb[li] ?? memoBandRgb[memoBandRgb.length - 1];
   const bandGain = memoBandGain;

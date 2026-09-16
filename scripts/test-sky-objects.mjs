@@ -798,7 +798,7 @@ test("saturation 0 draws exactly the old grey chart, 1 exactly the old stargaze 
 });
 
 test("chroma grows with saturation, call for call, and paper mode sits strictly between", () => {
-  const levels = [0.1, SC.PAPER_SATURATION, 0.5, 0.75, 1];
+  const levels = [0.1, 0.25, SC.PAPER_SATURATION, 0.75, 1].sort((a, b) => a - b).filter((x, i, a) => a.indexOf(x) === i);
   const logs = levels.map((s) => traceLayers({ saturation: s, stargazeChrome: false }));
   // Above zero the geometry is the coloured path at every level, so the logs
   // line up call for call and only colour strings may differ.
@@ -821,8 +821,8 @@ test("chroma grows with saturation, call for call, and paper mode sits strictly 
   // Paper's total chroma is strictly above the grey chart's and below stargaze's.
   const total = (log) => log.reduce((a, line) => a + chromasIn(line).reduce((x, y) => x + y, 0), 0);
   const grey = total(traceLayers({ saturation: 0, stargazeChrome: false }));
-  const paper = total(logs[1]);
-  const full = total(logs[4]);
+  const paper = total(logs[levels.indexOf(SC.PAPER_SATURATION)]);
+  const full = total(logs[levels.length - 1]);
   assert.ok(grey < paper && paper < full, `summed chroma grey ${grey}, paper ${paper}, full ${full} should increase strictly`);
 });
 
@@ -832,7 +832,7 @@ test("the Milky Way band's hue and alpha both follow saturation", () => {
       .filter((l) => l.startsWith("fillStyle=rgba("))
       .map((l) => l.match(/rgba\((\d+),(\d+),(\d+),([\d.e-]+)\)/).slice(1).map(Number));
   const at0 = bandStyles(0);
-  const at25 = bandStyles(SC.PAPER_SATURATION);
+  const at25 = bandStyles(SC.PAPER_SATURATION); // paper
   const at1 = bandStyles(1);
   assert.equal(at0.length, at1.length);
   // Only the band's own fills (every one but the MUT label) take part.
@@ -847,6 +847,18 @@ test("the Milky Way band's hue and alpha both follow saturation", () => {
     checked++;
   }
   assert.ok(checked >= 10, `only ${checked} band styles checked`);
+  // The band's own curve: at paper it is past half way in hue, where a linear
+  // lerp left it (measured) exactly as warm as the grey chart.
+  assert.equal(SC.bandMix(0), 0);
+  assert.equal(SC.bandMix(1), 1);
+  assert.ok(SC.bandMix(SC.PAPER_SATURATION) > SC.PAPER_SATURATION, "the band curve must lead the object mix at paper");
+  for (let i = 0; i < at0.length; i++) {
+    if (at0[i][0] === 154) continue;
+    const w0 = at0[i][0] - at0[i][2];
+    const w1 = at1[i][0] - at1[i][2];
+    const wp = at25[i][0] - at25[i][2];
+    assert.ok(wp - w0 >= 0.5 * (w1 - w0), `band style ${i}: paper warmth ${wp} is under half way from ${w0} to ${w1}`);
+  }
 });
 
 test("M82 draws identically at every saturation", () => {
@@ -876,12 +888,12 @@ test("saturateRgb: exact at 1, luminance grey at 0, monotone spread between", ()
 });
 
 test("stepSaturation: frame-rate independent, no overshoot, settles in about 300ms", () => {
-  let a = SC.PAPER_SATURATION;
-  let b = SC.PAPER_SATURATION;
+  let a = 0.25;
+  let b = 0.25;
   for (let t = 0; t < 120; t += 8) a = SC.stepSaturation(a, 1, 8);
   for (let t = 0; t < 120; t += 40) b = SC.stepSaturation(b, 1, 40);
   assert.ok(Math.abs(a - b) < 1e-9, `8ms frames reached ${a}, 40ms frames ${b}`);
-  let s = SC.PAPER_SATURATION;
+  let s = 0.25;
   let ms = 0;
   while (s !== 1 && ms < 5000) {
     const next = SC.stepSaturation(s, 1, 16);
@@ -891,5 +903,6 @@ test("stepSaturation: frame-rate independent, no overshoot, settles in about 300
   }
   assert.ok(ms >= 200 && ms <= 400, `0.25 -> 1 settled in ${ms}ms`);
   assert.equal(SC.stepSaturation(1, SC.PAPER_SATURATION, 10_000), SC.PAPER_SATURATION);
-  assert.ok(SC.PAPER_SATURATION > 0 && SC.PAPER_SATURATION <= 0.5, "the owner offered 25-50%");
+  assert.ok(SC.PAPER_COLOUR_SHARE > 0 && SC.PAPER_COLOUR_SHARE < 1, "paper mode is a share of stargaze's colour, strictly between none and all");
+  assert.equal(SC.PAPER_SATURATION, SC.PAPER_COLOUR_SHARE, "the mix is the share (measured linear; see lib/sky-colour.ts)");
 });

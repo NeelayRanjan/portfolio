@@ -14,7 +14,7 @@ import type { SkyState } from "./state";
  *
  * It also decides the colour saturation's target (discoverability spec §3):
  * 1 while stargazing, 1 in paper mode while the pointer is over the sky
- * itself, PAPER_SATURATION otherwise and always on a device with no hover.
+ * itself, PAPER_SATURATION (= PAPER_COLOUR_SHARE) otherwise and always on a device with no hover.
  * The frame loop eases toward it; reduced motion snaps.
  */
 

@@ -66,7 +66,7 @@ export async function resolve(specifier, context, nextResolve) {
   import.meta.url,
 );
 const { OBJECT_COLOURS, EMISSION_LINE_COLOURED } = await import("../lib/sky-layers.ts");
-const { PAPER_SATURATION } = await import("../lib/sky-colour.ts");
+const { PAPER_SATURATION, PAPER_COLOUR_SHARE } = await import("../lib/sky-colour.ts");
 
 const BASE = "http://localhost:3000";
 
@@ -2278,30 +2278,34 @@ const COLOURED_IDS = Object.keys(OBJECT_COLOURS);
 const DEEP_SKY_IDS = OBJECTS_DATA.objects.filter((o) => ["galaxy", "nebula", "cluster"].includes(o.symbol)).map((o) => o.id);
 
 /**
- * Thresholds, calibrated on this build at SKY_COLOUR_INSTANT (2026-09-16,
- * PAPER_SATURATION 0.25), each with room on both sides of what it measured.
- * Chroma shift is the distance a pixel's chroma vector (channels minus their
- * own luminance) moves away from the saturation-0 frame at the same pixel.
- * - stargaze moved it 37-80 at each object's most-moved pixel: floor 25.
- * - paper moved it 7.2-22.5: floor 4, and paper sat 14-44% of the way from
- *   saturation 0 to stargaze: ceiling 70%.
+ * Thresholds. The contract since fix round 1 (controller ruling, 2026-09-16):
+ * paper mode's colour is PAPER_COLOUR_SHARE of the way from the grey chart to
+ * stargaze, as DISPLAYED, and the band shows a real warmth gain, not only a
+ * brightness one. Calibration on this build at SKY_COLOUR_INSTANT:
+ * - "share" is how far along the grey -> stargaze chroma line paper's pixel
+ *   sits, at each object's most-moved pixel. At share 0.5 it measured
+ *   0.44-0.61 across ten objects, median 0.53 (at the old 0.25 mix: 0.14-0.44,
+ *   median 0.31). Each object must land within SHARE_TOLERANCE of the
+ *   constant, the median within SHARE_MEDIAN_TOLERANCE.
+ * - stargaze moved chroma 37-80: floor 25.
  * - hovered sky matched stargaze exactly (0): tolerance 2.
  * - M82's centre measured channel spread 15 in all four states: ceiling 24
  *   (the grey chart's own cream INK), and at most 3 between states.
- * - the band's mean luminance rose 1.72 from 0 to paper (floor 0.5); its mean
- *   warmth did NOT move (4.02 -> 4.02) and rose 3.02 from paper to stargaze
- *   (floor 1.5).
- * - the ease settled in 299-300ms over 18 painted in-between values; the idle
+ * - the band's mean warmth over its pixels: see the numbers recorded in the
+ *   task-3 report's fix round 1; paper must add BAND_MIN_WARMTH_GAIN over
+ *   saturation 0 (a whole composited level: the linear lerp added 0.00 at the
+ *   old mix), and stargaze must add warmth on top of paper.
+ * - the ease settled in ~300ms over 18 painted in-between values; the idle
  *   20 fps gate would paint about 6, so fewer than 10 means the gate did not rise.
  */
 const STARGAZE_MIN_CHROMA_SHIFT = 25;
-const PAPER_MIN_CHROMA_SHIFT = 4;
-const PAPER_MAX_ALONG = 0.7;
+const SHARE_TOLERANCE = 0.15;
+const SHARE_MEDIAN_TOLERANCE = 0.08;
 const HOVER_STARGAZE_TOLERANCE = 2;
 const M82_NEUTRAL_MAX_CHROMA = 24;
 const M82_MAX_STATE_SPREAD = 3;
-const BAND_MIN_WARMTH_GAIN = 1.5;
-const BAND_MIN_LUM_GAIN = 0.5;
+const BAND_MIN_WARMTH_GAIN = 1;
+const BAND_MIN_STARGAZE_OVER_PAPER = 0.5;
 const EASE_MIN_PAINTED_STEPS = 10;
 const EASE_MAX_SETTLE_MS = 500;
 /** Not the sky, for the colour target: mirrors pointer-controller.ts's NOT_SKY. */
@@ -2546,6 +2550,7 @@ async function checkSkyColour(browser) {
   const norm = (a) => Math.hypot(...a);
   const dot = (a, b) => a.reduce((s, x, i) => s + x * b[i], 0);
   const notes = [];
+  const shares = [];
   for (const id of ids) {
     const o = pixels.objects[id];
     const g = cv(o.rgb.grey);
@@ -2558,11 +2563,18 @@ async function checkSkyColour(browser) {
     const dHover = norm(sub(cv(o.rgb.hover), cv(o.rgb.stargaze)));
     const where = `${id} (${familyOf(id)}) at device px (${o.px.join(", ")}): rgb grey (${o.rgb.grey}), paper (${o.rgb.paper}), hovered (${o.rgb.hover}), back on the sheet (${o.rgb.lowered}), stargaze (${o.rgb.stargaze}); chroma moved ${dPaper.toFixed(1)} from grey in paper, ${dFull.toFixed(1)} in stargaze, paper ${(along * 100).toFixed(0)}% of the way`;
     if (dFull < STARGAZE_MIN_CHROMA_SHIFT) throw new Error(`stargaze draws no colour here: ${where}; stargaze must move chroma at least ${STARGAZE_MIN_CHROMA_SHIFT}`);
-    if (dPaper < PAPER_MIN_CHROMA_SHIFT || along <= 0) throw new Error(`paper mode draws no more colour than saturation 0: ${where}; paper must move chroma at least ${PAPER_MIN_CHROMA_SHIFT} toward stargaze`);
-    if (along >= PAPER_MAX_ALONG) throw new Error(`paper mode draws as much colour as stargaze: ${where}; paper must stay under ${PAPER_MAX_ALONG * 100}% of the way`);
+    if (Math.abs(along - PAPER_COLOUR_SHARE) > SHARE_TOLERANCE) {
+      throw new Error(`paper mode's displayed colour share is ${along.toFixed(2)} for ${where}; PAPER_COLOUR_SHARE is ${PAPER_COLOUR_SHARE}, allowed ±${SHARE_TOLERANCE}`);
+    }
+    shares.push([id, along]);
     if (dHover > HOVER_STARGAZE_TOLERANCE) throw new Error(`the pointer over the sky does not reach stargaze's colour: ${where}; hovered differs from stargaze by ${dHover.toFixed(1)}, allowed ${HOVER_STARGAZE_TOLERANCE}`);
     if (o.rgb.lowered.join() !== o.rgb.paper.join()) throw new Error(`moving onto the sheet did not return to paper's exact pixel: ${where}`);
-    notes.push(`${id} ${dPaper.toFixed(1)}/${dFull.toFixed(1)} (${(along * 100).toFixed(0)}%)`);
+    notes.push(`${id} ${along.toFixed(2)} of ${dFull.toFixed(1)}`);
+  }
+  const sortedShares = shares.map(([, a]) => a).sort((x, y) => x - y);
+  const medianShare = sortedShares[sortedShares.length >> 1];
+  if (Math.abs(medianShare - PAPER_COLOUR_SHARE) > SHARE_MEDIAN_TOLERANCE) {
+    throw new Error(`paper mode's median displayed colour share is ${medianShare.toFixed(2)} (${shares.map(([id, a]) => `${id} ${a.toFixed(2)}`).join(", ")}); PAPER_COLOUR_SHARE is ${PAPER_COLOUR_SHARE}, allowed ±${SHARE_MEDIAN_TOLERANCE}`);
   }
   const m82 = pixels.objects.m82;
   if (!m82) throw new Error(`M82 is not drawn fully on the canvas at ${SKY_COLOUR_INSTANT.toISOString()}; the no-palette control is missing`);
@@ -2573,16 +2585,14 @@ async function checkSkyColour(browser) {
   if (m82Spread > M82_MAX_STATE_SPREAD) throw new Error(`M82 has no palette but its centre's channel spread changes with saturation: ${JSON.stringify(m82.worst)}, spread ${m82Spread} over ${M82_MAX_STATE_SPREAD}`);
   const b = pixels.band;
   if (b.n < 5000) throw new Error(`only ${b.n} band pixels found (warmth moving between saturation 0 and 1, ${BAND_CLEAR_PX}px clear of objects)`);
-  // The band. ⚠️ Its HUE at paper saturation is measured, not asserted: the
-  // spec lerps INK -> tan by saturation, and at 0.25 over a 2-5% alpha wash
-  // that lands at zero levels of warmth (task-3 report). What paper does
-  // change is the band's brightness, through the alpha gain's lerp, so that
-  // is what paper is held to; stargaze must then add warmth on top.
-  if (!(b.lumPaperMean - b.lumGreyMean >= BAND_MIN_LUM_GAIN)) {
-    throw new Error(`the band's mean luminance over ${b.n} pixels is ${b.lumGreyMean.toFixed(2)} at saturation 0 and ${b.lumPaperMean.toFixed(2)} in paper mode; paper's alpha gain must add ${BAND_MIN_LUM_GAIN}`);
+  // The band (fix round 1): its own curve must give paper mode a real warmth
+  // gain over saturation 0, not only the brightness its alpha gain adds, and
+  // stargaze must still be warmer than paper.
+  if (!(b.paperMean - b.greyMean >= BAND_MIN_WARMTH_GAIN)) {
+    throw new Error(`the band's mean warmth (r-b) over ${b.n} pixels is ${b.greyMean.toFixed(2)} at saturation 0 and ${b.paperMean.toFixed(2)} in paper mode (stargaze ${b.stargazeMean.toFixed(2)}); paper must add at least ${BAND_MIN_WARMTH_GAIN}`);
   }
-  if (!(b.stargazeMean - b.paperMean >= BAND_MIN_WARMTH_GAIN && b.paperMean >= b.greyMean)) {
-    throw new Error(`the band's mean warmth (r-b) over ${b.n} pixels is ${b.greyMean.toFixed(2)} at saturation 0, ${b.paperMean.toFixed(2)} in paper mode, ${b.stargazeMean.toFixed(2)} in stargaze; paper may not cool it and stargaze must add ${BAND_MIN_WARMTH_GAIN}`);
+  if (!(b.stargazeMean - b.paperMean >= BAND_MIN_STARGAZE_OVER_PAPER)) {
+    throw new Error(`the band's mean warmth over ${b.n} pixels is ${b.paperMean.toFixed(2)} in paper mode and ${b.stargazeMean.toFixed(2)} in stargaze; stargaze must add at least ${BAND_MIN_STARGAZE_OVER_PAPER}`);
   }
 
   // --- the ease, motion on ---
@@ -2636,7 +2646,7 @@ async function checkSkyColour(browser) {
     if (e.settleMs > EASE_MAX_SETTLE_MS) throw new Error(`easing ${dir} took ${e.settleMs}ms, over ${EASE_MAX_SETTLE_MS}: ${s}`);
   }
 
-  return `${ids.length} coloured objects across ${[...families].sort().join("/")}, chroma shift paper/stargaze from saturation 0 at each object's most-moved pixel: ${notes.join(", ")}; hovered sky = stargaze, back on the sheet = paper exactly; M82 centre worst ${JSON.stringify(m82.worst)}; band mean warmth over ${b.n} px ${b.greyMean.toFixed(2)}/${b.paperMean.toFixed(2)}/${b.stargazeMean.toFixed(2)}, mean luminance ${b.lumGreyMean.toFixed(2)}/${b.lumPaperMean.toFixed(2)}/${b.lumStargazeMean.toFixed(2)}; ease up ${ease.up.settleMs}ms over ${ease.up.between} painted steps, down ${ease.down.settleMs}ms over ${ease.down.between}`;
+  return `${ids.length} coloured objects across ${[...families].sort().join("/")}, paper's displayed colour share (constant ${PAPER_COLOUR_SHARE}, median ${medianShare.toFixed(2)}) and stargaze chroma shift at each object's most-moved pixel: ${notes.join(", ")}; hovered sky = stargaze, back on the sheet = paper exactly; M82 centre worst ${JSON.stringify(m82.worst)}; band mean warmth over ${b.n} px ${b.greyMean.toFixed(2)}/${b.paperMean.toFixed(2)}/${b.stargazeMean.toFixed(2)}, mean luminance ${b.lumGreyMean.toFixed(2)}/${b.lumPaperMean.toFixed(2)}/${b.lumStargazeMean.toFixed(2)}; ease up ${ease.up.settleMs}ms over ${ease.up.between} painted steps, down ${ease.down.settleMs}ms over ${ease.down.between}`;
 }
 
 async function checkStargazeCard(browser) {

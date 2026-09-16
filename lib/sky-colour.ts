@@ -4,20 +4,48 @@
  * scripts/test-sky-objects.mjs loads it in plain node.
  *
  * The owner reversed the colour round's "stargaze only" rule on 2026-09-16:
- * the ordinary page shows the sky's colour at PAPER_SATURATION, and full
+ * the ordinary page shows the sky's colour at PAPER_COLOUR_SHARE, and full
  * colour returns while the pointer is over the sky itself (or while
  * stargazing). The concern behind the old rule stands, the page's figures use
  * green, red and amber to mean something, so the paper level is a number
  * chosen against a screenshot of Figures 1 and 2, not a free choice.
  */
 
-/** Paper mode's resting saturation. The owner offered 25-50%; 25 is the
- *  level judged against the figures (see the task-3 report). */
-export const PAPER_SATURATION = 0.25;
+/**
+ * How coloured paper mode looks, as a share of stargaze's colour: 0.5 means
+ * each object's displayed colour sits about half way from the grey chart to
+ * the full stargaze colour. The owner asked for the background "reduced to
+ * 50% or 25%"; this is the one number to change.
+ *
+ * It means what it says because it was measured, not assumed (fix round 1,
+ * 2026-09-16, headless Firefox, ten coloured objects at each one's
+ * most-moved pixel): the displayed share tracks the internal mix almost
+ * one to one. Mix 0.25 gave shares 0.14-0.44 (median 0.31), 0.4 gave median
+ * 0.45, 0.5 gave 0.44-0.61 (median 0.53), 0.6 median 0.63, 0.8 median 0.83.
+ * So PAPER_SATURATION is the share itself; if a future palette or glyph
+ * change bends that relation, the sky-colour verify check (which asserts the
+ * measured share against this constant) is what says so.
+ */
+export const PAPER_COLOUR_SHARE = 0.5;
+/** The internal mix paper mode draws at; see PAPER_COLOUR_SHARE. */
+export const PAPER_SATURATION = PAPER_COLOUR_SHARE;
+
+/**
+ * The Milky Way band's own curve: its hue lerp and alpha gain both run on
+ * `saturation ** BAND_CURVE_EXPONENT`, not on saturation. The band paints at
+ * 2-5% alpha, so a linear lerp moves its composited warmth in whole-level
+ * steps that land late: measured mean warmth over 57,717 band pixels was
+ * 4.02 at mix 0, 0.25 and 0.4, 5.03 at 0.5 and 0.6, 6.04 at 0.7 and 0.8, and
+ * 7.04 at 1. A square root puts paper's 0.5 at band mix 0.71, the first step
+ * that carries about half of stargaze's warmth gain or more. Both ends stay
+ * exact (0 ** 0.5 = 0, 1 ** 0.5 = 1).
+ */
+export const BAND_CURVE_EXPONENT = 0.5;
+export const bandMix = (s: number): number => (s <= 0 ? 0 : s >= 1 ? 1 : s ** BAND_CURVE_EXPONENT);
 
 /** Time constant of the ease toward a new target, real ms. Exponential, so
- *  the same curve at any frame rate: a 0.25 -> 1 change is within
- *  SATURATION_SETTLE of its target after ~310 ms. */
+ *  the same curve at any frame rate: a 0.5 -> 1 change is within
+ *  SATURATION_SETTLE of its target after ~290 ms. */
 export const SATURATION_TAU_MS = 60;
 /** Close enough to snap onto the target and stop raising the frame gate. */
 export const SATURATION_SETTLE = 0.004;

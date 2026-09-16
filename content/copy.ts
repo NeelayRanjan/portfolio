@@ -176,19 +176,14 @@ export const copy = {
     stamp: "IN PREPARATION",
     /** The /lab box under the stamp. Two lines:
      *    "Supplementary material →"   (the arrow is the box's decoration)
-     *    "Continuous diffusion · Discrete diffusion · Predicting pixels, or
-     *     predicting representations · Stochastic vs deterministic"
-     *  The contents line is COMPOSED from the /lab section titles, never
-     *  retyped, joined by `supplementJoin`:
-     *    S1 has no single title, it swaps between
-     *       copy.lab.diffusion.headingContinuous and
-     *       copy.lab.diffusion.headingDiscrete (use both, in that order)
-     *    S2 copy.lab.jepa.heading
-     *    S3 copy.lab.sampleSpace.heading
-     *  The join is a middle dot, not a comma, because S2's title carries a
-     *  comma of its own. */
+     *    "diffusion trajectories · MAE vs I-JEPA · DDPM vs flow matching"
+     *  The contents line is a teaser, deliberately NOT composed from the /lab
+     *  section headings: those are written for their own context
+     *  ("Predicting pixels, or predicting representations") and run four
+     *  items long in a narrow rail (controller ruling, 2026-09-16). If a /lab
+     *  section is added, removed or renamed, update this line with it. */
     supplementLabel: "Supplementary material",
-    supplementJoin: " · ",
+    supplementContents: "diffusion trajectories · MAE vs I-JEPA · DDPM vs flow matching",
     date: "September 2026",
     links: [
       {
@@ -425,7 +420,7 @@ export const copy = {
       /** Sits permanently beside the label picker, so it has to stand alone
        *  (owner request, 2026-09-16: the classifier-free guess must be
        *  noticeable). Keep it under ~70 characters. */
-      classifyLead: "No classifier here: the diffusion model guesses the label itself.",
+      classifyLead: "No classifier model: the diffusion model guesses the label itself.",
       label_: "label",
       labelGuessing: "· guessing…",
       labelAuto: "· auto",
@@ -648,11 +643,6 @@ export const copy = {
       { label: "Email", href: "mailto:neelay.ranjan@outlook.com" },
       { label: "Supplementary material", href: "/lab" },
     ],
-    /** The closing link to /lab after the reference list (spec §6). ⚠️ The
-     *  items list above still ends in a plain "Supplementary material" entry;
-     *  whoever renders this should drop that entry so /lab isn't linked
-     *  twice in a row. */
-    supplementLink: "Figures S1 to S3 are in the supplementary material",
   },
 
   /** /lab — "Supplementary material": the three demos that left page 1. */
@@ -835,13 +825,11 @@ export const copy = {
     /** Once per session, near the pointer, the first time it enters the sky
      *  in paper mode (spec §5). Short: it's gone in a few seconds. */
     invite: "the real sky over NASA Ames, from the moment you arrived",
-    /** The second way in, at the foot of `/` and `/lab`:
-     *    "The sky behind this page is the real one over NASA Ames.
-     *     put the page away and look"
-     *  `footerEnter` is the control, lowercase like the toggle's own
-     *  "stargaze for a bit?". */
+    /** The second way in, at the foot of `/` and `/lab`: this lead line,
+     *  then a button labelled with `enter` itself ("stargaze for a bit?"). A
+     *  second door to the same feature carries the same name, or visitors
+     *  don't connect the two (controller ruling, 2026-09-16). */
     footerLead: "The sky behind this page is the real one over NASA Ames.",
-    footerEnter: "put the page away and look",
     /** The owner's own sentences (trimmed 2026-09-16): keep both word for
      *  word. Each is a complete sentence ending in its own full stop, and
      *  `creditTail` follows either one, so it opens with a space:

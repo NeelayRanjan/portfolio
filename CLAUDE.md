@@ -255,12 +255,32 @@ anchor now avoiding drawn objects, and crowded object names stepping down
 instead of overlapping.
 
 **Open items, roughly in order:**
-1. **The moved pole hasn't been judged by the owner yet.** `sky-objects` is
-   built and fully verified but not yet reviewed live; in particular the pole
-   position at 1280-1440px (the margin-based rule's low end, where it sits
-   closest to the sheet) and the drag feel and docked card on a real phone
-   are still pending an owner pass, not just the Playwright suite.
-2. **The mobile draw-demo crash got worse** (owner, 2026-09-14, iPhone 17 Pro):
+1. **Stargaze is undiscoverable, and that is the biggest product problem on
+   the site** (owner, 2026-09-14: "We 100% need to make that button more
+   noticable, I have had to tell everyone about it"; re-confirmed 2026-09-16
+   as second only to the draw-demo crash). The entry point is a text link on a
+   page made of text links, and it promises no content, so it reads as
+   decoration. Meanwhile the live sky already drawn in the margins is invisible
+   AS an affordance, so nobody connects the two. Agreed direction, not yet
+   built: **make the sky itself the invitation** (on a visitor's first pointer
+   entry into a margin, the sky answers and names itself once per session),
+   give the control a mark rather than only words, and add a second entry point
+   at the foot of the page. Explicitly ruled out: autoplay, modals, pulsing,
+   arrows, any copy that oversells. `demo_used {stargaze}` already fires once
+   per page load, so the entry rate against pageviews is measurable before and
+   after (⚠️ custom-event ingestion depends on the Vercel plan and has never
+   been confirmed from here; check the dashboard before trusting the number).
+   Phones need their own answer, since there is no hover at all.
+2. **Stargaze on a phone is much thinner than on desktop.** Below 880px no
+   names draw, so it is symbols and constellation lines with cards reachable
+   only by tapping something you cannot identify first. Given "mobile above
+   all", this is the widest quality gap in the feature. Rides with the
+   discovery round.
+3. **An owner pass on real hardware is still owed for the whole sky.** The
+   pole position at 1280-1440px (the margin-based rule's low end, where it sits
+   closest to the sheet), the drag feel and docked card on a real phone, and a
+   WebGPU pass in desktop Chrome. Headless Firefox cannot speak to any of it.
+4. **The mobile draw-demo crash got worse** (owner, 2026-09-14, iPhone 17 Pro):
    beyond the silent reloads, repeated refreshes now land on Safari's
    crash-loop error page ("a problem repeatedly occurred"), and friends
    testing the site call the section "super buggy". The top engineering
@@ -270,18 +290,22 @@ instead of overlapping.
    so it stays open. Candidates that changed recently:
    phones now get the 256 headshot (viewport gate removed 2026-09-13), iOS 26
    Safari ships WebGPU, threaded wasm under COOP/COEP.
-3. **arXiv link** (~2026-09-18) swaps into the references when the preprint is
+5. **arXiv link** (~2026-09-18) swaps into the references when the preprint is
    live; the owner then creates a Google Scholar profile, which joins the
    identity links (the link list is data-driven copy).
-4. **A transition parity vector for the headshot bundle.** The morph is live on
+6. **A transition parity vector for the headshot bundle.** The morph is live on
    the site, but `test_parity.mjs` pins only the from-noise path; its
    `init+strength` case is a structural smoke (step count + finiteness), so the
    forward-noising branch is unpinned vendored math. Ask the model owner for an
    init+strength case in `vectors/`.
-5. **The CV is hidden** (owner, 2026-09-14: "shouldn't be public facing yet").
+7. **The CV is hidden** (owner, 2026-09-14: "shouldn't be public facing yet").
    Removed from `masthead.links` and `references.items`; its URL stays below.
-   The Drive doc itself is still shared "anyone with the link".
-6. Much later: a third headliner demo, a **live network-security honeypot**
+   ⚠️ The Drive doc itself is still shared "anyone with the link", so it is
+   reachable by anyone holding that URL. Hiding the link is not the same as
+   unsharing the document; the owner has been told and it is their call.
+8. **`components/manuscript/NightSky.tsx` is past 800 lines** and has been
+   deferred twice. Split it before the next sky feature, not during one.
+9. Much later: a third headliner demo, a **live network-security honeypot**
    (exposed Pi, malicious ssh/https logged, LLM-categorized into a live UMAP
    of attack families). Needs a live-data seam the static site doesn't have;
    the systems figure column is trivially appendable when it comes.

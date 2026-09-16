@@ -31,7 +31,7 @@ build time.
 ### Verify before believing
 
 ```bash
-node scripts/verify-redesign.mjs           # all 29 checks, against npm start on :3000
+node scripts/verify-redesign.mjs           # all 30 checks, against npm start on :3000
 node scripts/verify-redesign.mjs chess cdf # any check-name substrings run a subset
 node scripts/verify-headshot-256.mjs       # hand-run: the 256 headshot + morph, in node
 node scripts/check-voice.mjs               # copy.ts + sky-facts.ts voice gate (banned words, em-dashes)
@@ -52,14 +52,26 @@ production would send.
 ## The pages
 
 Every page shares a real star chart of the sky over NASA Ames turning slowly
-behind the paper: drag it to pan (it springs back on release), hover a star,
+behind the paper: drag it to pan (it springs back on release, except in
+stargaze, where it stays where you left it until you leave), hover a star,
 object or line for a one-liner, and a "stargaze for a bit?" button hides the
 page and gives the sky the screen, where deep-sky objects, named stars,
 meteor radiants, Voyager 1 and the live ISS all draw from real data and
 open a sourced, cited card on a click (a symbol or its name), a tap (a
 symbol), or Enter in a hidden keyboard list (Voyager 2 keeps its data but sits
 south of the chart's edge) (the models in flight get
-cancelled and offloaded, never faked as finished). The ISS's position comes
+cancelled and offloaded, never faked as finished).
+
+Inside stargaze the 45 deep-sky objects and the Milky Way's band are drawn in
+colour, and only there: page 1 keeps its near-monochrome margins so the
+background never competes with the figures, which use colour semantically. The
+shapes are illustrative and far bigger than life, every position is real, and
+the colours follow long-exposure photographs rather than what an eye would
+see, because at these brightnesses vision runs on rod cells and registers no
+colour at all. The credit line and every affected card say so. Where an
+object's famous picture is a narrowband false-colour map, the site either
+draws what that object's own emission lines emit or leaves it grey: the Cigar
+Galaxy is grey for exactly that reason, and its card explains why. The ISS's position comes
 from a same-origin, server-cached route (`app/api/iss-tle`) that fetches a
 CelesTrak TLE at most once every two hours (plus once per build), so a visitor's browser never
 talks to a third party and the ISS simply doesn't draw if that fetch ever

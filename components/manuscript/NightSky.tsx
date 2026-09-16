@@ -381,6 +381,7 @@ export function NightSky() {
         objectGlyphs,
         showers: activeShowers,
         names: !narrowQ.matches,
+        colour: isStargazing(),
         oneLiner: (id) => facts?.get(id)?.oneLiner ?? null,
         selectedId: selected?.id ?? null,
         iss,

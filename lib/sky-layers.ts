@@ -36,6 +36,17 @@ const INK = "234,229,218";
 const MUT = "154,148,138";
 const WARM = "217,164,91";
 const D2R = Math.PI / 180;
+
+/** Sourced long-exposure colours, "r,g,b" so each draw site picks its own
+ *  alpha (same shape as INK/MUT/WARM). Stargaze only. Sources:
+ *  .superpowers/sdd/colour-sources.md — every entry here traces to a
+ *  citation on that object's card. An id absent from this table draws grey. */
+export type ObjectPalette = {
+  /** Body/cloud fill. */ base: string;
+  /** Core, bulge or inner region where the structure has one. */ core?: string;
+  /** Arms, rim or filaments where the structure has one. */ accent?: string;
+};
+export const OBJECT_COLOURS: Record<string, ObjectPalette> = { /* Task 4-5 fill */ };
 /**
  * One fill alpha per Milky Way level (spec order: 0 faint/outer, 4
  * bright/inner), replacing the old flat 0.022 ("clutter" follow-up,
@@ -61,6 +72,8 @@ export type View = {
   height: number;
   fontFamily: string;
   names: boolean;
+  /** Stargaze only; false means draw today's greys. */
+  colour: boolean;
   suppressName: string | null;
 };
 const onCanvas = (p: { x: number; y: number }, v: View, m: number) =>

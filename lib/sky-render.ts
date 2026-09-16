@@ -74,6 +74,8 @@ export type FrameInput = {
   showers: SkyShower[];
   /** Always-on names beside symbols (false below 880px, spec §4). */
   names: boolean;
+  /** Stargaze only; false means draw today's greys. */
+  colour: boolean;
   /** The desk one-liner for an id, from content/sky-facts.ts; null until the facts load. */
   oneLiner: (id: string) => string | null;
   /** The id whose card is open (Task 5), ringed like a hover. */
@@ -122,7 +124,7 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
   // selectedId to the open card's subject (Task 5), so a selected object's
   // own name stays suppressed while its card is open, the same as a hover.
   const suppressName = f.highlight?.kind === "hit" ? f.highlight.id : f.selectedId;
-  const view: View = { chart: c, width, height, fontFamily: f.fontFamily, names: f.names, suppressName };
+  const view: View = { chart: c, width, height, fontFamily: f.fontFamily, names: f.names, colour: f.colour, suppressName };
   const onCanvas = (p: { x: number; y: number }, m: number) =>
     p.x > -m && p.x < width + m && p.y > -m && p.y < height + m;
   const radiusAt = (dec: number) => c.k * Math.tan(((90 - dec) / 2) * D2R);

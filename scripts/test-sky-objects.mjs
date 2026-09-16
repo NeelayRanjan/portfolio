@@ -6,6 +6,32 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, stat } from "node:fs/promises";
+import { register } from "node:module";
+
+// sky-facts.ts and sky-objects.ts (imported below) carry "NO RUNTIME
+// IMPORTS" so node can load them straight, extensionless specifiers and
+// all. lib/sky-layers.ts (task 3, colour seam) is a real drawing module
+// with a genuine runtime import of ./sky-math, and node's ESM resolver
+// (unlike TypeScript's "bundler" moduleResolution) refuses to resolve a
+// relative specifier with no extension. Rather than adding a .ts extension
+// to a production import (or a new npm-level flag), this registers a
+// resolve hook, scoped to this test file's process only, that retries a
+// failed relative specifier with ".ts" appended.
+register(
+  `data:text/javascript,${encodeURIComponent(`
+export async function resolve(specifier, context, nextResolve) {
+  try {
+    return await nextResolve(specifier, context);
+  } catch (err) {
+    if (specifier.startsWith(".") && !/\\.[a-zA-Z0-9]+$/.test(specifier)) {
+      return nextResolve(specifier + ".ts", context);
+    }
+    throw err;
+  }
+}
+`)}`,
+  import.meta.url,
+);
 
 const OBJECTS = new URL("../public/sky/objects.json", import.meta.url);
 const MILKYWAY = new URL("../public/sky/milkyway.json", import.meta.url);
@@ -318,5 +344,21 @@ test("every object is north of the chart edge and has a usable position", () => 
     if (o.id === "voyager-2") continue; // known: dec -59.8, has a card but never draws
     assert.ok(o.decDeg > -35, `${o.id} at dec ${o.decDeg} is south of the chart edge`);
     assert.ok(Number.isFinite(o.raDeg) && o.raDeg >= 0 && o.raDeg < 360, `${o.id} bad ra`);
+  }
+});
+
+// ---- sky-colour task 3: the colour seam. OBJECT_COLOURS is empty until
+// Tasks 4-5 populate it, so this loop is vacuous for now and becomes
+// load-bearing once entries land. Follows the same dynamic-import-of-.ts
+// pattern as O above (lib/sky-objects.ts), and the same byId-map pattern
+// test-sky-facts.mjs uses for SKY_FACTS. ----
+
+test("every coloured object has a fact that cites its colour source", async () => {
+  const { OBJECT_COLOURS } = await import("../lib/sky-layers.ts");
+  const { SKY_FACTS } = await import("../content/sky-facts.ts");
+  const FACTS = new Map(SKY_FACTS.map((f) => [f.id, f]));
+  for (const id of Object.keys(OBJECT_COLOURS)) {
+    assert.ok(FACTS.has(id), `${id} has a palette but no card to cite it on`);
+    assert.ok(FACTS.get(id).citations.length >= 1, `${id} colour is uncited`);
   }
 });

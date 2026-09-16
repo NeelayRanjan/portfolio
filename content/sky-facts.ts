@@ -276,6 +276,118 @@ const NASA_VEIL: Citation = {
 
 const SKYWATCHING = nasaScience("skywatching/", "Skywatching Tips From NASA", "2026-09-15");
 
+/* The colours the chart draws on the objects that already had cards before the
+   colour round (final review C1, 2026-09-16). Those cards cited only the one
+   Hubble Messier page they shipped with, while their palettes came from these
+   pages, so a reader checking the Sources list found nothing behind the
+   colour. Every URL below was fetched again while this was written and
+   returned 200; the sentence each one carries is quoted above it, and
+   scripts/test-sky-objects.mjs pins each coloured object to the citation its
+   palette actually rests on. */
+
+/** “But a bright yellow nucleus, dark winding dust lanes, luminous blue
+ *  spiral arms, and bright red emission nebulas are recorded in this stunning
+ *  six-hour telescopic digital mosaic of our closest major galactic
+ *  neighbor.” */
+const APOD_M31: Citation = {
+  author: "Nemiroff, R., & Bonnell, J.",
+  year: "2019",
+  title: "M31: The Andromeda Galaxy",
+  site: "Astronomy Picture of the Day",
+  url: "https://apod.nasa.gov/apod/ap190909.html",
+  accessed: "2026-09-16",
+};
+
+/** “Blue stars are hot and red stars are cool so that astronomical color
+ *  index ranging from bluer to redder follows the relative stellar
+ *  temperature scale”, and “higher mass stars have evolved off the main
+ *  sequence into red, then blue giants and beyond”. */
+const APOD_M13: Citation = {
+  author: "Nemiroff, R., & Bonnell, J.",
+  year: "2019",
+  title: "The Colors and Magnitudes of M13",
+  site: "Astronomy Picture of the Day",
+  url: "https://apod.nasa.gov/apod/ap190613.html",
+  accessed: "2026-09-16",
+};
+
+/** “A large, spherical cluster containing thousands of bright stars, so dense
+ *  in the middle it looks solid white.” */
+const EARTHSKY_M13: Citation = {
+  author: "EarthSky",
+  year: "n.d.",
+  title: "Meet M13, the Great Globular Cluster in Hercules",
+  site: "earthsky.org",
+  url: "https://earthsky.org/clusters-nebulae-galaxies/m13-finest-globular-cluster-in-northern-skies/",
+  accessed: "2026-09-16",
+};
+
+/** “The cluster's few yellowish tinted, cool, red giants are scattered through
+ *  the field of its brighter hot blue main sequence stars in this telescopic
+ *  group snapshot.” */
+const APOD_M44: Citation = {
+  author: "Nemiroff, R., & Bonnell, J.",
+  year: "2022",
+  title: "M44: The Beehive Cluster",
+  site: "Astronomy Picture of the Day",
+  url: "https://apod.nasa.gov/apod/ap220430.html",
+  accessed: "2026-09-16",
+};
+
+/** The calibrated broadband reading of the Trapezium region, as against
+ *  NASA's narrowband picture of the same cloud: “The natural true color is
+ *  shown to be blue-green, best described as teal”, and “The teal color is
+ *  mainly created by OIII, H-beta, and H-gamma emission.” A career
+ *  astrophotographer's own site, cited as him, the same standing as
+ *  EMISSION_LINE_COLOUR above. */
+const CLARK_M42: Citation = {
+  author: "Clark, R. N.",
+  year: "n.d.",
+  title: "The True Color of the Trapezium Region in M42, The Great Nebula in Orion",
+  site: "ClarkVision",
+  url: "https://clarkvision.com/articles/astrophotography.m42-trapezium.true.color/",
+  accessed: "2026-09-16",
+};
+
+/** “In the bluish patch to the upper left, called a reflection nebula, dusty
+ *  gas scatters the light from nearby, Trifid-born stars”, and “dust grains
+ *  and molecules scatter blue light more efficiently than red light”, against
+ *  “the round, pink-reddish area typical of an emission nebula”. */
+const ESO_TRIFID: Citation = {
+  author: "European Southern Observatory",
+  year: "2009",
+  title: "Trifid Triple Treat (eso0930)",
+  site: "ESO",
+  url: "https://www.eso.org/public/news/eso0930/",
+  accessed: "2026-09-16",
+};
+
+/** “Visible are many bright stars, dark dust lanes, red emission nebulae,
+ *  blue reflection nebulae, and clusters of stars... A 40-minute exposure was
+ *  used, and the colors were digitally enhanced.” */
+const APOD_MILKY_WAY: Citation = {
+  author: "Nemiroff, R., & Bonnell, J.",
+  year: "1999",
+  title: "A Milky Way Band",
+  site: "Astronomy Picture of the Day",
+  url: "https://apod.nasa.gov/apod/ap990224.html",
+  accessed: "2026-09-16",
+};
+
+/** Why the same band is grey to the eye: “This night vision is primarily
+ *  mediated by the rods, in which varying degrees of gray are seen but unable
+ *  to distinguish the color spectrum.” Author, journal and year read off the
+ *  article's own citation metadata (colour-sources.md had this one filed
+ *  under the wrong author and year). */
+const ROD_VISION: Citation = {
+  author: "Loh, K. Y.",
+  year: "2006",
+  title: "The human eyes are color blind at night: Two views of the Milky Way",
+  site: "Malaysian Family Physician, via PubMed Central",
+  url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC4453125/",
+  accessed: "2026-09-16",
+};
+
 export const SKY_FACTS: readonly SkyFact[] = [
   /* ---- deep-sky objects and landmarks ---- */
   {
@@ -285,9 +397,10 @@ export const SKY_FACTS: readonly SkyFact[] = [
     body: [
       "The first known report of it is in al-Sufi’s Book of Fixed Stars, from the year 964.",
       "We see its disk almost edge-on, tilted 77 degrees from our line of sight.",
+      "A six-hour telescopic mosaic records a bright yellow nucleus, dark winding dust lanes, luminous blue spiral arms and bright red emission nebulae.",
     ],
     visibility: "Naked eye, even with moderate light pollution; best in November",
-    citations: [hubbleMessier(31, "Messier 31 (The Andromeda Galaxy)", "2026-09-15")],
+    citations: [hubbleMessier(31, "Messier 31 (The Andromeda Galaxy)", "2026-09-15"), APOD_M31],
   },
   {
     id: "m1",
@@ -318,11 +431,11 @@ export const SKY_FACTS: readonly SkyFact[] = [
     oneLiner: "More than 100,000 stars in one tight ball",
     body: [
       "Edmond Halley, of Halley’s Comet, discovered it in 1714.",
-      "The stars are packed so closely that nobody could make out individual ones until 1779.",
+      "The middle is dense enough that it looks solid white, and the stars around it sort by temperature, the hot ones blue and the cool giants red.",
       "Near the core the stars are about a hundred times denser than around the Sun, close enough that they sometimes collide.",
     ],
     visibility: "Binoculars, most easily in July",
-    citations: [hubbleMessier(13, "Messier 13 (The Hercules Cluster)", "2026-09-15")],
+    citations: [hubbleMessier(13, "Messier 13 (The Hercules Cluster)", "2026-09-15"), APOD_M13, EARTHSKY_M13],
   },
   {
     id: "m42",
@@ -331,9 +444,10 @@ export const SKY_FACTS: readonly SkyFact[] = [
     body: [
       "The Maya of Mesoamerica are thought to have seen it as the cosmic fire of creation.",
       "Four massive young stars at its centre, called the Trapezium, are carving a cavity in the cloud.",
+      "Two readings of its colour circulate: a calibrated analysis finds the Trapezium region blue-green, “best described as teal”, from oxygen and hydrogen lines, while Hubble’s familiar picture is a filter map that puts hydrogen in orange, oxygen in green and sulphur with infrared in red.",
     ],
     visibility: "Naked eye, just below Orion’s belt; best in January",
-    citations: [hubbleMessier(42, "Messier 42 (The Orion Nebula)", "2026-09-15")],
+    citations: [hubbleMessier(42, "Messier 42 (The Orion Nebula)", "2026-09-15"), CLARK_M42],
   },
   {
     id: "m44",
@@ -342,9 +456,10 @@ export const SKY_FACTS: readonly SkyFact[] = [
     body: [
       "Galileo was the first to see it as more than a cloudy patch, and picked out about 40 of its stars.",
       "The cluster is thought to be 600 to 700 million years old; the Milky Way is about 13 billion.",
+      "A telescopic photograph shows a few yellowish, cool red giants scattered through a field of brighter hot blue main-sequence stars.",
     ],
     visibility: "Naked eye as a blur of light; binoculars show about 20 stars; highest in March",
-    citations: [hubbleMessier(44, "Messier 44", "2026-09-15")],
+    citations: [hubbleMessier(44, "Messier 44", "2026-09-15"), APOD_M44],
   },
   {
     id: "m45",
@@ -420,10 +535,10 @@ export const SKY_FACTS: readonly SkyFact[] = [
     body: [
       "Astronomers compared a Hubble image from 2026 against one taken in 1997 and found the nebula had changed on a human time scale.",
       "Two thin jets, each roughly three-quarters of a light-year long, are being eroded by radiation from a massive star just beyond the frame.",
-      "Its published colours are filter assignments, red for hydrogen and sulphur and green for oxygen, and the 2026 image carries a key naming each filter used.",
+      "One lobe glows with hydrogen’s own red light and another is dust scattering starlight, the same effect that makes the daytime sky blue, while the published Hubble colours are filter assignments: red for hydrogen and sulphur, green for oxygen.",
     ],
     visibility: "Telescope, a small one; best observed during August",
-    citations: [hubbleMessier(20, "Messier 20 (The Trifid Nebula)", "2026-09-15"), ESA_TRIFID],
+    citations: [hubbleMessier(20, "Messier 20 (The Trifid Nebula)", "2026-09-15"), ESA_TRIFID, ESO_TRIFID],
   },
   {
     id: "m27",
@@ -1011,7 +1126,15 @@ export const SKY_FACTS: readonly SkyFact[] = [
       "The Sun lies near a small, partial arm called the Orion Arm, or Orion Spur.",
     ],
     visibility: "Naked eye, as a band of faint light, away from bright city lights",
-    citations: [nasaScience("resource/the-milky-way-galaxy/", "The Milky Way Galaxy", "2026-09-15"), SKYWATCHING],
+    // The last two carry the band's own colour note (2026-09-16): a 40-minute
+    // exposure records dust lanes and red and blue nebulae in it, and the
+    // reason your eyes do not is that rod vision sees grey.
+    citations: [
+      nasaScience("resource/the-milky-way-galaxy/", "The Milky Way Galaxy", "2026-09-15"),
+      SKYWATCHING,
+      APOD_MILKY_WAY,
+      ROD_VISION,
+    ],
   },
 
   /* ---- meteor showers ---- */

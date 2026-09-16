@@ -585,12 +585,21 @@ test("the nebula and cluster palettes keep the false-colour rulings", async () =
   const [r16, g16, b16] = rgb(OBJECT_COLOURS.m16.base);
   assert.ok(r16 > g16 * 1.5 && r16 > b16, `M16 must not read gold or teal, got ${OBJECT_COLOURS.m16.base}`);
   // Planetary nebulae are blue-green from doubly ionized oxygen, which is
-  // where M57's and M27's bodies come from; the rim is hydrogen, which is red.
+  // where M57's and M27's bodies come from.
+  //
+  // ⚠️ And that is ALL they get. Until 2026-09-16 both fringed their outer
+  // edge red "as hydrogen", and this test pinned it (final review M2). No
+  // source puts H-alpha at the outer edge of either: APOD says M57's hydrogen
+  // is in the INNER ring and the outer ring's red is nitrogen and sulphur,
+  // NASA's M27 stratification puts hydrogen in the MIDDLE shell, and
+  // R-COLOUR-2 rules [N II] = red unsourced. A blue-green body inside a red
+  // rim is the narrowband composite's own arrangement, so the test now holds
+  // the accent OFF until a source says otherwise.
   for (const id of ["m57", "m27"]) {
     const [r, g2, b] = rgb(OBJECT_COLOURS[id].base);
     assert.ok(g2 > r && b > r, `${id} body should be the blue-green of O III, got ${OBJECT_COLOURS[id].base}`);
-    const [ar, ag, ab] = rgb(OBJECT_COLOURS[id].accent);
-    assert.ok(ar > ag && ar > ab, `${id} rim should be the red of H-alpha, got ${OBJECT_COLOURS[id].accent}`);
+    assert.equal(OBJECT_COLOURS[id].accent, undefined, `${id} must not fringe its outer edge: no source puts hydrogen there`);
+    assert.equal(OBJECT_COLOURS[id].core, undefined, `${id} must not carry the narrowband helium blue at its centre`);
   }
   // Nothing in this table may be GREEN. Blue-green is fine and sourced (O III
   // at 495.9 and 500.7 nm, and M42's calibrated teal), so the test allows a
@@ -616,12 +625,117 @@ test("the nebula and cluster palettes keep the false-colour rulings", async () =
   assert.equal(OBJECT_COLOURS.m1.core, undefined, "the Crab's synchrotron interior has no sourced visible colour");
 });
 
-test("every coloured object has a fact that cites its colour source", async () => {
-  const { OBJECT_COLOURS } = await import("../lib/sky-layers.ts");
+/**
+ * The source each coloured object's palette actually rests on, by id: the
+ * URL(s) that must appear on that object's own card.
+ *
+ * ⚠️ This map is the round's central honesty claim, and until 2026-09-16 the
+ * test below only asserted `citations.length >= 1` (final review M4), which
+ * every card passes by existing. That is how ten objects came to draw colours
+ * their cards cited nothing for (C1). An entry here is a promise that the
+ * page at that URL says, in words, what the palette draws, checked by hand
+ * against the served page.
+ *
+ * "Card" means what a reader sees, so the effective set includes the
+ * Lodriguss citation SkyCard.tsx appends to every EMISSION_LINE_COLOURED
+ * object: for those, the chain is one page naming the emitting species and
+ * Lodriguss giving that line's own colour (ruling R-COLOUR-1).
+ */
+const LODRIGUSS = "https://www.astropix.com/books/BGAIP/chapter1/103.html";
+const messier = (n) => `https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-messier-catalog/messier-${n}/`;
+const COLOUR_CITATION = {
+  // "a bright yellow nucleus, dark winding dust lanes, luminous blue spiral
+  // arms, and bright red emission nebulas" (APOD 2019).
+  m31: ["https://apod.nasa.gov/apod/ap190909.html"],
+  // "Blue-colored regions... reveal numerous sites of rapid star birth" and
+  // "its bright-white core" (NASA); "pinkish star forming regions" (APOD).
+  m33: [messier(33), "https://science.nasa.gov/image-article/apod-2017-november-30-m33-triangulum-galaxy/"],
+  // "bright pink star-forming regions... brilliant blue strands of star
+  // clusters", around an older core.
+  m51: [messier(51)],
+  // "young, bluish, hot stars" in the arms, "much older, redder stars" in the
+  // bulge.
+  m81: [messier(81)],
+  // "the blue jet contrasts with the yellow glow from the combined light of
+  // billions of unresolved stars".
+  m87: [messier(87)],
+  // "a brilliant, white, bulbous core encircled by thick dust lanes".
+  m104: [messier(104)],
+  // "The orange filaments... consist mostly of hydrogen", drawn at hydrogen's
+  // own wavelength rather than at that composite's orange.
+  m1: [messier(1), LODRIGUSS],
+  // "Wisps of pinkish-grey clouds fill the scene... Bright, blue-white stars
+  // shine through the cloud."
+  m8: [messier(8)],
+  // The card quotes the SHO palette off this page; what is left under it is a
+  // hydrogen glow, and Lodriguss gives that line its colour.
+  m16: [messier(16), LODRIGUSS],
+  // ESO, on the two halves: "the round, pink-reddish area typical of an
+  // emission nebula" and "the bluish patch... called a reflection nebula",
+  // where dust "scatter[s] blue light more efficiently than red light".
+  m20: ["https://www.eso.org/public/news/eso0930/"],
+  // NASA names the emitting species and calls it a planetary nebula;
+  // Lodriguss: planetary nebulae "are blue-green in color from emission lines
+  // of doubly ionized oxygen".
+  m27: [messier(27), LODRIGUSS],
+  m57: [messier(57), LODRIGUSS],
+  // The teal core is ClarkVision's calibrated true-colour measurement, not
+  // NASA's false-colour map of the same cloud; the card carries both readings
+  // and says which is which.
+  m42: [messier(42), "https://clarkvision.com/articles/astrophotography.m42-trapezium.true.color/", LODRIGUSS],
+  // "The dust... reflects the light of several bright blue stars... The same
+  // type of scattering that colors the daytime sky further enhances the blue."
+  m78: ["https://science.nasa.gov/image-article/apod-2000-april-24-reflection-nebula-m78/"],
+  // "the nebula's suggestive reddish color is due to the glow of hydrogen
+  // atoms".
+  flame: ["https://science.nasa.gov/image-article/apod-2007-february-2-flame-nebula-close-up/", LODRIGUSS],
+  // What the head blocks is IC 434's hydrogen; the head itself is opaque dust
+  // and carries no colour claim.
+  horsehead: [
+    "https://science.nasa.gov/missions/webb/webb-captures-top-of-iconic-horsehead-nebula-in-unprecedented-detail/",
+    LODRIGUSS,
+  ],
+  // "Sensitive cameras can pick up the reddish color that is characteristic
+  // of hydrogen that dominates C20."
+  ngc7000: ["https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-caldwell-catalog/caldwell-20/", LODRIGUSS],
+  // ESA names hydrogen among the shock's emitters; the arcs draw that line's
+  // own red and none of that caption's narrowband teal.
+  ngc6960: ["https://esahubble.org/news/heic0712/", LODRIGUSS],
+  ngc6992: ["https://esahubble.org/news/heic0712/", LODRIGUSS],
+  // "Blue stars are hot and red stars are cool" (APOD), around a core "so
+  // dense in the middle it looks solid white" (EarthSky).
+  m13: ["https://apod.nasa.gov/apod/ap190613.html", "https://earthsky.org/clusters-nebulae-galaxies/m13-finest-globular-cluster-in-northern-skies/"],
+  // "The cluster's few yellowish tinted, cool, red giants are scattered
+  // through the field of its brighter hot blue main sequence stars."
+  m44: ["https://apod.nasa.gov/apod/ap220430.html"],
+  // "The nearly straight, blue-white wisps... are streams of large dust
+  // particles."
+  m45: [messier(45)],
+  // ⚠️ The one entry whose page does not name a colour: it says these are
+  // "stars much younger and hotter than the Sun", and the blue-white is that
+  // temperature, not a quotation. Recorded rather than hidden; see the
+  // Double Cluster's note in OBJECT_COLOURS.
+  ngc869: ["https://apod.nasa.gov/apod/ap140123.html"],
+  ngc884: ["https://apod.nasa.gov/apod/ap140123.html"],
+};
+
+test("every coloured object's card cites the source its colour rests on", async () => {
+  const { OBJECT_COLOURS, EMISSION_LINE_COLOURED } = await import("../lib/sky-layers.ts");
   const { SKY_FACTS } = await import("../content/sky-facts.ts");
   const FACTS = new Map(SKY_FACTS.map((f) => [f.id, f]));
-  for (const id of Object.keys(OBJECT_COLOURS)) {
-    assert.ok(FACTS.has(id), `${id} has a palette but no card to cite it on`);
-    assert.ok(FACTS.get(id).citations.length >= 1, `${id} colour is uncited`);
+  assert.deepEqual(
+    Object.keys(COLOUR_CITATION).sort(),
+    Object.keys(OBJECT_COLOURS).sort(),
+    "every id in OBJECT_COLOURS needs an entry in COLOUR_CITATION and nothing else may have one",
+  );
+  for (const [id, urls] of Object.entries(COLOUR_CITATION)) {
+    const fact = FACTS.get(id);
+    assert.ok(fact, `${id} has a palette but no card to cite it on`);
+    // Exactly what SkyCard.tsx renders under Sources.
+    const cited = new Set(fact.citations.map((c) => c.url));
+    if (EMISSION_LINE_COLOURED.has(id)) cited.add(LODRIGUSS);
+    for (const url of urls) {
+      assert.ok(cited.has(url), `${id} draws a colour this card does not source: its Sources list must include ${url}, and holds ${[...cited].join(", ")}`);
+    }
   }
 });

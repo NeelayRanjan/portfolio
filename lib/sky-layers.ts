@@ -50,8 +50,16 @@ const D2R = Math.PI / 180;
 
 /** Sourced long-exposure colours, "r,g,b" so each draw site picks its own
  *  alpha (same shape as INK/MUT/WARM). Stargaze only. Sources:
- *  .superpowers/sdd/colour-sources.md — every entry here traces to a
- *  citation on that object's card. An id absent from this table draws grey. */
+ *  .superpowers/sdd/colour-sources.md.
+ *
+ *  ⚠️ The contract: every entry here traces to a sentence on a page that
+ *  THIS object's card cites. It was false for ten objects until 2026-09-16
+ *  (final review C1: the pre-existing cards were coloured without anyone
+ *  touching their citation lists), so it is now machine-checked rather than
+ *  promised, by COLOUR_CITATION in scripts/test-sky-objects.mjs, which maps
+ *  each id here to the URL its palette rests on and fails if that URL is
+ *  missing from the card. Adding a palette means fetching a source and citing
+ *  it on the card. An id absent from this table draws grey. */
 export type ObjectPalette = {
   /** Body/cloud fill. */ base: string;
   /** Core, bulge or inner region where the structure has one. */ core?: string;
@@ -83,8 +91,11 @@ export const OBJECT_COLOURS: Record<string, ObjectPalette> = {
   // blue spiral arms, and bright red emission nebulas".
   m31: { base: "111,168,255", core: "233,214,160", accent: "255,95,82" },
   // NASA/APOD 2017: "blue star clusters and pinkish star forming regions
-  // along the galaxy's loosely wound spiral arms", over a yellow-white core.
-  m33: { base: "91,143,214", core: "242,225,168", accent: "255,111,145" },
+  // along the galaxy's loosely wound spiral arms". The core was a yellow-white
+  // until 2026-09-16, which no cited page said (C1); NASA's own M33 page
+  // describes "a nearly face on spiral galaxy with its bright-white core", so
+  // the core is that white instead.
+  m33: { base: "91,143,214", core: "244,241,232", accent: "255,111,145" },
   // ESA/Hubble: "bright pink star-forming regions... Bright blue star
   // clusters", around an older yellow core.
   m51: { base: "111,168,255", core: "232,200,138", accent: "255,111,168" },
@@ -129,24 +140,41 @@ export const OBJECT_COLOURS: Record<string, ObjectPalette> = {
   // hydrogen glow, which is red, and dust columns, which are opaque and take
   // no colour at all.
   m16: { base: "224,82,106" },
-  // The Trifid is two halves: "red is Hα/S II emission from gas ionized by
-  // hot young stars", and the blue lobe is dust scattering starlight, the
-  // same physics as the daytime sky (ESA/Hubble's WFC3 image; the split is
-  // physically real even though that image is a processed composite).
+  // The Trifid is two halves, and ESO's own words for them (added to the card
+  // 2026-09-16, C1: nothing cited before then attributed the blue to
+  // scattering) are "the round, pink-reddish area typical of an emission
+  // nebula" and "the bluish patch to the upper left, called a reflection
+  // nebula", where "dust grains and molecules scatter blue light more
+  // efficiently than red light".
   m20: { base: "217,69,95", accent: "74,127,209" },
   // A planetary nebula, so the body is O III blue-green by Lodriguss's own
-  // sentence; the rim is hydrogen, which is red. NASA's own rendering puts
-  // hydrogen on green, which is the thing the ruling forbids following.
-  m27: { base: "111,214,232", accent: "217,83,106" },
+  // sentence. NASA's own rendering puts hydrogen on green, which is the thing
+  // the ruling forbids following.
+  //
+  // ⚠️ NO red fringe, dropped 2026-09-16 (final review M2). It used to ring
+  // the outer lobes as "the hydrogen shell", but NASA's stratification for
+  // this object runs blue oxygen, GREEN hydrogen, red sulphur and nitrogen, so
+  // hydrogen is the MIDDLE shell and the outer red is [N II] and [S II] --
+  // which R-COLOUR-2 says is not sourced. A red outer fringe over a blue-green
+  // body is the narrowband composite's own arrangement, reached by a different
+  // route. The shell reads as O III alone until a source puts H-alpha at the
+  // edge.
+  m27: { base: "111,214,232" },
   // The one nebula here with a calibrated broadband measurement: ClarkVision
   // finds the Trapezium region "blue-green, and best described as teal", with
   // the wider cloud pink-red from H-alpha. NOT NASA's orange/green/red
   // version of the same object, which is an explicit false-colour map.
   m42: { base: "244,113,138", core: "79,224,200" },
-  // The Ring: O III blue-green through the ring, an H-alpha red rim. NASA's
+  // The Ring: O III blue-green through the ring, and nothing else. NASA's
   // picture puts helium on blue and nitrogen on red through three narrowband
   // filters; neither of those colours is here.
-  m57: { base: "111,224,200", accent: "217,83,79" },
+  //
+  // ⚠️ NO red rim either, same fix and same date as M27's above. APOD's
+  // reading of this object is explicit that "the cyan color of the inner ring
+  // is the glow of hydrogen and oxygen, and the reddish color of the outer
+  // ring is from nitrogen and sulfur": hydrogen is INSIDE, so a red outer rim
+  // ran the source backwards.
+  m57: { base: "111,224,200" },
   // APOD: "The dust not only absorbs light, but also reflects the light of
   // several bright blue stars... The same type of scattering that colors the
   // daytime sky further enhances the blue color."
@@ -192,11 +220,18 @@ export const OBJECT_COLOURS: Record<string, ObjectPalette> = {
   // reflection nebula is caused by blue light being more efficiently
   // scattered by the carbon dust than red light."
   m45: { base: "205,228,255", accent: "111,168,220" },
-  // ⚠️ Stars only, no gas. The Double Cluster's blue-white stars are ordinary
-  // stellar colour from temperature (APOD: "stars much younger and hotter
-  // than the Sun") and are citable; the pink hydrogen glow around them in
-  // that same image is narrowband enhancement, by its own caption, and is
-  // not. So neither half gets an accent and neither draws a haze.
+  // ⚠️ Stars only, no gas. The pink hydrogen glow around them in the APOD
+  // image is narrowband enhancement, by its own caption, so neither half gets
+  // an accent and neither draws a haze.
+  //
+  // ⚠️ And be explicit about what this blue-white IS (final review C1): no
+  // source on these cards, and none found on 2026-09-16 (NASA's Caldwell 14
+  // page, three more APODs), calls these stars blue or blue-white. What the
+  // card does carry is APOD's "stars much younger and hotter than the Sun",
+  // so the colour here is STELLAR TEMPERATURE, the same physics M13's and
+  // M44's sourced star colours rest on, not a quoted colour. It is the one
+  // inference in this table, and it stays only because temperature-to-colour
+  // is the single least contested claim on the chart.
   ngc869: { base: "191,212,245" },
   ngc884: { base: "191,212,245" },
 };
@@ -734,8 +769,16 @@ function drawEmissionNebula(ctx: CanvasRenderingContext2D, p: { x: number; y: nu
   strokeDust(ctx, p, g.dust);
   if (pal.accent && g.stars.length) fillPlaced(ctx, p, g.stars, pal.accent, 0.8);
 }
-/** A shell thrown off a dying star: the body in the blue-green of doubly
- *  ionized oxygen, a hydrogen-red fringe at the outer edge. */
+/**
+ * A shell thrown off a dying star, in the blue-green of doubly ionized
+ * oxygen, which is the whole of it.
+ *
+ * Both of these objects fringed their outer edge in H-alpha red until
+ * 2026-09-16; see M27's and M57's entries in OBJECT_COLOURS for why that came
+ * off. The `accent` slot is not read here any more, on purpose: an unread
+ * branch waiting for a colour nobody has sourced is how the wrong red would
+ * come back, so the code that drew it is gone rather than dormant.
+ */
 function drawPlanetaryNebula(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, g: NebulaGlyph, pal: ObjectPalette): void {
   if (g.ring) {
     ctx.beginPath();
@@ -743,35 +786,16 @@ function drawPlanetaryNebula(ctx: CanvasRenderingContext2D, p: { x: number; y: n
     ctx.arc(p.x, p.y, g.ring.innerR, 0, Math.PI * 2, true);
     // The grey ring is INK at 0.4; a saturated blue-green at that alpha made
     // M57 the brightest thing on a 1440px chart (screenshot-caught), so the
-    // coloured one sits lower and the red rim carries the contrast instead.
+    // coloured one sits lower.
     ctx.fillStyle = `rgba(${pal.base},0.33)`;
     ctx.fill("evenodd");
     ctx.beginPath();
     ctx.arc(p.x, p.y, g.ring.innerR, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(${pal.base},0.07)`;
     ctx.fill();
-    if (pal.accent) {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, g.ring.outerR - 0.4, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(${pal.accent},0.45)`;
-      ctx.lineWidth = 1.4;
-      ctx.stroke();
-      ctx.lineWidth = 1;
-    }
     return;
   }
   fillTinted(ctx, p, g.blobs, pal, 0.2);
-  if (pal.accent) {
-    // The fringe goes on the LOBES only: fringing the waist too drew a third
-    // circle through the middle of the Dumbbell (screenshot-caught).
-    ctx.strokeStyle = `rgba(${pal.accent},0.35)`;
-    for (const b of g.blobs) {
-      if (b.dx === 0 && b.dy === 0) continue;
-      ctx.beginPath();
-      ctx.arc(p.x + b.dx, p.y + b.dy, b.r, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-  }
 }
 /** A supernova remnant: filaments, which is nearly all these objects are.
  *  The Crab keeps a diffuse interior under them, and it draws in the site's

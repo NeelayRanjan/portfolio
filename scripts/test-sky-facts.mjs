@@ -174,6 +174,10 @@ const COLOUR_SOURCE_URLS = new Set([
   "https://aaa.org/2020/06/23/pillars-of-creation-using-the-hubble-palette/",
   "https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-messier-catalog/messier-20/",
   "https://esahubble.org/images/heic2608c/",
+  // Added 2026-09-16 (final review C1): the Trifid's blue lobe is a reflection
+  // nebula, and neither page above attributes that blue to scattering. Fetched
+  // while the fix was written, 200.
+  "https://www.eso.org/public/news/eso0930/",
   "https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-messier-catalog/messier-27/",
   "https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-messier-catalog/messier-33/",
   "https://science.nasa.gov/image-article/apod-2017-november-30-m33-triangulum-galaxy/",

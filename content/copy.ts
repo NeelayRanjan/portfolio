@@ -799,9 +799,9 @@ export const copy = {
      *  claiming long-exposure colour there described something the visitor
      *  could not see (final review m5). */
     credit:
-      "The sky over NASA Ames from the moment you arrived, turning 180 times faster than the real one. Stars from the Extended Hipparcos Compilation; lines, Latin names, the Milky Way and the Messier objects from d3-celestial; English names and constellation origins from Wikipedia; spacecraft positions from JPL Horizons; meteor showers from the IMO; the ISS from CelesTrak. Every card cites its sources. The galaxies, nebulae, clusters and the Milky Way's band are drawn far bigger than they'd really look",
+      "The sky over NASA Ames from the moment you arrived, turning 180 times faster than the real one.",
     creditStill:
-      "The sky over NASA Ames at the moment you arrived. Stars from the Extended Hipparcos Compilation; lines, Latin names, the Milky Way and the Messier objects from d3-celestial; English names and constellation origins from Wikipedia; spacecraft positions from JPL Horizons; meteor showers from the IMO; the ISS from CelesTrak. Every card cites its sources. The galaxies, nebulae, clusters and the Milky Way's band are drawn far bigger than they'd really look",
+      "The sky over NASA Ames at the moment you arrived.",
     /** Stargaze only. The grey is sourced (Loh 2006, cited on the Milky Way's
      *  own card): at that brightness the eye is running on rods. */
     creditColour: ", in colours only a long exposure records; your own eyes would see them grey",

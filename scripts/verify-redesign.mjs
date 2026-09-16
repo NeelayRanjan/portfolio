@@ -3305,6 +3305,10 @@ async function checkStargazeTouch400(browser) {
     const phoneNames = await page.evaluate((coloured) => {
       const always = new Set(["mercury", "venus", "mars", "jupiter", "saturn", "moon"]);
       const boxed = window.__sky.hits.filter((h) => h.box);
+      // The search band starts under the hint bar's MEASURED bottom, not a
+      // fixed 80px: the counts' "and more" wording (final review m2) wraps
+      // the bar to 107px at 400px, and phone names step down below it.
+      const barBottom = document.querySelector("[data-stargaze-bar]")?.getBoundingClientRect().bottom ?? 72;
       const stray = boxed.filter((h) => !always.has(h.id) && !coloured.includes(h.id)).map((h) => h.id);
       const named = boxed.filter((h) => coloured.includes(h.id)).map((h) => h.id);
       for (const h of boxed) {
@@ -3312,7 +3316,7 @@ async function checkStargazeTouch400(browser) {
         const b = h.box;
         const x = b.x + b.w / 2;
         const y = b.y + b.h / 2;
-        if (y < 80 || y > window.innerHeight * 0.35 || x < 4 || x > window.innerWidth - 4) continue;
+        if (y < barBottom + 8 || y > barBottom + window.innerHeight * 0.25 || x < 4 || x > window.innerWidth - 4) continue;
         if (window.__sky.hits.some((o) => Math.hypot(o.x - x, o.y - y) < 24)) continue;
         if (window.__sky.hits.some((o) => o !== h && o.box && x >= o.box.x && x <= o.box.x + o.box.w && y >= o.box.y && y <= o.box.y + o.box.h)) continue;
         if (document.elementFromPoint(x, y)?.closest("button, a, [data-sky-card], [data-sky-credit]")) continue;
@@ -3871,14 +3875,18 @@ async function checkStargazeBrowse(browser) {
     await waitStargazeReady(page);
     await stargazeToggle(page).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
-    await page.waitForTimeout(500);
+    // The list still holds constellations, planets and the Moon without
+    // objects.json, so "browse the list" stays (final review m2); the counts don't.
+    await page.waitForFunction(() => document.querySelectorAll("[data-sky-list-item]").length > 0, null, { timeout: 10000 });
+    await page.waitForTimeout(300);
     const early = await readHint(page);
-    if (early.text !== copy.stargaze.hintPointer || early.objects !== null || early.browse) {
-      throw new Error(`with objects.json held back the hint bar reads ${JSON.stringify(early)}; expected the hint alone, no counts and no browse control`);
+    const earlyText = `${copy.stargaze.hintPointer} · ${copy.stargaze.browseList}`;
+    if (early.text !== earlyText || early.objects !== null || early.constellations !== null || !early.browse) {
+      throw new Error(`with objects.json held back the hint bar reads ${JSON.stringify(early)}; expected ${JSON.stringify(earlyText)}: no counts, the browse control kept for a list that has items`);
     }
     release();
     await page.waitForSelector("[data-stargaze-count-objects]", { timeout: 10000 });
-    notes.push("objects.json held: hint alone; released: counts appeared");
+    notes.push("objects.json held: no counts, browse kept (list has items); released: counts appeared");
   });
 
   await pinnedSkyPage(browser, { W, H, date }, async (page) => {
@@ -3984,6 +3992,41 @@ async function checkStargazeBrowse(browser) {
     }));
     if (closedByButton.panel !== "closed" || !closedByButton.focus) throw new Error(`close button left ${JSON.stringify(closedByButton)}`);
     notes.push("close button closes it, focus back on browse");
+  });
+
+  // An open panel's rows are frozen (final review m3): the sky turns (motion
+  // on, the clock jumped 10 minutes = 30 simulated hours) and the 2s refresh
+  // passes, rows unchanged; closing refreshes, and reopening shows the new set.
+  await withPage(browser, { viewport: { width: W, height: H }, deviceScaleFactor: 1 }, async (page) => {
+    await page.clock.install({ time: date });
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await waitSkyDrawn(page);
+    await page.waitForFunction(() => window.__sky.layers.objects === "ready" && window.__sky.layers.facts === "ready", null, { timeout: 10000 });
+    await waitStargazeReady(page);
+    await stargazeToggle(page).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    await page.waitForFunction(() => document.querySelectorAll("[data-sky-list-item]").length > 0, null, { timeout: 5000 });
+    const rows = () => page.evaluate(() => [...document.querySelectorAll("[data-sky-list] [data-sky-list-item]")].map((b) => b.textContent).join("|"));
+    await page.getByRole("button", { name: copy.stargaze.browseList }).click();
+    await page.waitForSelector('[data-sky-list-panel="open"]', { timeout: 3000 });
+    const before = await rows();
+    const lst0 = await page.evaluate(() => window.__sky.lstDeg);
+    await page.clock.fastForward("10:00");
+    await page.waitForTimeout(2600);
+    const lst1 = await page.evaluate(() => window.__sky.lstDeg);
+    const turned = Math.abs((((lst1 - lst0) % 360) + 540) % 360 - 180);
+    if (turned < 20) throw new Error(`the sky turned only ${turned.toFixed(1)} deg of LST; the freeze has nothing to hold against`);
+    const during = await rows();
+    if (during !== before) throw new Error(`with the panel open the rows changed as the sky turned ${turned.toFixed(0)} deg past a 2s refresh:\n  before ${before}\n  after  ${during}`);
+    await page.getByRole("button", { name: copy.stargaze.listPanelClose }).click();
+    await page.waitForFunction((b) => [...document.querySelectorAll("[data-sky-list] [data-sky-list-item]")].map((x) => x.textContent).join("|") !== b, before, { timeout: 3000 }).catch(() => {
+      throw new Error(`closing the panel after a ${turned.toFixed(0)} deg turn did not refresh the list`);
+    });
+    await page.getByRole("button", { name: copy.stargaze.browseList }).click();
+    await page.waitForSelector('[data-sky-list-panel="open"]', { timeout: 3000 });
+    const reopened = await rows();
+    if (reopened === before) throw new Error("the reopened panel still shows the rows from before the turn");
+    notes.push(`open panel frozen through a ${turned.toFixed(0)} deg turn and a 2.6s wait (${before.split("|").length} rows); close refreshed, reopen shows ${reopened.split("|").length} new-set rows`);
   });
   return notes.join("; ");
 }
@@ -4289,7 +4332,8 @@ async function checkSkyInvite(browser) {
     notes.push("(hover: none): mouse entry and a tap on the sky showed nothing");
   });
 
-  // Never in stargaze; the session is not spent by stargazing.
+  // Never in stargaze; stargazing spends the session's invite, by either door
+  // (final review m4): the visitor has already found what it points at.
   await withPage(browser, { viewport: { width: W, height: H } }, async (page) => {
     await loadHome(page);
     await waitStargazeReady(page);
@@ -4303,10 +4347,33 @@ async function checkSkyInvite(browser) {
     await page.keyboard.press("Escape");
     await waitStargaze(page, false);
     await enterSky(page);
-    await page.waitForFunction(() => window.__sky.inviteShown === true, null, { timeout: 2000 }).catch(() => {
-      throw new Error("after stargazing and leaving, the first paper-mode entry did not show the invite");
-    });
-    notes.push("stargaze: nothing; first paper entry afterwards shows it");
+    await page.waitForFunction(() => window.__sky.saturationTarget === 1, null, { timeout: 2000 });
+    await page.waitForTimeout(800);
+    const after = await readInvite(page);
+    if (after.shown || !after.hidden) throw new Error(`after stargazing by the toggle and leaving, a paper-mode entry showed the invite: ${JSON.stringify(after)}`);
+    await page.reload({ waitUntil: "networkidle" });
+    await waitSkyDrawn(page);
+    await enterSky(page);
+    await page.waitForFunction(() => window.__sky.saturationTarget === 1, null, { timeout: 2000 });
+    await page.waitForTimeout(800);
+    if (!(await readInvite(page)).hidden) throw new Error("stargazing by the toggle did not spend the invite for the session (it showed after a reload)");
+    notes.push("stargaze by the toggle: nothing inside; entry registered afterwards and after a reload, invite not shown");
+  });
+  await withPage(browser, { viewport: { width: W, height: H } }, async (page) => {
+    await loadHome(page);
+    const footer = page.locator("[data-stargaze-footer-enter]");
+    await footer.scrollIntoViewIfNeeded();
+    await page.waitForSelector("[data-stargaze-footer][data-ready]", { timeout: 5000 });
+    await footer.click();
+    await waitStargaze(page, true);
+    await page.keyboard.press("Escape");
+    await waitStargaze(page, false);
+    await enterSky(page);
+    await page.waitForFunction(() => window.__sky.saturationTarget === 1, null, { timeout: 2000 });
+    await page.waitForTimeout(800);
+    const r = await readInvite(page);
+    if (r.shown || !r.hidden) throw new Error(`after stargazing by the footer door and leaving, a paper-mode entry showed the invite: ${JSON.stringify(r)}`);
+    notes.push("stargaze by the footer door: invite spent too");
   });
 
   // Storage that throws: once per page load.

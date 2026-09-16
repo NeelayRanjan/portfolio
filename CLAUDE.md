@@ -94,7 +94,8 @@ of the sheet, with the hovered or selected symbol's own always-on name
 suppressed), **`sky-drag`** (dragging the margin slides `window.__sky.offset`,
 release springs it home inside 1.5s, a drag starting on the sheet never pans,
 reduced motion snaps back instead of springing, a window blur ends a held
-drag), **`sky-objects`** (Andromeda
+drag; in stargaze the offset instead HOLDS across the release and only goes
+home when stargaze is left, under reduced motion too), **`sky-objects`** (Andromeda
 and the galactic core each hold real pixels at an instant the check finds for
 that body alone, since the two are never both on screen on a shared canvas at
 once; an active meteor radiant only inside its window; the objects layer's
@@ -181,13 +182,22 @@ the night sky, branch `sky-objects`.** Polaris moves to the top left (a
 margin-based pole, not a fixed fraction: it sits at the midpoint of the
 left margin whenever that margin is at least 72px wide, else near the top of
 a narrow one); dragging the desk (or, in stargaze mode, dragging anywhere)
-slides the whole chart with a rubber-banded limit and springs back home on
-release. Ten Messier favourites, the galactic core, the Kepler field, the
+slides the whole chart with a rubber-banded limit. In normal mode it springs
+back home on release, so the page keeps its composed margins; in stargaze it
+stays where the visitor left it and only goes home on the way out. Ten
+Messier favourites, the galactic core, the Kepler field, the
 Hubble Deep Field, Voyager 1, 15 named bright stars, active meteor
 radiants and the live ISS all draw from real data (Voyager 2 has its data
 and card fact but never draws: dec −59.8° is south of the chart edge) (`public/sky/objects.json`,
 `public/sky/milkyway.json`, `scripts/prepare-sky-objects.mjs`); the Milky
-Way band itself draws as a faint low-alpha glow beneath everything.
+Way band itself draws as a low-alpha glow beneath everything, its five levels
+brightening toward the galactic core under a stipple of grain points.
+**The galaxies, nebulae and clusters are drawn NOT TO SCALE** (owner call,
+2026-09-15: "a not-to-scale visual of them, much like what you would see if
+you were to zoom into them a lot"): Andromeda is a tilted spiral ~40px
+across, the nebulae are soft blob clouds (M57 a ring), the clusters are
+deterministic star scatters. Positions stay real, and the honesty rule that
+covers it is the credit line plus a `notToScale` line on every affected card.
 Hovering any of it in normal mode adds a one-liner to the existing label;
 clicking a symbol or its drawn name (or tapping a symbol) in stargaze mode,
 or pressing Enter on its button in the hidden keyboard list, opens a sourced card (constellation
@@ -660,12 +670,22 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   math): a pointer drag adds a screen-space offset to the whole chart —
   pole, stars, lines, objects, labels together. `rubberBand` bounds it past
   `PAN_LIMIT_FRAC · min(W,H)` to a fraction of further travel, never
-  unbounded; on release `springStep` (critically damped, the exact closed-form
+  unbounded (stargaze uses `STARGAZE_PAN_LIMIT_FRAC`, twice as loose: there
+  is no sheet to compose around while stargazing); on release `springStep` (critically damped, the exact closed-form
   solution advanced by the real elapsed ms, so frame rate can't change its
   curve; not the `k = dt/16.67` per-frame form) returns the offset to `(0,0)`, settling
   in under 1.5s (measured: a 150x80 held drag springs home in 945-947ms).
   Reduced motion snaps the offset to `(0,0)` on release instead of
-  animating; the drag itself still works under reduced motion. The idle sky
+  animating; the drag itself still works under reduced motion.
+  **⚠️ That release-springs-home rule is normal mode only** (owner call,
+  2026-09-15: "when I drag it snaps back, only snap back when I leave
+  stargazing mode"). In stargaze a release leaves the offset exactly where
+  the visitor put it; the single place it goes home is the
+  `subscribeStargaze(false)` handler, which every exit path funnels through
+  (the exit button, Escape, anything else), so a chart can't be left
+  off-centre behind the sheet. That handler also ends a drag still held
+  through the exit, or the next `pointermove` in normal mode would pan with
+  stargaze's now-gone looser limit. The idle sky
   keeps painting at its frame gate (~20 fps at ≥880px, ~10 fps below; it
   turns, so it never pauses outside reduced motion or a hidden tab); a live
   drag or spring raises that to ~60 fps (a 16ms gate less 2ms of rAF
@@ -690,9 +710,29 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   the sky (stars, lines, whichever other layers did load) still draws; a
   malformed file throws, at the same "see the export bug, don't hide it"
   standard as the star catalog.
+- **Not-to-scale deep-sky glyphs** (2026-09-15, `prepareObjectGlyphs` in
+  `lib/sky-objects.ts` + the draw helpers in `lib/sky-layers.ts`): galaxies,
+  nebulae and clusters are drawn as illustrative "zoomed in" shapes, sized by
+  eye against a 1440px screenshot and **deliberately not proportional to the
+  real angular sizes** (M87 is a giant elliptical far bigger than M31 in
+  life; here it is drawn smaller because it is fainter and less the point).
+  Every shape is prepared ONCE per catalog load, so the ~20 fps paint loop
+  only translates and transforms already-placed points. Rules that keep it
+  honest and cheap: no `Math.random` anywhere — the cluster scatters, nebula
+  blobs and Milky Way grain all seed a `mulberry32` from a string hash, so
+  the shape is identical on every load for every visitor (the same
+  determinism rule as the sample-space figure); positions are untouched real
+  data; the credit line and a `notToScale` card line both say the symbols are
+  drawn bigger than life; and an id the size tables don't know about falls
+  back to the original plain symbol rather than erroring. The Milky Way's
+  five levels went from a flat 0.022 alpha to a per-level ramp plus a grain
+  stipple, which is what makes the band read as a band and the core read as a
+  core. Frame-time after all of it: 2.40-2.48ms median against the 5.92ms
+  gate, under the 2.80-3.20ms it measured before.
 - **Hit precedence** (`nearestHit` in `lib/sky-render.ts`, hover and
-  stargaze clicks alike): a symbol the point is ON (within 6px) wins; then a
-  drawn name's text box containing the point (every Hit carries the box of
+  stargaze clicks alike): a symbol the point is ON (within 6px by default,
+  or a bigger glyph's own `core`, never past the caller's own hit radius)
+  wins; then a drawn name's text box containing the point (every Hit carries the box of
   its always-on name whenever names draw, even while the name itself is
   suppressed under a hover label); then the nearest symbol within 12px, or
   22px for a touch pointer (`hitRadiusFor`); then the nearest constellation

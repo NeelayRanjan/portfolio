@@ -458,7 +458,13 @@ function addDsosPicks(features, picks, fileLabel) {
     const joinedName = dsonames[desig]?.name;
     if (!pick.name && !joinedName) fail(`${desig}: no dsonames.json entry and no hand label`);
     const numericMag = Number(mag);
-    const magOk = Number.isFinite(numericMag) && numericMag < DSOS_MAG_SENTINEL;
+    // A DARK nebula has no meaningful magnitude: it emits nothing, it is a
+    // silhouette against whatever lies behind it. d3-celestial still carries a
+    // number in the field (B 33 has "2", which is Barnard's OPACITY class, not
+    // a brightness), and "magnitude 2" on a card would claim the Horsehead is
+    // as bright as Polaris. Dropped at the source so no later task can read it.
+    const magOk =
+      type !== "dn" && Number.isFinite(numericMag) && numericMag < DSOS_MAG_SENTINEL;
     objects.push({
       id: pick.id,
       name: pick.name ?? joinedName,
@@ -642,6 +648,7 @@ if (byId.get("m33").symbol !== "galaxy") fail("M33 symbol");
 const horsehead = byId.get("horsehead");
 if (!near(horsehead.raDeg, 85.2458, 0.001) || !near(horsehead.decDeg, -2.4583, 0.001)) fail(`Horsehead at ${horsehead.raDeg}, ${horsehead.decDeg}`);
 if (horsehead.name !== "Horsehead Nebula") fail(`horsehead dsonames join drifted: "${horsehead.name}"`);
+if (horsehead.mag !== undefined) fail(`Horsehead mag ${horsehead.mag} should be omitted: B 33's "2" is an opacity class, not a brightness`);
 const flame = byId.get("flame");
 if (!near(flame.raDeg, 85.429, 0.001) || !near(flame.decDeg, -1.842, 0.001)) fail(`Flame at ${flame.raDeg}, ${flame.decDeg}`);
 if (flame.name !== "Flame Nebula") fail(`flame dsonames join drifted: "${flame.name}"`);

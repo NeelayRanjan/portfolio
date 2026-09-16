@@ -13,6 +13,7 @@
  * way sky-render.ts renders planet names; they are names, not prose.
  */
 import type { GalaxyGlyph, NebulaGlyph, ObjectGlyph, PreparedMilkyWay, SkyObject, SkyShower } from "./sky-objects";
+import { SPIRAL_DR, SPIRAL_R0, SPIRAL_TURNS } from "./sky-objects";
 import { project, type Chart, type Equatorial } from "./sky-math";
 
 /** A rectangle, CSS px, top-left + size. */
@@ -44,9 +45,55 @@ const D2R = Math.PI / 180;
 export type ObjectPalette = {
   /** Body/cloud fill. */ base: string;
   /** Core, bulge or inner region where the structure has one. */ core?: string;
-  /** Arms, rim or filaments where the structure has one. */ accent?: string;
+  /** Arms, rim, filaments, knots or a jet where the structure has one. */ accent?: string;
 };
-export const OBJECT_COLOURS: Record<string, ObjectPalette> = { /* Task 4-5 fill */ };
+/**
+ * Galaxies (colour round task 4). Every value below is the hex the object's
+ * own section of .superpowers/sdd/sky-colour/colour-sources.md suggests for a
+ * colour that file's citations state in words, converted to "r,g,b" and
+ * nothing else. Where a source describes no colour for part of a structure,
+ * that slot is ABSENT and the draw function leaves it undrawn.
+ *
+ * ⚠️ M82 is deliberately not here, and that is not an oversight to fix
+ * (ruling R-COLOUR-1, .superpowers/sdd/sky-colour/progress.md). Both of its
+ * famous portraits are composites of X-ray and infrared data, which have no
+ * visible colour at all, so there is nothing honest to fall back on. It draws
+ * its structure in the site's own neutrals instead, and its absence here is
+ * also what keeps the colour note off its card (task 7).
+ *
+ * ⚠️ M104 gets a bulge and a dust lane and NO disk: colour-sources.md looked
+ * for a sourced "blue disk" for this specific galaxy and could not find one.
+ * Nebulae and clusters are task 5's to add.
+ */
+export const OBJECT_COLOURS: Record<string, ObjectPalette> = {
+  // APOD 2019: "a bright yellow nucleus, dark winding dust lanes, luminous
+  // blue spiral arms, and bright red emission nebulas".
+  m31: { base: "111,168,255", core: "233,214,160", accent: "255,95,82" },
+  // NASA/APOD 2017: "blue star clusters and pinkish star forming regions
+  // along the galaxy's loosely wound spiral arms", over a yellow-white core.
+  m33: { base: "91,143,214", core: "242,225,168", accent: "255,111,145" },
+  // ESA/Hubble: "bright pink star-forming regions... Bright blue star
+  // clusters", around an older yellow core.
+  m51: { base: "111,168,255", core: "232,200,138", accent: "255,111,168" },
+  // NASA: "spiral arms... made up of young, bluish, hot stars", "central
+  // bulge contains much older, redder stars". No source names a knot colour
+  // for M81 specifically, so it gets no accent and draws no knots; the pink
+  // composite everyone shares is ultraviolet plus visible plus infrared and
+  // is not this galaxy's colour.
+  m81: { base: "91,143,214", core: "232,217,160" },
+  // NASA: "the blue of the jet contrasts with the yellow glow from the
+  // combined light of billions of unseen stars and the yellow, point-like
+  // globular clusters". Base and core are that one yellow-white starlight;
+  // the accent is the jet's synchrotron blue.
+  m87: { base: "240,228,192", accent: "74,144,226" },
+  // NASA/ESA: "a brilliant, white, bulbous core encircled by thick dust lanes
+  // comprising the spiral structure". The lane IS the disk here.
+  m104: { base: "245,240,225", accent: "36,28,22" },
+};
+/** M82's neutrals, and the fallback for any galaxy whose palette names no
+ *  dust colour. Near the desk (#0c0b09) so a lane painted over a body reads
+ *  as a gap in it rather than as a coloured bar. */
+const STARBURST_MONO: ObjectPalette = { base: INK, core: INK, accent: "24,20,16" };
 /**
  * One fill alpha per Milky Way level (spec order: 0 faint/outer, 4
  * bright/inner), replacing the old flat 0.022 ("clutter" follow-up,
@@ -216,12 +263,11 @@ export function drawMilkyWay(
  * never a re-derivation of the spiral itself.
  */
 const SPIRAL_ARM_STEPS = 20;
-const SPIRAL_TURNS = 0.8;
 function buildSpiralArm(mirror: boolean): { x: number; y: number }[] {
   const pts: { x: number; y: number }[] = [];
   for (let i = 0; i <= SPIRAL_ARM_STEPS; i++) {
     const t = i / SPIRAL_ARM_STEPS;
-    const r = 0.15 + 0.82 * t;
+    const r = SPIRAL_R0 + SPIRAL_DR * t;
     const theta = t * SPIRAL_TURNS * Math.PI * 2 * (mirror ? -1 : 1);
     pts.push({ x: r * Math.cos(theta), y: r * Math.sin(theta) });
   }
@@ -232,8 +278,12 @@ const SPIRAL_ARMS = [buildSpiralArm(false), buildSpiralArm(true)];
 /** A tilted spiral: bright core, a couple of faint arms, an elongated halo
  *  (not to scale; see the credit line and the object's card). The core is
  *  drawn last, outside the rotate/scale, so it stays round instead of
- *  squashed onto the galaxy's minor axis. */
-function drawGalaxyGlyph(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, g: GalaxyGlyph): void {
+ *  squashed onto the galaxy's minor axis.
+ *
+ *  This is what every galaxy draws with no palette, which is every galaxy
+ *  outside stargaze: the colour round changes nothing about the page's
+ *  ordinary look. */
+function drawPlainGalaxy(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, g: GalaxyGlyph): void {
   ctx.save();
   ctx.translate(p.x, p.y);
   ctx.rotate(g.tiltDeg * D2R);
@@ -254,6 +304,194 @@ function drawGalaxyGlyph(ctx: CanvasRenderingContext2D, p: { x: number; y: numbe
   ctx.arc(p.x, p.y, 1.6, 0, Math.PI * 2);
   ctx.fillStyle = `rgba(${INK},0.85)`;
   ctx.fill();
+}
+
+/* --- the coloured variants (stargaze only) ---------------------------- *
+ *
+ * Alpha discipline: this is a dim chart on a near-black desk, not a poster.
+ * Every fill below is low-alpha and STACKS, which is how a body gets brighter
+ * toward its middle without a single createRadialGradient. That matters for
+ * more than taste: a gradient's coordinates are the object's screen position,
+ * which moves every frame, so a gradient here would have to be rebuilt ~20
+ * times a second per object. Three nested fills cost less than one
+ * createRadialGradient, and they cost the same on every frame.
+ */
+
+/** Nested body fills, faint outside, stacking toward the middle. Scales are
+ *  fractions of the glyph's own major/minor radii, drawn under the glyph's
+ *  rotation (the caller owns the transform). */
+const BODY_SCALES = [1, 0.72, 0.46];
+const BODY_ALPHA = 0.05;
+/** A round bulge, always drawn OUTSIDE the rotate/scale so it stays round.
+ *  The innermost layer is the plain glyph's own core (r 1.6, alpha 0.85); the
+ *  two around it are what make it read as a glow rather than a dot. */
+const BULGE_LAYERS: [number, number][] = [
+  [3.4, 0.09],
+  [2.3, 0.18],
+  [1.6, 0.85],
+];
+function drawBulge(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, rgb: string, scale = 1): void {
+  for (const [r, a] of BULGE_LAYERS) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r * scale, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${rgb},${a})`;
+    ctx.fill();
+  }
+}
+function fillBody(ctx: CanvasRenderingContext2D, g: GalaxyGlyph, rgb: string, scales: number[], alpha: number): void {
+  ctx.fillStyle = `rgba(${rgb},${alpha})`;
+  for (const s of scales) {
+    ctx.beginPath();
+    ctx.ellipse(0, 0, g.majorPx * s, g.minorPx * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+function fillPlaced(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, places: readonly { dx: number; dy: number; r: number }[], rgb: string, alpha: number): void {
+  ctx.fillStyle = `rgba(${rgb},${alpha})`;
+  for (const k of places) {
+    ctx.beginPath();
+    ctx.arc(p.x + k.dx, p.y + k.dy, k.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+/** The dust lane, in the glyph's rotated frame (the caller owns the
+ *  transform). Painted at high alpha in a near-desk dark so it subtracts the
+ *  body's light instead of adding a coloured bar: the lane reads as the gap
+ *  it is. */
+function fillLane(ctx: CanvasRenderingContext2D, lane: NonNullable<GalaxyGlyph["lane"]>, rgb: string): void {
+  ctx.fillStyle = `rgba(${rgb},0.85)`;
+  ctx.fillRect(-lane.spanPx / 2, lane.offsetPx - lane.halfPx, lane.spanPx, lane.halfPx * 2);
+}
+
+/** M31, M33, M81, and M51 with its companion: blue arms over a blue disk,
+ *  a warm core, and (where a source names them) red or pink H II knots on
+ *  the arms. */
+function drawSpiralGalaxy(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, g: GalaxyGlyph, pal: ObjectPalette | null): void {
+  if (!pal) return drawPlainGalaxy(ctx, p, g);
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(g.tiltDeg * D2R);
+  fillBody(ctx, g, pal.base, BODY_SCALES, BODY_ALPHA);
+  ctx.scale(g.majorPx, g.minorPx);
+  ctx.lineWidth = 0.11;
+  ctx.strokeStyle = `rgba(${pal.base},0.45)`;
+  for (const arm of SPIRAL_ARMS) {
+    ctx.beginPath();
+    arm.forEach((pt, i) => (i === 0 ? ctx.moveTo(pt.x, pt.y) : ctx.lineTo(pt.x, pt.y)));
+    ctx.stroke();
+  }
+  ctx.restore();
+  // The companion carries no colour of its own: no source in colour-sources.md
+  // describes NGC 5195's, so it draws in the site's ink like any uncoloured
+  // thing on the chart.
+  if (g.companion) fillPlaced(ctx, p, [g.companion, { ...g.companion, r: g.companion.r * 0.45 }], INK, 0.17);
+  if (pal.accent) fillPlaced(ctx, p, g.knots, pal.accent, 0.5);
+  drawBulge(ctx, p, pal.core ?? pal.base);
+}
+
+/** M87: a smooth halo of old starlight, its yellow globular clusters, and the
+ *  synchrotron jet, which is the one thing on this chart that has to be
+ *  visible at a glance. */
+function drawEllipticalGalaxy(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, g: GalaxyGlyph, pal: ObjectPalette | null): void {
+  if (!pal) return drawPlainGalaxy(ctx, p, g);
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(g.tiltDeg * D2R);
+  fillBody(ctx, g, pal.base, [1, 0.78, 0.56, 0.34], 0.05);
+  ctx.restore();
+  fillPlaced(ctx, p, g.knots, pal.core ?? pal.base, 0.4);
+  if (g.jet && pal.accent) {
+    const a = g.jet.angleDeg * D2R;
+    const ux = Math.cos(a);
+    const uy = Math.sin(a);
+    const s0 = 2.4;
+    const s1 = g.jet.lengthPx;
+    const w0 = 0.5;
+    const w1 = g.jet.halfWidthPx;
+    ctx.beginPath();
+    ctx.moveTo(p.x + ux * s0 - uy * w0, p.y + uy * s0 + ux * w0);
+    ctx.lineTo(p.x + ux * s1 - uy * w1, p.y + uy * s1 + ux * w1);
+    ctx.lineTo(p.x + ux * s1 + uy * w1, p.y + uy * s1 - ux * w1);
+    ctx.lineTo(p.x + ux * s0 + uy * w0, p.y + uy * s0 - ux * w0);
+    ctx.closePath();
+    ctx.fillStyle = `rgba(${pal.accent},0.5)`;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(p.x + ux * s1, p.y + uy * s1, w1 * 0.9, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${pal.accent},0.75)`;
+    ctx.fill();
+  }
+  drawBulge(ctx, p, pal.core ?? pal.base);
+}
+
+/** M104: a brilliant bulge with the dust ring crossing it, and nothing else.
+ *  No disk is drawn on purpose, because no fetched source describes the
+ *  Sombrero's disk colour (colour-sources.md's own gap note). The lane runs
+ *  wider than the bulge, so the ring shows past it on both sides. */
+function drawEdgeOnGalaxy(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, g: GalaxyGlyph, pal: ObjectPalette | null): void {
+  if (!pal) return drawPlainGalaxy(ctx, p, g);
+  const bulgeR = Math.max(g.minorPx * 1.25, 4);
+  ctx.fillStyle = `rgba(${pal.base},0.055)`;
+  for (const s of BODY_SCALES) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, bulgeR * s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  drawBulge(ctx, p, pal.core ?? pal.base);
+  if (g.lane) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(g.tiltDeg * D2R);
+    fillLane(ctx, g.lane, pal.accent ?? STARBURST_MONO.accent!);
+    ctx.restore();
+  }
+}
+
+/** M82: an edge-on disk split by its dust lane, with the superwind's
+ *  filaments running out both faces. Shape only. It takes STARBURST_MONO
+ *  rather than a palette because nothing honest is available to colour it
+ *  with (see OBJECT_COLOURS' note), and it draws the same in stargaze as out
+ *  of it. */
+function drawStarburstGalaxy(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, g: GalaxyGlyph, pal: ObjectPalette | null): void {
+  const c = pal ?? STARBURST_MONO;
+  ctx.save();
+  ctx.translate(p.x, p.y);
+  ctx.rotate(g.tiltDeg * D2R);
+  fillBody(ctx, g, c.base, BODY_SCALES, 0.06);
+  if (g.lane) fillLane(ctx, g.lane, c.accent ?? STARBURST_MONO.accent!);
+  ctx.restore();
+  if (g.plumes.length) {
+    ctx.beginPath();
+    for (const f of g.plumes) {
+      ctx.moveTo(p.x + f.x1, p.y + f.y1);
+      ctx.lineTo(p.x + f.x2, p.y + f.y2);
+    }
+    ctx.lineWidth = 0.9;
+    ctx.strokeStyle = `rgba(${MUT},0.3)`;
+    ctx.stroke();
+    ctx.lineWidth = 1;
+  }
+  drawBulge(ctx, p, c.core ?? c.base);
+}
+
+/**
+ * One draw path per variant, each of them picking its colours out of the
+ * palette it is handed; `null` (colour off, or an id with no palette entry)
+ * falls back to the plain grey glyph above. The one exception is the
+ * starburst, which HAS no honest palette and so would otherwise never draw
+ * the structure it was given.
+ */
+function drawGalaxyGlyph(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, g: GalaxyGlyph, pal: ObjectPalette | null): void {
+  switch (g.variant) {
+    case "elliptical":
+      return drawEllipticalGalaxy(ctx, p, g, pal);
+    case "edge-on":
+      return drawEdgeOnGalaxy(ctx, p, g, pal);
+    case "starburst":
+      return drawStarburstGalaxy(ctx, p, g, pal);
+    default:
+      return drawSpiralGalaxy(ctx, p, g, pal);
+  }
 }
 
 /** A few overlapping low-alpha blobs read as a soft, irregular cloud instead
@@ -309,7 +547,7 @@ export function drawObjects(
     switch (o.symbol) {
       case "galaxy": {
         if (glyph && glyph.kind === "galaxy") {
-          drawGalaxyGlyph(ctx, p, glyph);
+          drawGalaxyGlyph(ctx, p, glyph, v.colour ? (OBJECT_COLOURS[o.id] ?? null) : null);
           break;
         }
         // Fallback for a galaxy the size table doesn't (yet) know about.

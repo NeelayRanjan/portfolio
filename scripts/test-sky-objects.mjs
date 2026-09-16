@@ -353,6 +353,87 @@ test("every object is north of the chart edge and has a usable position", () => 
 // pattern as O above (lib/sky-objects.ts), and the same byId-map pattern
 // test-sky-facts.mjs uses for SKY_FACTS. ----
 
+// ---- sky-colour task 4: the galaxy variants ----
+
+test("galaxy glyphs carry the right variant and are deterministic", () => {
+  const a = O.prepareObjectGlyphs(data.objects);
+  const b = O.prepareObjectGlyphs(data.objects);
+  assert.equal(a.get("m31").variant, "spiral");
+  assert.equal(a.get("m33").variant, "spiral");
+  assert.equal(a.get("m81").variant, "spiral");
+  assert.equal(a.get("m87").variant, "elliptical");
+  assert.equal(a.get("m104").variant, "edge-on");
+  assert.equal(a.get("m82").variant, "starburst");
+  assert.equal(a.get("m51").variant, "spiral-companion");
+  assert.deepEqual(JSON.parse(JSON.stringify(a.get("m31"))), JSON.parse(JSON.stringify(b.get("m31"))));
+  // Every galaxy in the catalog now has a glyph, so none falls back to the
+  // plain 5px ellipse in drawObjects.
+  for (const o of data.objects) {
+    if (o.symbol === "galaxy") assert.ok(a.get(o.id), `${o.id} has no glyph`);
+  }
+});
+
+test("each variant prepares exactly the geometry its draw function reads", () => {
+  const g = O.prepareObjectGlyphs(data.objects);
+  // Spirals: knots on the arms, no jet, no lane, no plumes. The companion is
+  // M51's alone.
+  for (const id of ["m31", "m33", "m81", "m51"]) {
+    const a = g.get(id);
+    assert.equal(a.knots.length, 5, `${id} knots`);
+    assert.equal(a.jet, null, `${id} jet`);
+    assert.equal(a.lane, null, `${id} lane`);
+    assert.equal(a.plumes.length, 0, `${id} plumes`);
+    for (const k of a.knots) {
+      // A knot sits on an arm, so within the glyph's own major radius.
+      assert.ok(Math.hypot(k.dx, k.dy) <= a.majorPx + 1e-9, `${id} knot outside the glyph`);
+      assert.ok(k.r > 0.5 && k.r < 1.6, `${id} knot radius ${k.r}`);
+    }
+    assert.equal(a.companion === null, id !== "m51", `${id} companion`);
+  }
+  const m51 = g.get("m51");
+  assert.ok(Math.hypot(m51.companion.dx, m51.companion.dy) > m51.minorPx, "M51's companion should sit past the disk");
+  // M87: globulars, a jet, nothing else.
+  const m87 = g.get("m87");
+  assert.equal(m87.knots.length, 7);
+  assert.equal(m87.companion, null);
+  assert.equal(m87.lane, null);
+  assert.ok(m87.jet.lengthPx > m87.majorPx, "the jet should reach past the halo");
+  assert.ok(m87.jet.halfWidthPx > 0 && Number.isFinite(m87.jet.angleDeg));
+  // M104: a lane wider than the glyph, offset off the centre line, no knots.
+  const m104 = g.get("m104");
+  assert.equal(m104.knots.length, 0);
+  assert.equal(m104.jet, null);
+  assert.ok(m104.lane.spanPx > 2 * m104.minorPx, "the dust ring should run past the bulge");
+  assert.ok(m104.lane.offsetPx > 0 && m104.lane.halfPx > 0);
+  // M82: a lane on the centre line and superwind filaments both ways.
+  const m82 = g.get("m82");
+  assert.equal(m82.lane.offsetPx, 0);
+  assert.equal(m82.plumes.length, 6);
+  assert.ok(m82.plumes.some((f) => f.y2 !== f.y1), "plumes should have length");
+  assert.ok(
+    m82.plumes.every((f) => Math.hypot(f.x2 - f.x1, f.y2 - f.y1) > m82.minorPx),
+    "a superwind filament should reach past the disk's own thickness",
+  );
+});
+
+test("M82 is deliberately absent from the palette, every other galaxy is in it", async () => {
+  const { OBJECT_COLOURS } = await import("../lib/sky-layers.ts");
+  const galaxies = data.objects.filter((o) => o.symbol === "galaxy").map((o) => o.id);
+  // Ruling R-COLOUR-1: M82's famous colours are X-ray and infrared data,
+  // which have no visible colour. It stays grey on purpose.
+  assert.equal(OBJECT_COLOURS.m82, undefined, "M82 must not carry a colour");
+  for (const id of galaxies) {
+    if (id === "m82") continue;
+    assert.ok(OBJECT_COLOURS[id], `${id} has no palette`);
+    assert.match(OBJECT_COLOURS[id].base, /^\d{1,3},\d{1,3},\d{1,3}$/, `${id} base is not "r,g,b"`);
+  }
+  // M104's sourced story is a bulge and a dust lane, with no blue disk.
+  assert.ok(OBJECT_COLOURS.m104.accent, "M104 needs its dust lane colour");
+  // M81's sources name no knot colour, so it must not get an accent (the
+  // widely shared pink M81 is a UV + visible + IR composite).
+  assert.equal(OBJECT_COLOURS.m81.accent, undefined, "M81 must not draw knots");
+});
+
 test("every coloured object has a fact that cites its colour source", async () => {
   const { OBJECT_COLOURS } = await import("../lib/sky-layers.ts");
   const { SKY_FACTS } = await import("../content/sky-facts.ts");

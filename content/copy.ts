@@ -792,9 +792,9 @@ export const copy = {
      *  one button per selectable currently on screen. */
     listLabel: "On screen now",
     credit:
-      "The sky over NASA Ames from the moment you arrived, turning 180 times faster than the real one. Stars from the Extended Hipparcos Compilation; lines, Latin names, the Milky Way and the Messier objects from d3-celestial; English names and constellation origins from Wikipedia; spacecraft positions from JPL Horizons; meteor showers from the IMO; the ISS from CelesTrak. Every card cites its sources.",
+      "The sky over NASA Ames from the moment you arrived, turning 180 times faster than the real one. Stars from the Extended Hipparcos Compilation; lines, Latin names, the Milky Way and the Messier objects from d3-celestial; English names and constellation origins from Wikipedia; spacecraft positions from JPL Horizons; meteor showers from the IMO; the ISS from CelesTrak. Every card cites its sources. The galaxies, nebulae, clusters and the Milky Way's band are drawn far bigger than they'd really look; every position is real.",
     creditStill:
-      "The sky over NASA Ames at the moment you arrived. Stars from the Extended Hipparcos Compilation; lines, Latin names, the Milky Way and the Messier objects from d3-celestial; English names and constellation origins from Wikipedia; spacecraft positions from JPL Horizons; meteor showers from the IMO; the ISS from CelesTrak. Every card cites its sources.",
+      "The sky over NASA Ames at the moment you arrived. Stars from the Extended Hipparcos Compilation; lines, Latin names, the Milky Way and the Messier objects from d3-celestial; English names and constellation origins from Wikipedia; spacecraft positions from JPL Horizons; meteor showers from the IMO; the ISS from CelesTrak. Every card cites its sources. The galaxies, nebulae, clusters and the Milky Way's band are drawn far bigger than they'd really look; every position is real.",
     /** The stargaze card (components/manuscript/SkyCard.tsx). Numbers and
      *  dates between these fragments come from the data files; the facts
      *  themselves live in content/sky-facts.ts. */
@@ -811,6 +811,10 @@ export const copy = {
       titleMoon: "Moon",
       titleIss: "International Space Station",
       titleMilkyWay: "Milky Way",
+      /** Shown only on galaxy/nebula/cluster cards and the Milky Way's own
+       *  card ("clutter" follow-up, 2026-09-15): their glyphs are drawn far
+       *  bigger than life; the position is not. */
+      notToScale: "This symbol is drawn far bigger than the object actually looks from Earth; its position is real.",
       /** "Active Jul 17 to Aug 24, peak Aug 13. Zenithal hourly rate (ZHR) at peak: 100." */
       showerActive: "Active ",
       showerTo: " to ",

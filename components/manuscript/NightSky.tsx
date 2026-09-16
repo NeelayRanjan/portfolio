@@ -10,7 +10,9 @@ import {
   loadMilkyWay,
   loadObjects,
   prepareMilkyWay,
+  prepareObjectGlyphs,
   smallCircle,
+  type ObjectGlyph,
   type PreparedMilkyWay,
   type SkyObjectsData,
 } from "@/lib/sky-objects";
@@ -39,7 +41,7 @@ import {
   simTimeMs,
   sunEquatorial,
 } from "@/lib/sky-math";
-import { CLICK_SLOP_PX, PAN_LIMIT_FRAC, rubberBand, springStep, type Vec } from "@/lib/sky-pan";
+import { CLICK_SLOP_PX, PAN_LIMIT_FRAC, STARGAZE_PAN_LIMIT_FRAC, rubberBand, springStep, type Vec } from "@/lib/sky-pan";
 import { isStargazing, subscribeStargaze } from "@/lib/stargaze";
 import { SkyCard, type CardModel } from "./SkyCard";
 
@@ -103,6 +105,11 @@ const FRAME_MS_INTERACTING = 14;
 const LIST_REFRESH_MS = 2000;
 /** Never start a pan on these: the page's own controls, and (Task 5) the card. */
 const PAN_BLOCKERS = "a, button, input, select, textarea, label, summary, [role='button'], [data-sky-card]";
+/** Which objects get the card's "symbol not to scale" line ("clutter"
+ *  follow-up, 2026-09-15): the enlarged galaxies, nebulae and clusters. The
+ *  Milky Way band gets the same note; it isn't an object, so buildCard sets
+ *  it directly there instead of through this set. */
+const NOT_TO_SCALE_SYMBOLS = new Set(["galaxy", "nebula", "cluster"]);
 
 type SkySnapshot = {
   drawn: boolean;
@@ -222,6 +229,7 @@ export function NightSky() {
     let starFills: string[] = [];
     let objectsData: SkyObjectsData | null = null;
     let objectRings = new Map<string, [number, number][]>();
+    let objectGlyphs: ReadonlyMap<string, ObjectGlyph> = new Map();
     let milkyWay: PreparedMilkyWay | null = null;
     let facts: Map<string, SkyFact> | null = null;
     const layers: SkySnapshot["layers"] = { objects: "loading", milkyWay: "loading", facts: "loading", iss: "loading" };
@@ -370,6 +378,7 @@ export function NightSky() {
         milkyWay,
         objects: objectsData?.objects ?? [],
         objectRings,
+        objectGlyphs,
         showers: activeShowers,
         names: !narrowQ.matches,
         oneLiner: (id) => facts?.get(id)?.oneLiner ?? null,
@@ -434,7 +443,7 @@ export function NightSky() {
           object.distanceAu !== undefined && object.positionDate
             ? { type: "spacecraft", distanceAu: object.distanceAu, positionDate: object.positionDate }
             : { type: "none" };
-        return { id: h.id, title: object.name, fact, extra };
+        return { id: h.id, title: object.name, fact, extra, notToScale: NOT_TO_SCALE_SYMBOLS.has(object.symbol) };
       }
       const planet = PLANETS.find((name) => name.toLowerCase() === h.id);
       if (planet) return { id: h.id, title: planet, fact, extra: { type: "none" } };
@@ -454,7 +463,9 @@ export function NightSky() {
           },
         };
       }
-      if (h.id === "milky-way") return { id: h.id, title: copy.stargaze.card.titleMilkyWay, fact, extra: { type: "none" } };
+      if (h.id === "milky-way") {
+        return { id: h.id, title: copy.stargaze.card.titleMilkyWay, fact, extra: { type: "none" }, notToScale: true };
+      }
       return null;
     };
     const openCard = (h: Highlight) => {
@@ -724,7 +735,9 @@ export function NightSky() {
         const dx = e.clientX - drag.startX;
         const dy = e.clientY - drag.startY;
         if (!drag.moved && Math.hypot(dx, dy) >= CLICK_SLOP_PX) drag.moved = true;
-        offset = rubberBand({ x: drag.base.x + dx, y: drag.base.y + dy }, PAN_LIMIT_FRAC * Math.min(width, height));
+        // Stargaze has no sheet to compose around, so it gets a looser band.
+        const limitFrac = isStargazing() ? STARGAZE_PAN_LIMIT_FRAC : PAN_LIMIT_FRAC;
+        offset = rubberBand({ x: drag.base.x + dx, y: drag.base.y + dy }, limitFrac * Math.min(width, height));
         requestPaint();
         return; // hover is suspended while dragging
       }
@@ -733,19 +746,37 @@ export function NightSky() {
       if (e.target instanceof Element && e.target.closest("[data-sky-card]")) return setHighlight(null);
       setHighlight(pick(e.clientX, e.clientY, e.pointerType));
     };
+    // Sends a non-zero offset home: an exact reduced-motion snap, or a
+    // spring (change 1, 2026-09-15). Shared by a normal-mode release and by
+    // leaving stargaze, so both use the same rule.
+    const settleOffset = () => {
+      if (offset.x === 0 && offset.y === 0) {
+        springing = false;
+        return;
+      }
+      if (reducedQ.matches) {
+        offset = { x: 0, y: 0 };
+        velocity = { x: 0, y: 0 };
+        springing = false;
+      } else {
+        springing = true;
+        springLast = 0;
+      }
+    };
     /** Ends the drag; `click` is the pointer's final position when it never travelled CLICK_SLOP_PX. */
     const finishDrag = (click: { x: number; y: number; pointerType: string } | null) => {
       if (!drag) return;
       drag = null;
       document.documentElement.style.cursor = "";
-      if (reducedQ.matches) {
-        offset = { x: 0, y: 0 };
+      if (isStargazing()) {
+        // Change 1 (2026-09-15): releasing a drag while stargazing leaves
+        // the chart exactly where the visitor put it. Only leaving stargaze
+        // mode (the subscribeStargaze handler below) sends it home.
         velocity = { x: 0, y: 0 };
         springing = false;
-        paint();
-      } else if (offset.x !== 0 || offset.y !== 0) {
-        springing = true;
-        springLast = 0;
+      } else {
+        settleOffset();
+        if (reducedQ.matches) paint();
       }
       if (click) onSkyClick(click.x, click.y, click.pointerType);
     };
@@ -794,6 +825,7 @@ export function NightSky() {
             .filter((o) => o.symbol === "field" && o.radiusDeg)
             .map((o) => [o.id, smallCircle(o.raDeg, o.decDeg, o.radiusDeg as number)]),
         );
+        objectGlyphs = prepareObjectGlyphs(d?.objects ?? []);
         layers.objects = d ? "ready" : "absent";
         paint();
       })
@@ -862,7 +894,26 @@ export function NightSky() {
       // Leaving stargaze closes any open card too, but focus is
       // StargazeToggle's job here (it returns focus to its own entry
       // button), not the exit control NightSky would otherwise reach for.
-      if (!on) closeCard({ restoreFocus: false });
+      if (!on) {
+        closeCard({ restoreFocus: false });
+        // Change 1 (2026-09-15): a drag held through the exit (Escape
+        // mid-drag, or the exit button under a touch that's still down)
+        // ends here rather than surviving into normal mode, where the next
+        // pointermove would pan it with stargaze's now-gone looser limit.
+        if (drag) {
+          try {
+            document.documentElement.releasePointerCapture(drag.id);
+          } catch {
+            // Same nicety as the initial capture: never fatal.
+          }
+          drag = null;
+          document.documentElement.style.cursor = "";
+        }
+        // The one place the page always gets its composed offset back,
+        // however stargaze was left: the exit button, Escape, or anything
+        // else, all of which funnel through setStargazing(false).
+        settleOffset();
+      }
       paint();
       if (on) startList();
       else stopList();

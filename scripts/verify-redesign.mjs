@@ -666,7 +666,33 @@ async function checkSkyDrag(browser) {
     notes.push("sheet drag ignored");
   });
 
-  // Reduced motion: the drag still works, the release snaps home.
+  // Stargaze (change 1, 2026-09-15): a released drag holds instead of
+  // springing home; only leaving stargaze sends the chart back.
+  await withPage(browser, { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await waitSkyDrawn(page);
+    await waitStargazeReady(page);
+    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    // Stargaze drags can start anywhere, not just the desk margin.
+    await dragBy(page, 200, 200, 130, 70);
+    await page.waitForFunction(() => window.__sky.dragging === true, null, { timeout: 2000 });
+    await page.mouse.up();
+    await page.waitForTimeout(1500); // real elapsed time is the point: nothing should have sprung
+    const held = await skyOffset(page);
+    if (held.x === 0 && held.y === 0) throw new Error("stargaze drag sprang home on release; it should hold");
+    await page.getByRole("button", { name: STARGAZE_EXIT }).click();
+    await page.waitForFunction(() => !document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    await page.waitForFunction(() => window.__sky.offset.x === 0 && window.__sky.offset.y === 0, null, {
+      timeout: 2500,
+      polling: "raf",
+    });
+    notes.push(`stargaze: held (${held.x.toFixed(0)}, ${held.y.toFixed(0)}) for 1.5s, home after exit`);
+  });
+
+  // Reduced motion: the drag still works, the release snaps home; the same
+  // hold-until-exit rule applies while stargazing, just as a snap instead of
+  // a spring on the way back.
   await withPage(
     browser,
     { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, reducedMotion: "reduce" },
@@ -680,6 +706,19 @@ async function checkSkyDrag(browser) {
       // One paint, no spring: home at once.
       await page.waitForFunction(() => window.__sky.offset.x === 0 && window.__sky.offset.y === 0, null, { timeout: 100 });
       notes.push("reduced motion: dragged, snapped home");
+
+      await waitStargazeReady(page);
+      await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+      await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+      await dragBy(page, 200, 200, 90, 0);
+      await page.waitForFunction(() => Math.abs(window.__sky.offset.x - 90) < 2, null, { timeout: 2000 });
+      await page.mouse.up();
+      await page.waitForTimeout(300); // no spring/snap should fire on release while stargazing
+      const stillHeld = await skyOffset(page);
+      if (stillHeld.x === 0) throw new Error("reduced motion: stargaze drag snapped home on release; it should hold");
+      await page.getByRole("button", { name: STARGAZE_EXIT }).click();
+      await page.waitForFunction(() => window.__sky.offset.x === 0 && window.__sky.offset.y === 0, null, { timeout: 100 });
+      notes.push("reduced motion: stargaze drag held, snapped home on exit");
     },
   );
   return notes.join("; ");
@@ -2186,12 +2225,25 @@ async function checkStargazeCard(browser) {
     const card = page.locator("[data-sky-card]");
 
     // A drag that starts on Andromeda is a drag, not a click: no card.
+    // Change 1 (2026-09-15): stargaze no longer springs a released drag
+    // home on its own, so this asserts the hold, then reverses the same
+    // drag to land back on exactly (0, 0) before the position-dependent
+    // assertions below (which assume the sky is where p.x/p.y says it is).
     await page.mouse.move(p.x, p.y);
     await page.mouse.down();
     await page.mouse.move(p.x + 40, p.y + 10, { steps: 6 });
     await page.mouse.up();
-    await page.waitForFunction(() => window.__sky.offset.x === 0 && window.__sky.offset.y === 0, null, { timeout: 1000 });
+    await page.waitForFunction(() => window.__sky.dragging === false, null, { timeout: 1000 });
     if ((await card.count()) !== 0) throw new Error("a drag opened a card");
+    const heldInStargaze = await page.evaluate(() => ({ ...window.__sky.offset }));
+    if (heldInStargaze.x === 0 && heldInStargaze.y === 0) {
+      throw new Error("stargaze drag sprang home on release; change 1 says it should hold until exit");
+    }
+    await page.mouse.move(p.x + 40, p.y + 10);
+    await page.mouse.down();
+    await page.mouse.move(p.x, p.y, { steps: 6 });
+    await page.mouse.up();
+    await page.waitForFunction(() => window.__sky.offset.x === 0 && window.__sky.offset.y === 0, null, { timeout: 1000 });
 
     // A click on Andromeda opens its card: title, kind line, one-liner, a real citation link.
     await page.mouse.click(p.x, p.y);
@@ -2342,10 +2394,14 @@ async function checkStargazeCard(browser) {
     if (gone.card !== edgy.id) throw new Error(`card ${gone.card} open once ${edgy.id} left the viewport; it should stay open`);
     if (gone.line !== copy.stargaze.card.outOfView) throw new Error(`out-of-view line ${JSON.stringify(gone.line)}`);
     if (gone.box.left < 0 || gone.box.top < 0 || gone.box.right > W || gone.box.bottom > H) throw new Error(`out-of-view card ${JSON.stringify(gone.box)} left the viewport`);
-    // Reduced motion: the release snaps home, the subject returns, the line goes.
+    // Change 1 (2026-09-15): stargaze no longer snaps a released drag home,
+    // so the subject is brought back the same way it left, still dragging,
+    // and the line clears once it's back rather than on release.
+    await page.mouse.move(dragFrom.x, dragFrom.y, { steps: 12 });
+    await page.waitForFunction(() => window.__sky.offset.x === 0 && window.__sky.offset.y === 0, null, { timeout: 2000 });
     await page.mouse.up();
     await page.waitForFunction(() => window.__sky.cardOutOfView === false, null, { timeout: 3000 }).catch(() => {
-      throw new Error(`${edgy.id}'s card still out of view after the sky snapped home`);
+      throw new Error(`${edgy.id}'s card still out of view after the drag returned it`);
     });
     if ((await page.locator("[data-sky-card-out-of-view]").count()) !== 0) throw new Error("out-of-view line stayed after the subject came back");
     if ((await edgyCard.count()) !== 1) throw new Error(`${edgy.id}'s card closed when its subject came back`);

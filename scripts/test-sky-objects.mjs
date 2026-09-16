@@ -221,3 +221,61 @@ test("prepareMilkyWay: RA in radians and tan of half the colatitude, per vertex"
   assert.ok(Math.abs(flat[0] - (ra * Math.PI) / 180) < 1e-12);
   assert.ok(Math.abs(flat[1] - Math.tan(((90 - dec) / 2) * (Math.PI / 180))) < 1e-12);
 });
+
+test("prepareMilkyWay: grain is one array per level, deterministic, bounded, and every point is a valid projection input", () => {
+  const a = O.prepareMilkyWay(mw);
+  const b = O.prepareMilkyWay(mw);
+  assert.equal(a.grain.length, mw.levels.length);
+  let total = 0;
+  a.grain.forEach((pts, li) => {
+    assert.deepEqual(Array.from(pts), Array.from(b.grain[li]), `level ${li} not deterministic`);
+    assert.equal(pts.length % 2, 0, `level ${li} not (ra, tan) pairs`);
+    total += pts.length / 2;
+    for (let i = 0; i < pts.length; i += 2) {
+      assert.ok(pts[i] >= 0 && pts[i] < 2 * Math.PI, `level ${li} raRad ${pts[i]} out of range`);
+      assert.ok(Number.isFinite(pts[i + 1]), `level ${li} tanHalfColat not finite`);
+    }
+  });
+  // A few hundred points total, not the full ~2,267-vertex budget: the grain
+  // is a sampled stipple, not a retrace of every isophote vertex.
+  assert.ok(total > 200 && total < 700, `total grain points ${total}`);
+});
+
+test("prepareObjectGlyphs: deterministic, and only galaxies/nebulae/clusters with a tuned size get a glyph", () => {
+  const a = O.prepareObjectGlyphs(data.objects);
+  const b = O.prepareObjectGlyphs(data.objects);
+  assert.deepEqual(a, b, "not deterministic across two calls");
+  for (const o of data.objects) {
+    const glyph = a.get(o.id);
+    if (["galaxy", "nebula", "cluster"].includes(o.symbol)) {
+      assert.ok(glyph, `${o.id} (${o.symbol}) has no glyph`);
+      assert.equal(glyph.kind, o.symbol);
+      assert.ok(glyph.corePx >= 6, `${o.id} corePx ${glyph.corePx} below the default SYMBOL_CORE_PX`);
+    } else {
+      assert.equal(glyph, undefined, `${o.id} (${o.symbol}) unexpectedly has a glyph`);
+    }
+  }
+  const m31 = a.get("m31");
+  assert.equal(m31.kind, "galaxy");
+  assert.equal(m31.tiltDeg, 77, "M31's tilt should match its fact's ~77 degrees");
+  assert.equal(m31.majorPx, 20, "Andromeda should be the biggest glyph (~40px across)");
+  assert.ok(Math.abs(m31.minorPx - 20 * byId.get("m31").axisRatio) < 1e-9, "minorPx should track the catalog axisRatio");
+  for (const id of ["m51", "m87"]) {
+    assert.ok(a.get(id).majorPx < m31.majorPx, `${id} should be smaller than Andromeda`);
+  }
+  const m57 = a.get("m57");
+  assert.equal(m57.kind, "nebula");
+  assert.ok(m57.ring, "M57 should render as a ring, not blobs");
+  assert.equal(m57.blobs.length, 0);
+  for (const id of ["m1", "m8", "m42"]) {
+    const g = a.get(id);
+    assert.equal(g.ring, null);
+    assert.ok(g.blobs.length > 0, `${id} should have cloud blobs`);
+  }
+  const m13 = a.get("m13");
+  assert.equal(m13.kind, "cluster");
+  assert.equal(m13.stars.length, 11);
+  for (const s of m13.stars) {
+    assert.ok(Math.hypot(s.dx, s.dy) <= 7 + 1e-9, `m13 star outside its 7px extent: ${JSON.stringify(s)}`);
+  }
+});

@@ -17,6 +17,14 @@ export type Vec = { x: number; y: number };
 export const CLICK_SLOP_PX = 5;
 /** Drag freely up to this fraction of min(width, height); past it, rubber band. */
 export const PAN_LIMIT_FRAC = 0.45;
+/**
+ * Stargaze's own, looser limit ("clutter" follow-up, 2026-09-15): there is no
+ * sheet to compose around while stargazing, so a visitor should be able to
+ * wander much farther before the rubber band starts pushing back. Twice the
+ * normal-mode limit felt right by eye against a real drag; it still bands
+ * past that, it just takes a lot more travel to notice.
+ */
+export const STARGAZE_PAN_LIMIT_FRAC = 0.9;
 /** Spring rate (1/s). From rest, 1% of the drag is left after 700 ms. */
 export const SPRING_OMEGA = 9.5;
 /** Under both, the spring is done and the offset snaps to exactly (0, 0). */

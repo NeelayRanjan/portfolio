@@ -9,6 +9,9 @@ import * as P from "../lib/sky-pan.ts";
 test("constants match the spec", () => {
   assert.equal(P.CLICK_SLOP_PX, 5);
   assert.equal(P.PAN_LIMIT_FRAC, 0.45);
+  // Stargaze's looser limit (change 1, 2026-09-15): bigger than normal
+  // mode's, since there is no sheet to compose around.
+  assert.ok(P.STARGAZE_PAN_LIMIT_FRAC > P.PAN_LIMIT_FRAC);
 });
 
 test("rubber band: identity inside the limit, bounded and monotonic past it", () => {

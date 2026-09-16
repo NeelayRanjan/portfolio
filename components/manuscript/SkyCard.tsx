@@ -50,7 +50,16 @@ export type CardExtra =
   | { type: "spacecraft"; distanceAu: number; positionDate: string }
   | { type: "iss"; aboveHorizon: boolean; altitudeKm: number; speedKmS: number; epoch: string; still: boolean };
 
-export type CardModel = { id: string; title: string; fact: SkyFact; extra: CardExtra };
+export type CardModel = {
+  id: string;
+  title: string;
+  fact: SkyFact;
+  extra: CardExtra;
+  /** Galaxies, nebulae, clusters and the Milky Way ("clutter" follow-up,
+   *  2026-09-15): their glyphs are drawn far bigger than life, so the card
+   *  says so, the same honesty rule as the credit line. */
+  notToScale?: boolean;
+};
 
 const LONG_DATE = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
 const SHORT_DATE = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
@@ -192,6 +201,11 @@ export function SkyCard({
             {line}
           </p>
         ))}
+        {model.notToScale ? (
+          <p data-sky-card-not-to-scale className="mt-1">
+            {t.notToScale}
+          </p>
+        ) : null}
         <p className="mt-3 font-serif text-[13px] leading-snug text-ink/90">{model.fact.body.join(" ")}</p>
         <p data-sky-card-visibility className="mt-2">
           {model.fact.visibility}

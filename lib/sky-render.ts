@@ -15,7 +15,7 @@
  */
 import type { SkyData } from "./sky-data";
 import { drawIss, drawMilkyWay, drawObjects, drawRadiants, nameBox, type Hit, type View } from "./sky-layers";
-import type { PreparedMilkyWay, SkyObject, SkyShower } from "./sky-objects";
+import type { ObjectGlyph, PreparedMilkyWay, SkyObject, SkyShower } from "./sky-objects";
 import { eclipticToEquatorial, project, type Chart, type Equatorial, type Planet, type Point } from "./sky-math";
 
 export type { Hit };
@@ -67,6 +67,9 @@ export type FrameInput = {
   objects: SkyObject[];
   /** Small-circle outlines by object id (the Kepler field), prepared once per load. */
   objectRings: ReadonlyMap<string, [number, number][]>;
+  /** Enlarged galaxy/nebula/cluster shapes by object id ("clutter" follow-up,
+   *  2026-09-15), prepared once per load in lib/sky-objects.ts. */
+  objectGlyphs: ReadonlyMap<string, ObjectGlyph>;
   /** Only the showers active on the simulated date. */
   showers: SkyShower[];
   /** Always-on names beside symbols (false below 880px, spec §4). */
@@ -213,7 +216,7 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
   }
 
   // Objects, then the active radiants.
-  hits.push(...drawObjects(ctx, view, f.objects, f.objectRings));
+  hits.push(...drawObjects(ctx, view, f.objects, f.objectRings, f.objectGlyphs));
   hits.push(...drawRadiants(ctx, view, f.showers));
   ctx.font = `10px ${f.fontFamily}`;
 
@@ -591,21 +594,40 @@ export const SYMBOL_CORE_PX = 6;
 
 /**
  * The drawn selectable under (x, y), in three passes: a symbol the point is
- * actually on (within SYMBOL_CORE_PX); then any name box containing the
- * point (topmost, i.e. last drawn, wins); then the nearest symbol within
- * maxPx. The first pass exists because names are ~80px long: without it,
- * a planet or star drawn under a neighbour's name (Mars under "Beehive
- * Cluster", measured) could never be clicked. Box-only hits (the Milky Way's
- * label) never match by radius.
+ * actually on (within its own core radius, SYMBOL_CORE_PX by default; a
+ * larger glyph — the enlarged galaxies/nebulae/clusters, "clutter" follow-up
+ * 2026-09-15 — carries a bigger `core` from lib/sky-layers.ts, never past
+ * maxPx); then any name box containing the point (topmost, i.e. last drawn,
+ * wins); then the nearest symbol within maxPx. The first pass exists because
+ * names are ~80px long: without it, a planet or star drawn under a
+ * neighbour's name (Mars under "Beehive Cluster", measured) could never be
+ * clicked. Box-only hits (the Milky Way's label) never match by radius.
  */
 export function nearestHit(p: Projected, x: number, y: number, maxPx: number): Hit | null {
-  const onSymbol = nearestSymbol(p, x, y, Math.min(SYMBOL_CORE_PX, maxPx));
+  const onSymbol = nearestSymbolCore(p, x, y, maxPx);
   if (onSymbol) return onSymbol;
   for (let i = p.hits.length - 1; i >= 0; i--) {
     const b = p.hits[i].box;
     if (b && x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return p.hits[i];
   }
   return nearestSymbol(p, x, y, maxPx);
+}
+
+/** The "on symbol" pass: each hit's own core radius, capped at maxPx so a
+ *  bigger glyph can never claim more than the caller's own hit radius. */
+function nearestSymbolCore(p: Projected, x: number, y: number, maxPx: number): Hit | null {
+  let best: Hit | null = null;
+  let bestD = Infinity;
+  for (const h of p.hits) {
+    if (h.boxOnly) continue;
+    const r = Math.min(h.core ?? SYMBOL_CORE_PX, maxPx);
+    const d = Math.hypot(h.x - x, h.y - y);
+    if (d <= r && d <= bestD) {
+      bestD = d;
+      best = h;
+    }
+  }
+  return best;
 }
 
 function nearestSymbol(p: Projected, x: number, y: number, maxPx: number): Hit | null {

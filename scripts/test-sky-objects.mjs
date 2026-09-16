@@ -906,3 +906,108 @@ test("stepSaturation: frame-rate independent, no overshoot, settles in about 300
   assert.ok(SC.PAPER_COLOUR_SHARE > 0 && SC.PAPER_COLOUR_SHARE < 1, "paper mode is a share of stargaze's colour, strictly between none and all");
   assert.equal(SC.PAPER_SATURATION, SC.PAPER_COLOUR_SHARE, "the mix is the share (measured linear; see lib/sky-colour.ts)");
 });
+
+// ---- discoverability task 4: stargaze affordances ----
+
+/** True when every line of `sub` appears in `sup`, in order. */
+const isSubsequence = (sub, sup) => {
+  let i = 0;
+  for (const line of sup) if (i < sub.length && line === sub[i]) i++;
+  return i === sub.length;
+};
+
+test("underlines and phone names are off unless asked for: both recorded ends are unchanged", () => {
+  const off = { underlineNames: false, colouredNames: false };
+  assert.deepEqual(digestOf(traceLayers({ saturation: 0, stargazeChrome: false, ...off })), TRACE_COLOUR_OFF, "explicit flags off changed the grey chart's calls");
+  assert.deepEqual(digestOf(traceLayers({ saturation: 1, stargazeChrome: true, ...off })), TRACE_STARGAZE, "explicit flags off changed the stargaze chart's calls");
+});
+
+test("a dotted underline only adds calls: everything else draws exactly as before, in order", () => {
+  const base = { saturation: 1, stargazeChrome: true, colouredNames: false };
+  const plain = traceLayers({ ...base, underlineNames: false });
+  const underlined = traceLayers({ ...base, underlineNames: true });
+  const dashes = underlined.filter((l) => l === "setLineDash(1,2)").length;
+  assert.ok(dashes > 0, "underlineNames drew no dotted stroke");
+  assert.ok(underlined.length > plain.length, "underlineNames added no calls");
+  assert.ok(isSubsequence(plain, underlined), "underlineNames changed or reordered a call that was not its own");
+});
+
+test("below 880px in stargaze, names draw for the coloured objects and nothing else", () => {
+  const w = 400;
+  const h = 800;
+  const names = new Set(data.objects.map((o) => o.name));
+  const drawnNames = (colouredNames) => {
+    const log = [];
+    const ctx = new Proxy(
+      { measureText: (t) => ({ width: t.length * 5.4 }) },
+      {
+        get: (t, k) => (k in t ? t[k] : (...a) => void log.push([String(k), a])),
+        set: () => true,
+      },
+    );
+    let seen = [];
+    for (const lst of [0, 90, 180, 270]) {
+      const chart = SM.chartFor(w, h, lst);
+      const v = { chart, width: w, height: h, fontFamily: "mono", names: false, suppressName: null, saturation: 1, stargazeChrome: true, underlineNames: true, colouredNames };
+      const hits = L.drawObjects(ctx, v, data.objects, traceRings, traceGlyphs);
+      seen = seen.concat(hits);
+    }
+    return { fills: log.filter(([k, a]) => k === "fillText" && names.has(a[0])).map(([, a]) => a[0]), hits: seen };
+  };
+  const off = drawnNames(false);
+  assert.equal(off.fills.length, 0, "a phone drew object names with colouredNames off");
+  assert.ok(off.hits.every((x) => !x.box), "a phone hit carried a name box with colouredNames off");
+  const on = drawnNames(true);
+  const colouredNames = new Set(data.objects.filter((o) => Object.hasOwn(L.OBJECT_COLOURS, o.id)).map((o) => o.name));
+  assert.ok(on.fills.length > 0, "no coloured object was on a 400x800 screen at any of four orientations");
+  for (const n of on.fills) assert.ok(colouredNames.has(n), `a phone drew the name "${n}", which has no palette`);
+  for (const hit of on.hits) {
+    if (hit.box) assert.ok(Object.hasOwn(L.OBJECT_COLOURS, hit.id), `${hit.id} has a name box on a phone but no palette`);
+  }
+  assert.equal(on.hits.filter((x) => x.box).length, on.fills.length, "every drawn phone name needs its hit box, and only a drawn one gets one");
+});
+
+test("phone names never overlap, never leave the screen, and keep clear of stargaze's hint bar and credit", () => {
+  const w = 400;
+  const h = 800;
+  const ctx = new Proxy({ measureText: (t) => ({ width: t.length * 5.4 }) }, { get: (t, k) => (k in t ? t[k] : () => {}), set: () => true });
+  let named = 0;
+  for (let lst = 0; lst < 360; lst += 15) {
+    const chart = SM.chartFor(w, h, lst);
+    const v = { chart, width: w, height: h, fontFamily: "mono", names: false, suppressName: null, saturation: 1, stargazeChrome: true, underlineNames: true, colouredNames: true };
+    const boxes = L.drawObjects(ctx, v, data.objects, traceRings, traceGlyphs).filter((x) => x.box);
+    named += boxes.length;
+    for (const a of boxes) {
+      assert.ok(a.box.x >= 0 && a.box.x + a.box.w <= w + 4, `LST ${lst}: ${a.id}'s name box ${JSON.stringify(a.box)} leaves the 400px screen`);
+      assert.ok(a.box.y >= 90 && a.box.y + a.box.h <= h - 130, `LST ${lst}: ${a.id}'s name box ${JSON.stringify(a.box)} reaches the hint bar or the credit`);
+      for (const b of boxes) {
+        if (a === b) continue;
+        const overlap = a.box.x < b.box.x + b.box.w && b.box.x < a.box.x + a.box.w && a.box.y < b.box.y + b.box.h && b.box.y < a.box.y + a.box.h;
+        assert.ok(!overlap, `LST ${lst}: phone names ${a.id} and ${b.id} overlap`);
+      }
+    }
+  }
+  assert.ok(named > 20, `only ${named} phone names across 24 orientations`);
+});
+
+test("entry rings: the four symbols nearest the centre, a half-sine over 1.2 s, static under reduced motion", async () => {
+  const R = await import("../components/manuscript/night-sky/entry-rings.ts");
+  const hits = [
+    { id: "far", x: 0, y: 0 },
+    { id: "a", x: 500, y: 400 },
+    { id: "band", x: 500, y: 400, boxOnly: true },
+    { id: "b", x: 520, y: 400 },
+    { id: "c", x: 500, y: 440 },
+    { id: "d", x: 450, y: 350 },
+    { id: "e", x: 900, y: 700 },
+  ];
+  assert.deepEqual(R.pickEntryRingIds(hits, 1000, 800), ["a", "b", "c", "d"]);
+  assert.equal(R.ENTRY_RING_MS, 1200);
+  assert.equal(R.entryRingAlpha(0, false), 0);
+  assert.ok(Math.abs(R.entryRingAlpha(600, false) - 1) < 1e-9);
+  assert.ok(R.entryRingAlpha(300, false) > 0 && R.entryRingAlpha(900, false) > 0);
+  assert.equal(R.entryRingAlpha(1200, false), 0);
+  assert.equal(R.entryRingAlpha(0, true), 1);
+  assert.equal(R.entryRingAlpha(1199, true), 1);
+  assert.equal(R.entryRingAlpha(1200, true), 0);
+});

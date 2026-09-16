@@ -14,6 +14,7 @@ import {
 } from "@/lib/sky-math";
 import type { Vec } from "@/lib/sky-pan";
 import { isStargazing } from "@/lib/stargaze";
+import { ENTRY_RING_MS, entryRingAlpha } from "./entry-rings";
 import type { SkyLayers, SkyState } from "./state";
 
 /**
@@ -51,6 +52,12 @@ export type SkySnapshot = {
   /** The open card's subject has left the viewport (F3). */
   cardOutOfView: boolean;
   segmentsFor: (abbr: string) => number[][];
+  /** Drawn names carry their dotted underline this frame (stargaze only). */
+  nameUnderline: boolean;
+  /** How many entry rings drew this frame. */
+  entryRings: number;
+  /** The entry rings have had their one showing this page load. */
+  entryRingsFired: boolean;
 };
 
 export type PainterDeps = {
@@ -149,6 +156,13 @@ export function createPainter(
     // timed region below (it used to run before t0), so frameMsMedian
     // covers the ISS's own per-frame cost, not just the canvas draw.
     const t0 = performance.now();
+    const stargazing = isStargazing();
+    let entryRings: { ids: readonly string[]; alpha: number } | null = null;
+    if (s.entryRings) {
+      const elapsed = t0 - s.entryRings.start;
+      if (elapsed >= ENTRY_RING_MS) s.entryRings = null;
+      else entryRings = { ids: s.entryRings.ids, alpha: entryRingAlpha(elapsed, s.reducedQ.matches) };
+    }
     s.issNow = s.issTracker ? s.issTracker.at(sim) : null;
     const issNow = s.issNow;
     const iss = issNow
@@ -171,7 +185,10 @@ export function createPainter(
       showers: activeShowers,
       names: !s.narrowQ.matches,
       saturation: s.saturation,
-      stargazeChrome: isStargazing(),
+      stargazeChrome: stargazing,
+      underlineNames: stargazing,
+      colouredNames: stargazing,
+      entryRings,
       oneLiner: (id) => s.facts?.get(id)?.oneLiner ?? null,
       selectedId: s.selected?.id ?? null,
       iss,
@@ -207,6 +224,9 @@ export function createPainter(
         return h && iss ? { x: h.x, y: h.y, aboveHorizon: iss.aboveHorizon } : null;
       })(),
       segmentsFor: (abbr) => (seen.segments.get(abbr) ?? []).map((x) => [...x]),
+      nameUnderline: stargazing,
+      entryRings: seen.entryRings,
+      entryRingsFired: s.entryRingsFired,
     };
     if (s.selected) {
       deps.followCard(seen);

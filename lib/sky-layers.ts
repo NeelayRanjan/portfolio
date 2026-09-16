@@ -359,8 +359,48 @@ export type View = {
    *  so the band's label keeps clear of it. Was read off `colour` when
    *  colour meant stargaze; the two are separate now. */
   stargazeChrome: boolean;
+  /** Stargaze only (discoverability spec §4): every drawn name is a click
+   *  target there, so it gets a dotted underline, the page's own "this is
+   *  clickable" mark. Paper-mode names are not targets and stay plain. The
+   *  underline sits inside the name's hit box, so hit-testing is unchanged. */
+  underlineNames: boolean;
+  /** Below 880px `names` is false; while stargazing this draws names for
+   *  the objects with a sourced palette (OBJECT_COLOURS) anyway, so a phone
+   *  has something to read and tap. Those names are hit targets and step
+   *  down past each other like any other. Ignored when `names` is true. */
+  colouredNames: boolean;
   suppressName: string | null;
 };
+
+/** The dotted underline's own styles, built once (the name's colour at lower
+ *  alpha: mut names at 0.7 underline at 0.45, warm names at 0.75 at 0.5). */
+const UNDERLINE_MUT = `rgba(${MUT},0.45)`;
+const UNDERLINE_WARM = `rgba(${WARM},0.5)`;
+const UNDERLINE_WARM_DIM = `rgba(${WARM},${0.5 * 0.35})`;
+const UNDERLINE_DASH = [1, 2];
+/**
+ * Appends a dotted underline for a name drawn with fillText at (x, baseline)
+ * to the current path, spanning the name's measured text inside its hit box
+ * (`nameBox` pads NAME_PAD either side and reaches 0.25em + NAME_PAD below
+ * the baseline; the line sits 2-3px under the baseline, inside that).
+ * Snapped to a half pixel so a 1px line stays one crisp row. The caller
+ * strokes once per colour with `strokeUnderlines`.
+ */
+export function addUnderline(ctx: CanvasRenderingContext2D, box: Box, baseline: number): void {
+  const y = Math.round(baseline + 2) + 0.5;
+  ctx.moveTo(box.x + NAME_PAD, y);
+  ctx.lineTo(box.x + box.w - NAME_PAD, y);
+}
+/** Strokes the underline path built with `addUnderline` in one dotted pass. */
+export function strokeUnderlines(ctx: CanvasRenderingContext2D, style: string): void {
+  ctx.lineWidth = 1;
+  ctx.setLineDash(UNDERLINE_DASH);
+  ctx.strokeStyle = style;
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+/** Whether an object's name draws this frame (see View.colouredNames). */
+const drawsName = (v: View, id: string) => v.names || (v.colouredNames && Object.hasOwn(OBJECT_COLOURS, id));
 
 /**
  * The saturation-dependent colour strings, rebuilt only when saturation
@@ -413,6 +453,8 @@ const NAME_PAD = 3;
  *  without letting a label drift so far it stops reading as this object's. */
 const NAME_STACK_STEP_PX = 11;
 const NAME_STACK_TRIES = 4;
+/** A phone name closer than this to the right edge flips to the symbol's left. */
+const PHONE_NAME_EDGE_PX = 4;
 const boxesOverlap = (a: Box, b: Box) =>
   a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 /** How far the Milky Way's label centre must clear a drawn object's symbol
@@ -553,6 +595,11 @@ export function drawMilkyWay(
     ctx.fillText("Milky Way", best.x, best.y);
   }
   const box = nameBox(ctx, "Milky Way", best.x, best.y, 9);
+  if (v.underlineNames && v.suppressName !== "milky-way") {
+    ctx.beginPath();
+    addUnderline(ctx, box, best.y);
+    strokeUnderlines(ctx, UNDERLINE_MUT);
+  }
   return { hit: { id: "milky-way", name: "Milky Way", x: best.x, y: best.y, box, boxOnly: true }, anchor: best };
 }
 
@@ -1032,6 +1079,8 @@ export function drawObjects(
   /** Name boxes already placed this frame, so a later name can step down past
    *  them instead of printing on top (see the nudge loop below). */
   const drawnNameBoxes: Box[] = [];
+  /** Underlines to stroke after the loop, one path per name colour. */
+  const underlines: { box: Box; baseline: number; warm: boolean }[] = [];
   ctx.lineWidth = 1;
   ctx.font = `9px ${v.fontFamily}`;
   for (const o of objects) {
@@ -1130,7 +1179,40 @@ export function drawObjects(
     }
     // Skipped when this object is the current hover/selection (C1): its
     // name is about to be drawn again, larger, by the hover label.
-    if (v.names) {
+    if (!v.names && drawsName(v, o.id)) {
+      // A phone's coloured names (View.colouredNames). A 400px screen has no
+      // room to let names collide, clip or sit under stargaze's own controls,
+      // so this path is stricter than the desktop one below: a name that
+      // would run off the right edge goes on the symbol's left instead, one
+      // that finds no clear slot within NAME_STACK_TRIES is left undrawn
+      // rather than printed over another, and one whose box would reach the
+      // hint bar or the credit block is left undrawn too. Its symbol stays
+      // tappable either way; only a drawn name gets a box.
+      const dx = o.symbol === "field" ? 0 : glyph ? Math.max(8, glyph.corePx + 8) : 8;
+      const textW = ctx.measureText(o.name).width;
+      const x = p.x + dx + textW > v.width - PHONE_NAME_EDGE_PX ? p.x - dx - textW : p.x + dx;
+      const top = v.stargazeChrome ? CHROME_TOP_PX : 0;
+      const bottom = v.height - (v.stargazeChrome ? CHROME_BOTTOM_PX : 0);
+      let baseline = p.y + 3;
+      let placed: Box | null = null;
+      for (let attempt = 0; attempt < NAME_STACK_TRIES; attempt++) {
+        const b = nameBox(ctx, o.name, x, baseline, 9);
+        if (!drawnNameBoxes.some((q) => boxesOverlap(b, q))) {
+          placed = b;
+          break;
+        }
+        baseline += NAME_STACK_STEP_PX;
+      }
+      if (placed && placed.x >= 0 && placed.y >= top && placed.y + placed.h <= bottom) {
+        hit.box = placed;
+        drawnNameBoxes.push(placed);
+        if (o.id !== v.suppressName) {
+          ctx.fillStyle = human ? `rgba(${WARM},0.75)` : `rgba(${MUT},0.7)`;
+          ctx.fillText(o.name, x, baseline);
+          if (v.underlineNames) underlines.push({ box: placed, baseline, warm: human });
+        }
+      }
+    } else if (v.names) {
       // A bigger glyph pushes its name out past its own edge (the enlarged
       // galaxies/nebulae/clusters, "clutter" follow-up); everything else
       // keeps the original fixed 8px.
@@ -1153,7 +1235,20 @@ export function drawObjects(
       if (o.id !== v.suppressName) {
         ctx.fillStyle = human ? `rgba(${WARM},0.75)` : `rgba(${MUT},0.7)`;
         ctx.fillText(o.name, p.x + dx, baseline);
+        if (v.underlineNames) underlines.push({ box: hit.box, baseline, warm: human });
       }
+    }
+  }
+  if (underlines.length) {
+    for (const warm of [false, true]) {
+      ctx.beginPath();
+      let any = false;
+      for (const u of underlines) {
+        if (u.warm !== warm) continue;
+        addUnderline(ctx, u.box, u.baseline);
+        any = true;
+      }
+      if (any) strokeUnderlines(ctx, warm ? UNDERLINE_WARM : UNDERLINE_MUT);
     }
   }
   return hits;
@@ -1183,6 +1278,11 @@ export function drawRadiants(ctx: CanvasRenderingContext2D, v: View, active: Sky
       if (sh.id !== v.suppressName) {
         ctx.fillStyle = `rgba(${WARM},0.75)`;
         ctx.fillText(sh.name, p.x + 9, p.y + 3);
+        if (v.underlineNames) {
+          ctx.beginPath();
+          addUnderline(ctx, hit.box, p.y + 3);
+          strokeUnderlines(ctx, UNDERLINE_WARM);
+        }
       }
     }
   }
@@ -1209,6 +1309,11 @@ export function drawIss(ctx: CanvasRenderingContext2D, v: View, iss: { eq: Equat
     if (v.suppressName !== "iss") {
       ctx.fillStyle = `rgba(${WARM},${0.75 * a})`;
       ctx.fillText("ISS", p.x + 8, p.y + 3);
+      if (v.underlineNames) {
+        ctx.beginPath();
+        addUnderline(ctx, hit.box, p.y + 3);
+        strokeUnderlines(ctx, iss.aboveHorizon ? UNDERLINE_WARM : UNDERLINE_WARM_DIM);
+      }
     }
   }
   return hit;

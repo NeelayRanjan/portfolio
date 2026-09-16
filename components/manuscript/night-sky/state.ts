@@ -64,6 +64,11 @@ export type SkyState = {
   /** Paper mode: the pointer is over the sky itself, not the sheet, a
    *  control or the credit. */
   pointerOverSky: boolean;
+  /** The live entry rings (entry-rings.ts): which ids, and the real
+   *  performance.now() they started at. Null when none are showing. */
+  entryRings: { ids: string[]; start: number } | null;
+  /** The entry rings have had their one showing this page load. */
+  entryRingsFired: boolean;
 };
 
 export function createSkyState(): SkyState {
@@ -99,5 +104,7 @@ export function createSkyState(): SkyState {
     saturationTarget: PAPER_SATURATION,
     saturationLast: 0,
     pointerOverSky: false,
+    entryRings: null,
+    entryRingsFired: false,
   };
 }

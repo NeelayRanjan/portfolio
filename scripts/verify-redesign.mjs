@@ -3162,7 +3162,42 @@ async function checkStargazeTouch400(browser) {
     if (mw.hit) throw new Error("the Milky Way has a canvas hit below 880px (an invisible target)");
     if (!mw.anchor) throw new Error(`the Milky Way's label point is off screen at ${date.toISOString()}; pick another instant`);
     await page.waitForFunction(() => !!document.querySelector('[data-sky-list-item="milky-way"]'), null, { timeout: 3000 });
-    return `touch hint; mouse click 18px from ${target.id} ${mouseCard ? `opened ${mouseCard}` : "opened nothing"}, a touch tap there opened ${target.id}; card ${sizes.height.toFixed(0)}px of ${H} (<= 60%), docked, smallest text ${small}px; Milky Way: no canvas hit, in the keyboard list`;
+
+    // Discoverability Task 4: below 880px the coloured objects draw their
+    // names, and a name is a tap target. Every name box on screen must belong
+    // to a planet, the Moon or an OBJECT_COLOURS id, at least one coloured
+    // object must carry one, and tapping inside it (clear of every symbol)
+    // opens that object's card.
+    await page.keyboard.press("Escape");
+    await card.waitFor({ state: "detached", timeout: 2000 });
+    const coloured = Object.keys(OBJECT_COLOURS);
+    const phoneNames = await page.evaluate((coloured) => {
+      const always = new Set(["mercury", "venus", "mars", "jupiter", "saturn", "moon"]);
+      const boxed = window.__sky.hits.filter((h) => h.box);
+      const stray = boxed.filter((h) => !always.has(h.id) && !coloured.includes(h.id)).map((h) => h.id);
+      const named = boxed.filter((h) => coloured.includes(h.id)).map((h) => h.id);
+      for (const h of boxed) {
+        if (!coloured.includes(h.id)) continue;
+        const b = h.box;
+        const x = b.x + b.w / 2;
+        const y = b.y + b.h / 2;
+        if (y < 80 || y > window.innerHeight * 0.35 || x < 4 || x > window.innerWidth - 4) continue;
+        if (window.__sky.hits.some((o) => Math.hypot(o.x - x, o.y - y) < 24)) continue;
+        if (window.__sky.hits.some((o) => o !== h && o.box && x >= o.box.x && x <= o.box.x + o.box.w && y >= o.box.y && y <= o.box.y + o.box.h)) continue;
+        if (document.elementFromPoint(x, y)?.closest("button, a, [data-sky-card], [data-sky-credit]")) continue;
+        return { stray, named, tap: { id: h.id, x, y } };
+      }
+      return { stray, named, tap: null };
+    }, coloured);
+    if (phoneNames.stray.length) throw new Error(`at ${W}px, name boxes for uncoloured ids: ${phoneNames.stray.join(", ")}`);
+    if (!phoneNames.named.length) throw new Error(`at ${W}px in stargaze, no coloured object carries a name box at ${date.toISOString()}`);
+    if (!phoneNames.tap) throw new Error(`coloured names ${phoneNames.named.join(", ")} drawn, but none has a box centre clear of symbols and controls to tap`);
+    await page.touchscreen.tap(phoneNames.tap.x, phoneNames.tap.y);
+    await page.locator(`[data-sky-card="${phoneNames.tap.id}"]`).waitFor({ state: "visible", timeout: 3000 }).catch(async () => {
+      const open = await page.evaluate(() => document.querySelector("[data-sky-card]")?.getAttribute("data-sky-card") ?? null);
+      throw new Error(`a tap on ${phoneNames.tap.id}'s name box at (${phoneNames.tap.x.toFixed(0)}, ${phoneNames.tap.y.toFixed(0)}) opened ${open ?? "nothing"}`);
+    });
+    return `touch hint; mouse click 18px from ${target.id} ${mouseCard ? `opened ${mouseCard}` : "opened nothing"}, a touch tap there opened ${target.id}; card ${sizes.height.toFixed(0)}px of ${H} (<= 60%), docked, smallest text ${small}px; Milky Way: no canvas hit, in the keyboard list; phone names on ${phoneNames.named.length} coloured objects, none on others, a tap on ${phoneNames.tap.id}'s name opened its card`;
   });
 }
 
@@ -3356,6 +3391,243 @@ async function checkSkyIss(browser) {
 /* driver                                                                  */
 /* ---------------------------------------------------------------------- */
 
+/**
+ * Discoverability Task 4: the stargaze affordances on the canvas, each
+ * measured as a difference between two states of the same pixels.
+ *
+ * - Underlines: the same named hits read at the SAME saturation (the verify
+ *   hook forces 1 in paper mode, stargaze is 1 anyway) with the entry rings
+ *   gone. Each name's bottom rows (where the dotted line sits) must gain
+ *   lit pixels in stargaze over paper, while its text rows stay identical,
+ *   which is what says nothing else moved under it.
+ * - Entry rings (reduced motion, pinned, so the sky is still): the circle
+ *   around each ringed symbol right after the first entry vs the same
+ *   circle once the rings have cleared, and on a second entry.
+ * - Entry rings with motion: the snapshot count every rAF for the first
+ *   2 s of the first entry (present, then zero, painted above the idle
+ *   20 fps gate while live), and zero throughout the second entry.
+ * - Cursor: pointer over a symbol in stargaze, default on empty sky,
+ *   grabbing mid-drag even over a symbol.
+ */
+const UNDERLINE_MIN_NAMES = 4;
+const UNDERLINE_MIN_LIT = 4;
+const RING_MIN_CHANGED = 12;
+
+async function checkStargazeAffordances(browser) {
+  const W = 1440;
+  const H = 900;
+  const { date, p: m31 } = findInstant(new Date(Date.UTC(2026, 9, 1)), W, H, M31, 160);
+  const notes = [];
+
+  await withPage(browser, { viewport: { width: W, height: H }, reducedMotion: "reduce", deviceScaleFactor: 1 }, async (page, context) => {
+    await context.addInitScript(() => {
+      window.__skySaturationOverride = 1;
+    });
+    await page.clock.setFixedTime(date);
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await waitSkyDrawn(page);
+    await page.waitForFunction(() => window.__sky.layers.objects === "ready" && window.__sky.layers.milkyWay === "ready" && window.__sky.saturation === 1, null, { timeout: 10000 });
+    await waitStargazeReady(page);
+
+    /** Per named hit: its box rows, as mean-RGB per pixel, read off the canvas. */
+    const readNames = () =>
+      page.evaluate((sel) => {
+        const c = document.querySelector(sel);
+        const g = c.getContext("2d");
+        const out = {};
+        for (const h of window.__sky.hits) {
+          const b = h.box;
+          if (!b || h.id === "milky-way") continue;
+          if (b.y < 100 || b.y + b.h > window.innerHeight - 140 || b.x < 0 || b.x + b.w > window.innerWidth) continue;
+          const x0 = Math.round(b.x + 3);
+          const w = Math.round(b.w - 6);
+          const y0 = Math.round(b.y);
+          const hgt = Math.round(b.h);
+          const { data } = g.getImageData(x0, y0, w, hgt);
+          const rows = [];
+          for (let r = 0; r < hgt; r++) {
+            const row = [];
+            for (let k = 0; k < w; k++) {
+              const i = (r * w + k) * 4;
+              row.push((data[i] + data[i + 1] + data[i + 2]) / 3);
+            }
+            rows.push(row);
+          }
+          out[h.id] = { box: b, rows };
+        }
+        return { names: out, highlight: window.__sky.highlight, underline: window.__sky.nameUnderline, suppressed: window.__sky.suppressedName };
+      }, SKY_CANVAS);
+
+    const paper = await readNames();
+    if (paper.underline) throw new Error("window.__sky.nameUnderline is true in paper mode");
+    if (paper.highlight) throw new Error(`paper mode has a highlight (${paper.highlight}) before any pointer move`);
+
+    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze") && window.__sky.entryRingsFired, null, { timeout: 5000 });
+
+    // Rings, right after the first entry: the ringed ids' circles, read now.
+    const ringRead = (ids) =>
+      page.evaluate(
+        ([sel, ids]) => {
+          const g = document.querySelector(sel).getContext("2d");
+          const out = {};
+          for (const id of ids) {
+            const h = window.__sky.hits.find((x) => x.id === id);
+            if (!h) continue;
+            // Every pixel of the (2*32+1)px square around the symbol: with the
+            // sky pinned and still, only a ring can change any of them.
+            const R = 32;
+            const { data } = g.getImageData(Math.round(h.x) - R, Math.round(h.y) - R, 2 * R + 1, 2 * R + 1);
+            const px = [];
+            for (let i = 0; i < data.length; i += 4) px.push((data[i] + data[i + 1] + data[i + 2]) / 3);
+            out[id] = px;
+          }
+          return { rings: window.__sky.entryRings, px: out };
+        },
+        [SKY_CANVAS, ids],
+      );
+    const ringIds = await page.evaluate(() => {
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+      return window.__sky.hits
+        .filter((h) => h.id !== "milky-way")
+        .map((h) => ({ id: h.id, d: Math.hypot(h.x - cx, h.y - cy) }))
+        .sort((a, b) => a.d - b.d || (a.id < b.id ? -1 : 1))
+        .slice(0, 4)
+        .map((h) => h.id);
+    });
+    const ringsOn = await ringRead(ringIds);
+    if (ringsOn.rings !== ringIds.length) {
+      throw new Error(`right after the first stargaze entry window.__sky.entryRings is ${ringsOn.rings}, expected ${ringIds.length} (around ${ringIds.join(", ")}); a slow machine can miss the 1.2 s window, rerun before believing it`);
+    }
+    await page.waitForFunction(() => window.__sky.entryRings === 0, null, { timeout: 2500 }).catch(async () => {
+      throw new Error(`entry rings still drawn ${await page.evaluate(() => window.__sky.entryRings)} after 2.5 s under reduced motion (should clear at 1.2 s)`);
+    });
+    const ringsOff = await ringRead(ringIds);
+    const ringChanged = ringIds.map((id) => ({ id, n: ringsOn.px[id].filter((v, i) => v - ringsOff.px[id][i] >= 20).length }));
+    const dull = ringChanged.filter((r) => r.n < RING_MIN_CHANGED);
+    if (dull.length) throw new Error(`entry ring pixels (lit by >= 20 over the cleared frame) per ringed symbol: ${JSON.stringify(ringChanged)}; each needs >= ${RING_MIN_CHANGED}`);
+    notes.push(`rings around ${ringChanged.map((r) => `${r.id} +${r.n}px`).join(", ")} on first entry, 0 after clearing`);
+
+    // Underlines, with the rings gone and nothing hovered (the click left the
+    // pointer on the exit control, which may sit near a symbol).
+    const still = await emptySkyPoint(page, { x: -1000, y: -1000, r: 0 });
+    if (still) {
+      await page.mouse.move(still.x, still.y);
+      await page.waitForFunction(() => window.__sky.highlight === null, null, { timeout: 2000 });
+    }
+    const star = await readNames();
+    if (!star.underline) throw new Error("window.__sky.nameUnderline is false in stargaze");
+    if (star.highlight) throw new Error(`stargaze has a highlight (${star.highlight}) with the pointer on the exit control`);
+    const measured = [];
+    for (const [id, a] of Object.entries(paper.names)) {
+      const b = star.names[id];
+      if (!b || id === star.suppressed) continue;
+      if (Math.abs(a.box.x - b.box.x) > 0.01 || Math.abs(a.box.y - b.box.y) > 0.01 || a.rows.length !== b.rows.length) continue;
+      const hgt = a.rows.length;
+      // Text rows: from the top padding down to ~2px above the baseline.
+      let textSame = true;
+      for (let r = 3; r < hgt - 7; r++) if (a.rows[r].some((v, k) => v !== b.rows[r][k])) textSame = false;
+      if (!textSame) continue; // the band's label or another layer moved over this name; not a fair comparison
+      let lit = 0;
+      let bestRow = -1;
+      for (let r = Math.max(0, hgt - 6); r < hgt; r++) {
+        const n = a.rows[r].filter((v, k) => b.rows[r][k] - v >= 20).length;
+        if (n > lit) {
+          lit = n;
+          bestRow = r;
+        }
+      }
+      measured.push({ id, lit, row: bestRow, width: a.rows[0].length });
+    }
+    const underlined = measured.filter((m) => m.lit >= UNDERLINE_MIN_LIT);
+    if (underlined.length < UNDERLINE_MIN_NAMES || underlined.length < measured.length * 0.8) {
+      throw new Error(
+        `dotted underline pixels (lit by >= 20 in stargaze over paper, bottom 6 rows of each name box, same saturation, text rows identical): ${JSON.stringify(measured)}; need >= ${UNDERLINE_MIN_LIT} lit on >= ${UNDERLINE_MIN_NAMES} names and 80% of those compared`,
+      );
+    }
+    notes.push(`underline: ${underlined.length}/${measured.length} names gained dots in stargaze (median ${underlined.map((m) => m.lit).sort((x, y) => x - y)[underlined.length >> 1]}px), text rows identical`);
+
+    // Second entry: no rings, and the circles match the cleared frame.
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.body.hasAttribute("data-stargaze"), null, { timeout: 3000 });
+    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    const again = await ringRead(ringIds);
+    const againLit = ringIds.map((id) => again.px[id]?.filter((v, i) => v - ringsOff.px[id][i] >= 20).length ?? 0);
+    if (again.rings !== 0 || againLit.some((n) => n >= RING_MIN_CHANGED)) {
+      throw new Error(`second stargaze entry drew rings: window.__sky.entryRings ${again.rings}, lit ring pixels over the cleared frame ${JSON.stringify(againLit)}`);
+    }
+    notes.push("second entry: 0 rings, circles unchanged");
+
+    // Cursor: pointer on a symbol, default on empty sky, grabbing mid-drag.
+    const hit = await page.evaluate(({ x, y }) => window.__sky.hits.find((h) => h.id === "m31") ?? null, m31);
+    if (!hit) throw new Error(`m31 not drawn at ${date.toISOString()}`);
+    const cursor = () => page.evaluate(() => document.documentElement.style.cursor);
+    await page.mouse.move(hit.x, hit.y);
+    await page.waitForFunction(() => window.__sky.highlight === "m31", null, { timeout: 2000 });
+    const onSymbol = await cursor();
+    const empty = await emptySkyPoint(page, { x: hit.x, y: hit.y, r: 200 });
+    if (!empty) throw new Error("no empty sky for the cursor check");
+    await page.mouse.move(empty.x, empty.y);
+    await page.waitForFunction(() => window.__sky.highlight === null, null, { timeout: 2000 });
+    const onEmpty = await cursor();
+    await page.mouse.down();
+    await page.mouse.move(hit.x, hit.y, { steps: 8 });
+    const dragging = await cursor();
+    await page.mouse.up();
+    await page.mouse.move(empty.x + 1, empty.y + 1);
+    if (onSymbol !== "pointer" || onEmpty !== "" || dragging !== "grabbing") {
+      throw new Error(`cursor over m31 in stargaze "${onSymbol}" (want pointer), on empty sky "${onEmpty}" (want default), dragging across m31 "${dragging}" (want grabbing)`);
+    }
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.body.hasAttribute("data-stargaze"), null, { timeout: 3000 });
+    if ((await cursor()) !== "") throw new Error(`cursor "${await cursor()}" left on the page after leaving stargaze`);
+    notes.push("cursor pointer / default / grabbing");
+  });
+
+  // With motion: the envelope runs on real ms and raises the frame gate.
+  await withPage(browser, { viewport: { width: W, height: H } }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await waitSkyDrawn(page);
+    await page.waitForFunction(() => window.__sky.layers.objects === "ready", null, { timeout: 10000 });
+    await waitStargazeReady(page);
+    const record = () =>
+      page.evaluate(
+        () =>
+          new Promise((resolve) => {
+            const seen = [];
+            const t0 = performance.now();
+            let lastSim = null;
+            const tick = () => {
+              const s = window.__sky;
+              if (s.simMs !== lastSim) {
+                seen.push({ t: performance.now() - t0, rings: s.entryRings });
+                lastSim = s.simMs;
+              }
+              if (performance.now() - t0 < 2000) requestAnimationFrame(tick);
+              else resolve({ seen, fired: s.entryRingsFired });
+            };
+            requestAnimationFrame(tick);
+          }),
+      );
+    const [first] = await Promise.all([record(), page.getByRole("button", { name: STARGAZE_ENTER }).click()]);
+    const live = first.seen.filter((f) => f.rings > 0);
+    const tail = first.seen.filter((f) => f.t > 1700);
+    if (!first.fired || !live.length) throw new Error(`first entry with motion: no frame drew rings (${first.seen.length} frames seen, fired ${first.fired})`);
+    if (tail.some((f) => f.rings > 0) || first.seen.at(-1).rings !== 0) throw new Error(`rings still drawn ${first.seen.at(-1).rings} at ${first.seen.at(-1).t.toFixed(0)}ms`);
+    const span = live.at(-1).t - live[0].t;
+    // The idle gate is 50 ms (20 fps); live rings paint on the 14 ms gate.
+    if (live.length < span / 50 + 10) throw new Error(`rings painted ${live.length} frames over ${span.toFixed(0)}ms, not above the idle 20 fps gate`);
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.body.hasAttribute("data-stargaze"), null, { timeout: 3000 });
+    const [second] = await Promise.all([record(), page.getByRole("button", { name: STARGAZE_ENTER }).click()]);
+    if (second.seen.some((f) => f.rings > 0)) throw new Error(`second entry with motion drew rings on ${second.seen.filter((f) => f.rings > 0).length} frames`);
+    notes.push(`motion: rings on ${live.length} frames over ${span.toFixed(0)}ms, 0 by ${tail.length ? "1.7s" : "2s"}; second entry 0 over 2s`);
+  });
+  return notes.join("; ");
+}
+
 const CHECKS = [
   ["sky-animates-1280", skyAnimatesAt1280],
   ["sky-static-reduced-motion", skyStaticUnderReducedMotion],
@@ -3386,6 +3658,7 @@ const CHECKS = [
   ["stargaze-card", checkStargazeCard],
   ["stargaze-keyboard-list", checkStargazeKeyboardList],
   ["stargaze-touch-400", checkStargazeTouch400],
+  ["stargaze-affordances", checkStargazeAffordances],
   ["sky-iss", checkSkyIss],
 ];
 

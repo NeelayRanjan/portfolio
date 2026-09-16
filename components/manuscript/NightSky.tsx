@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { subscribeStargaze } from "@/lib/stargaze";
 import { SkyCard, type CardModel } from "./SkyCard";
 import { createCardController } from "./night-sky/card-controller";
+import { ENTRY_RING_MS, pickEntryRingIds } from "./night-sky/entry-rings";
 import { createFrameLoop } from "./night-sky/frame-loop";
 import { SkyKeyboardList, createKeyboardList, useListSlot, type ListActions, type ListItem } from "./night-sky/keyboard-list";
 import { loadSkyLayers } from "./night-sky/layer-loaders";
@@ -73,6 +74,12 @@ import { createSkyState } from "./night-sky/state";
  *
  * `window.__sky` is a read-only snapshot for scripts/verify-redesign.mjs;
  * `window.__skySaturationOverride` is that script's one write hook.
+ *
+ * - Stargaze affordances (discoverability spec §4): drawn names carry a
+ *   dotted underline, a selectable symbol or name gets the pointer cursor,
+ *   phones draw names for the coloured objects, and the first entry of a
+ *   page load rings the four symbols nearest the centre once
+ *   (night-sky/entry-rings.ts).
  */
 
 export function NightSky() {
@@ -192,8 +199,28 @@ export function NightSky() {
     s.reducedQ.addEventListener("change", loop.applyMode);
     pointer.attach();
     window.addEventListener("keydown", cards.onKeyDown, { capture: true });
+    let entryRingTimer = 0;
     const unsubStargaze = subscribeStargaze((on) => {
       s.highlight = null;
+      pointer.clearPointerCursor();
+      // The entry rings: the first entry of this page load only, whether or
+      // not anything was on screen to ring. A still sky (reduced motion) has
+      // no loop to end them, so a timer paints the frame that clears them.
+      window.clearTimeout(entryRingTimer);
+      if (on && !s.entryRingsFired) {
+        s.entryRingsFired = true;
+        const ids = s.projected ? pickEntryRingIds(s.projected.hits, s.width, s.height) : [];
+        if (ids.length) {
+          s.entryRings = { ids, start: performance.now() };
+          if (!s.running) {
+            entryRingTimer = window.setTimeout(() => {
+              if (s.alive) paint();
+            }, ENTRY_RING_MS + 20);
+          }
+        }
+      } else if (!on) {
+        s.entryRings = null;
+      }
       // Leaving stargaze closes any open card too, but focus is
       // StargazeToggle's job here (it returns focus to its own entry
       // button), not the exit control NightSky would otherwise reach for.
@@ -222,6 +249,7 @@ export function NightSky() {
 
     return () => {
       s.alive = false;
+      window.clearTimeout(entryRingTimer);
       loop.stop();
       window.removeEventListener("resize", onResize);
       s.reducedQ.removeEventListener("change", loop.applyMode);

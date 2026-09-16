@@ -5,7 +5,8 @@ import type { SkyState } from "./state";
 /**
  * The frame loop: ~20 fps at >=880px, ~10 fps below, skipped while
  * document.hidden, lifted to ~60 fps while a drag or the return spring is
- * live, or while the colour saturation eases toward a new target. Under
+ * live, while the colour saturation eases toward a new target, or while the
+ * entry rings (entry-rings.ts) fade. Under
  * reduced motion it never runs; the sky paints on change only (and the
  * saturation snaps, pointer-controller.ts).
  */
@@ -28,7 +29,8 @@ export function createFrameLoop(s: SkyState, paint: () => void) {
     // A live drag, spring or colour ease paints at ~60 fps; the idle sky
     // keeps its 20/10 fps gate.
     const easing = s.saturation !== s.saturationTarget;
-    const interacting = s.drag !== null || s.springing || easing;
+    // The one-shot entry rings fade on real ms, so they get the same gate.
+    const interacting = s.drag !== null || s.springing || easing || s.entryRings !== null;
     if (easing) {
       // Real elapsed ms, closed form (lib/sky-colour.ts): the same curve at any frame rate.
       s.saturation = stepSaturation(s.saturation, s.saturationTarget, s.saturationLast ? t - s.saturationLast : 1000 / 60);

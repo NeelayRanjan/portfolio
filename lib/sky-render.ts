@@ -14,7 +14,7 @@
  * handed in through `oneLiner`.
  */
 import type { SkyData } from "./sky-data";
-import { drawIss, drawMilkyWay, drawObjects, drawRadiants, nameBox, type Hit, type View } from "./sky-layers";
+import { addUnderline, drawIss, drawMilkyWay, drawObjects, drawRadiants, nameBox, strokeUnderlines, type Hit, type View } from "./sky-layers";
 import type { ObjectGlyph, PreparedMilkyWay, SkyObject, SkyShower } from "./sky-objects";
 import { eclipticToEquatorial, project, type Chart, type Equatorial, type Planet, type Point } from "./sky-math";
 
@@ -43,6 +43,8 @@ export type Projected = {
   /** The id whose always-on name was skipped this frame because the
    *  hover/selection label was about to draw it again (fix round 1, C1). */
   suppressName: string | null;
+  /** How many entry rings drew this frame (0 when none are live). */
+  entryRings: number;
 };
 /** A hovered (or tapped) thing: a constellation by abbreviation, or a Hit by id. */
 export type Highlight = { kind: "constellation" | "hit"; id: string; pointer: Point };
@@ -80,6 +82,15 @@ export type FrameInput = {
   saturation: number;
   /** Stargaze's fixed chrome is on screen (the band's label avoids it). */
   stargazeChrome: boolean;
+  /** Dotted underlines under drawn names (View.underlineNames): stargaze only. */
+  underlineNames: boolean;
+  /** Names for coloured objects below 880px (View.colouredNames): stargaze only. */
+  colouredNames: boolean;
+  /** The one-shot entry rings (discoverability spec §4): the ids to ring and
+   *  the envelope's opacity this frame, 0..1. The caller owns the clock and
+   *  the choice of ids; null or alpha 0 draws nothing. Drawn only, never a
+   *  hit: a ring can't take a click or open anything. */
+  entryRings: { ids: readonly string[]; alpha: number } | null;
   /** The desk one-liner for an id, from content/sky-facts.ts; null until the facts load. */
   oneLiner: (id: string) => string | null;
   /** The id whose card is open (Task 5), ringed like a hover. */
@@ -93,6 +104,9 @@ const DESK_RGB = "12,11,9";
 const INK = "234,229,218";
 const MUT = "154,148,138";
 const WARM = "217,164,91";
+/** Built once: the planet and Moon underlines, their names' colours at lower alpha. */
+const UNDERLINE_WARM = `rgba(${WARM},0.5)`;
+const UNDERLINE_INK = `rgba(${INK},0.45)`;
 const D2R = Math.PI / 180;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -128,7 +142,7 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
   // selectedId to the open card's subject (Task 5), so a selected object's
   // own name stays suppressed while its card is open, the same as a hover.
   const suppressName = f.highlight?.kind === "hit" ? f.highlight.id : f.selectedId;
-  const view: View = { chart: c, width, height, fontFamily: f.fontFamily, names: f.names, saturation: f.saturation, stargazeChrome: f.stargazeChrome, suppressName };
+  const view: View = { chart: c, width, height, fontFamily: f.fontFamily, names: f.names, saturation: f.saturation, stargazeChrome: f.stargazeChrome, underlineNames: f.underlineNames, colouredNames: f.colouredNames, suppressName };
   const onCanvas = (p: { x: number; y: number }, m: number) =>
     p.x > -m && p.x < width + m && p.y > -m && p.y < height + m;
   const radiusAt = (dec: number) => c.k * Math.tan(((90 - dec) / 2) * D2R);
@@ -230,7 +244,8 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
   hits.push(...drawRadiants(ctx, view, f.showers));
   ctx.font = `10px ${f.fontFamily}`;
 
-  // Planets.
+  // Planets. Their names draw at every width, so while stargazing they
+  // underline at every width too.
   for (const { name, eq } of f.bodies.planets) {
     const p = project(c, eq.raDeg, eq.decDeg);
     if (!onCanvas(p, 20)) continue;
@@ -244,6 +259,11 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
     if (id !== suppressName) {
       ctx.fillStyle = `rgba(${WARM},0.75)`;
       ctx.fillText(name, p.x + 6, p.y + 3);
+      if (f.underlineNames) {
+        ctx.beginPath();
+        addUnderline(ctx, nameBox(ctx, name, p.x + 6, p.y + 3, 10), p.y + 3);
+        strokeUnderlines(ctx, UNDERLINE_WARM);
+      }
     }
     // Planet names draw at every width, so their boxes are hit targets at every width (F1).
     if (onCanvas(p, 0)) hits.push({ id, name, x: p.x, y: p.y, box: nameBox(ctx, name, p.x + 6, p.y + 3, 10) });
@@ -292,6 +312,11 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
     if ("moon" !== suppressName) {
       ctx.fillStyle = `rgba(${INK},0.7)`;
       ctx.fillText("Moon", mp.x + 8, mp.y + 3);
+      if (f.underlineNames) {
+        ctx.beginPath();
+        addUnderline(ctx, nameBox(ctx, "Moon", mp.x + 8, mp.y + 3, 10), mp.y + 3);
+        strokeUnderlines(ctx, UNDERLINE_INK);
+      }
     }
     if (onCanvas(mp, 0)) hits.push({ id: "moon", name: "Moon", x: mp.x, y: mp.y, box: nameBox(ctx, "Moon", mp.x + 8, mp.y + 3, 10) });
   }
@@ -300,6 +325,23 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
   if (f.iss) {
     const issHit = drawIss(ctx, view, f.iss);
     if (issHit) hits.push(issHit);
+  }
+
+  // The one-shot entry rings (discoverability spec §4), under the hover and
+  // selection layer so a real hover ring always reads on top.
+  let entryRings = 0;
+  if (f.entryRings && f.entryRings.alpha > 0) {
+    ctx.lineWidth = 1.25;
+    ctx.strokeStyle = `rgba(${INK},${(0.85 * f.entryRings.alpha).toFixed(3)})`;
+    for (const id of f.entryRings.ids) {
+      const h = hits.find((x) => x.id === id);
+      if (!h) continue;
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, Math.max(9, (h.core ?? 0) + 4), 0, Math.PI * 2);
+      ctx.stroke();
+      entryRings++;
+    }
+    ctx.lineWidth = 1;
   }
 
   // Hover and selection, on top of everything.
@@ -364,7 +406,7 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
   }
   ctx.font = `10px ${f.fontFamily}`;
 
-  return { segments, hits, milkyWay: milkyWayAnchor, label, labelText, suppressName };
+  return { segments, hits, milkyWay: milkyWayAnchor, label, labelText, suppressName, entryRings };
 }
 
 const ASCENT = 9;

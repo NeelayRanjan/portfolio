@@ -32,6 +32,20 @@ export type PointerControllerDeps = {
 export function createPointerController(s: SkyState, deps: PointerControllerDeps) {
   const { cards, paint } = deps;
   let pendingPaint = 0;
+  /** The pointer cursor is showing (a selectable hit under the pointer in
+   *  stargaze). A live drag's `grabbing` always wins over it. */
+  let pointerCursor = false;
+  const setPointerCursor = (on: boolean) => {
+    if (on === pointerCursor) return;
+    pointerCursor = on;
+    if (!s.drag) document.documentElement.style.cursor = on ? "pointer" : "";
+  };
+  /** Drops the pointer cursor (leaving or entering stargaze, a drag ending);
+   *  the next pointer move puts it back if something is under it. */
+  const clearPointerCursor = () => {
+    pointerCursor = false;
+    if (!s.drag) document.documentElement.style.cursor = "";
+  };
 
   // Normal mode: only over the desk, never over the sheet. Stargaze mode:
   // the whole screen, and a tap works too (no hover on touch).
@@ -152,8 +166,17 @@ export function createPointerController(s: SkyState, deps: PointerControllerDeps
       setPointerOverSky(!el?.closest(NOT_SKY) && !sheetContains(e.clientX, e.clientY));
     }
     // Over the open card: nothing under it is being pointed at.
-    if (e.target instanceof Element && e.target.closest("[data-sky-card]")) return setHighlight(null);
-    setHighlight(pick(e.clientX, e.clientY, e.pointerType));
+    if (e.target instanceof Element && e.target.closest("[data-sky-card]")) {
+      setPointerCursor(false);
+      return setHighlight(null);
+    }
+    const next = pick(e.clientX, e.clientY, e.pointerType);
+    // Stargaze only: there a click on a symbol or its name opens a card, so
+    // the cursor says so. Paper-mode hovers only label, and constellation
+    // lines (a 24px band over most of the sky) keep the default cursor so
+    // the pointer stays a signal rather than the norm.
+    setPointerCursor(isStargazing() && next?.kind === "hit");
+    setHighlight(next);
   };
   // Sends a non-zero offset home: an exact reduced-motion snap, or a
   // spring (change 1, 2026-09-15). Shared by a normal-mode release and by
@@ -176,6 +199,7 @@ export function createPointerController(s: SkyState, deps: PointerControllerDeps
   const finishDrag = (click: { x: number; y: number; pointerType: string } | null) => {
     if (!s.drag) return;
     s.drag = null;
+    pointerCursor = false;
     document.documentElement.style.cursor = "";
     if (isStargazing()) {
       // Change 1 (2026-09-15): releasing a drag while stargazing leaves
@@ -206,6 +230,7 @@ export function createPointerController(s: SkyState, deps: PointerControllerDeps
     if (!s.drag) {
       setHighlight(null);
       setPointerOverSky(false);
+      setPointerCursor(false);
     }
   };
   /** Leaving stargaze with a drag still held: release it without a click or a settle. */
@@ -221,6 +246,7 @@ export function createPointerController(s: SkyState, deps: PointerControllerDeps
         // Same nicety as the initial capture: never fatal.
       }
       s.drag = null;
+      pointerCursor = false;
       document.documentElement.style.cursor = "";
     }
   };
@@ -246,5 +272,5 @@ export function createPointerController(s: SkyState, deps: PointerControllerDeps
     document.documentElement.removeEventListener("lostpointercapture", onLostCapture);
   };
 
-  return { setHighlight, settleOffset, endHeldDragForExit, updateSaturationTarget, setPointerOverSky, attach, detach };
+  return { setHighlight, clearPointerCursor, settleOffset, endHeldDragForExit, updateSaturationTarget, setPointerOverSky, attach, detach };
 }

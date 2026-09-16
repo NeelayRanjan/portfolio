@@ -69,6 +69,10 @@ export type SkyState = {
   entryRings: { ids: string[]; start: number } | null;
   /** The entry rings have had their one showing this page load. */
   entryRingsFired: boolean;
+  /** The once-per-session invite (invite.ts) has shown in this page load. */
+  inviteShown: boolean;
+  /** The invite's box while it is up, else null. */
+  inviteBox: { x: number; y: number; w: number; h: number } | null;
 };
 
 export function createSkyState(): SkyState {
@@ -106,5 +110,7 @@ export function createSkyState(): SkyState {
     pointerOverSky: false,
     entryRings: null,
     entryRingsFired: false,
+    inviteShown: false,
+    inviteBox: null,
   };
 }

@@ -59,6 +59,10 @@ export type SkySnapshot = {
   entryRings: number;
   /** The entry rings have had their one showing this page load. */
   entryRingsFired: boolean;
+  /** The once-per-session invite has shown in this page load (invite.ts). */
+  inviteShown: boolean;
+  /** The invite's box while it is up. */
+  invite: { x: number; y: number; w: number; h: number } | null;
 };
 
 export type PainterDeps = {
@@ -229,6 +233,8 @@ export function createPainter(
       nameUnderline: stargazing,
       entryRings: seen.entryRings,
       entryRingsFired: s.entryRingsFired,
+      inviteShown: s.inviteShown,
+      invite: s.inviteBox,
     };
     if (s.selected) {
       deps.followCard(seen);

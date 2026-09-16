@@ -718,7 +718,7 @@ async function checkSkyDrag(browser) {
     await page.goto(BASE, { waitUntil: "networkidle" });
     await waitSkyDrawn(page);
     await waitStargazeReady(page);
-    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await stargazeToggle(page).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
     // Stargaze drags can start anywhere, not just the desk margin.
     await dragBy(page, 200, 200, 130, 70);
@@ -754,7 +754,7 @@ async function checkSkyDrag(browser) {
       notes.push("reduced motion: dragged, snapped home");
 
       await waitStargazeReady(page);
-      await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+      await stargazeToggle(page).click();
       await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
       await dragBy(page, 200, 200, 90, 0);
       await page.waitForFunction(() => Math.abs(window.__sky.offset.x - 90) < 2, null, { timeout: 2000 });
@@ -1857,6 +1857,12 @@ async function checkAnalyticsQueue(browser) {
 const STARGAZE_ENTER = "stargaze for a bit?";
 const STARGAZE_EXIT = "back to the page";
 
+/** The toggle above the sheet, by its accessible name. Scoped to the toggle
+ *  because the footer entry (Task 6) is a second button with the same name. */
+function stargazeToggle(page) {
+  return page.locator("[data-stargaze-toggle]").getByRole("button", { name: STARGAZE_ENTER });
+}
+
 /** The toggle stamps data-ready in its mount effect: clicking the
  *  server-rendered button before hydration would do nothing. */
 async function waitStargazeReady(page) {
@@ -1876,7 +1882,7 @@ async function checkStargazeHidesPage(browser) {
   return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
     await page.goto(BASE, { waitUntil: "networkidle" });
     await waitStargazeReady(page);
-    const enter = page.getByRole("button", { name: STARGAZE_ENTER });
+    const enter = stargazeToggle(page);
 
     await enter.click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
@@ -1920,7 +1926,7 @@ async function checkStargazeNoFetch(browser) {
     await waitStargazeReady(page);
     const urls = [];
     page.on("request", (req) => urls.push(req.url()));
-    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await stargazeToggle(page).click();
     await page.waitForTimeout(3000); // anything stargaze might start has had time to start
     const heavy = urls.filter((u) => HEAVY_RE.test(u));
     if (heavy.length) throw new Error(`heavy request(s) after entering stargaze: ${heavy.join(", ")}`);
@@ -1967,7 +1973,7 @@ async function checkStargazeOffloadChess(browser) {
     if (before < 1) throw new Error("no Worker was constructed for the chess engine");
 
     await waitStargazeReady(page);
-    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await stargazeToggle(page).click();
     await page.waitForFunction(() => (window.__offload?.chess ?? 0) >= 1, null, { timeout: 15000 });
     const terminated = await page.evaluate(() => window.__workers.filter((w) => w.__terminated).length);
     if (terminated < 1) throw new Error("stargaze reported a chess offload but no worker was terminated");
@@ -2026,7 +2032,7 @@ async function checkStargazeOffloadDraw(browser) {
     await waitDrawFits(page); // the draw model is loaded and has run
 
     await waitStargazeReady(page);
-    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await stargazeToggle(page).click();
     await page.waitForFunction(() => (window.__offload?.draw ?? 0) >= 1, null, { timeout: 15000 });
     await page.keyboard.press("Escape");
 
@@ -2048,7 +2054,7 @@ async function checkStargazeCancelsRun(browser) {
   return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
     await page.goto(BASE, { waitUntil: "networkidle" });
     await waitStargazeReady(page);
-    const enter = page.getByRole("button", { name: STARGAZE_ENTER });
+    const enter = stargazeToggle(page);
     const settled = async (sel) => {
       await page.waitForTimeout(1000); // let the cancel land: elapsed time is the assertion
       const a = await page.locator(sel).evaluate((el) => el.textContent);
@@ -2153,7 +2159,7 @@ async function checkStargazeDuringDownload(browser) {
     const fitsAtEntry = await page.evaluate(
       () => !!document.querySelector('#fig-draw button[aria-label*="fits your drawing"]'),
     );
-    const enter = page.getByRole("button", { name: STARGAZE_ENTER });
+    const enter = stargazeToggle(page);
     await enter.click();
     // N1: exit, then re-enter immediately, before the first exit's reload
     // (or the still-in-flight unload behind it) has settled.
@@ -2241,7 +2247,7 @@ async function openHitCard(browser, { W, H, date, hitId }) {
   return pinnedSkyPage(browser, { W, H, date }, async (page) => {
     await page.waitForFunction(() => window.__sky.layers.facts === "ready", null, { timeout: 10000 });
     await waitStargazeReady(page);
-    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await stargazeToggle(page).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
     const at = await page.evaluate((id) => window.__sky.hits.find((h) => h.id === id) ?? null, hitId);
     if (!at) throw new Error(`${hitId} is not among the drawn hits at ${date.toISOString()}`);
@@ -2431,7 +2437,7 @@ async function checkSkyColour(browser) {
     await expectSat(PAPER_SATURATION, "pointer moved back onto the sheet");
     await snapSky(page, "lowered");
     // Stargaze, pointer parked on the same bare sky.
-    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await stargazeToggle(page).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
     await page.mouse.move(skyPt.x, skyPt.y);
     await expectSat(1, "stargazing");
@@ -2657,7 +2663,7 @@ async function checkStargazeCard(browser) {
   const m31Summary = await pinnedSkyPage(browser, { W, H, date }, async (page) => {
     await page.waitForFunction(() => window.__sky.layers.facts === "ready", null, { timeout: 10000 });
     await waitStargazeReady(page);
-    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await stargazeToggle(page).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
     const card = page.locator("[data-sky-card]");
 
@@ -2756,7 +2762,7 @@ async function checkStargazeCard(browser) {
     await page.waitForFunction(() => !document.body.hasAttribute("data-stargaze"), null, { timeout: 3000 });
 
     // Back in: a click on empty sky closes an open card.
-    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await stargazeToggle(page).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
     await page.mouse.click(p.x, p.y);
     await card.waitFor({ state: "visible", timeout: 3000 });
@@ -2935,7 +2941,7 @@ async function checkStargazeCard(browser) {
   const objectCards = await pinnedSkyPage(browser, { W, H, date: SKY_COLOUR_INSTANT }, async (page) => {
     await page.waitForFunction(() => window.__sky.layers.facts === "ready", null, { timeout: 10000 });
     await waitStargazeReady(page);
-    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await stargazeToggle(page).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
     await page.waitForFunction(() => document.querySelectorAll("[data-sky-list-item]").length > 0, null, { timeout: 5000 });
 
@@ -3042,7 +3048,7 @@ async function checkStargazeKeyboardList(browser) {
   return pinnedSkyPage(browser, { W, H, date }, async (page) => {
     await page.waitForFunction(() => window.__sky.layers.facts === "ready", null, { timeout: 10000 });
     await waitStargazeReady(page);
-    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await stargazeToggle(page).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
     await page.waitForFunction(() => document.querySelectorAll("[data-sky-list-item]").length > 0, null, { timeout: 5000 });
     const onExit = await page.evaluate(() => document.activeElement?.hasAttribute("data-stargaze-exit"));
@@ -3106,7 +3112,7 @@ async function checkStargazeTouch400(browser) {
   return pinnedSkyPage(browser, { W, H, date, contextOptions: { hasTouch: true } }, async (page) => {
     await page.waitForFunction(() => window.__sky.layers.facts === "ready", null, { timeout: 10000 });
     await waitStargazeReady(page);
-    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await stargazeToggle(page).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
     const hint = await page.locator("[data-stargaze-exit]").evaluate((el) => el.parentElement.querySelector("span")?.textContent);
     if (hint !== copy.stargaze.hintTouch) throw new Error(`touch hint reads ${JSON.stringify(hint)}`);
@@ -3312,7 +3318,7 @@ async function checkSkyIss(browser) {
     const peak = await skyPeak(page, p.x, p.y, 3);
 
     await waitStargazeReady(page);
-    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await stargazeToggle(page).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
     await page.mouse.click(p.x, p.y);
     const card = page.locator("[data-sky-card]");
@@ -3366,7 +3372,7 @@ async function checkSkyIss(browser) {
     async (page) => {
       await page.waitForFunction(() => window.__sky.layers.iss === "ready" && window.__sky.layers.facts === "ready", null, { timeout: 10000 });
       await waitStargazeReady(page);
-      await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+      await stargazeToggle(page).click();
       await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
       await page.mouse.click(p.x, p.y);
       const card = page.locator("[data-sky-card=iss]");
@@ -3462,7 +3468,7 @@ async function checkStargazeAffordances(browser) {
     if (paper.underline) throw new Error("window.__sky.nameUnderline is true in paper mode");
     if (paper.highlight) throw new Error(`paper mode has a highlight (${paper.highlight}) before any pointer move`);
 
-    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await stargazeToggle(page).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze") && window.__sky.entryRingsFired, null, { timeout: 5000 });
 
     // Rings, right after the first entry: the ringed ids' circles, read now.
@@ -3551,7 +3557,7 @@ async function checkStargazeAffordances(browser) {
     // Second entry: no rings, and the circles match the cleared frame.
     await page.keyboard.press("Escape");
     await page.waitForFunction(() => !document.body.hasAttribute("data-stargaze"), null, { timeout: 3000 });
-    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await stargazeToggle(page).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
     const again = await ringRead(ringIds);
     const againLit = ringIds.map((id) => again.px[id]?.filter((v, i) => v - ringsOff.px[id][i] >= 20).length ?? 0);
@@ -3611,7 +3617,7 @@ async function checkStargazeAffordances(browser) {
             requestAnimationFrame(tick);
           }),
       );
-    const [first] = await Promise.all([record(), page.getByRole("button", { name: STARGAZE_ENTER }).click()]);
+    const [first] = await Promise.all([record(), stargazeToggle(page).click()]);
     const live = first.seen.filter((f) => f.rings > 0);
     const tail = first.seen.filter((f) => f.t > 1700);
     if (!first.fired || !live.length) throw new Error(`first entry with motion: no frame drew rings (${first.seen.length} frames seen, fired ${first.fired})`);
@@ -3621,7 +3627,7 @@ async function checkStargazeAffordances(browser) {
     if (live.length < span / 50 + 10) throw new Error(`rings painted ${live.length} frames over ${span.toFixed(0)}ms, not above the idle 20 fps gate`);
     await page.keyboard.press("Escape");
     await page.waitForFunction(() => !document.body.hasAttribute("data-stargaze"), null, { timeout: 3000 });
-    const [second] = await Promise.all([record(), page.getByRole("button", { name: STARGAZE_ENTER }).click()]);
+    const [second] = await Promise.all([record(), stargazeToggle(page).click()]);
     if (second.seen.some((f) => f.rings > 0)) throw new Error(`second entry with motion drew rings on ${second.seen.filter((f) => f.rings > 0).length} frames`);
     notes.push(`motion: rings on ${live.length} frames over ${span.toFixed(0)}ms, 0 by ${tail.length ? "1.7s" : "2s"}; second entry 0 over 2s`);
   });
@@ -3639,7 +3645,7 @@ async function checkStargazeAffordances(browser) {
       await route.continue();
     });
     await page.goto(BASE, { waitUntil: "domcontentloaded" });
-    const toggle = page.getByRole("button", { name: STARGAZE_ENTER });
+    const toggle = stargazeToggle(page);
     await toggle.waitFor({ state: "visible", timeout: 15000 });
     await toggle.click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
@@ -3738,7 +3744,7 @@ async function checkStargazeBrowse(browser) {
     await page.clock.setFixedTime(date);
     await page.goto(BASE, { waitUntil: "domcontentloaded" });
     await waitStargazeReady(page);
-    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await stargazeToggle(page).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
     await page.waitForTimeout(500);
     const early = await readHint(page);
@@ -3753,7 +3759,7 @@ async function checkStargazeBrowse(browser) {
   await pinnedSkyPage(browser, { W, H, date }, async (page) => {
     await page.waitForFunction(() => window.__sky.layers.facts === "ready", null, { timeout: 10000 });
     await waitStargazeReady(page);
-    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await stargazeToggle(page).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
     await page.waitForSelector("[data-stargaze-count-objects]", { timeout: 5000 });
     await page.waitForFunction(() => document.querySelectorAll("[data-sky-list-item]").length > 0, null, { timeout: 5000 });
@@ -3841,7 +3847,7 @@ async function checkStargazeBrowse(browser) {
     notes.push(`panel button opened ${symbolId}'s card (panel stayed); Escape x3: panel, card, stargaze`);
 
     // The close button closes it too, and returns focus to "browse the list".
-    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await stargazeToggle(page).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
     const reopened = await page.evaluate(() => document.querySelector("[data-sky-list-panel]")?.getAttribute("data-sky-list-panel") ?? null);
     if (reopened === "open") throw new Error("the panel was still open on re-entering stargaze");
@@ -3864,7 +3870,7 @@ async function checkStargazeBrowse400(browser) {
   return pinnedSkyPage(browser, { W, H, date, contextOptions: { hasTouch: true } }, async (page) => {
     await page.waitForFunction(() => window.__sky.layers.facts === "ready", null, { timeout: 10000 });
     await waitStargazeReady(page);
-    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await stargazeToggle(page).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
     await page.waitForSelector("[data-stargaze-count-objects]", { timeout: 5000 });
     await page.waitForFunction(() => document.querySelectorAll("[data-sky-list-item]").length > 0, null, { timeout: 5000 });
@@ -3934,6 +3940,498 @@ async function checkStargazeBrowse400(browser) {
   });
 }
 
+/* ---------------------------------------------------------------------- */
+/* Ways in (discoverability Task 6): the mark, the invite, the footer door */
+/* ---------------------------------------------------------------------- */
+
+function stargazeEvents(page) {
+  return page.evaluate(() =>
+    (window.vaq ?? [])
+      .filter(([kind, ev]) => kind === "event" && ev?.name === "demo_used" && ev?.data?.demo === "stargaze")
+      .map(([, ev]) => ev.data),
+  );
+}
+
+async function waitStargaze(page, on) {
+  await page.waitForFunction((on) => document.body.hasAttribute("data-stargaze") === on, on, { timeout: 5000 });
+}
+
+/**
+ * Both doors into stargaze: the toggle carries a decorative mark without its
+ * accessible name changing; the footer entry is a button (not a link) at the
+ * foot of `/` (after References) and `/lab`, labelled with the toggle's own
+ * words; each door tags `demo_used` with its `via`, still once per page load
+ * whichever door comes first; exit returns focus to the door that entered.
+ */
+async function checkStargazeDoors(browser) {
+  const t = copy.stargaze;
+  const notes = [];
+
+  // The mark is in the server HTML, so hydration can't shift the toggle.
+  const html = await (await fetch(BASE)).text();
+  const toggleHtml = html.match(/<div[^>]*data-stargaze-toggle[\s\S]*?<\/button>/)?.[0] ?? "";
+  if (!/<svg[^>]*data-star-mark[^>]*aria-hidden="true"/.test(toggleHtml)) {
+    throw new Error(`the server-rendered toggle has no aria-hidden star mark: ${JSON.stringify(toggleHtml.slice(0, 300))}`);
+  }
+
+  await withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await waitStargazeReady(page);
+    const exact = page.locator("[data-stargaze-toggle]").getByRole("button", { name: STARGAZE_ENTER, exact: true });
+    if ((await exact.count()) !== 1) throw new Error(`toggle's accessible name is not exactly "${STARGAZE_ENTER}" (${await exact.count()} exact matches)`);
+    const mark = await page.evaluate(() => {
+      const svg = document.querySelector("[data-stargaze-toggle] button svg[data-star-mark]");
+      const btn = svg?.closest("button");
+      if (!svg || !btn) return null;
+      const sr = svg.getBoundingClientRect();
+      const br = btn.getBoundingClientRect();
+      return { hidden: svg.getAttribute("aria-hidden"), fill: getComputedStyle(svg.querySelector("path")).fill, color: getComputedStyle(btn).color, w: sr.width, h: sr.height, btnH: br.height };
+    });
+    if (!mark || mark.hidden !== "true") throw new Error(`toggle mark missing or not aria-hidden: ${JSON.stringify(mark)}`);
+    if (mark.fill !== mark.color) throw new Error(`toggle mark fill ${mark.fill} is not the button's colour ${mark.color} (currentColor)`);
+    if (!(mark.h > 4 && mark.h <= mark.btnH)) throw new Error(`toggle mark measures ${mark.w}x${mark.h} in a ${mark.btnH}px button`);
+    notes.push(`mark ${mark.w.toFixed(1)}px, currentColor, aria-hidden, in the SSR html; toggle name exact`);
+
+    // The footer door on /: after References, a button, the toggle's words.
+    const footer = page.locator("[data-stargaze-footer-enter]");
+    await footer.scrollIntoViewIfNeeded();
+    await page.waitForSelector("[data-stargaze-footer][data-ready]", { timeout: 5000 });
+    const shape = await page.evaluate(() => {
+      const btn = document.querySelector("[data-stargaze-footer-enter]");
+      const p = btn.closest("[data-stargaze-footer]");
+      const prev = p.previousElementSibling;
+      return { tag: btn.tagName, type: btn.getAttribute("type"), text: btn.textContent.trim(), lead: p.textContent.trim(), prevHeading: prev?.querySelector("h2")?.textContent ?? null, inSheet: !!p.closest("[data-sheet]"), mark: btn.querySelector("svg[data-star-mark]")?.getAttribute("aria-hidden") };
+    });
+    if (shape.tag !== "BUTTON" || shape.type !== "button") throw new Error(`footer entry is <${shape.tag} type=${shape.type}>, not a button`);
+    if (shape.text !== t.enter) throw new Error(`footer button reads ${JSON.stringify(shape.text)}, copy.stargaze.enter is ${JSON.stringify(t.enter)}`);
+    if (!shape.lead.startsWith(t.footerLead)) throw new Error(`footer line reads ${JSON.stringify(shape.lead)}, expected it to open with footerLead`);
+    if (shape.prevHeading !== copy.references.heading || !shape.inSheet) throw new Error(`footer entry follows ${JSON.stringify(shape.prevHeading)} (inSheet ${shape.inSheet}), expected References inside the sheet`);
+    if (shape.mark !== "true") throw new Error("footer button has no aria-hidden mark");
+
+    await footer.click();
+    await waitStargaze(page, true);
+    let events = await stargazeEvents(page);
+    if (events.length !== 1 || events[0].via !== "footer") throw new Error(`after the footer door, demo_used{stargaze} queue is ${JSON.stringify(events)}, expected one with via "footer"`);
+    await page.keyboard.press("Escape");
+    await waitStargaze(page, false);
+    const focus = await page.evaluate(() => document.activeElement?.hasAttribute("data-stargaze-footer-enter"));
+    if (!focus) throw new Error(`after leaving via Escape, focus is on ${await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80))}, not the footer button that entered`);
+    // The other door in the same load: still one event, still the first door's via.
+    await stargazeToggle(page).click();
+    await waitStargaze(page, true);
+    await page.getByRole("button", { name: STARGAZE_EXIT }).click();
+    await waitStargaze(page, false);
+    const toToggle = await page.evaluate(() => !!document.activeElement?.closest("[data-stargaze-toggle]"));
+    if (!toToggle) throw new Error("entering by the toggle after the footer, exit did not return focus to the toggle");
+    events = await stargazeEvents(page);
+    if (events.length !== 1 || events[0].via !== "footer") throw new Error(`both doors used in one load queued ${JSON.stringify(events)}, expected exactly one, via "footer"`);
+    notes.push("/: footer door after References queued via footer, focus back to it; toggle afterwards added nothing and got its own focus back");
+  });
+
+  await withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await waitStargazeReady(page);
+    await stargazeToggle(page).click();
+    await waitStargaze(page, true);
+    await page.keyboard.press("Escape");
+    await waitStargaze(page, false);
+    const footer = page.locator("[data-stargaze-footer-enter]");
+    await footer.scrollIntoViewIfNeeded();
+    await page.waitForSelector("[data-stargaze-footer][data-ready]", { timeout: 5000 });
+    await footer.click();
+    await waitStargaze(page, true);
+    const events = await stargazeEvents(page);
+    if (events.length !== 1 || events[0].via !== "toggle") throw new Error(`toggle then footer queued ${JSON.stringify(events)}, expected exactly one, via "toggle"`);
+    notes.push("toggle first: one event, via toggle");
+  });
+
+  await withPage(browser, { viewport: { width: 400, height: 800 } }, async (page) => {
+    await page.goto(`${BASE}/lab`, { waitUntil: "networkidle" });
+    const shape = await page.evaluate(() => {
+      const p = document.querySelector("[data-stargaze-footer]");
+      const sheet = document.querySelector("[data-sheet]");
+      return p ? { last: sheet?.lastElementChild === p, btn: p.querySelector("button[data-stargaze-footer-enter]")?.textContent.trim() } : null;
+    });
+    if (!shape?.last || shape.btn !== t.enter) throw new Error(`/lab footer entry ${JSON.stringify(shape)}; expected the sheet's last child with a "${t.enter}" button`);
+    const footer = page.locator("[data-stargaze-footer-enter]");
+    await footer.scrollIntoViewIfNeeded();
+    await page.waitForSelector("[data-stargaze-footer][data-ready]", { timeout: 5000 });
+    const box = await footer.boundingBox();
+    if (!box || box.x < 0 || box.x + box.width > 400) throw new Error(`/lab footer button at 400px is ${JSON.stringify(box)}, off the screen`);
+    await footer.click();
+    await waitStargaze(page, true);
+    const events = await stargazeEvents(page);
+    if (events.length !== 1 || events[0].via !== "footer") throw new Error(`/lab footer queued ${JSON.stringify(events)}, expected one via "footer"`);
+    notes.push("/lab at 400px: footer door is the sheet's last child, on screen, queued via footer");
+  });
+  return notes.join("; ");
+}
+
+/**
+ * The once-per-session invite (night-sky/invite.ts): shown the first time a
+ * hover-capable pointer moves onto the sky in paper mode, at the moment the
+ * colour lift starts, clear of the sheet, pointer-events none, gone after a
+ * few seconds; not again after a reload in the same session; never on a
+ * no-hover device; never in stargaze; once per page load when storage throws.
+ */
+async function checkSkyInvite(browser) {
+  const W = 1440;
+  const H = 900;
+  const notes = [];
+  const sheetPt = { x: 720, y: 450 };
+  const skyPt = { x: 110, y: 460 };
+
+  const readInvite = (page) =>
+    page.evaluate(() => {
+      const el = document.querySelector("[data-sky-invite]");
+      const r = el.getBoundingClientRect();
+      const sh = document.querySelector("[data-sheet]").getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      return {
+        shown: window.__sky.inviteShown,
+        hookBox: window.__sky.invite,
+        hidden: el.hidden,
+        opacity: Number(cs.opacity),
+        pointerEvents: cs.pointerEvents,
+        text: el.textContent,
+        box: { x: r.left, y: r.top, w: r.width, h: r.height },
+        sheet: { x: sh.left, y: sh.top, w: sh.width, h: sh.height },
+        sat: window.__sky.saturationTarget,
+      };
+    });
+  const enterSky = async (page) => {
+    await page.mouse.move(sheetPt.x, sheetPt.y);
+    await page.waitForTimeout(100);
+    await page.mouse.move(skyPt.x, skyPt.y, { steps: 3 });
+  };
+  const loadHome = async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await waitSkyDrawn(page);
+    await page.waitForFunction(() => window.__sky.layers.objects === "ready", null, { timeout: 10000 });
+  };
+
+  await withPage(browser, { viewport: { width: W, height: H } }, async (page) => {
+    await loadHome(page);
+    const rest = await readInvite(page);
+    if (rest.shown || !rest.hidden) throw new Error(`invite up before any pointer entry: ${JSON.stringify(rest)}`);
+    const t0 = Date.now();
+    await enterSky(page);
+    await page.waitForFunction(() => window.__sky.inviteShown === true, null, { timeout: 2000 }).catch(() => {
+      throw new Error(`first entry onto the sky at (${skyPt.x}, ${skyPt.y}) did not show the invite`);
+    });
+    await page.waitForFunction(() => Number(getComputedStyle(document.querySelector("[data-sky-invite]")).opacity) > 0.99, null, { timeout: 2000 });
+    const up = await readInvite(page);
+    if (up.sat !== 1) throw new Error(`invite shown but the colour target is ${up.sat}, not the lift (1)`);
+    if (up.hidden || up.pointerEvents !== "none") throw new Error(`invite hidden=${up.hidden}, pointer-events ${up.pointerEvents}`);
+    if (up.text !== copy.stargaze.invite) throw new Error(`invite reads ${JSON.stringify(up.text)}`);
+    if (boxesIntersect(up.box, up.sheet)) throw new Error(`invite ${JSON.stringify(up.box)} overlaps the sheet ${JSON.stringify(up.sheet)}`);
+    if (up.box.x < 0 || up.box.y < 0 || up.box.x + up.box.w > W || up.box.y + up.box.h > H) throw new Error(`invite ${JSON.stringify(up.box)} leaves the ${W}x${H} viewport`);
+    const dist = Math.hypot(up.box.x + up.box.w / 2 - skyPt.x, up.box.y + up.box.h / 2 - skyPt.y);
+    if (dist > 200) throw new Error(`invite centre is ${dist.toFixed(0)}px from the pointer, not near it`);
+    notes.push(`first entry: shown ${JSON.stringify(up.box)}, ${dist.toFixed(0)}px from the pointer, clear of the sheet, colour target 1, pointer-events none`);
+    await page.waitForFunction(() => document.querySelector("[data-sky-invite]").hidden, null, { timeout: 6000 }).catch(() => {
+      throw new Error("invite still up 6s after it appeared");
+    });
+    const lasted = Date.now() - t0;
+    if (lasted < 3000) throw new Error(`invite gone after ${lasted}ms, expected a few seconds (3.5s)`);
+    notes.push(`gone after ~${lasted}ms`);
+    // Off and back on in the same load: no second showing.
+    await enterSky(page);
+    await page.waitForTimeout(600);
+    if (!(await readInvite(page)).hidden) throw new Error("invite showed a second time in the same page load");
+
+    await page.reload({ waitUntil: "networkidle" });
+    await waitSkyDrawn(page);
+    await page.waitForFunction(() => window.__sky.layers.objects === "ready", null, { timeout: 10000 });
+    await enterSky(page);
+    await page.waitForFunction(() => window.__sky.saturationTarget === 1, null, { timeout: 2000 });
+    await page.waitForTimeout(800);
+    const again = await readInvite(page);
+    if (again.shown || !again.hidden) throw new Error(`after a reload in the same session the invite showed again: ${JSON.stringify(again)}`);
+    notes.push("reload, same session: entry registered (colour target 1), invite not shown");
+  });
+
+  // No hover (touch emulation makes Firefox report (hover: none)).
+  await withPage(browser, { viewport: { width: W, height: H }, hasTouch: true }, async (page) => {
+    await loadHome(page);
+    const hoverNone = await page.evaluate(() => matchMedia("(hover: none)").matches);
+    if (!hoverNone) throw new Error("hasTouch did not emulate (hover: none); this half cannot run");
+    await enterSky(page);
+    await page.touchscreen.tap(skyPt.x, skyPt.y + 40);
+    await page.waitForTimeout(800);
+    const r = await readInvite(page);
+    if (r.shown || !r.hidden) throw new Error(`invite showed on a (hover: none) device: ${JSON.stringify(r)}`);
+    notes.push("(hover: none): mouse entry and a tap on the sky showed nothing");
+  });
+
+  // Never in stargaze; the session is not spent by stargazing.
+  await withPage(browser, { viewport: { width: W, height: H } }, async (page) => {
+    await loadHome(page);
+    await waitStargazeReady(page);
+    await stargazeToggle(page).click();
+    await waitStargaze(page, true);
+    await page.mouse.move(700, 500, { steps: 3 });
+    await page.mouse.move(skyPt.x, skyPt.y, { steps: 3 });
+    await page.waitForTimeout(600);
+    const r = await readInvite(page);
+    if (r.shown || !r.hidden) throw new Error(`invite showed while stargazing: ${JSON.stringify(r)}`);
+    await page.keyboard.press("Escape");
+    await waitStargaze(page, false);
+    await enterSky(page);
+    await page.waitForFunction(() => window.__sky.inviteShown === true, null, { timeout: 2000 }).catch(() => {
+      throw new Error("after stargazing and leaving, the first paper-mode entry did not show the invite");
+    });
+    notes.push("stargaze: nothing; first paper entry afterwards shows it");
+  });
+
+  // Storage that throws: once per page load.
+  await withPage(browser, { viewport: { width: W, height: H } }, async (page, context) => {
+    await context.addInitScript(() => {
+      Object.defineProperty(window, "sessionStorage", { get() { throw new Error("blocked"); } });
+    });
+    for (const round of [1, 2]) {
+      if (round === 1) await loadHome(page);
+      else {
+        await page.reload({ waitUntil: "networkidle" });
+        await waitSkyDrawn(page);
+        await page.waitForFunction(() => window.__sky.layers.objects === "ready", null, { timeout: 10000 });
+      }
+      await enterSky(page);
+      await page.waitForFunction(() => window.__sky.inviteShown === true, null, { timeout: 2000 }).catch(() => {
+        throw new Error(`with sessionStorage throwing, load ${round} did not show the invite`);
+      });
+      await page.evaluate(() => (document.querySelector("[data-sky-invite]").hidden = true));
+      await page.mouse.move(sheetPt.x, sheetPt.y);
+      await enterSky(page);
+      await page.waitForTimeout(500);
+      if (!(await readInvite(page)).hidden) throw new Error(`with sessionStorage throwing, load ${round} showed the invite twice`);
+    }
+    notes.push("sessionStorage throwing: once in each of two loads");
+  });
+  return notes.join("; ");
+}
+
+/**
+ * Decodes a PNG screenshot in the page and returns its RGBA pixels. The
+ * screenshot is the composited result (canvas, backing, anything above), so
+ * it is what a visitor sees, not what one layer drew.
+ */
+async function screenshotPixels(page, clip) {
+  const png = await page.screenshot({ clip });
+  return page.evaluate(async (b64) => {
+    const blob = await (await fetch(`data:image/png;base64,${b64}`)).blob();
+    const bmp = await createImageBitmap(blob);
+    const c = document.createElement("canvas");
+    c.width = bmp.width;
+    c.height = bmp.height;
+    const ctx = c.getContext("2d");
+    ctx.drawImage(bmp, 0, 0);
+    return { w: c.width, h: c.height, data: [...ctx.getImageData(0, 0, c.width, c.height).data] };
+  }, png.toString("base64"));
+}
+
+const srgbLum = ([r, g, b]) => {
+  const lin = (v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+};
+const MUT_RGB = [0x9a, 0x94, 0x8a];
+
+/**
+ * The credit line's text contrast against the mean background behind its text
+ * box, as composited on screen: the text is made transparent for the
+ * screenshot, and its colour (mut at 70%) is laid over that mean.
+ */
+async function creditContrast(page) {
+  const tag = await page.addStyleTag({ content: "[data-sky-credit], [data-sky-credit] * { color: transparent !important; }" });
+  const r = await page.evaluate(() => {
+    const el = document.querySelector("[data-sky-credit-body]");
+    const b = el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    const pl = parseFloat(cs.paddingLeft);
+    const pt = parseFloat(cs.paddingTop);
+    return { x: b.left + pl, y: b.top + pt, w: b.width - 2 * pl, h: b.height - 2 * pt };
+  });
+  const clip = { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.w), height: Math.round(r.h) };
+  const px = await screenshotPixels(page, clip);
+  await tag.evaluate((n) => n.remove());
+  const mean = [0, 0, 0];
+  const n = px.data.length / 4;
+  for (let i = 0; i < px.data.length; i += 4) for (let k = 0; k < 3; k++) mean[k] += px.data[i + k] / n;
+  const text = mean.map((v, k) => 0.7 * MUT_RGB[k] + 0.3 * v);
+  const lt = srgbLum(text);
+  const lb = srgbLum(mean);
+  return { contrast: (Math.max(lt, lb) + 0.05) / (Math.min(lt, lb) + 0.05), bgLum: 0.2126 * mean[0] + 0.7152 * mean[1] + 0.0722 * mean[2], clip };
+}
+
+const NO_BACKING = "[data-sky-credit-body], [data-stargaze-chrome] { background: none !important; box-shadow: none !important; }";
+
+/**
+ * The stargaze chrome's desk-toned backing (Task 6, Addendum 2):
+ * - at 1440 in stargaze, at an instant where drawn names (the Double Cluster's
+ *   among them) run under the hint or exit, every such name's covered part is
+ *   shaded: the backing's alpha, measured per pixel from the canvas and the
+ *   composited screenshot, is at least 0.75 there; and the pointer over that
+ *   covered part neither hovers nor opens the name, while the same point with
+ *   the chrome's pointer-events off does (so it is the chrome doing it);
+ * - at 400 (touch) in stargaze, no drawn name box at all, planets and the Moon
+ *   included, reaches the hint bar or the credit block; the Moon, beside the
+ *   exit control at this instant, keeps its symbol and loses only its name;
+ * - the credit's contrast over the Milky Way, in stargaze and in paper mode,
+ *   is at least the paper-mode value before the colour round (saturation 0,
+ *   no backing), at the worst band-crossing instants Task 3 found.
+ */
+async function checkStargazeChrome(browser) {
+  const notes = [];
+  const W = 1440;
+  const H = 900;
+  await pinnedSkyPage(browser, { W, H, date: new Date(Date.UTC(2026, 9, 1, 6)) }, async (page) => {
+    await page.waitForFunction(() => window.__sky.layers.facts === "ready", null, { timeout: 10000 });
+    await waitStargazeReady(page);
+    await stargazeToggle(page).click();
+    await waitStargaze(page, true);
+    await page.waitForSelector("[data-stargaze-count-objects]", { timeout: 5000 });
+    await page.mouse.move(W / 2, H / 2);
+    await page.waitForTimeout(300);
+    const layout = await page.evaluate(() => {
+      const bx = (el) => {
+        const r = el.getBoundingClientRect();
+        return { x: r.left, y: r.top, w: r.width, h: r.height };
+      };
+      return {
+        chrome: [...document.querySelectorAll("[data-stargaze-bar] [data-stargaze-chrome]")].map(bx),
+        hits: window.__sky.hits.filter((h) => h.box).map((h) => ({ id: h.id, box: h.box })),
+      };
+    });
+    if (layout.chrome.length !== 2) throw new Error(`expected the hint and exit as backed chrome, found ${layout.chrome.length}`);
+    const under = [];
+    for (const h of layout.hits) {
+      for (const c of layout.chrome) {
+        if (!boxesIntersect(h.box, c)) continue;
+        const x0 = Math.ceil(Math.max(h.box.x, c.x));
+        const y0 = Math.ceil(Math.max(h.box.y, c.y));
+        const x1 = Math.floor(Math.min(h.box.x + h.box.w, c.x + c.w));
+        const y1 = Math.floor(Math.min(h.box.y + h.box.h, c.y + c.h));
+        if (x1 - x0 >= 2 && y1 - y0 >= 2) under.push({ id: h.id, x: x0, y: y0, w: x1 - x0, h: y1 - y0 });
+      }
+    }
+    if (!under.some((u) => u.id === "ngc869" || u.id === "ngc884")) {
+      throw new Error(`at 06:00Z no Double Cluster name runs under the chrome (under: ${JSON.stringify(under.map((u) => u.id))}); the instant no longer reproduces the defect`);
+    }
+    const tag = await page.addStyleTag({ content: "[data-stargaze-bar], [data-stargaze-bar] * { color: transparent !important; }" });
+    const alphas = [];
+    for (const u of under) {
+      const shot = await screenshotPixels(page, { x: u.x, y: u.y, width: u.w, height: u.h });
+      const canvas = await page.evaluate(([sel, u]) => [...document.querySelector(sel).getContext("2d").getImageData(u.x, u.y, u.w, u.h).data], [SKY_CANVAS, u]);
+      const lum = (d, i) => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+      const DESK_L = 0.2126 * 12 + 0.7152 * 11 + 0.0722 * 9;
+      const a = [];
+      for (let i = 0; i < canvas.length; i += 4) {
+        const cl = lum(canvas, i);
+        if (cl - DESK_L < 30) continue; // only pixels the name actually lit
+        a.push((cl - lum(shot.data, i)) / (cl - DESK_L));
+      }
+      a.sort((p, q) => p - q);
+      alphas.push({ id: u.id, n: a.length, median: a.length ? a[a.length >> 1] : null, min: a[0] ?? null });
+    }
+    await tag.evaluate((n) => n.remove());
+    const lit = alphas.filter((a) => a.n >= 5);
+    if (!lit.length) throw new Error(`no lit name pixels under the chrome to measure: ${JSON.stringify(alphas)}`);
+    const weak = lit.filter((a) => a.median < 0.75);
+    if (weak.length) throw new Error(`names under the stargaze chrome are not shaded: measured backing alpha ${JSON.stringify(weak)} (need median >= 0.75)`);
+    notes.push(`1440 @06Z: ${lit.map((a) => `${a.id} under chrome, backing alpha median ${a.median.toFixed(2)} over ${a.n} lit px`).join(", ")}`);
+
+    // Pointer consistency: the backed box is a control, the name under it is not live.
+    const target = under.find((u) => u.id === "ngc869" || u.id === "ngc884");
+    const pt = { x: target.x + target.w / 2, y: target.y + target.h / 2 };
+    await page.mouse.move(pt.x, pt.y);
+    await page.waitForTimeout(150);
+    const blocked = await page.evaluate(() => window.__sky.highlight);
+    if (blocked !== null) throw new Error(`pointer on the chrome over ${target.id}'s hidden name still highlights ${blocked}`);
+    await page.mouse.down();
+    await page.mouse.up();
+    await page.waitForTimeout(200);
+    const card = await page.evaluate(() => window.__sky.card);
+    if (card) throw new Error(`a click on the chrome over ${target.id}'s hidden name opened a card for ${card}`);
+    const off = await page.addStyleTag({ content: "[data-stargaze-chrome] { pointer-events: none !important; }" });
+    await page.mouse.move(W / 2, H / 2);
+    await page.mouse.move(pt.x, pt.y);
+    await page.waitForTimeout(150);
+    const live = await page.evaluate(() => window.__sky.highlight);
+    await off.evaluate((n) => n.remove());
+    if (!live) throw new Error(`with the chrome's pointer-events off, (${pt.x}, ${pt.y}) highlights nothing either, so the block proves nothing`);
+    notes.push(`pointer over ${target.id}'s shaded name: no hover, no card; same point with the chrome transparent highlights ${live}`);
+  });
+
+  await pinnedSkyPage(browser, { W: 400, H: 800, date: new Date(Date.UTC(2026, 9, 1, 5)), contextOptions: { hasTouch: true } }, async (page) => {
+    await page.waitForFunction(() => window.__sky.layers.facts === "ready", null, { timeout: 10000 });
+    await waitStargazeReady(page);
+    await stargazeToggle(page).tap();
+    await waitStargaze(page, true);
+    await page.waitForSelector("[data-stargaze-count-objects]", { timeout: 5000 });
+    await page.waitForTimeout(300);
+    const r = await page.evaluate(() => {
+      const b = document.querySelector("[data-stargaze-bar]").getBoundingClientRect();
+      const c = document.querySelector("[data-sky-credit-body]").getBoundingClientRect();
+      return {
+        bar: { x: b.left, y: b.top, w: b.width, h: b.height },
+        credit: { x: c.left, y: c.top, w: c.width, h: c.height },
+        hits: window.__sky.hits.map((h) => ({ id: h.id, x: h.x, y: h.y, box: h.box })),
+      };
+    });
+    const clash = r.hits.filter((h) => h.box && (boxesIntersect(h.box, r.bar) || boxesIntersect(h.box, r.credit)));
+    if (clash.length) throw new Error(`at 400px drawn names reach the chrome (bar ${JSON.stringify(r.bar)}, credit ${JSON.stringify(r.credit)}): ${JSON.stringify(clash)}`);
+    const moon = r.hits.find((h) => h.id === "moon");
+    if (!moon) throw new Error("the Moon is not on screen at 400px @05Z; the instant no longer reproduces the defect");
+    if (moon.y > r.bar.y + r.bar.h + 20) throw new Error(`the Moon sits at y=${moon.y.toFixed(0)}, well below the ${r.bar.h.toFixed(0)}px bar; the instant no longer tests the band`);
+    if (moon.box) throw new Error(`the Moon at (${moon.x.toFixed(0)}, ${moon.y.toFixed(0)}) beside the bar kept a name box ${JSON.stringify(moon.box)}`);
+    notes.push(`400 @05Z: no name box meets the ${r.bar.h.toFixed(0)}px bar or the credit; Moon at (${moon.x.toFixed(0)}, ${moon.y.toFixed(0)}) keeps its symbol, name withheld`);
+  });
+
+  // Credit contrast over the band, worst instants from Task 3's scan.
+  for (const [cw, ch, hr, touch] of [[400, 800, 14, true], [1440, 900, 16, false]]) {
+    const date = new Date(Date.UTC(2026, 9, 1, hr));
+    const res = await withPage(browser, { viewport: { width: cw, height: ch }, reducedMotion: "reduce", deviceScaleFactor: 1, hasTouch: touch }, async (page, context) => {
+      await context.addInitScript(() => {
+        window.__skySaturationOverride = 0;
+      });
+      await page.clock.setFixedTime(date);
+      await page.goto(BASE, { waitUntil: "networkidle" });
+      await waitSkyDrawn(page);
+      await page.waitForFunction(() => window.__sky.layers.objects === "ready" && window.__sky.layers.milkyWay === "ready" && window.__sky.saturation === 0, null, { timeout: 10000 });
+      await waitStargazeReady(page);
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      await page.waitForTimeout(200);
+      const noBack = await page.addStyleTag({ content: NO_BACKING });
+      const before = await creditContrast(page);
+      await noBack.evaluate((n) => n.remove());
+      await page.evaluate(() => delete window.__skySaturationOverride);
+      // Recompute the target: onto the sky, then onto the credit (not the sky).
+      await page.mouse.move(4, ch / 2);
+      const creditBox = await page.locator("[data-sky-credit-body]").boundingBox();
+      await page.mouse.move(creditBox.x + creditBox.width / 2, creditBox.y + creditBox.height / 2);
+      await page.waitForFunction((s) => window.__sky.saturation === s, PAPER_SATURATION, { timeout: 3000 });
+      const paper = await creditContrast(page);
+      await page.evaluate(() => document.querySelector("[data-stargaze-toggle] button").click());
+      await waitStargaze(page, true);
+      await page.waitForFunction(() => window.__sky.saturation === 1, null, { timeout: 3000 });
+      await page.waitForTimeout(200);
+      const star = await creditContrast(page);
+      const tag = await page.addStyleTag({ content: NO_BACKING });
+      const starBare = await creditContrast(page);
+      await tag.evaluate((n) => n.remove());
+      return { before, paper, star, starBare };
+    });
+    const f = (m) => `${m.contrast.toFixed(2)}:1 (bg L ${m.bgLum.toFixed(1)})`;
+    if (res.star.contrast < res.before.contrast) throw new Error(`${cw}px @${hr}Z stargaze credit contrast ${f(res.star)} is below paper mode before the colour round ${f(res.before)}`);
+    if (res.paper.contrast < res.before.contrast) throw new Error(`${cw}px @${hr}Z paper credit contrast ${f(res.paper)} is below paper mode before the colour round ${f(res.before)}`);
+    notes.push(`credit ${cw}px @${hr}Z: pre-colour paper ${f(res.before)}, stargaze bare ${f(res.starBare)} -> backed ${f(res.star)}, paper backed ${f(res.paper)}`);
+  }
+  return notes.join("; ");
+}
+
 const CHECKS = [
   ["sky-animates-1280", skyAnimatesAt1280],
   ["sky-static-reduced-motion", skyStaticUnderReducedMotion],
@@ -3968,6 +4466,9 @@ const CHECKS = [
   ["stargaze-browse-1440", checkStargazeBrowse],
   ["stargaze-browse-400", checkStargazeBrowse400],
   ["sky-iss", checkSkyIss],
+  ["stargaze-doors", checkStargazeDoors],
+  ["sky-invite", checkSkyInvite],
+  ["stargaze-chrome", checkStargazeChrome],
 ];
 
 async function main() {

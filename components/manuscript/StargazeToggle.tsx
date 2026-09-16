@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { copy } from "@/content/copy";
-import { isStargazing, setStargazing, useStargazing } from "@/lib/stargaze";
+import { getStargazeEntry, isStargazing, setStargazing, useStargazing } from "@/lib/stargaze";
+import { StarMark } from "./StarMark";
 import { isListPanelOpen, setHintBottom, setListPanelOpen, useCardCounts, useListPanelOpen } from "@/lib/stargaze-browse";
 
 /**
@@ -13,7 +14,17 @@ import { isListPanelOpen, setHintBottom, setListPanelOpen, useCardCounts, useLis
  *
  * Focus follows the mode: entering moves focus to the exit control (the
  * entry button is hidden, and `main` is inert); leaving returns it to the
- * entry button. Escape leaves from anywhere.
+ * door the visitor came in by, this toggle or the footer button
+ * (StargazeFooterEntry), so both doors behave the same. Escape leaves from
+ * anywhere.
+ *
+ * The chrome's backing (discoverability Task 6): the hint and the exit
+ * control each sit on a desk-toned pill, the same #0c0b09 at 0.85 the sky's
+ * hover label uses, so a drawn name passing under them can't print through
+ * the text. Each pill is `data-stargaze-chrome`: it is a control, so it takes
+ * the pointer over its own box (no hover, no drag, no card for a name hidden
+ * under it; night-sky/pointer-controller.ts). The bar between the pills is
+ * pointer-transparent, because the sky there is visible and stays live.
  *
  * The hint is chosen by `(hover: none)`: a pointer clicks a drawn name or its
  * symbol, a finger taps one (phones draw names for the coloured objects).
@@ -29,6 +40,12 @@ import { isListPanelOpen, setHintBottom, setListPanelOpen, useCardCounts, useLis
  * wraps on a narrow screen: phone names keep clear of its real height, and
  * the list panel docks below it on desktop and never grows over it on a phone.
  */
+/** The desk-toned backing shared by the stargaze chrome (the hint, the exit
+ *  control, and the credit via globals.css): the desk at 0.85, as the sky's
+ *  own hover label, with a feathered edge so it reads as shade, not a box. */
+const CHROME_PILL =
+  "pointer-events-auto rounded-md bg-desk/85 px-2 py-1 shadow-[0_0_8px_4px_rgb(12_11_9/0.85)]";
+
 export function StargazeToggle() {
   const on = useStargazing();
   const t = copy.stargaze;
@@ -57,7 +74,8 @@ export function StargazeToggle() {
       exitRef.current?.focus();
     } else if (wasOn.current) {
       wasOn.current = false;
-      enterRef.current?.focus();
+      const footer = getStargazeEntry() === "footer" ? document.querySelector<HTMLElement>("[data-stargaze-footer-enter]") : null;
+      (footer ?? enterRef.current)?.focus({ preventScroll: true });
     }
   }, [on]);
 
@@ -86,17 +104,18 @@ export function StargazeToggle() {
             ref={enterRef}
             type="button"
             hidden={on}
-            onClick={() => setStargazing(true)}
-            className="pointer-events-auto font-mono text-[11px] text-mut underline decoration-dotted underline-offset-[3px] transition-colors hover:text-ink"
+            onClick={() => setStargazing(true, "toggle")}
+            className="pointer-events-auto inline-flex items-baseline font-mono text-[11px] text-mut underline decoration-dotted underline-offset-[3px] transition-colors hover:text-ink"
           >
+            <StarMark />
             {t.enter}
           </button>
         </div>
       </div>
       {on ? (
-        <div ref={barRef} data-stargaze-bar className="fixed inset-x-0 top-0 z-20 px-4">
+        <div ref={barRef} data-stargaze-bar className="pointer-events-none fixed inset-x-0 top-0 z-20 px-4">
           <div className="mx-auto flex min-h-14 max-w-[1000px] items-center justify-between gap-4 py-2 font-mono text-[11px]">
-            <p data-stargaze-hint className="text-mut">
+            <p data-stargaze-hint data-stargaze-chrome className={`${CHROME_PILL} text-mut`}>
               <span data-stargaze-hint-text>{touch ? t.hintTouch : t.hintPointer}</span>
               {counts ? (
                 <>
@@ -124,8 +143,9 @@ export function StargazeToggle() {
               ref={exitRef}
               type="button"
               data-stargaze-exit
+              data-stargaze-chrome
               onClick={() => setStargazing(false)}
-              className="shrink-0 whitespace-nowrap text-ink underline decoration-dotted underline-offset-[3px] transition-colors hover:text-warm"
+              className={`${CHROME_PILL} shrink-0 whitespace-nowrap text-ink underline decoration-dotted underline-offset-[3px] transition-colors hover:text-warm`}
             >
               {t.exit}
             </button>

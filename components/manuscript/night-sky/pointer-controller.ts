@@ -24,9 +24,19 @@ const PAN_BLOCKERS = "a, button, input, select, textarea, label, summary, [role=
 /** Not the sky, for the colour target: the page's controls, the sheet, the credit line. */
 const NOT_SKY = `${PAN_BLOCKERS}, [data-sheet], [data-sky-credit]`;
 
+/** Stargaze's own chrome (the hint, the exit control, the credit): each
+ *  backed box is a control and takes the pointer over itself, so a name
+ *  shaded under it is neither hovered nor opened (discoverability Task 6). */
+const STARGAZE_CHROME = "[data-stargaze-chrome]";
+const onStargazeChrome = (target: EventTarget | null) =>
+  isStargazing() && target instanceof Element && target.closest(STARGAZE_CHROME) !== null;
+
 export type PointerControllerDeps = {
   cards: Pick<CardController, "openCard" | "closeCard">;
   paint: () => void;
+  /** Paper mode: a mouse or pen pointer has just moved from off the sky onto
+   *  it (the same moment the colour lift starts). The invite hangs off this. */
+  onSkyEnter?: (x: number, y: number) => void;
 };
 
 export function createPointerController(s: SkyState, deps: PointerControllerDeps) {
@@ -128,7 +138,7 @@ export function createPointerController(s: SkyState, deps: PointerControllerDeps
     // Normal-mode margins are 16px on a phone: a touch there must scroll the page.
     if (e.pointerType === "touch" && !stargazing) return;
     const target = e.target instanceof Element ? e.target : null;
-    if (target?.closest(PAN_BLOCKERS)) return;
+    if (target?.closest(PAN_BLOCKERS) || onStargazeChrome(target)) return;
     if (!stargazing && (target?.closest("[data-sheet]") || sheetContains(e.clientX, e.clientY))) return;
     if (!stargazing) e.preventDefault(); // no text selection starting in the margin
     s.drag = { id: e.pointerId, startX: e.clientX, startY: e.clientY, base: { ...s.offset }, moved: false };
@@ -163,10 +173,17 @@ export function createPointerController(s: SkyState, deps: PointerControllerDeps
     if (e.pointerType === "touch") return;
     if (!drag) {
       const el = e.target instanceof Element ? e.target : null;
-      setPointerOverSky(!el?.closest(NOT_SKY) && !sheetContains(e.clientX, e.clientY));
+      const over = !el?.closest(NOT_SKY) && !sheetContains(e.clientX, e.clientY);
+      const entered = over && !s.pointerOverSky;
+      setPointerOverSky(over);
+      if (entered && !isStargazing()) deps.onSkyEnter?.(e.clientX, e.clientY);
     }
-    // Over the open card or list panel: nothing under it is being pointed at.
-    if (e.target instanceof Element && e.target.closest("[data-sky-card], [data-sky-list-panel='open']")) {
+    // Over the open card, the list panel or stargaze's backed chrome: nothing
+    // under it is being pointed at.
+    if (
+      (e.target instanceof Element && e.target.closest("[data-sky-card], [data-sky-list-panel='open']")) ||
+      onStargazeChrome(e.target)
+    ) {
       setPointerCursor(false);
       return setHighlight(null);
     }

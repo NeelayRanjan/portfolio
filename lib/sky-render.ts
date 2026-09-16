@@ -14,7 +14,7 @@
  * handed in through `oneLiner`.
  */
 import type { SkyData } from "./sky-data";
-import { addUnderline, drawIss, drawMilkyWay, drawObjects, drawRadiants, nameBox, strokeUnderlines, type Hit, type View } from "./sky-layers";
+import { addUnderline, drawIss, drawMilkyWay, drawObjects, drawRadiants, nameBox, nameClearsPhoneChrome, strokeUnderlines, type Hit, type View } from "./sky-layers";
 import type { ObjectGlyph, PreparedMilkyWay, SkyObject, SkyShower } from "./sky-objects";
 import { eclipticToEquatorial, project, type Chart, type Equatorial, type Planet, type Point } from "./sky-math";
 
@@ -257,19 +257,24 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
     ctx.fillStyle = `rgba(${WARM},0.95)`;
     ctx.fill();
     const id = name.toLowerCase();
+    const box = nameBox(ctx, name, p.x + 6, p.y + 3, 10);
+    // On a phone in stargaze a name that would sit in the hint bar's or the
+    // credit's band is left undrawn, like the coloured phone names; the
+    // symbol stays tappable (discoverability Task 6).
+    const nameShown = nameClearsPhoneChrome(view, box);
     // Skipped when this planet is the current hover/selection (C1): its
     // name is about to be drawn again, larger, by the hover label.
-    if (id !== suppressName) {
+    if (nameShown && id !== suppressName) {
       ctx.fillStyle = `rgba(${WARM},0.75)`;
       ctx.fillText(name, p.x + 6, p.y + 3);
       if (f.underlineNames) {
         ctx.beginPath();
-        addUnderline(ctx, nameBox(ctx, name, p.x + 6, p.y + 3, 10), p.y + 3);
+        addUnderline(ctx, box, p.y + 3);
         strokeUnderlines(ctx, UNDERLINE_WARM);
       }
     }
     // Planet names draw at every width, so their boxes are hit targets at every width (F1).
-    if (onCanvas(p, 0)) hits.push({ id, name, x: p.x, y: p.y, box: nameBox(ctx, name, p.x + 6, p.y + 3, 10) });
+    if (onCanvas(p, 0)) hits.push({ id, name, x: p.x, y: p.y, box: nameShown ? box : undefined });
   }
 
   // The Moon, with its real phase. Screen directions of celestial north and
@@ -312,16 +317,18 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
     ctx.restore();
     // Skipped when the Moon is the current hover/selection (C1): its name
     // is about to be drawn again, larger, by the hover label.
-    if ("moon" !== suppressName) {
+    const moonBox = nameBox(ctx, "Moon", mp.x + 8, mp.y + 3, 10);
+    const moonNameShown = nameClearsPhoneChrome(view, moonBox);
+    if (moonNameShown && "moon" !== suppressName) {
       ctx.fillStyle = `rgba(${INK},0.7)`;
       ctx.fillText("Moon", mp.x + 8, mp.y + 3);
       if (f.underlineNames) {
         ctx.beginPath();
-        addUnderline(ctx, nameBox(ctx, "Moon", mp.x + 8, mp.y + 3, 10), mp.y + 3);
+        addUnderline(ctx, moonBox, mp.y + 3);
         strokeUnderlines(ctx, UNDERLINE_INK);
       }
     }
-    if (onCanvas(mp, 0)) hits.push({ id: "moon", name: "Moon", x: mp.x, y: mp.y, box: nameBox(ctx, "Moon", mp.x + 8, mp.y + 3, 10) });
+    if (onCanvas(mp, 0)) hits.push({ id: "moon", name: "Moon", x: mp.x, y: mp.y, box: moonNameShown ? moonBox : undefined });
   }
 
   // The ISS.

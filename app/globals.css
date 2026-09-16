@@ -36,7 +36,23 @@ body[data-stargaze] main {
   transition: opacity 400ms ease, visibility 0s linear 400ms;
 }
 html:has(body[data-stargaze]) { overflow: hidden; }
-body[data-stargaze] [data-sky-credit] { position: fixed; inset-inline: 0; bottom: 0; }
+body[data-stargaze] [data-sky-credit] { position: fixed; inset-inline: 0; bottom: 0; pointer-events: none; }
+/* The chrome's backing (StargazeToggle's CHROME_PILL, in CSS here because
+   the credit is a server component): the desk at 0.85 with a feathered edge.
+   The credit wears it in BOTH modes (discoverability Task 6): where the Milky
+   Way or a constellation line passes behind the line, it read at ~3.0:1 and
+   lines struck through the words; it sits on the desk below the sheet, not on
+   the manuscript, and the feathered edge keeps it a shade rather than a box.
+   While stargazing the backed box takes the pointer and the rest of the
+   credit's full-width strip does not (night-sky/pointer-controller.ts). */
+[data-sky-credit-body] {
+  display: inline-block;
+  border-radius: 6px;
+  padding: 2px 8px;
+  background: rgb(12 11 9 / 0.85);
+  box-shadow: 0 0 8px 4px rgb(12 11 9 / 0.85);
+}
+body[data-stargaze] [data-sky-credit-body] { pointer-events: auto; }
 /* Stargaze: a touch drag pans the sky (NightSky, spec 2026-09-15 §3), so the
    browser must not claim it for scrolling or pinch-zoom first. */
 html:has(body[data-stargaze]), body[data-stargaze] { touch-action: none; }

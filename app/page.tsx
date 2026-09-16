@@ -6,6 +6,7 @@ import { DeferredMount } from "@/components/manuscript/DeferredMount";
 import { StatBand } from "@/components/manuscript/StatBand";
 import { MissionRows } from "@/components/manuscript/MissionRows";
 import { References } from "@/components/manuscript/References";
+import { StargazeFooterEntry } from "@/components/manuscript/StargazeFooterEntry";
 import { LabelEfficiencyFigure } from "@/components/figures/LabelEfficiencyFigure";
 import { DiceCdfFigure } from "@/components/figures/DiceCdfFigure";
 import { FlightFigure } from "@/components/figures/FlightFigure";
@@ -130,6 +131,7 @@ export default function Home() {
         </InstrumentFigure>
 
         <References />
+        <StargazeFooterEntry />
       </Sheet>
 
       <WarmKick />

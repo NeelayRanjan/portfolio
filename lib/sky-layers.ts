@@ -484,6 +484,17 @@ const CHROME_TOP_GAP_PX = 6;
 /** Where stargaze's top chrome ends for a phone name: the hint bar's measured
  *  bottom plus a little air, or the old fixed band while it is unmeasured. */
 const phoneChromeTop = (v: View) => (v.chromeTopPx ? v.chromeTopPx + CHROME_TOP_GAP_PX : CHROME_TOP_PX);
+/**
+ * Whether a name may draw where `b` puts it, as far as stargaze's chrome is
+ * concerned. Only a phone in stargaze is constrained (`names` off, chrome
+ * on): the name must sit below the measured hint bar and above the credit
+ * block. The coloured phone names apply this inline below; the planet and
+ * Moon names in sky-render.ts call it (discoverability Task 6), where they
+ * used to draw beside "back to the page". Desktop names draw regardless and
+ * are shaded by the chrome's own desk-toned backing instead.
+ */
+export const nameClearsPhoneChrome = (v: View, b: Box): boolean =>
+  v.names || !v.stargazeChrome || (b.y >= phoneChromeTop(v) && b.y + b.h <= v.height - CHROME_BOTTOM_PX);
 /** The band's label keeps the old, roomier band unless the bar has grown past it. */
 const labelChromeTop = (v: View) => Math.max(CHROME_TOP_PX, phoneChromeTop(v));
 /**

@@ -12,7 +12,9 @@
  * (it owns the run state); see DrawDigit, HeadshotToy, ChessPanel.
  */
 import { useSyncExternalStore } from "react";
-import { trackDemoOnce } from "./track";
+import { trackDemoOnce, type StargazeVia } from "./track";
+
+export type { StargazeVia };
 
 /**
  * Thrown from a panel's own `onFrame` callback to stop a vendored sampler
@@ -31,6 +33,8 @@ export class StargazeAbort extends Error {
 type Listener = (on: boolean) => void;
 
 let on = false;
+/** The door the current (or last) visit came through; exit focus goes back to it. */
+let entryVia: StargazeVia = "toggle";
 const listeners = new Set<Listener>();
 
 export function isStargazing(): boolean {
@@ -44,12 +48,22 @@ export function subscribeStargaze(fn: Listener): () => void {
   };
 }
 
-export function setStargazing(next: boolean): void {
+export function getStargazeEntry(): StargazeVia {
+  return entryVia;
+}
+
+/**
+ * `via` names the door when turning it on (the toggle or the footer button);
+ * it rides on `demo_used` and decides where focus returns on exit. Turning
+ * it off needs none.
+ */
+export function setStargazing(next: boolean, via: StargazeVia = "toggle"): void {
   if (next === on) return;
   on = next;
+  if (on) entryVia = via;
   document.body.toggleAttribute("data-stargaze", on);
   for (const main of document.querySelectorAll("main")) main.inert = on;
-  if (on) trackDemoOnce("stargaze");
+  if (on) trackDemoOnce("stargaze", via);
   for (const fn of [...listeners]) fn(on);
 }
 

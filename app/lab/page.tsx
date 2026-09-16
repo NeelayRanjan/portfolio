@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { StargazeFooterEntry } from "@/components/manuscript/StargazeFooterEntry";
 import { Sheet } from "@/components/manuscript/Sheet";
 import { DeferredMount } from "@/components/manuscript/DeferredMount";
 import { DiffusionVisualizer } from "@/components/DiffusionVisualizer";
@@ -59,6 +60,8 @@ export default function LabPage() {
           <SampleSpace />
           <SampleSpaceWriteup />
         </DeferredMount>
+
+        <StargazeFooterEntry />
       </Sheet>
     </main>
   );

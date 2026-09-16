@@ -30,8 +30,16 @@ const demosSeen = new Set<string>();
  * slider must not burn quota. Call only AFTER the work succeeds, never on the
  * button press, so a failed model load doesn't count as use.
  */
-export function trackDemoOnce(demo: "headshot" | "draw" | "chess" | "stargaze") {
+export function trackDemoOnce(demo: "headshot" | "draw" | "chess" | "stargaze", via?: StargazeVia) {
   if (demosSeen.has(demo)) return;
   demosSeen.add(demo);
-  track("demo_used", { demo });
+  track("demo_used", via ? { demo, via } : { demo });
 }
+
+/**
+ * Which door a visitor used into stargaze (discoverability spec §5): the
+ * toggle above the sheet, or the button at the foot of the page. A property
+ * on the one `demo_used` event, never an event of its own (the quota rule),
+ * so it records only the door of the FIRST entry in a page load.
+ */
+export type StargazeVia = "toggle" | "footer";

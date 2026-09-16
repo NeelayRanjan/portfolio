@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { copy } from "@/content/copy";
 import { isStargazing, subscribeStargaze } from "@/lib/stargaze";
 import { countCards, getHintBottom, setCardCounts, setListPanelOpen, subscribeBrowse } from "@/lib/stargaze-browse";
 import { SkyCard, type CardModel } from "./SkyCard";
 import { createCardController } from "./night-sky/card-controller";
 import { ENTRY_RING_MS, pickEntryRingIds } from "./night-sky/entry-rings";
 import { createFrameLoop } from "./night-sky/frame-loop";
+import { createInvite } from "./night-sky/invite";
 import { SkyKeyboardList, createKeyboardList, useListSlot, type ListActions, type ListItem } from "./night-sky/keyboard-list";
 import { loadSkyLayers } from "./night-sky/layer-loaders";
 import { createPainter } from "./night-sky/painter";
@@ -82,6 +84,12 @@ import { createSkyState } from "./night-sky/state";
  *   page load rings the four symbols nearest the centre once
  *   (night-sky/entry-rings.ts).
  *
+ * - The invite and the chrome (discoverability spec §5, Task 6): the first
+ *   time a hover-capable pointer moves onto the sky in paper mode each
+ *   session, a caption says what the sky is (night-sky/invite.ts). While
+ *   stargazing, the hint, exit and credit sit on desk-toned backings that
+ *   take the pointer over their own boxes (pointer-controller.ts).
+ *
  * - Counts and the list panel (discoverability spec §4): once the star
  *   catalog, objects.json and the facts have landed, the hint bar's counts
  *   are published from them (lib/stargaze-browse.ts), and the keyboard list
@@ -93,6 +101,7 @@ import { createSkyState } from "./night-sky/state";
 export function NightSky() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cardRef = useRef<HTMLElement>(null);
+  const inviteRef = useRef<HTMLParagraphElement>(null);
   /** The effect's own paint, so a freshly committed card gets placed before the browser paints it. */
   const repaintRef = useRef<() => void>(() => {});
   const closeRef = useRef<() => void>(() => {});
@@ -177,7 +186,8 @@ export function NightSky() {
       isOutOfView: cards.isOutOfView,
     });
     const { paint, resize, resolveFont } = painter;
-    const pointer = createPointerController(s, { cards, paint });
+    const invite = createInvite(s, inviteRef.current);
+    const pointer = createPointerController(s, { cards, paint, onSkyEnter: invite.maybeShow });
     const list = createKeyboardList(s, {
       cards,
       setHighlight: pointer.setHighlight,
@@ -260,6 +270,7 @@ export function NightSky() {
     });
     const unsubStargaze = subscribeStargaze((on) => {
       s.highlight = null;
+      if (on) invite.hide(true);
       pointer.clearPointerCursor();
       if (on) {
         tryStartEntryRings();
@@ -304,6 +315,7 @@ export function NightSky() {
       window.removeEventListener("keydown", cards.onKeyDown, { capture: true });
       unsubBrowse();
       pointer.detach();
+      invite.dispose();
       list.dispose();
       unsubStargaze();
     };
@@ -316,6 +328,18 @@ export function NightSky() {
         aria-hidden
         className="pointer-events-none fixed inset-0 -z-10 h-full w-full"
       />
+      {/* The once-per-session invite (night-sky/invite.ts places and times it).
+          aria-hidden: it answers a pointer, and the credit line and the
+          footer's lead say the same thing to everyone. */}
+      <p
+        ref={inviteRef}
+        data-sky-invite
+        aria-hidden
+        hidden
+        className="pointer-events-none fixed left-0 top-0 z-10 rounded-md bg-desk/85 px-2 py-1 font-mono text-[11px] leading-snug text-ink/90 opacity-0 shadow-[0_0_8px_4px_rgb(12_11_9/0.85)]"
+      >
+        {copy.stargaze.invite}
+      </p>
       {card ? (
         <SkyCard model={card} outOfView={cardOutOfView} cardRef={cardRef} onClose={() => closeRef.current()} />
       ) : null}

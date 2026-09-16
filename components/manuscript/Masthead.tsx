@@ -30,7 +30,7 @@ export function Masthead() {
           <Link href="/lab" className="group inline-block">
             <Stamp>{t.stamp}</Stamp>
             <span className="mt-1.5 block font-mono text-[10px] text-mut underline decoration-dotted underline-offset-[3px] transition-colors group-hover:text-red-ink group-hover:decoration-solid">
-              {t.stampNote}
+              {t.supplementLabel}
             </span>
           </Link>
           <span className="block font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-mut">

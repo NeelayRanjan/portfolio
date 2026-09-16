@@ -231,9 +231,26 @@ async function skyStaticUnderReducedMotion(browser) {
       if (a !== b) throw new Error("reduced-motion sky changed between two samples 1.5s apart");
       const credit = await page.locator("[data-sky-credit]").innerText();
       if (/faster/.test(credit)) throw new Error(`reduced-motion credit still claims a speed-up: "${credit}"`);
+      assertCredit(credit, copy.stargaze.creditStill + copy.stargaze.creditTail, "reduced-motion");
       return "drawn, static for 1.5s, credit carries the still wording";
     },
   );
+}
+
+/**
+ * The credit line promises the owner's sentence plus one tail sentence, read
+ * straight from copy.ts, and nothing else: present, equal to the composed
+ * copy, and free of the doubled punctuation ("..", ".,") that fragment joins
+ * produced once the owner trimmed the sentence (2026-09-16).
+ */
+function assertCredit(rendered, expected, where) {
+  const text = rendered.replace(/\s+/g, " ").trim();
+  if (!text) throw new Error(`${where}: credit line is empty or missing`);
+  if (text !== expected.replace(/\s+/g, " ").trim()) {
+    throw new Error(`${where}: credit reads ${JSON.stringify(text)}, copy composes ${JSON.stringify(expected)}`);
+  }
+  const doubled = text.match(/\.\.|\.,|,\.|,,/);
+  if (doubled) throw new Error(`${where}: credit has doubled punctuation "${doubled[0]}": ${JSON.stringify(text)}`);
 }
 
 async function skyPresentAt400(browser) {
@@ -251,8 +268,8 @@ async function skyPresentAt400(browser) {
     if (display === "none") throw new Error("sky canvas is display:none at 400px");
     if (lit < 50) throw new Error(`only ${lit} bright pixels at 400px`);
     const credit = await page.locator("[data-sky-credit]").innerText();
-    if (!/Hipparcos/.test(credit)) throw new Error(`credit line missing or wrong: "${credit}"`);
-    return `visible, ${lit} bright pixels, credit present`;
+    assertCredit(credit, copy.stargaze.credit + copy.stargaze.creditTail, "400px");
+    return `visible, ${lit} bright pixels, credit matches copy`;
   });
 }
 

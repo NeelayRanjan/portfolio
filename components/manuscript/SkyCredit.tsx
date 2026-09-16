@@ -6,10 +6,9 @@ import { copy } from "@/content/copy";
  * reduced-motion visitor (whose sky never turns) never reads "180 times
  * faster". Pinned to the viewport bottom while stargazing (app/globals.css).
  *
- * The colour clause is swapped the same way, by CSS rather than by JS, but on
- * `body[data-stargaze]` instead of a media query (final review m5): this line
- * renders on every page, and off stargaze the sky behind it is grey, so the
- * clause about long-exposure colour would describe nothing on screen.
+ * `creditTail` follows either variant and carries its own leading space. It
+ * is no longer stargaze-gated: the sky shows colour on every page since the
+ * discoverability round (spec §7), so the colour claim is true everywhere.
  */
 export function SkyCredit() {
   return (
@@ -19,7 +18,6 @@ export function SkyCredit() {
     >
       <span className="motion-reduce:hidden">{copy.stargaze.credit}</span>
       <span className="hidden motion-reduce:inline">{copy.stargaze.creditStill}</span>
-      <span data-sky-credit-colour>{copy.stargaze.creditColour}</span>
       {copy.stargaze.creditTail}
     </p>
   );

@@ -170,11 +170,25 @@ export const copy = {
     },
     /** A claim, not decor: it tracks the paper's real status (owner,
      *  2026-09-14: in preparation, NOT yet under review; it said UNDER REVIEW
-     *  until then, which was wrong). The
-     *  stamp is also the door to /lab (owner call, 2026-09-12): the sub-line
-     *  below it carries the affordance and links the supplementary page. */
+     *  until then, which was wrong). Since the discoverability round
+     *  (2026-09-16, spec §6) the stamp is no longer a link; the door to /lab
+     *  is the bordered box below it. */
     stamp: "IN PREPARATION",
-    stampNote: "pending additional materials",
+    /** The /lab box under the stamp. Two lines:
+     *    "Supplementary material →"   (the arrow is the box's decoration)
+     *    "Continuous diffusion · Discrete diffusion · Predicting pixels, or
+     *     predicting representations · Stochastic vs deterministic"
+     *  The contents line is COMPOSED from the /lab section titles, never
+     *  retyped, joined by `supplementJoin`:
+     *    S1 has no single title, it swaps between
+     *       copy.lab.diffusion.headingContinuous and
+     *       copy.lab.diffusion.headingDiscrete (use both, in that order)
+     *    S2 copy.lab.jepa.heading
+     *    S3 copy.lab.sampleSpace.heading
+     *  The join is a middle dot, not a comma, because S2's title carries a
+     *  comma of its own. */
+    supplementLabel: "Supplementary material",
+    supplementJoin: " · ",
     date: "September 2026",
     links: [
       {
@@ -382,7 +396,7 @@ export const copy = {
       /** New for the manuscript chrome: v1's panel had no caption, so this one
        *  is drafted rather than carried over. */
       figureCaption:
-        "A diffusion model dissolving your handwriting into static and pulling a cleaner digit back out, running its real 26MB weights on your device. Draw in the first box; the second shows the sample as it computes, and the third is the model’s running guess at the finished digit.",
+        "A diffusion model dissolving your handwriting into static and pulling a cleaner digit back out, running its real 26MB weights on your device. The same model also guesses which digit you drew, with no separate classifier: it rebuilds your drawing under all ten labels from identical noise and keeps the best fit. Draw in the first box; the second shows the sample as it computes, and the third is the model’s running guess at the finished digit.",
       statusFetching: "fetching weights…",
       statusReady: "ready",
       statusDraw: "draw to load",
@@ -408,6 +422,10 @@ export const copy = {
       x0Held: " · held still, nothing has run yet",
       x0Repredicted: " · re-predicted every step",
       x0CaptionIdle: "x̂₀ · its guess, updated at every step",
+      /** Sits permanently beside the label picker, so it has to stand alone
+       *  (owner request, 2026-09-16: the classifier-free guess must be
+       *  noticeable). Keep it under ~70 characters. */
+      classifyLead: "No classifier here: the diffusion model guesses the label itself.",
       label_: "label",
       labelGuessing: "· guessing…",
       labelAuto: "· auto",
@@ -422,7 +440,9 @@ export const copy = {
       predictingHint: "wait for the label guess to finish",
       hint: "edit any number",
       classify: {
-        a: "The model is class-conditional, so it needs a label. That guess comes from the diffusion model itself. It predicts the finished digit under all ten labels from identical seeds, and whichever best matches your strokes wins. No second classifier model required. ",
+        /** The claim leads (owner request, 2026-09-16); it used to close
+         *  the paragraph as "No second classifier model required." */
+        a: "There’s no classifier model in this demo. The label guess comes from the same diffusion model that draws: it predicts the finished digit under all ten labels from identical noise, and whichever best matches your strokes wins. It needs a guess at all because the model is class-conditional and won’t generate without a label. ",
         bPre: "The ",
         /** ⚠️ The key name is v1's (leaf names were carried over wholesale), the
          *  VALUE is not: the fit tint moved from teal to the manuscript's warm
@@ -628,6 +648,11 @@ export const copy = {
       { label: "Email", href: "mailto:neelay.ranjan@outlook.com" },
       { label: "Supplementary material", href: "/lab" },
     ],
+    /** The closing link to /lab after the reference list (spec §6). ⚠️ The
+     *  items list above still ends in a plain "Supplementary material" entry;
+     *  whoever renders this should drop that entry so /lab isn't linked
+     *  twice in a row. */
+    supplementLink: "Figures S1 to S3 are in the supplementary material",
   },
 
   /** /lab — "Supplementary material": the three demos that left page 1. */
@@ -783,31 +808,58 @@ export const copy = {
   stargaze: {
     enter: "stargaze for a bit?",
     exit: "back to the page",
-    /** Pointer: a drawn name's box and the symbol are both hit targets.
-     *  Touch: phones draw no names below 880px, so the hint promises only
-     *  the symbol (final review F1). */
-    hintPointer: "drag to look around, click a symbol or name to read about it",
-    hintTouch: "drag to look around, tap a symbol to read about it",
+    /** The stargaze hint bar, composed (spec §4), pointer variant:
+     *    "drag to look around, click a name or symbol to read about it
+     *     · 45 objects and 88 constellations have cards · browse the list"
+     *  The two numbers come from the loaded data, never from here; the
+     *  separators are the bar's own markup. `browseList` is the control that
+     *  opens the list as a visible panel.
+     *  Pointer: a drawn name's box and the symbol are both hit targets.
+     *  Touch: since the discoverability round phones draw names for the
+     *  coloured objects below 880px, and those names are hit targets, so the
+     *  touch hint may promise a name too (it used to promise only symbols,
+     *  final review F1). */
+    hintPointer: "drag to look around, click a name or symbol to read about it",
+    hintTouch: "drag to look around, tap a name or symbol to read about it",
+    /** "{objects} objects and {constellations} constellations have cards" */
+    countsObjects: " objects and ",
+    countsConstellations: " constellations have cards",
+    browseList: "browse the list",
     /** The screen-reader name of the stargaze keyboard list (NightSky, F2):
      *  one button per selectable currently on screen. */
     listLabel: "On screen now",
-    /** ⚠️ `credit` and `creditStill` stop mid-sentence, after the size claim.
-     *  `creditColour` and `creditTail` finish it, and the colour clause is a
-     *  span the page shows only while stargazing (app/globals.css, the same
-     *  CSS-only trick as the motion wording above). This credit renders on
-     *  EVERY page in ordinary document flow, where the sky draws in greys, so
-     *  claiming long-exposure colour there described something the visitor
-     *  could not see (final review m5). */
+    /** The same list opened as a visible panel by `browseList`. Its contents
+     *  are what's on screen, so the title says that, in the bar's register. */
+    listPanelTitle: "on screen now",
+    listPanelClose: "close the list",
+    /** Once per session, near the pointer, the first time it enters the sky
+     *  in paper mode (spec §5). Short: it's gone in a few seconds. */
+    invite: "the real sky over NASA Ames, from the moment you arrived",
+    /** The second way in, at the foot of `/` and `/lab`:
+     *    "The sky behind this page is the real one over NASA Ames.
+     *     put the page away and look"
+     *  `footerEnter` is the control, lowercase like the toggle's own
+     *  "stargaze for a bit?". */
+    footerLead: "The sky behind this page is the real one over NASA Ames.",
+    footerEnter: "put the page away and look",
+    /** The owner's own sentences (trimmed 2026-09-16): keep both word for
+     *  word. Each is a complete sentence ending in its own full stop, and
+     *  `creditTail` follows either one, so it opens with a space:
+     *    "The sky over NASA Ames from the moment you arrived, turning 180
+     *     times faster than the real one. The shapes are enlarged and
+     *     coloured as long exposures show them, but every position is real."
+     *    "The sky over NASA Ames at the moment you arrived. The shapes are
+     *     enlarged and coloured as long exposures show them, but every
+     *     position is real."
+     *  No longer stargaze-gated: the sky shows colour on every page since the
+     *  discoverability round (spec §3, §7). */
     credit:
       "The sky over NASA Ames from the moment you arrived, turning 180 times faster than the real one.",
     creditStill:
       "The sky over NASA Ames at the moment you arrived.",
-    /** Stargaze only. The grey is sourced (Loh 2006, cited on the Milky Way's
-     *  own card): at that brightness the eye is running on rods. */
-    creditColour: ", in colours only a long exposure records; your own eyes would see them grey",
-    /** Ends the sentence the two credits start, and answers the size claim and
-     *  the colour claim at once. */
-    creditTail: ". Every position is real.",
+    /** The eyes-see-grey reason lives on each coloured card's `colourNote`,
+     *  with its source; the credit only says where the colour comes from. */
+    creditTail: " The shapes are enlarged and coloured as long exposures show them, but every position is real.",
     /** The stargaze card (components/manuscript/SkyCard.tsx). Numbers and
      *  dates between these fragments come from the data files; the facts
      *  themselves live in content/sky-facts.ts. */

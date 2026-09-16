@@ -17,11 +17,12 @@ contracts below.
 **In production at neelayranjan.dev since 2026-09-12** (fast-forward of the
 15-task `redesign` build into `main` after a full verification run; the branch
 is deleted; v1 lives at the tag). Page 1: masthead (title, abstract, the
-live-sampled author photo, the paper-status stamp (IN PREPARATION; UNDER REVIEW until 2026-09-14) linking `/lab` through a
-"pending additional materials" sub-line, identity links) → Table 1 → Research
+live-sampled author photo, the paper-status stamp (IN PREPARATION; UNDER REVIEW until 2026-09-14), status only since
+2026-09-16, with the bordered "Supplementary material" box beneath it as the
+door to `/lab`, identity links) → Table 1 → Research
 (Figure 1 label-efficiency sweep, Figure 2 Dice CDF, Figure 3 flight map) →
 the live demos as Figures 4–5 (chess, then draw — swapped 2026-09-13 at the owner's call, the `n` props swapped with them) → Experience as Figure 6 (NASA and Regenstrief
-lamps green/active) → References. `/lab` holds S1–S3. Same-day post-launch
+lamps green/active) → References → the footer's stargaze door. `/lab` holds S1–S3. Same-day post-launch
 passes: Figure 2 rebuilt from a budget ladder into the paper's pannable Dice
 CDF; the flight video's dark-map treatment; the owner's STIX-N favicon set;
 headshots presented last-class-first (photo 2 is the default face). The wipe
@@ -65,7 +66,7 @@ doesn't fit the available margin width. A "stargaze for a bit?"
 button (`StargazeToggle.tsx`, state in `lib/stargaze.ts`) hides every page's
 content with CSS plus `inert`, never unmounting (a chess game, a drawing, and
 scroll position all survive the round trip), and counts once per page load as
-`demo_used {demo: "stargaze"}`. A model run in flight is cancelled by throwing
+`demo_used {demo: "stargaze", via}` (`via` added 2026-09-16, see below). A model run in flight is cancelled by throwing
 `StargazeAbort` from the panel's own `onFrame`, never by returning early
 (returning skips the vendored sampler's event-loop yield and locks the page).
 **Restore rule**: the chess worker is terminated outright (pending moves
@@ -81,14 +82,19 @@ honest limit: the main-thread ORT wasm heap never actually shrinks, only the
 chess worker's termination truly frees memory. `window.__sky` and
 `window.__offload` are verify hooks, not UI.
 
-**Verification: `scripts/verify-redesign.mjs`** — 30 named checks,
+**Verification: `scripts/verify-redesign.mjs`** — 40 named checks (30 before
+the discoverability round),
 Playwright-Firefox against a real `npm run build && npm start` on :3000, never
 the dev server; pass check-name substrings as args to run subsets. Covers the
 night sky (turning at 1280px with a measured median frame draw around 2.54ms
 against a 5.92ms budget, flat against the pre-colour-round 2.40-2.48ms
-baseline, a headless
+baseline; the discoverability round read 2.70-3.54ms across its tasks, and a
+same-session stash rebuild of the pre-task tree read the same, so the machine
+drifted, not the sky; a headless
 Firefox number, not a device number; static under reduced motion; present in
-the 400px margins; orientation checked against an independently computed
+the 400px margins, with the credit equal to the composed copy in both motion
+variants and no doubled punctuation ("..", ".,", ",." or ",,": the owner's
+2026-09-16 trim once rendered "real one.."); orientation checked against an independently computed
 astronomy-engine LST and two expected bright pixels, both at the moved,
 margin-based pole; hovering brightening a constellation and naming it clear
 of the sheet, with the hovered or selected symbol's own always-on name
@@ -121,13 +127,48 @@ draws and its card opens with live altitude/speed/epoch; with the route
 returning `{ tle: null }`, no ISS and no console error; every OTHER check
 gets `{ tle: null }` from `withPage` by default, since the route is
 prerendered at build time and its TLE would otherwise draw an ISS into any
-pinned instant within 7 days of the build), **`sky-colour`** (colour is
-stargaze-only, asserted from BOTH sides at the same drawn pixels of the same
-coloured objects: neutral with colour off, a previously-neutral pixel goes
-chromatic in stargaze, neutral again on exit; proved to actually bite by
-mutating `NightSky` and rebuilding — `colour: true` fails the neutral side,
-`colour: false` fails the chromatic side, a blanket colour note fails on M82
-by name — which is the standard a new check should meet), stargaze mode
+pinned instant within 7 days of the build), **`sky-colour`** (rewritten
+2026-09-16 for paper-mode colour: the same drawn pixels of ten coloured
+objects read in five states, saturation 0 through the override hook, paper,
+pointer over the sky, back on the sheet, stargaze; each object's DISPLAYED
+chroma share at paper must sit within ±0.15 of `PAPER_COLOUR_SHARE` and the
+median within ±0.08, hovered must equal stargaze within 2, back-on-sheet must
+equal paper exactly, M82's centre stays neutral in every state, the band's
+warmth must rise at paper and again in stargaze, and a motion-on half records
+the ease every rAF and requires it monotone and settled inside 500ms; proved
+to bite with `PAPER_COLOUR_SHARE = 0.1`, which fails on M45 at a measured
+share of 0.28. The colour round's version was proved the same way, by
+mutating and rebuilding, which is the standard a new check should meet),
+**`stargaze-affordances`** (dotted underlines measured as a DIFFERENCE: the
+override hook forces saturation 1 in paper so both modes draw identical
+colour, text rows must match byte for byte, and the rows under each name box
+must gain lit dots in stargaze; entry rings on the first entry and never the
+second, with motion and under reduced motion; the rings' slow-load case
+below; the pointer cursor over a symbol, not on empty sky, `grabbing` during
+a drag), **`stargaze-browse-1440`** / **`stargaze-browse-400`** (the counts
+equal counts the page computes from the SERVED `objects.json`/`sky.json`,
+and are absent while `objects.json` is held; the open panel is measured
+on top, in the viewport, clear of the exit control, with the same ids in the
+same order as the closed list; Escape order; at 400px the docked panel's
+size, and phone names clearing a hint bar the check grows by 110px, which
+caught a content-box ResizeObserver ignoring padding), **`stargaze-doors`**
+(the mark is SSR'd and `aria-hidden`; the footer door follows References on
+`/` and ends the sheet on `/lab`; each door queues exactly one `demo_used`
+with its own `via`, whichever door comes second adds nothing; exit returns
+focus to the door used), **`sky-invite`** (nothing at rest; the first sky
+entry shows it at the same instant the colour target goes to 1; once per
+load, not again after a same-session reload, never under `hasTouch` (Firefox
+really reports `(hover: none)` there), never in stargaze; with
+`sessionStorage` throwing, once per load), **`stargaze-chrome`** (the
+backing's alpha measured per lit pixel behind a pill, median 0.86 against a
+0.75 floor; a covered name neither highlights nor opens a card, and does
+once the chrome's pointer-events are forced off; no name box at 400px meets
+the bar or credit; credit contrast over the band, backed, at or above its
+pre-colour-round paper value: 3.68/3.69:1 at 400px against 3.49:1),
+**`lab-box-navigates`**, **`stamp-no-link-ancestor`** (proved by re-wrapping
+the stamp in a Link), **`references-lab-link-resolves`**,
+**`draw-classify-lead-400`** (the draw demo's lead line visible, exact and in
+bounds at 400px before any stroke), stargaze mode
 (hiding the page with `inert` and firing no page-content fetch; offloading
 the chess worker and the draw/headshot sessions; cancelling a run in flight
 without ever showing it as a failure or counting `demo_used`; surviving
@@ -138,7 +179,8 @@ SERVED `label_efficiency.json` at the first and last budgets, including the
 x0-leads→x0-trails flip, cursor exactly on the budget tick, whiskers tracking
 the slider, and the strip's panels carrying the json's Dice and repainting per
 budget), the Dice-CDF slider (curves, readouts vs `cdf.json`, repaint on stop
-change), flight video play/pause, a drawn stroke producing a real auto-label,
+change), flight video play/pause, a drawn stroke producing a real auto-label (with the classifier-free lead
+line present and unchanged before and after),
 the chess hint matching vector D (`g3 p=0.236`), JEPA seed query 834 plus the
 triple-equality, Vercel Analytics (tracker injected same-origin, a Resume click
 queues `outbound_link`; two headshot runs queue exactly one `demo_used`), and
@@ -161,8 +203,9 @@ change touching a demo, a figure, or the page shell.
 `content/sky-facts.ts` with the same rules. **`node --test
 scripts/test-sky-data.mjs scripts/test-sky-math.mjs scripts/test-sky-pan.mjs
 scripts/test-sky-objects.mjs scripts/test-sky-facts.mjs
-scripts/test-sky-iss.mjs`** runs outside Playwright, in plain node (62 cases
-total, up from 47 in the colour round): `test-sky-data` pins the committed `sky.json`'s shape (star
+scripts/test-sky-iss.mjs`** runs outside Playwright, in plain node (73 cases
+total, up from 62 before the discoverability round and 47 before the colour
+round): `test-sky-data` pins the committed `sky.json`'s shape (star
 count/order/ranges, Polaris and Sirius by position and magnitude, all 88
 constellations with Serpens merged and bilingual names) against hand edits
 and bad regenerations; `test-sky-math` pins `lib/sky-math.ts`'s projection
@@ -182,7 +225,15 @@ URL(s) whose page carries the sentence its palette draws, asserted complete
 against `OBJECT_COLOURS` and against the card's rendered Sources list,
 Lodriguss included; the older form only counted citations, which is how ten
 objects came to draw colours their cards sourced nothing for, final review
-C1/M4, 2026-09-16); `test-sky-facts` pins that
+C1/M4, 2026-09-16), plus (discoverability round, +11) SHA-256 digests of a
+fake 2D context's full call trace over five fixed scenes, recorded from the
+pre-saturation code, which saturation 0 must reproduce as the old colour-off
+trace and saturation 1 (with `stargazeChrome`) as the old stargaze trace,
+chroma monotone call for call across levels, M82's calls identical at every
+level, `bandMix`'s ends, `stepSaturation`'s frame-rate independence, the
+underline trace being a strict supersequence of the plain one, phone names
+never overlapping and clear of the chrome bands over 24 orientations, and the
+entry-ring picker and envelope; `test-sky-facts` pins that
 every drawn object, planet, the Moon, all 88 constellations, every shower,
 both Voyagers and the ISS carry a complete, cited fact, plus (colour round)
 that the fifteen new objects cite only verified sources, ship the Double
@@ -234,13 +285,16 @@ stargaze only, and fifteen more objects to the catalog (30 → 45).** Colour
 rides the same flag as everything else stargaze changes: `View`/`FrameInput`
 carries `colour: isStargazing()`, read only inside `lib/sky-layers.ts`'s
 galaxy/nebula/cluster/Milky Way draw paths, while `lib/sky-render.ts` itself
-stays pure and never reads the stargaze store. It's stargaze-only because the
-page's OWN figures use colour to mean something (green is x0-diffusion, red
-is SAM, amber is an instrument readout); a colourful desk on every other page
-would compete with that system. No colour here claims to be what an eye would
+stays pure and never reads the stargaze store. It was stargaze-only because
+the page's OWN figures use colour to mean something (green is x0-diffusion,
+red is SAM, amber is an instrument readout), and a colourful desk on every
+other page would compete with that system. (⚠️ Reversed by the owner on
+2026-09-16: paper mode now shows half the colour. The flag became a
+saturation; see the next paragraph. The reasoning above is kept as history,
+and it is why the paper level is a measured number rather than full colour.) No colour here claims to be what an eye would
 see: at these brightnesses vision runs on rod cells, which register none, so
 every colour follows a long exposure instead, and the credit line (its colour
-clause shown only while stargazing, since the other pages draw greys) and each
+clause then shown only while stargazing; ungated since 2026-09-16) and each
 coloured card's note say so. Colour is never invented: a colour may follow an
 emission line's OWN wavelength (O III really is blue-green at 500.7nm,
 H-alpha really is red at 656.3nm, cited to Lodriguss's *Color in astronomical
@@ -260,28 +314,61 @@ stargaze" below for the full contracts, including the Milky Way label's
 anchor now avoiding drawn objects, and crowded object names stepping down
 instead of overlapping.
 
+**2026-09-16: the discoverability round, branch `discoverability`** (spec
+`docs/superpowers/specs/2026-09-16-discoverability-design.md`, ledger with
+every ruling in `.superpowers/sdd/discoverability/progress.md`). It answers
+Open items 1 and 2 as they stood, and closed the old item 8 (splitting
+`NightSky.tsx`, then past 800 lines). **The owner reversed
+"colour is stargaze-only"**: the ordinary page shows the sky's sourced colour
+at half of stargaze's, full colour returns while the pointer is over the sky,
+and stargaze stays at full. The first attempt set a 0.25 parameter, chosen
+low out of the same fear of competing with the figures, and it measured grey:
+objects 14-44% of the way to stargaze and the band's warmth unchanged to two
+decimals. A percentage of a parameter is not a percentage of what the eye
+sees, so the controller overturned it and the shipped constant is a measured
+DISPLAYED share (`PAPER_COLOUR_SHARE = 0.5`, median measured 0.53). Inside
+stargaze, clickable things now look clickable (dotted underlines on names,
+a pointer cursor, one-time entry rings), the hint bar says how much has a
+card (44 objects, 88 constellations) and opens the keyboard list as a
+visible panel, and phones draw names for the coloured objects. Getting in:
+the toggle gained a star mark, the sky introduces itself once per session on
+first pointer entry, and a second door sits at the foot of `/` and `/lab`,
+with `demo_used` gaining `via` to say which door. The /lab door became a
+bordered "Supplementary material" box under a stamp that is now status only.
+The credit line keeps the owner's trimmed sentence plus one honesty tail. The
+draw demo leads with classifier-free classification. `NightSky.tsx` was split
+into `components/manuscript/night-sky/` first, with no behaviour change. See
+"Night sky + stargaze" and "Draw-a-digit" below for the contracts.
+
 **Open items, roughly in order:**
-1. **Stargaze is undiscoverable, and that is the biggest product problem on
-   the site** (owner, 2026-09-14: "We 100% need to make that button more
-   noticable, I have had to tell everyone about it"; re-confirmed 2026-09-16
-   as second only to the draw-demo crash). The entry point is a text link on a
-   page made of text links, and it promises no content, so it reads as
-   decoration. Meanwhile the live sky already drawn in the margins is invisible
-   AS an affordance, so nobody connects the two. Agreed direction, not yet
-   built: **make the sky itself the invitation** (on a visitor's first pointer
-   entry into a margin, the sky answers and names itself once per session),
-   give the control a mark rather than only words, and add a second entry point
-   at the foot of the page. Explicitly ruled out: autoplay, modals, pulsing,
-   arrows, any copy that oversells. `demo_used {stargaze}` already fires once
-   per page load, so the entry rate against pageviews is measurable before and
-   after (⚠️ custom-event ingestion depends on the Vercel plan and has never
-   been confirmed from here; check the dashboard before trusting the number).
-   Phones need their own answer, since there is no hover at all.
-2. **Stargaze on a phone is much thinner than on desktop.** Below 880px no
-   names draw, so it is symbols and constellation lines with cards reachable
-   only by tapping something you cannot identify first. Given "mobile above
-   all", this is the widest quality gap in the feature. Rides with the
-   discovery round.
+1. **Stargaze discoverability: built, not yet measured** (owner, 2026-09-14:
+   "We 100% need to make that button more noticable, I have had to tell
+   everyone about it"; re-confirmed 2026-09-16 as second only to the
+   draw-demo crash). The 2026-09-16 round shipped the agreed direction: the
+   sky names itself once per session on first pointer entry, the toggle has a
+   mark, a footer door sits on `/` and `/lab`, and inside stargaze names,
+   cursor, rings, counts and a browsable list say what can be opened. Still
+   ruled out: autoplay, modals, pulsing, arrows, copy that oversells. What
+   remains: **measure it** once live, stargaze entries against pageviews and
+   the `via` split between toggle and footer (⚠️ custom-event ingestion
+   depends on the Vercel plan and has never been confirmed from here; check
+   the dashboard before trusting any number). **"Browse everything, click to
+   fly there"** is the natural next step: the panel lists only what is on
+   screen now while the hint's counts describe the whole catalog (honest,
+   since the panel's title says "on screen now", but a visitor reading "44
+   objects" can't reach most of them from the list). The invite is
+   hover-only, so on a phone the footer door and the toggle are the only
+   ways in. The owner still owes a read of the invite's wording ("the real
+   sky over NASA Ames, from the moment you arrived") and of the credit's tail.
+2. **Stargaze on a phone: names drawn, still thinner than desktop.** Below
+   880px, since 2026-09-16, the coloured objects draw names that are tap
+   targets (planets and the Moon always drew theirs, and now keep clear of the
+   chrome too), but a phone name is dropped rather than squeezed
+   when it is crowded, near the edge, or inside the hint bar or credit band,
+   so at a given instant about half the coloured names show (5 of ~10 in the
+   round's screenshot), and uncoloured objects and constellations still draw
+   no name at all. The docked list panel is the phone's way to reach
+   everything on screen by name. Needs the real-hardware pass (item 3).
 3. **An owner pass on real hardware is still owed for the whole sky.** The
    pole position at 1280-1440px (the margin-based rule's low end, where it sits
    closest to the sheet), the drag feel and docked card on a real phone, and a
@@ -309,8 +396,16 @@ instead of overlapping.
    ⚠️ The Drive doc itself is still shared "anyone with the link", so it is
    reachable by anyone holding that URL. Hiding the link is not the same as
    unsharing the document; the owner has been told and it is their call.
-8. **`components/manuscript/NightSky.tsx` is past 800 lines** and has been
-   deferred twice. Split it before the next sky feature, not during one.
+8. **Parked minors from the discoverability round**, each small and still
+   true: a still pointer goes stale as the sky turns or the page scrolls under
+   it (the pointer cursor and the paper-colour target only update on
+   `pointermove`); the Moon's entry ring crosses the start of its own name for
+   its 1.2s; on desktop, planet and star names under the stargaze chrome pills
+   are shaded by the backing, not routed around it; the paper-mode credit now
+   sits on a soft dark backing strip, an aesthetic call the owner may lighten
+   (the contrast gate allows down to ~3.49:1 at 400px); with `objects.json`
+   absent the bar shows no counts and no browse control, so the panel is
+   unreachable visually (the sr-only list still works).
 9. Much later: a third headliner demo, a **live network-security honeypot**
    (exposed Pi, malicious ssh/https logged, LLM-categorized into a live UMAP
    of attack families). Needs a live-data seam the static site doesn't have;
@@ -361,8 +456,20 @@ and the owner's SOP tell one story.
   the flight blips, ResNet-UNet's dotted curve, **link-blue = hyperlinks** and
   ViT-DPT where it appears. The spec-era "red marks the x0 finding" rule is
   dead; the spec file records history, this file records now.
-- The paper-status stamp doubles as the `/lab` link; the dotted-underlined
-  "pending additional materials" sub-line carries the affordance.
+- **The paper-status stamp is status only** (2026-09-16; it used to double as
+  the `/lab` link through a dotted "pending additional materials" sub-line,
+  which nobody read as a door under a loud red stamp). Beneath it, a bordered
+  box (`[data-lab-box]`, a plain `next/link`, untracked because `/lab` is
+  internal) reads "Supplementary material →" over a short written teaser,
+  `copy.masthead.supplementContents` ("diffusion trajectories · MAE vs I-JEPA
+  · DDPM vs flow matching"). The teaser is written, not composed from /lab's
+  section headings: those read wrong out of context ("Predicting pixels, or
+  predicting representations") and ran four items long in a narrow rail.
+  ⚠️ The cost is drift: if /lab's sections change, change this line by hand.
+  The box borrows the figure frames' `border-rule` → `border-mut` line style
+  on hover and focus, never a rounded button. References already ended with a
+  "Supplementary material" → `/lab` entry, so no second link was added there.
+  `public/og.png` was regenerated for the new rail.
 - v1's draw-demo bugs survived the re-chrome where the code path survived
   (see Known bugs) — they are open on the live site.
 - Navigation listings (menus, the 404's directory joke if it survives) track the
@@ -531,7 +638,9 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   `outbound_link {label}` on every identity and reference link (via the
   `TrackedLink` client leaf, so Masthead/References stay server components;
   `onAuxClick` catches middle-click), and `demo_used {demo}` once per demo
-  per page load, fired only AFTER real output (a completed headshot run, a
+  per page load (stargaze's carries `via: "toggle" | "footer"` since
+  2026-09-16, naming the FIRST door used that load: a property, never a
+  second event, so the quota rule holds), fired only AFTER real output (a completed headshot run, a
   completed digit generation, an accepted chess move) so failures and
   slider-scrubbing never count. Quota-conscious on purpose: don't add
   per-interaction events. ⚠️ Production loads the tracker SAME-ORIGIN from
@@ -760,6 +869,39 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   within 0.25°, the Moon within 0.3° (measured worst case tighter: GMST
   1.13 s, Saturn 0.088°, Moon 0.043°). `lib/sky-render.ts` is the pure
   per-frame drawer (no state, no clock) that reads its projected output.
+- **NightSky's module layout** (split 2026-09-16 before any discoverability
+  work, with no behaviour change: 29/30 checks identical before and after,
+  listener add/remove pairs 10/10, frame median flat; this closed the old
+  "NightSky past 800 lines" open item). `components/manuscript/NightSky.tsx`
+  (~350 lines) only orchestrates: refs, React state, the card focus effect
+  keyed on `card?.id`, wiring, listeners, the stargaze subscriber, cleanup,
+  render. The old effect closure's shared `let`s live on ONE mutable
+  `SkyState` object passed as `s`; a value only one module needs stays private
+  to it. Under `components/manuscript/night-sky/`:
+  - `state.ts`: the `SkyState` type and `createSkyState()`, plus the layer and
+    drag types.
+  - `painter.ts`: canvas resize, font resolution, `paint` (the `drawSky` call,
+    `window.__sky`, following the card, the ISS card's 1s refresh).
+  - `frame-loop.ts`: the rAF step, its frame gates, the spring advance and
+    the saturation ease.
+  - `pointer-controller.ts`: picking, highlight, the stargaze click, every
+    pointer/blur handler, drag and spring settling, the saturation target,
+    the pointer cursor.
+  - `card-controller.ts`: building, opening, closing and following a card,
+    the out-of-view mirror, the capture-phase Escape handler.
+  - `keyboard-list.tsx`: the list's refresh, its portal, and its visible
+    panel presentation.
+  - `layer-loaders.ts`: `sky.json`, `objects.json`, `milkyway.json`, the ISS
+    TLE, the sky-facts chunk, `fonts.ready`.
+  - `entry-rings.ts` (no imports): the one-time rings' picker and envelope.
+  - `invite.ts`: the once-per-session sky caption.
+  Two module-level stores sit beside it in `lib/`: `lib/stargaze.ts` (on/off,
+  offload reporting, the door used) and `lib/stargaze-browse.ts` (the card
+  counts, whether the list panel is open, the hint bar's measured bottom
+  edge), shared by `StargazeToggle` and the sky's plain-module controllers,
+  which read them outside React. `lib/sky-colour.ts` (no imports) holds the
+  saturation constants and math. Put a new feature in the module that owns
+  its concern; don't grow `NightSky.tsx` back into the closure it was.
 - **Drag to pan** (2026-09-15, `lib/sky-pan.ts`, no imports, closed-form
   math): a pointer drag adds a screen-space offset to the whole chart —
   pole, stars, lines, objects, labels together. `rubberBand` bounds it past
@@ -842,28 +984,75 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   `lib/sky-objects.ts`). Each variant's draw path in `lib/sky-layers.ts`
   composes the object's own dust lanes, filaments, stars and blobs from its
   prepared `ObjectGlyph`, and colours them from `OBJECT_COLOURS` only when
-  `v.colour` is set; an id the variant tables don't know about still falls
+  `v.saturation > 0` (it was the boolean `v.colour` until 2026-09-16); an id
+  the variant tables don't know about still falls
   back to the plain symbol. `test-sky-objects.mjs` pins that colour-off
   geometry is byte-unchanged for every glyph that predates the round.
-- **Sourced colour is stargaze-only** (`lib/sky-layers.ts`'s `OBJECT_COLOURS`,
-  threaded through `View`/`FrameInput` as `colour: isStargazing()`; `lib/sky-
-  render.ts` stays pure and never reads the stargaze store itself, same
-  discipline as its clock): the page's OWN figures use colour to mean
-  something (green is x0-diffusion, red is SAM, amber is an instrument
-  readout — see Figure colour conventions), and a colourful desk on every
-  other page would compete with that system. **No colour here claims to be
-  what an eye would see**: at these brightnesses human vision runs on rod
-  cells, which register none, so every drawn colour follows a long exposure
-  instead, and both the credit line and each coloured card's
-  `copy.stargaze.card.colourNote` restate that mechanism, not just assert the
-  fact. ⚠️ The credit renders on EVERY page in ordinary flow, so its colour
-  clause is its own span (`copy.stargaze.creditColour`, hidden by CSS unless
-  `body[data-stargaze]`, the same CSS-only trick as the motion wording): off
-  stargaze the sky behind it really is grey, and the line used to claim
-  colour there (final review m5, 2026-09-16). M82 is the one deep-sky object
-  with no colour note at all
-  (`OBJECT_COLOURS[id]` is absent), verified in-browser rather than only in
-  the table, which is the proof the gate is real and not blanket.
+- **Sourced colour: half on the page, full over the sky and in stargaze**
+  (owner reversal, 2026-09-16; `lib/sky-colour.ts`, `lib/sky-layers.ts`'s
+  `OBJECT_COLOURS`). **History**: the colour round made colour stargaze-only,
+  threaded as `colour: isStargazing()`, because the page's OWN figures use
+  colour to mean something (green is x0-diffusion, red is SAM, amber is an
+  instrument readout, see Figure colour conventions) and a colourful desk
+  would compete with that system. The owner reversed it; the concern still
+  stands, which is why paper mode gets a measured share and not full colour.
+  **Now**: `View`/`FrameInput` carry `saturation: number` in [0, 1] (plus
+  `stargazeChrome: boolean`, below); `lib/sky-render.ts` still never reads the
+  stargaze store, both arrive as data. Targets, set in `pointer-controller.ts`:
+  1 while stargazing; 1 in paper mode while the pointer is over the sky
+  (not over the sheet's rect, `[data-sheet]`, `[data-sky-credit]`, a link, a
+  button or anything else in `PAN_BLOCKERS`; set on a non-touch
+  `pointermove`, on a drag start; cleared on leaving the document, a window
+  blur, leaving stargaze); `PAPER_SATURATION` otherwise, and ALWAYS under
+  `(hover: none)`, where nothing can hover. The value eases toward its target
+  on real elapsed ms (`stepSaturation`, closed-form exponential, tau 60ms,
+  snaps inside 0.004: ~280-300ms over ~17 painted steps, measured), raising
+  the frame gate while it moves like a drag does; reduced motion snaps.
+  **⚠️ `PAPER_COLOUR_SHARE = 0.5` is a share of the DISPLAYED chroma, not a
+  parameter** (`PAPER_SATURATION` is defined equal to it). The first attempt
+  was `PAPER_SATURATION = 0.25`, picked low out of the figure-competition
+  fear, and a three-way crop showed it indistinguishable from grey: objects
+  moved 14-44% of the way to stargaze and the band's warmth changed by 0.00.
+  The owner had asked for colour "reduced to 50% or 25%", meaning what the
+  eye sees, so the controller overturned it (ruling R-SAT-1). A sweep then
+  measured the displayed share tracking the internal mix almost one to one
+  between about 0.25 and 0.8 (mix 0.5 → median 0.53, objects 0.44-0.61), so
+  the constant means what it says there; below ~0.25 it doesn't (mix 0.1 gave
+  M45 0.28), and a future lower value needs a real mapping. `sky-colour`
+  asserts the measured share against the constant, so a palette or glyph
+  change that bends the relation fails there. Each palette colour is mixed
+  toward its own Rec. 709 luminance by `1 − s` (`saturateRgb`); the 45 mixed
+  palettes and the band's colour and gain are memoised on the last `s`, so
+  nothing rebuilds at rest. **The band has its own curve**: its hue lerp
+  (`INK` → the stargaze tan) and alpha gain (1 → 2.6) both run on
+  `bandMix(s) = s ** 0.5`, because at 2-5% alpha a linear lerp moves the
+  composited warmth in whole-level steps that land late (mean warmth 4.02 at
+  mix 0 through 0.4, 5.03 at 0.5-0.6, 6.04 at 0.7-0.8, 7.04 at 1, over 57,717
+  band pixels). Paper's 0.5 maps to 0.71, the 6.04 step: 67% of stargaze's
+  warmth gain, since exactly half isn't reachable in whole levels; paper's
+  band is also 0.8 of a level BRIGHTER than stargaze's. **The ends are
+  pinned**: saturation 0 reproduces the old colour-off draw calls and 1 (with
+  `stargazeChrome`) the old stargaze calls, byte for byte, by trace digest in
+  `test-sky-objects.mjs`. ⚠️ **0 → anything above 0 is a discontinuity**: it
+  switches plain glyphs to coloured variant geometry. Harmless at runtime,
+  where saturation never rests at 0; only the verify hook drives it there.
+  `window.__skySaturationOverride` (a number, verify-only, nothing on the
+  site sets it) replaces the target the next time it is recomputed; the
+  browser check needs it for a saturation-0 frame at the same pixels.
+  **`stargazeChrome`** exists because several decisions used to read
+  `v.colour` as a stand-in for "stargazing" (the Milky Way label's avoidance
+  of the hint bar and credit, phone names); with colour now showing on hover
+  in paper mode, that stand-in would have pushed the label away from chrome
+  that isn't there. The sheet is opaque, so none of this changes a pixel on it
+  (measured: zero diff across 0, paper and hovered). **No colour here claims
+  to be what an eye would see**: at these brightnesses human vision runs on
+  rod cells, which register none, so every drawn colour follows a long
+  exposure instead; the credit line says so on every page and each coloured
+  card's `copy.stargaze.card.colourNote` restates the mechanism with its
+  source. M82 is the one deep-sky object with no palette at all
+  (`OBJECT_COLOURS[id]` is absent) and its draw calls are identical at every
+  saturation, verified in-browser rather than only in the table, which is the
+  proof the gate is real and not blanket.
 - **The false-colour rule, ruling R-COLOUR-1**
   (`.superpowers/sdd/sky-colour/progress.md`): colour may follow an emission
   line's OWN wavelength, since a plain RGB camera really does record O III at
@@ -931,7 +1120,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   segment within 24px. The on-symbol pass exists because names are ~80px
   long: box-first alone made Mars unclickable under "Beehive Cluster"
   (measured). The Milky Way is `boxOnly`: its label box on desktop, and no
-  canvas hit at all below 880px, where no names draw. The label is the
+  canvas hit at all below 880px, where its label doesn't draw. The label is the
   existing name label plus a second line, the entry's `oneLiner` from
   `content/sky-facts.ts` (constellations get their origin line instead, e.g.
   "One of the 48 constellations in Ptolemy’s Almagest" or "Introduced by
@@ -949,8 +1138,10 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   band can recreate this. The label now prefers whichever anchor is clear of
   every object drawn this frame AND, while stargazing, of stargaze's own top
   hint bar and bottom credit line, falling back to the closest anchor rather
-  than ever dropping the label. The chrome half is gated on `v.colour`
-  (final review m6, 2026-09-16): the ordinary page fixes neither of those to
+  than ever dropping the label. The chrome half is gated on
+  `v.stargazeChrome` (it read `v.colour` until colour reached paper mode; the
+  top band is `max(90, measured hint bottom)`) (final review m6, 2026-09-16):
+  the ordinary page fixes neither of those to
   the viewport, and applying the margins there pushed the label out of 220px
   of screen for nothing and moved it off where `main` draws it.
 - **A crowded object name steps down past every name box already drawn this
@@ -959,13 +1150,58 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   labels and M81/M82's 4px separation both produced an unreadable, and
   unclickable, smear before this — a drawn name is itself a hit target (see
   Hit precedence above), so an overlapped name box can't be clicked either.
+- **Stargaze makes clickable things look clickable** (2026-09-16):
+  - **Dotted underlines on drawn names, stargaze only** (`View.underlineNames`,
+    `addUnderline`/`strokeUnderlines` in `lib/sky-layers.ts`): a 1px `[1, 2]`
+    dotted line inside the existing name box, for object, radiant, ISS,
+    Milky Way, planet and Moon names. A dotted underline already means
+    "clickable" on this page (the stargaze toggle), so the sky borrows the
+    page's own grammar; paper-mode names aren't click targets and stay plain.
+    A suppressed name draws none. The underline-on trace is a strict
+    supersequence of the underline-off trace (node), and the browser check
+    measures it as a difference at forced-equal saturation (proved to bite).
+  - **Pointer cursor over a selectable symbol or drawn name in stargaze, NOT
+    over constellation line bands.** Lines open cards too, but their 24px hit
+    band covers most of the sky, and a pointer cursor almost everywhere stops
+    meaning anything. A live drag's `grabbing` always wins. ⚠️ It updates on
+    `pointermove` only, so under a still pointer it can go stale as the sky
+    turns (same as the hover highlight).
+  - **One-time entry rings** (`night-sky/entry-rings.ts`, `ENTRY_RING_MS =
+    1200`, `ENTRY_RING_COUNT = 4`): on the first stargaze entry of a page
+    load, INK rings fade in and out (half-sine on real ms, held static under
+    reduced motion and cleared by a timer) around the four non-`boxOnly` hits
+    nearest the viewport centre, drawn under the hover layer and never
+    hit-testable. A one-shot demonstration inside a mode the visitor chose,
+    which is why it doesn't break the no-pulsing rule. **⚠️ The rings wait for
+    something to ring**: the first build spent them on an empty sky when
+    stargaze was entered before the catalog landed (a slow phone), so
+    `tryStartEntryRings` is retried as each layer lands and the load's one
+    showing is spent only when there are hits to ring. `stargaze-affordances` holds
+    `sky.json`, enters, requires nothing fired, releases, requires rings; the
+    old behaviour as a mutant fails with `{"drawn":true,"fired":true,"rings":0}`.
+  - **Phone names for the coloured objects** (`View.colouredNames`, stargaze
+    only, below 880px): names for ids in `OBJECT_COLOURS`, hit targets like
+    any other, stricter than desktop. A phone name flips left at the right
+    edge, goes through the step-down, and is LEFT UNDRAWN (no hit box; the
+    symbol stays tappable) when no clear slot exists or its box would reach
+    the hint bar or the credit band. The top band is the hint bar's MEASURED
+    bottom + 6px (`--stargaze-hint-h`, published by a border-box
+    ResizeObserver; a content-box one ignored padding growth and left names
+    under a grown bar, which `stargaze-browse-400` caught), falling back to
+    90px unmeasured; the bottom band is 130px. Planet and Moon names, which
+    draw at every width on their own path, go through the same test
+    (`nameClearsPhoneChrome`). Desktop names are unchanged: they draw under
+    the chrome pills, shaded, not routed.
 - **Stargaze cards** (`components/manuscript/SkyCard.tsx`, a DOM `aside`
   with `aria-labelledby`, not canvas): a click under `CLICK_SLOP_PX` on a
   selectable opens a card; a click on empty sky, or the card's own close
   button, closes it. Escape is handled in the capture phase and closes the
   card first, calling `stopImmediatePropagation` so the same keypress never
   also reaches `StargazeToggle`'s exit handler — a second, separate Escape
-  press is what exits stargaze. The card follows its subject every frame as
+  press is what exits stargaze. With the list panel open, Escape peels one
+  VISIBLE layer per press: panel → card → exit on desktop (the panel's
+  capture handler is registered before the card's); on a phone, where a
+  docked card hides the panel, card → panel → exit. The card follows its subject every frame as
   the sky turns and while dragging (`followCard`, clamped to the viewport,
   offset from the subject so it doesn't cover it). **Only the visitor closes
   a card** (final review, 2026-09-15): when the subject leaves the viewport
@@ -997,6 +1233,31 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   the ISS card is open. Citation links are plain `<a target="_blank"
   rel="noopener">`, deliberately untracked (the analytics quota rule: no new
   per-interaction events).
+- **Counts and the list panel** (2026-09-16, `lib/stargaze-browse.ts`,
+  `StargazeToggle.tsx`, `night-sky/keyboard-list.tsx`): the hint bar reads
+  "… · 44 objects and 88 constellations have cards · browse the list". The
+  numbers are never literals: `countCards()` counts `objects.json` objects
+  north of `EDGE_DEC_DEG` (−35°) that have a fact, which leaves out Voyager 2
+  (the check was proved against 45), and the catalog's constellations with a
+  fact. They publish only once `sky`, `objectsData` and `facts` have all
+  landed, so no zero ever stands in for data in flight; with `objects.json`
+  absent there are no counts and no browse control (the sr-only list still
+  works). **One list, two presentations**: "browse the list" (`aria-expanded`)
+  opens the SAME `[data-sky-list]` group as a visible panel, same buttons,
+  same order, same identity. Closed, its `[data-sky-list-panel="closed"]`
+  wrapper has no role and no class, so the accessibility tree is exactly what
+  it was; open, the wrapper is a `region` labelled by its title with a close
+  button, styled like SkyCard. At 880px and up it sits under the bar at the
+  column's right edge (300px) and stays open under a card opened from it;
+  below 880px it docks to the bottom, capped at `min(60dvh, viewport − bar −
+  16px)` so it never reaches the exit control, and a docked card hides it
+  until the card closes (focus returns to the opening button). Opening
+  focuses the panel itself, not a button, because focusing a button rings its
+  subject. An open panel blocks pan, sky clicks and hover like a card does;
+  leaving stargaze closes it. ⚠️ **Known mismatch**: the panel lists what is
+  ON SCREEN now (its title says so) while the counts describe the whole
+  catalog, so most of "44 objects" isn't reachable from the list at any
+  instant; see Open items.
 - **Facts** (`content/sky-facts.ts`, the single source for every one-liner
   and card, typed per the spec's `SkyFact`/`Citation` shape): no runtime
   imports — it's a plain data module, scanned by `scripts/check-voice.mjs`
@@ -1055,11 +1316,74 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   (`motion-reduce:` variants on two spans), not a JS branch, so a
   reduced-motion visitor never reads the "180 times" language for a sky that,
   for them, never turns.
+- **The credit line** (2026-09-16): the owner trimmed `credit`/`creditStill`
+  to one sentence each, kept verbatim ("The sky over NASA Ames from the moment
+  you arrived, turning 180 times faster than the real one." / "The sky over
+  NASA Ames at the moment you arrived."), followed by one honesty tail,
+  `creditTail`: " The shapes are enlarged and coloured as long exposures show
+  them, but every position is real." The old `creditColour` span and its
+  `body[data-stargaze]` CSS gate are gone: colour shows on every page now, so
+  the clause is true everywhere. The eyes-see-grey reason moved wholly onto
+  each coloured card's `colourNote`, with its source. ⚠️ The trim once
+  rendered "real one.." because the tail was written to continue the longer
+  sentence; `assertCredit` in the verify suite compares the rendered credit to
+  the composed copy in both motion variants and rejects "..", ".,", ",." and
+  ",,". The credit body sits on the desk-toned backing described below, in
+  BOTH modes.
 - **Stargaze mode hides the page with CSS (`body[data-stargaze]`) plus
   `inert` on every `main`, and never unmounts anything** — a chess game, a
   half-drawn digit and the scroll position all survive the round trip
   (`lib/stargaze.ts`, a module-level store, not React context, since loaders
   outside any component tree need to report offloads into it too).
+- **The ways in** (2026-09-16, answering "I have had to tell everyone about
+  it"; autoplay, modals, pulsing and arrows stay ruled out):
+  - **The star mark** (`StarMark.tsx`): an inline four-pointed SVG star,
+    `aria-hidden`, `currentColor`, server-rendered, before the label on both
+    doors. The toggle's accessible name is still exactly "stargaze for a bit?".
+  - **The sky introduces itself once per session** (`night-sky/invite.ts`,
+    `<p data-sky-invite>`, `copy.stargaze.invite`): the first time a
+    hover-capable mouse or pen pointer moves onto the sky in PAPER mode, at
+    the same instant and by the same "over the sky" test as the colour lift,
+    so caption and colour read as one response. Placed in the clear region
+    the pointer is in (max 240px wide, skipped under 96px), clear of the sheet,
+    the toggle, the credit and the pointer; up for `INVITE_MS = 3500` with a
+    300ms fade (none under reduced motion); hidden at once by a scroll that
+    would bring the sheet under it or by entering stargaze;
+    `pointer-events: none`. It needs the star catalog drawn first (a caption
+    about "the real sky" over a plain desk would claim nothing), and an entry
+    that can't show it doesn't spend it. Once per session through
+    `sessionStorage` key `sky-invite-shown` (try/catch; if storage throws,
+    once per page load). **`aria-hidden` on purpose**: the credit and the
+    footer lead carry the same fact for every visitor, and a caption that
+    appears on hover would be noise to a screen reader. Never under
+    `(hover: none)`, so phones get the toggle and the footer door only.
+  - **The footer door** (`StargazeFooterEntry.tsx`): after `<References />`
+    inside the sheet on `/`, as the sheet's last child on `/lab`; the line
+    `copy.stargaze.footerLead` then a button labelled with
+    `copy.stargaze.enter` itself, because a second door to the same feature
+    carrying a different name wouldn't read as the same feature. It lives
+    inside `main`, so it's inert with the rest while stargazing. Exit returns
+    focus to whichever door was used.
+  - **`demo_used {demo: "stargaze", via}`**: `setStargazing(next, via =
+    "toggle")` records the door (`getStargazeEntry()`), and `trackDemoOnce`
+    sends `via: "toggle" | "footer"` for the FIRST entry of the load. Still one
+    event per page load.
+  - **The chrome's backing pills**: the hint, the exit control and the credit
+    body each sit on a desk-toned `#0c0b09` pill at 0.85 with a feathered
+    shadow (`data-stargaze-chrome`), so always-on names no longer print
+    through the chrome's text (the Double Cluster's did). The bar container is
+    `pointer-events: none` and the pills `auto`; the pointer controller treats
+    `[data-stargaze-chrome]` like the card: no drag start, no click, no hover,
+    no pointer cursor. Sky between pills stays live, and the feathered halo
+    doesn't block (it fades to nothing, and names under it stay readable).
+    Measured: backing alpha median 0.86 behind a pill, and backed credit
+    contrast over the band at or above its pre-colour-round paper value
+    (400px: 3.68-3.69:1 vs 3.49:1; 1440px: 3.71:1 vs 3.66:1), which the
+    paper-mode backing fixed as well (unbacked, colour dropped it to ~3.0:1).
+  - ⚠️ **The footer button shares the toggle's accessible name**, so a bare
+    `page.getByRole("button", {name: "stargaze for a bit?"})` breaks
+    Playwright's strict mode. Every check goes through `stargazeToggle(page)`
+    (scoped to `[data-stargaze-toggle]`); a new check must too.
 - **Cancelling a model run**: throw `StargazeAbort` from the panel's own
   `onFrame`, never return early — returning skips the vendored sampler's
   event-loop yield and locks the page (the draw demo's existing trap 3, now
@@ -1088,10 +1412,24 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   already loaded the draw model does not fix that phone's memory pressure —
   see Known bugs, item 1.
 - `window.__sky` (`drawn`, `simMs`, `lstDeg`, `k`, `cx`, `cy`, `offset`,
-  `dragging`, `frameMsMedian`, `highlight`, `label`, `labelText`,
-  `suppressedName`, `hits`, `radiants`, `layers`, `card`, `iss`,
-  `segmentsFor`) and `window.__offload` (a per-kind offload counter) are
-  verify hooks for `scripts/verify-redesign.mjs`, not UI.
+  `dragging`, `frameMsMedian`, `saturation`, `saturationTarget`, `highlight`,
+  `label`, `labelText`, `suppressedName`, `hits`, `milkyWay`, `radiants`,
+  `layers`, `card`, `cardOutOfView`, `iss`, `segmentsFor`, `nameUnderline`,
+  `entryRings` (rings drawn this frame), `entryRingsFired`, `inviteShown`,
+  `invite` (its box)), `window.__offload` (a per-kind offload counter) and the
+  one WRITE hook, `window.__skySaturationOverride`, are verify hooks for
+  `scripts/verify-redesign.mjs`, not UI. So are the `data-*` attributes the
+  checks select on: `data-sheet`, `data-sky-credit`, `data-sky-credit-body`,
+  `data-stargaze-toggle`, `data-ready`, `data-star-mark`,
+  `data-stargaze-bar`, `data-stargaze-hint`, `data-stargaze-hint-text`,
+  `data-stargaze-counts`, `data-stargaze-count-objects`,
+  `data-stargaze-count-constellations`, `data-stargaze-browse`,
+  `data-stargaze-exit`, `data-stargaze-chrome`, `data-sky-list-slot`,
+  `data-sky-list-panel`, `data-sky-list`, `data-sky-list-item`,
+  `data-sky-list-close`, `data-sky-invite`, `data-stargaze-footer`,
+  `data-stargaze-footer-enter`, `data-lab-box`, `data-stamp`,
+  `data-draw-classify-lead`. The CSS variable `--stargaze-hint-h` is real
+  layout, not a hook: the panel and phone names both read it.
 
 ### Draw-a-digit (SDEdit, live MNIST diffusion) — page 1
 - Division of labour: all model math lives in `lib/ascii-diffusion.js`, vendored
@@ -1113,6 +1451,16 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   (measured plateau: 0.80→9/10, 0.85–0.95→10/10; low noise scores nothing),
   `guidance: 1`, `steps: 2` (module divides by steps-1). The guess is visible and
   overridable, never silent.
+- **The demo leads with classifier-free classification** (owner request,
+  2026-09-16): `copy.systems.draw.classifyLead` ("No classifier model: the
+  diffusion model guesses the label itself.") renders permanently above the
+  label picker (`[data-draw-classify-lead]`, `text-ink` so it reads as a
+  standing claim, not one more dim caption), independent of every state, and
+  the figure caption and the `classify.a` explainer both open with the same
+  claim. The wording is "no classifier MODEL", not "no classifier": the demo
+  does classify, and the claim is that no second model does it. Markup and
+  copy only: the change touched no hook, handler, `classifyingRef`,
+  `fitFreshRef`/`inkGenRef` or the `generate()` call site.
 - **The classifier and generate share one ORT session; running both at once
   corrupts it.** The mutual exclusion runs through `classifyingRef` (synchronous,
   not state). Respect it in any rebuild of this panel.

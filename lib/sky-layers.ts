@@ -368,7 +368,13 @@ const LABEL_CLEARANCE_PX = 30;
 /** Stargaze's own chrome: the hint line across the top and the credit block
  *  along the bottom. The band's label avoids both, so it is neither hard to
  *  read nor hard to click. Generous on the bottom because the credit wraps to
- *  three lines on a narrow window. */
+ *  three lines on a narrow window.
+ *
+ *  ⚠️ Stargaze ONLY, and the code below gates them on v.colour for that
+ *  reason (final review m6). On the ordinary page there is no fixed hint bar
+ *  and the credit sits at the bottom of the document rather than the
+ *  viewport, so applying these there pushed the label out of 220px of
+ *  viewport for nothing, and moved it from where main draws it. */
 const CHROME_TOP_PX = 90;
 const CHROME_BOTTOM_PX = 130;
 /**
@@ -450,17 +456,18 @@ export function drawMilkyWay(
   // anchors are in the band by construction, so this collision class recurs
   // every time a new object lands in the Milky Way.
   //
-  // Two things spoil an anchor: a drawn object sitting on it, and the page's
-  // own chrome. Stargaze puts a hint line across the top and a credit block
-  // along the bottom, so a label parked there is both hard to read and hard
-  // to click. Both are scored, clear beats crowded, and closeness to the pole
-  // only breaks ties within a tier. If EVERY anchor is spoiled we still take
+  // Two things spoil an anchor: a drawn object sitting on it, and, while
+  // stargazing, the page's own chrome. Stargaze puts a hint line across the
+  // top and a credit block along the bottom, so a label parked there is both
+  // hard to read and hard to click; the ordinary page has neither fixed to
+  // the viewport, so it scores objects alone. Both are scored, clear beats
+  // crowded, and closeness to the pole only breaks ties within a tier. If EVERY anchor is spoiled we still take
   // the closest rather than drop the label: a band a visitor has to hunt to
   // click still beats an unlabelled one.
   ctx.font = `9px ${v.fontFamily}`;
   const labelHalfW = ctx.measureText("Milky Way").width / 2;
   const spoiled = (p: { x: number; y: number }) => {
-    if (p.y < CHROME_TOP_PX || p.y > v.height - CHROME_BOTTOM_PX) return true;
+    if (v.colour && (p.y < CHROME_TOP_PX || p.y > v.height - CHROME_BOTTOM_PX)) return true;
     return avoid.some((o) => Math.hypot(o.x - (p.x + labelHalfW), o.y - p.y) < LABEL_CLEARANCE_PX);
   };
   let best: { x: number; y: number } | null = null;

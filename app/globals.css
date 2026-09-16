@@ -37,6 +37,11 @@ body[data-stargaze] main {
 }
 html:has(body[data-stargaze]) { overflow: hidden; }
 body[data-stargaze] [data-sky-credit] { position: fixed; inset-inline: 0; bottom: 0; }
+/* The credit's colour clause: the objects draw in sourced colour only while
+   stargazing, so the sentence claiming long-exposure colour shows only there
+   (final review m5). CSS, not JS, like the motion wording beside it. */
+[data-sky-credit-colour] { display: none; }
+body[data-stargaze] [data-sky-credit-colour] { display: inline; }
 /* Stargaze: a touch drag pans the sky (NightSky, spec 2026-09-15 §3), so the
    browser must not claim it for scrolling or pinch-zoom first. */
 html:has(body[data-stargaze]), body[data-stargaze] { touch-action: none; }

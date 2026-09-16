@@ -791,16 +791,23 @@ export const copy = {
     /** The screen-reader name of the stargaze keyboard list (NightSky, F2):
      *  one button per selectable currently on screen. */
     listLabel: "On screen now",
-    /** The colour clause (colour round task 7) rides inside the existing
-     *  not-to-scale sentence rather than adding a fourth one: the line was
-     *  already long. "Every position is real" then stands alone, where it
-     *  answers the size claim and the colour claim at once. The grey is
-     *  sourced (Chakraborty et al. 2015, .superpowers/sdd/colour-sources.md,
-     *  "Milky Way band"): at that brightness the eye is running on rods. */
+    /** ⚠️ `credit` and `creditStill` stop mid-sentence, after the size claim.
+     *  `creditColour` and `creditTail` finish it, and the colour clause is a
+     *  span the page shows only while stargazing (app/globals.css, the same
+     *  CSS-only trick as the motion wording above). This credit renders on
+     *  EVERY page in ordinary document flow, where the sky draws in greys, so
+     *  claiming long-exposure colour there described something the visitor
+     *  could not see (final review m5). */
     credit:
-      "The sky over NASA Ames from the moment you arrived, turning 180 times faster than the real one. Stars from the Extended Hipparcos Compilation; lines, Latin names, the Milky Way and the Messier objects from d3-celestial; English names and constellation origins from Wikipedia; spacecraft positions from JPL Horizons; meteor showers from the IMO; the ISS from CelesTrak. Every card cites its sources. The galaxies, nebulae, clusters and the Milky Way's band are drawn far bigger than they'd really look, in colours only a long exposure records; your own eyes would see them grey. Every position is real.",
+      "The sky over NASA Ames from the moment you arrived, turning 180 times faster than the real one. Stars from the Extended Hipparcos Compilation; lines, Latin names, the Milky Way and the Messier objects from d3-celestial; English names and constellation origins from Wikipedia; spacecraft positions from JPL Horizons; meteor showers from the IMO; the ISS from CelesTrak. Every card cites its sources. The galaxies, nebulae, clusters and the Milky Way's band are drawn far bigger than they'd really look",
     creditStill:
-      "The sky over NASA Ames at the moment you arrived. Stars from the Extended Hipparcos Compilation; lines, Latin names, the Milky Way and the Messier objects from d3-celestial; English names and constellation origins from Wikipedia; spacecraft positions from JPL Horizons; meteor showers from the IMO; the ISS from CelesTrak. Every card cites its sources. The galaxies, nebulae, clusters and the Milky Way's band are drawn far bigger than they'd really look, in colours only a long exposure records; your own eyes would see them grey. Every position is real.",
+      "The sky over NASA Ames at the moment you arrived. Stars from the Extended Hipparcos Compilation; lines, Latin names, the Milky Way and the Messier objects from d3-celestial; English names and constellation origins from Wikipedia; spacecraft positions from JPL Horizons; meteor showers from the IMO; the ISS from CelesTrak. Every card cites its sources. The galaxies, nebulae, clusters and the Milky Way's band are drawn far bigger than they'd really look",
+    /** Stargaze only. The grey is sourced (Loh 2006, cited on the Milky Way's
+     *  own card): at that brightness the eye is running on rods. */
+    creditColour: ", in colours only a long exposure records; your own eyes would see them grey",
+    /** Ends the sentence the two credits start, and answers the size claim and
+     *  the colour claim at once. */
+    creditTail: ". Every position is real.",
     /** The stargaze card (components/manuscript/SkyCard.tsx). Numbers and
      *  dates between these fragments come from the data files; the facts
      *  themselves live in content/sky-facts.ts. */

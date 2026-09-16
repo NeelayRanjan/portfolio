@@ -128,6 +128,14 @@ const onCanvas = (p: { x: number; y: number }, v: View, m: number) =>
 
 /** Padding around a name's text box, so a click on the glyphs' edge still lands. */
 const NAME_PAD = 3;
+/** How far down to push a name that would land on one already drawn, and how
+ *  many times to try before giving up and letting it overlap. One line of 9px
+ *  text plus a little air; a handful of tries clears a realistic pile-up
+ *  without letting a label drift so far it stops reading as this object's. */
+const NAME_STACK_STEP_PX = 11;
+const NAME_STACK_TRIES = 4;
+const boxesOverlap = (a: Box, b: Box) =>
+  a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 /** How far the Milky Way's label centre must clear a drawn object's symbol
  *  before that anchor counts as usable. Comfortably past the widest on-symbol
  *  hit radius (a big glyph's `core`, capped at 12) so the band's box, and not
@@ -535,6 +543,9 @@ export function drawObjects(
 ): Hit[] {
   const c = v.chart;
   const hits: Hit[] = [];
+  /** Name boxes already placed this frame, so a later name can step down past
+   *  them instead of printing on top (see the nudge loop below). */
+  const drawnNameBoxes: Box[] = [];
   ctx.lineWidth = 1;
   ctx.font = `9px ${v.fontFamily}`;
   for (const o of objects) {
@@ -643,10 +654,24 @@ export function drawObjects(
       // galaxies/nebulae/clusters, "clutter" follow-up); everything else
       // keeps the original fixed 8px.
       const dx = o.symbol === "field" ? 0 : glyph ? Math.max(8, glyph.corePx + 8) : 8;
-      hit.box = nameBox(ctx, o.name, p.x + dx, p.y + 3, 9);
+      // Nudge a name down until it clears the ones already drawn this frame.
+      // Two objects a fraction of a degree apart otherwise print their labels
+      // on top of each other into an unreadable smear: the Double Cluster's
+      // two halves did exactly that once the catalog gained them (colour
+      // round, 2026-09-15), and the same goes for M81 and M82, four px apart.
+      // Each name also carries its own hit box, so overlapping boxes make the
+      // upper name unclickable as well as unreadable.
+      let baseline = p.y + 3;
+      for (let attempt = 0; attempt < NAME_STACK_TRIES; attempt++) {
+        const b = nameBox(ctx, o.name, p.x + dx, baseline, 9);
+        if (!drawnNameBoxes.some((q) => boxesOverlap(b, q))) break;
+        baseline += NAME_STACK_STEP_PX;
+      }
+      hit.box = nameBox(ctx, o.name, p.x + dx, baseline, 9);
+      drawnNameBoxes.push(hit.box);
       if (o.id !== v.suppressName) {
         ctx.fillStyle = human ? `rgba(${WARM},0.75)` : `rgba(${MUT},0.7)`;
-        ctx.fillText(o.name, p.x + dx, p.y + 3);
+        ctx.fillText(o.name, p.x + dx, baseline);
       }
     }
   }

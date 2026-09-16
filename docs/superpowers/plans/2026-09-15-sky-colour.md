@@ -339,7 +339,19 @@ git commit -m "sky: structured, sourced-colour galaxy renders"
 
 `emission` = M8, M16, M20, M42, NGC 7000, the Flame (NGC 2024). `planetary` = M27, M57. `remnant` = M1, NGC 6960 and NGC 6992. `reflection` = M78 (and the Pleiades' nebulosity, drawn as part of M45's cluster glyph). `dark` = the Horsehead. `globular` = M13. `open` = M44, M45, NGC 869 and NGC 884.
 
-**⚠️ The Veil is the round's false-colour trap (spec R2).** Its famous teal-and-red is the Hubble palette, a narrowband mapping of oxygen, sulphur and hydrogen onto blue, green and red. That is a data visualisation, not the object's appearance. `colour-sources.md` carries the ESA/Hubble source saying so in its own words. Render the Veil in its documented **broadband** colour, which is far more muted and red-dominant, or leave it grey. Do not reach for the image everyone recognises. The same question gets asked of every other emission object before its palette is written; `colour-sources.md` marks which are true broadband (M78's scattering blue and NGC 7000's hydrogen red both are).
+**⚠️ False colour is the hard part of this task. Read `colour-sources.md`'s "Quick reference" table before drawing anything**, and read ruling R-COLOUR-1 in `.superpowers/sdd/sky-colour/progress.md`, which binds you.
+
+Six objects' famous images are narrowband false colour: M1, M57, M16, M82, the Veil, and probably M27. The ruling in short: spec R2 bans reassigning an emission line to a channel it does not belong to (the Hubble palette putting H-alpha on green). It does **not** ban colour that follows the line's own wavelength, because O III at 500.7nm genuinely is blue-green and H-alpha at 656.3nm genuinely is red, and a plain RGB camera records both that way.
+
+So:
+
+- M57, M1, M16, M27, the Veil: colour from **their actual emission lines**, and the card cites the line and its wavelength, never a picture.
+- **M82 stays grey or near-grey.** Its famous colour is X-ray and infrared data, which have no visible colour to fall back on. Do not invent one.
+- **M42** uses the calibrated broadband source, not NASA's false-colour version.
+- **M104** gets bulge and dust lane only. `colour-sources.md` could not source a blue disk, so do not draw one.
+- **M81** uses the true-colour image, never the "pretty in pink" composite.
+
+If you cannot satisfy this for an object, leave it grey and say so in your report. A grey object is a fine outcome; an overstated one is not.
 
 **The Horsehead only reads as a silhouette if something is drawn behind it.** Draw its IC 434 backdrop as part of the same glyph. If that cannot be made to read at this size, fall back to a plain marker and say so rather than shipping a dark smudge on a dark sky.
 

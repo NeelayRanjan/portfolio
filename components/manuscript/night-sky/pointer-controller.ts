@@ -1,5 +1,6 @@
 import { hitRadiusFor, nearestConstellation, nearestHit, type Highlight } from "@/lib/sky-render";
 import { CLICK_SLOP_PX, PAN_LIMIT_FRAC, STARGAZE_PAN_LIMIT_FRAC, rubberBand } from "@/lib/sky-pan";
+import { PAPER_SATURATION } from "@/lib/sky-colour";
 import { isStargazing } from "@/lib/stargaze";
 import type { CardController } from "./card-controller";
 import type { SkyState } from "./state";
@@ -10,11 +11,18 @@ import type { SkyState } from "./state";
  * pen on the desk in normal mode, any pointer anywhere while stargazing; a
  * critically damped spring (lib/sky-pan.ts, advanced by the frame loop)
  * brings the chart home on release. Reduced motion snaps home instead.
+ *
+ * It also decides the colour saturation's target (discoverability spec §3):
+ * 1 while stargazing, 1 in paper mode while the pointer is over the sky
+ * itself, PAPER_SATURATION otherwise and always on a device with no hover.
+ * The frame loop eases toward it; reduced motion snaps.
  */
 
 const HOVER_PX = 24;
 /** Never start a pan on these: the page's own controls, and (Task 5) the card. */
 const PAN_BLOCKERS = "a, button, input, select, textarea, label, summary, [role='button'], [data-sky-card]";
+/** Not the sky, for the colour target: the page's controls, the sheet, the credit line. */
+const NOT_SKY = `${PAN_BLOCKERS}, [data-sheet], [data-sky-credit]`;
 
 export type PointerControllerDeps = {
   cards: Pick<CardController, "openCard" | "closeCard">;
@@ -43,6 +51,37 @@ export function createPointerController(s: SkyState, deps: PointerControllerDeps
     if (hit) return { kind: "hit", id: hit.id, pointer: { x, y } };
     const abbr = nearestConstellation(s.projected, x, y, HOVER_PX);
     return abbr ? { kind: "constellation", id: abbr, pointer: { x, y } } : null;
+  };
+  /**
+   * Recomputes where saturation is heading. Reduced motion jumps straight
+   * there and repaints (no loop is running to ease it); otherwise the frame
+   * loop picks up the change on its next step.
+   *
+   * `window.__skySaturationOverride` (a number) replaces the target outright.
+   * It is a verify hook for scripts/verify-redesign.mjs, which needs the
+   * saturation-0 frame at the same pixels to measure paper mode's colour as a
+   * difference; nothing on the site sets it.
+   */
+  const updateSaturationTarget = () => {
+    const forced = (window as Window & { __skySaturationOverride?: unknown }).__skySaturationOverride;
+    const target =
+      typeof forced === "number"
+        ? forced
+        : isStargazing() || (s.pointerOverSky && !s.noHoverQ.matches)
+          ? 1
+          : PAPER_SATURATION;
+    if (target === s.saturationTarget && (s.running || s.saturation === target)) return;
+    s.saturationTarget = target;
+    if (s.reducedQ.matches || !s.running) {
+      s.saturation = target;
+      s.saturationLast = 0;
+      paint();
+    }
+  };
+  const setPointerOverSky = (over: boolean) => {
+    if (over === s.pointerOverSky) return;
+    s.pointerOverSky = over;
+    updateSaturationTarget();
   };
   const setHighlight = (next: Highlight | null) => {
     if (next === null && s.highlight === null) return;
@@ -87,6 +126,8 @@ export function createPointerController(s: SkyState, deps: PointerControllerDeps
       // Capture is a nicety (a release outside the window still ends the drag); never fatal.
     }
     document.documentElement.style.cursor = "grabbing";
+    // Holding the sky is being over it, wherever the pointer wanders mid-drag.
+    setPointerOverSky(true);
     setHighlight(null);
   };
   const onPointerMove = (e: PointerEvent) => {
@@ -106,6 +147,10 @@ export function createPointerController(s: SkyState, deps: PointerControllerDeps
       return; // hover is suspended while dragging
     }
     if (e.pointerType === "touch") return;
+    if (!drag) {
+      const el = e.target instanceof Element ? e.target : null;
+      setPointerOverSky(!el?.closest(NOT_SKY) && !sheetContains(e.clientX, e.clientY));
+    }
     // Over the open card: nothing under it is being pointed at.
     if (e.target instanceof Element && e.target.closest("[data-sky-card]")) return setHighlight(null);
     setHighlight(pick(e.clientX, e.clientY, e.pointerType));
@@ -153,9 +198,15 @@ export function createPointerController(s: SkyState, deps: PointerControllerDeps
   const onLostCapture = (e: PointerEvent) => {
     if (s.drag && e.pointerId === s.drag.id) finishDrag(null);
   };
-  const onBlur = () => finishDrag(null);
+  const onBlur = () => {
+    finishDrag(null);
+    setPointerOverSky(false);
+  };
   const onPointerLeave = () => {
-    if (!s.drag) setHighlight(null);
+    if (!s.drag) {
+      setHighlight(null);
+      setPointerOverSky(false);
+    }
   };
   /** Leaving stargaze with a drag still held: release it without a click or a settle. */
   const endHeldDragForExit = () => {
@@ -195,5 +246,5 @@ export function createPointerController(s: SkyState, deps: PointerControllerDeps
     document.documentElement.removeEventListener("lostpointercapture", onLostCapture);
   };
 
-  return { setHighlight, settleOffset, endHeldDragForExit, attach, detach };
+  return { setHighlight, settleOffset, endHeldDragForExit, updateSaturationTarget, setPointerOverSky, attach, detach };
 }

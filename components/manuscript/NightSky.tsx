@@ -65,7 +65,14 @@ import { createSkyState } from "./night-sky/state";
  * - pointer-controller.ts: hover, drag to pan, the stargaze click.
  * - layer-loaders.ts: every fetch behind the sky.
  *
- * `window.__sky` is a read-only snapshot for scripts/verify-redesign.mjs.
+ * - Colour (discoverability spec §3): the deep-sky objects and the band draw
+ *   their sourced colour at PAPER_SATURATION on the page and at full
+ *   saturation while stargazing or while the pointer is over the sky; the
+ *   pointer controller picks the target, the frame loop eases toward it on
+ *   real elapsed ms, reduced motion snaps.
+ *
+ * `window.__sky` is a read-only snapshot for scripts/verify-redesign.mjs;
+ * `window.__skySaturationOverride` is that script's one write hook.
  */
 
 export function NightSky() {
@@ -175,6 +182,7 @@ export function NightSky() {
 
     resize();
     resolveFont();
+    pointer.updateSaturationTarget(); // mounted mid-stargaze: start at full colour
     paint();
     loop.applyMode();
 
@@ -196,7 +204,13 @@ export function NightSky() {
         // however stargaze was left: the exit button, Escape, or anything
         // else, all of which funnel through setStargazing(false).
         pointer.settleOffset();
+        // The exit control is under the pointer, which is not the sky; the
+        // next pointer move says where it really is.
+        s.pointerOverSky = false;
       }
+      // Stargaze's full colour, or back to paper's: eased by the frame loop,
+      // snapped under reduced motion.
+      pointer.updateSaturationTarget();
       paint();
       if (on) list.startList();
       else list.stopList();

@@ -25,6 +25,7 @@ import type {
 } from "./sky-objects";
 import { SPIRAL_DR, SPIRAL_R0, SPIRAL_TURNS } from "./sky-objects";
 import { project, type Chart, type Equatorial } from "./sky-math";
+import { lerpNum, lerpRgb, saturateRgb } from "./sky-colour";
 
 /** A rectangle, CSS px, top-left + size. */
 export type Box = { x: number; y: number; w: number; h: number };
@@ -49,7 +50,10 @@ const WARM = "217,164,91";
 const D2R = Math.PI / 180;
 
 /** Sourced long-exposure colours, "r,g,b" so each draw site picks its own
- *  alpha (same shape as INK/MUT/WARM). Stargaze only. Sources:
+ *  alpha (same shape as INK/MUT/WARM). Drawn at FULL strength while
+ *  stargazing or while the pointer is over the sky, and mixed toward each
+ *  colour's own luminance in paper mode (View.saturation, `paletteFor`
+ *  below). Sources:
  *  .superpowers/sdd/colour-sources.md.
  *
  *  ⚠️ The contract: every entry here traces to a sentence on a page that
@@ -287,12 +291,11 @@ const MILKY_WAY_LEVEL_ALPHA = [0.02, 0.024, 0.03, 0.038, 0.05];
  *  brighter toward the core, not just the wash underneath it. */
 const MILKY_WAY_GRAIN_ALPHA = [0.05, 0.07, 0.1, 0.15, 0.22];
 /**
- * Stargaze-only colour ramp for the band's own five levels (li 0 faint/outer
- * to li 4 bright/inner), "r,g,b" strings like INK/MUT/WARM so each draw site
- * appends its own alpha. `colour: false` still paints plain INK at every
- * level (see the draw sites below): this array is read only when stargaze's
- * colour is on, so normal mode is byte-identical to before this ramp
- * existed.
+ * Colour ramp for the band's own five levels (li 0 faint/outer to li 4
+ * bright/inner), "r,g,b" strings like INK/MUT/WARM so each draw site appends
+ * its own alpha. Saturation 0 still paints plain INK at every level (see the
+ * draw sites below), so the grey chart is byte-identical to before this ramp
+ * existed. (The band itself lerps toward MILKY_WAY_LEVEL_RGB_STARGAZE below.)
  *
  * Source: .superpowers/sdd/colour-sources.md, "Milky Way band" section.
  * That section's photographed description is "yellowish-white galactic
@@ -343,10 +346,58 @@ export type View = {
   height: number;
   fontFamily: string;
   names: boolean;
-  /** Stargaze only; false means draw today's greys. */
-  colour: boolean;
+  /**
+   * How much of the sourced colour draws, 0..1 (discoverability spec §3).
+   * 0 is the grey chart exactly as it drew before colour existed (the plain
+   * glyphs, INK band); anything above 0 takes the coloured draw paths with
+   * every palette colour mixed toward its own luminance by `1 - saturation`,
+   * and 1 is the full stargaze colour. The ends are pinned byte for byte by
+   * scripts/test-sky-objects.mjs.
+   */
+  saturation: number;
+  /** Stargaze's fixed chrome (the hint bar, the credit block) is on screen,
+   *  so the band's label keeps clear of it. Was read off `colour` when
+   *  colour meant stargaze; the two are separate now. */
+  stargazeChrome: boolean;
   suppressName: string | null;
 };
+
+/**
+ * The saturation-dependent colour strings, rebuilt only when saturation
+ * changes (the paint loop runs ~20 fps and the value rests for seconds at a
+ * time; during a ~300ms ease it changes every frame, and 45 small palettes
+ * plus ten band strings is still cheap). Deterministic, so a module-level
+ * memo keeps sky-render pure in every sense that matters.
+ */
+let memoS = Number.NaN;
+let memoPalettes = new Map<string, ObjectPalette>();
+let memoBandRgb: string[] = [];
+let memoBandGain = 1;
+function colourMemo(s: number): void {
+  if (s === memoS) return;
+  memoS = s;
+  memoPalettes = new Map();
+  for (const [id, pal] of Object.entries(OBJECT_COLOURS)) {
+    if (s >= 1) {
+      memoPalettes.set(id, pal);
+      continue;
+    }
+    const out: ObjectPalette = { base: saturateRgb(pal.base, s) };
+    if (pal.core !== undefined) out.core = saturateRgb(pal.core, s);
+    if (pal.accent !== undefined) out.accent = saturateRgb(pal.accent, s);
+    if (pal.accent2 !== undefined) out.accent2 = saturateRgb(pal.accent2, s);
+    memoPalettes.set(id, out);
+  }
+  memoBandRgb = MILKY_WAY_LEVEL_RGB_STARGAZE.map((rgb) => lerpRgb(INK, rgb, s));
+  memoBandGain = lerpNum(1, MILKY_WAY_STARGAZE_ALPHA_GAIN, s);
+}
+/** The palette an object draws with at this view's saturation, or null for
+ *  the plain grey glyph (saturation 0, or no sourced palette: M82). */
+function paletteFor(v: View, id: string): ObjectPalette | null {
+  if (!(v.saturation > 0)) return null;
+  colourMemo(v.saturation);
+  return memoPalettes.get(id) ?? null;
+}
 const onCanvas = (p: { x: number; y: number }, v: View, m: number) =>
   p.x > -m && p.x < v.width + m && p.y > -m && p.y < v.height + m;
 
@@ -370,7 +421,7 @@ const LABEL_CLEARANCE_PX = 30;
  *  read nor hard to click. Generous on the bottom because the credit wraps to
  *  three lines on a narrow window.
  *
- *  ⚠️ Stargaze ONLY, and the code below gates them on v.colour for that
+ *  ⚠️ Stargaze ONLY, and the code below gates them on v.stargazeChrome for that
  *  reason (final review m6). On the ordinary page there is no fixed hint bar
  *  and the credit sits at the bottom of the document rather than the
  *  viewport, so applying these there pushed the label out of 220px of
@@ -410,11 +461,11 @@ export function drawMilkyWay(
     const phi = raRad - lst;
     return { x: c.cx + rho * Math.sin(phi), y: c.cy - rho * Math.cos(phi) };
   };
-  const bandRgb = (li: number) =>
-    v.colour
-      ? (MILKY_WAY_LEVEL_RGB_STARGAZE[li] ?? MILKY_WAY_LEVEL_RGB_STARGAZE[MILKY_WAY_LEVEL_RGB_STARGAZE.length - 1])
-      : INK;
-  const bandGain = v.colour ? MILKY_WAY_STARGAZE_ALPHA_GAIN : 1;
+  // Hue lerps INK -> the stargaze tan and the alpha gain 1 -> 2.6, both by
+  // saturation: 0 is plain INK at gain 1, 1 is the stargaze band.
+  colourMemo(v.saturation);
+  const bandRgb = (li: number) => memoBandRgb[li] ?? memoBandRgb[memoBandRgb.length - 1];
+  const bandGain = memoBandGain;
   mw.levels.forEach((rings, li) => {
     ctx.fillStyle = `rgba(${bandRgb(li)},${(MILKY_WAY_LEVEL_ALPHA[li] ?? 0.03) * bandGain})`;
     ctx.beginPath();
@@ -467,7 +518,7 @@ export function drawMilkyWay(
   ctx.font = `9px ${v.fontFamily}`;
   const labelHalfW = ctx.measureText("Milky Way").width / 2;
   const spoiled = (p: { x: number; y: number }) => {
-    if (v.colour && (p.y < CHROME_TOP_PX || p.y > v.height - CHROME_BOTTOM_PX)) return true;
+    if (v.stargazeChrome && (p.y < CHROME_TOP_PX || p.y > v.height - CHROME_BOTTOM_PX)) return true;
     return avoid.some((o) => Math.hypot(o.x - (p.x + labelHalfW), o.y - p.y) < LABEL_CLEARANCE_PX);
   };
   let best: { x: number; y: number } | null = null;
@@ -526,9 +577,8 @@ const SPIRAL_ARMS = [buildSpiralArm(false), buildSpiralArm(true)];
  *  drawn last, outside the rotate/scale, so it stays round instead of
  *  squashed onto the galaxy's minor axis.
  *
- *  This is what every galaxy draws with no palette, which is every galaxy
- *  outside stargaze: the colour round changes nothing about the page's
- *  ordinary look. */
+ *  This is what every galaxy draws with no palette: at saturation 0, and
+ *  M82 at every saturation. */
 function drawPlainGalaxy(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, g: GalaxyGlyph): void {
   ctx.save();
   ctx.translate(p.x, p.y);
@@ -552,7 +602,7 @@ function drawPlainGalaxy(ctx: CanvasRenderingContext2D, p: { x: number; y: numbe
   ctx.fill();
 }
 
-/* --- the coloured variants (stargaze only) ---------------------------- *
+/* --- the coloured variants (any saturation above 0) ------------------- *
  *
  * Alpha discipline: this is a dim chart on a near-black desk, not a poster.
  * Every fill below is low-alpha and STACKS, which is how a body gets brighter
@@ -990,7 +1040,7 @@ export function drawObjects(
     switch (o.symbol) {
       case "galaxy": {
         if (glyph && glyph.kind === "galaxy") {
-          drawGalaxyGlyph(ctx, p, glyph, v.colour ? (OBJECT_COLOURS[o.id] ?? null) : null);
+          drawGalaxyGlyph(ctx, p, glyph, paletteFor(v, o.id));
           break;
         }
         // Fallback for a galaxy the size table doesn't (yet) know about.
@@ -1002,7 +1052,7 @@ export function drawObjects(
       }
       case "nebula": {
         if (glyph && glyph.kind === "nebula") {
-          drawNebulaGlyph(ctx, p, glyph, v.colour ? (OBJECT_COLOURS[o.id] ?? null) : null);
+          drawNebulaGlyph(ctx, p, glyph, paletteFor(v, o.id));
           break;
         }
         ctx.beginPath();
@@ -1015,7 +1065,7 @@ export function drawObjects(
       }
       case "cluster": {
         if (glyph && glyph.kind === "cluster") {
-          drawClusterGlyph(ctx, p, glyph, v.colour ? (OBJECT_COLOURS[o.id] ?? null) : null);
+          drawClusterGlyph(ctx, p, glyph, paletteFor(v, o.id));
           break;
         }
         ctx.fillStyle = `rgba(${INK},0.65)`;

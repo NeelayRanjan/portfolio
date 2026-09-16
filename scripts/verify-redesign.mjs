@@ -66,6 +66,7 @@ export async function resolve(specifier, context, nextResolve) {
   import.meta.url,
 );
 const { OBJECT_COLOURS, EMISSION_LINE_COLOURED } = await import("../lib/sky-layers.ts");
+const { PAPER_SATURATION } = await import("../lib/sky-colour.ts");
 
 const BASE = "http://localhost:3000";
 
@@ -2258,7 +2259,7 @@ async function openHitCard(browser, { W, H, date, hitId }) {
 }
 
 /* ---------------------------------------------------------------------- */
-/* colour round (2026-09-15): sourced colour, stargaze only                */
+/* sourced colour: muted on the page, full over the sky and in stargaze  */
 /* ---------------------------------------------------------------------- */
 
 /**
@@ -2277,157 +2278,365 @@ const COLOURED_IDS = Object.keys(OBJECT_COLOURS);
 const DEEP_SKY_IDS = OBJECTS_DATA.objects.filter((o) => ["galaxy", "nebula", "cluster"].includes(o.symbol)).map((o) => o.id);
 
 /**
- * A square of canvas centred on a drawn hit, in CSS px, for each of `ids`
- * that is drawn and fully on screen. The point is taken from
- * `window.__sky.hits` rather than hardcoded, so a catalog or projection
- * change moves the sample with the object instead of silently sampling bare
- * sky. Returns the raw RGBA plus the device-pixel rect, so the same rect can
- * be re-read in the other mode and compared pixel for pixel.
+ * Thresholds, calibrated on this build at SKY_COLOUR_INSTANT (2026-09-16,
+ * PAPER_SATURATION 0.25), each with room on both sides of what it measured.
+ * Chroma shift is the distance a pixel's chroma vector (channels minus their
+ * own luminance) moves away from the saturation-0 frame at the same pixel.
+ * - stargaze moved it 37-80 at each object's most-moved pixel: floor 25.
+ * - paper moved it 7.2-22.5: floor 4, and paper sat 14-44% of the way from
+ *   saturation 0 to stargaze: ceiling 70%.
+ * - hovered sky matched stargaze exactly (0): tolerance 2.
+ * - M82's centre measured channel spread 15 in all four states: ceiling 24
+ *   (the grey chart's own cream INK), and at most 3 between states.
+ * - the band's mean luminance rose 1.72 from 0 to paper (floor 0.5); its mean
+ *   warmth did NOT move (4.02 -> 4.02) and rose 3.02 from paper to stargaze
+ *   (floor 1.5).
+ * - the ease settled in 299-300ms over 18 painted in-between values; the idle
+ *   20 fps gate would paint about 6, so fewer than 10 means the gate did not rise.
  */
-function sampleObjectDiscs(page, ids, r) {
-  return page.evaluate(
-    ([sel, ids, r]) => {
-      const c = document.querySelector(sel);
-      const s = c.width / window.innerWidth;
-      const g = c.getContext("2d");
-      const out = {};
-      for (const h of window.__sky.hits) {
-        if (!ids.includes(h.id)) continue;
-        const x0 = Math.round((h.x - r) * s);
-        const y0 = Math.round((h.y - r) * s);
-        const n = Math.round(2 * r * s) + 1;
-        if (x0 < 0 || y0 < 0 || x0 + n > c.width || y0 + n > c.height) continue;
-        out[h.id] = { x: h.x, y: h.y, x0, y0, n, data: [...g.getImageData(x0, y0, n, n).data] };
-      }
-      return out;
-    },
-    [SKY_CANVAS, ids, r],
-  );
-}
-/** How far apart a pixel's channels are: 0 is grey, 255 is fully saturated. */
-const chromaAt = (data, i) => Math.max(data[i], data[i + 1], data[i + 2]) - Math.min(data[i], data[i + 1], data[i + 2]);
-/** The most chromatic pixel of a sampled square, with where it is. */
-function worstChroma(disc) {
-  let best = 0;
-  let at = 0;
-  for (let i = 0; i < disc.data.length; i += 4) {
-    const c = chromaAt(disc.data, i);
-    if (c > best) {
-      best = c;
-      at = i;
-    }
-  }
-  const px = (at / 4) % disc.n;
-  return { chroma: best, i: at, x: disc.x0 + px, y: disc.y0 + Math.floor(at / 4 / disc.n), rgb: disc.data.slice(at, at + 3).join(",") };
-}
-/**
- * Measured on this build, ten objects at SKY_COLOUR_INSTANT: with colour off
- * the most chromatic pixel anywhere in a 10px disc was 9-15; with colour on
- * the most chromatic pixel that had been neutral was 41-112. The two
- * thresholds sit inside that gap, each with room on its own side, so neither
- * a faint tint leaking into normal mode nor colour quietly vanishing in
- * stargaze can pass.
- */
-const NEUTRAL_MAX_CHROMA = 24;
-const CHROMATIC_MIN_CHROMA = 30;
+const STARGAZE_MIN_CHROMA_SHIFT = 25;
+const PAPER_MIN_CHROMA_SHIFT = 4;
+const PAPER_MAX_ALONG = 0.7;
+const HOVER_STARGAZE_TOLERANCE = 2;
+const M82_NEUTRAL_MAX_CHROMA = 24;
+const M82_MAX_STATE_SPREAD = 3;
+const BAND_MIN_WARMTH_GAIN = 1.5;
+const BAND_MIN_LUM_GAIN = 0.5;
+const EASE_MIN_PAINTED_STEPS = 10;
+const EASE_MAX_SETTLE_MS = 500;
+/** Not the sky, for the colour target: mirrors pointer-controller.ts's NOT_SKY. */
+const NOT_SKY_SELECTOR = "a, button, input, select, textarea, label, summary, [role='button'], [data-sky-card], [data-sheet], [data-sky-credit]";
 /** 10 CSS px: inside the drawn glyph for all three enlarged families, and
  *  clear of the always-on name that sits beside the symbol. */
 const COLOUR_DISC_R = 10;
+/** How far a band pixel must sit from every drawn hit to count as band, not object. */
+const BAND_CLEAR_PX = 25;
 
 /**
- * Task 8 step 1: colour is stargaze-only, asserted from both sides at the
- * same points, the way Figure 1's hidden-model contract is asserted from both
- * sides. The clock is pinned and motion reduced (sky-hover's lesson), so the
- * chart cannot turn between the two reads and the sample squares are the same
- * canvas pixels in both modes.
+ * Copies the whole sky canvas into `window.__colourFrames[name]`, in the page,
+ * so the check can compare several saturation states pixel for pixel without
+ * shipping megabytes of RGBA through the protocol.
+ */
+function snapSky(page, name) {
+  return page.evaluate(
+    ([sel, name]) => {
+      const c = document.querySelector(sel);
+      window.__colourFrames ??= {};
+      window.__colourFrames[name] = c.getContext("2d").getImageData(0, 0, c.width, c.height).data.slice();
+      return window.__sky.saturation;
+    },
+    [SKY_CANVAS, name],
+  );
+}
+
+/**
+ * Discoverability task 3: saturation replaced the colour flag, so paper mode
+ * is no longer grey. What this asserts, every number a DIFFERENCE between
+ * two states at the same canvas pixels (CLAUDE.md, "Hue cannot survive low
+ * alpha"):
  *
- * ⚠️ M82 is NOT a pixel control here even though it is the palette table's
- * one deliberate omission: it is drawn 4.7px from M81 at this instant, so any
- * disc around it is mostly M81's colour. Its gate is the card's colour note
- * (checkStargazeCard below), where the two are separable.
+ * - paper mode draws MORE colour than saturation 0 would at the same pixels
+ *   (the 0 frame comes from the `__skySaturationOverride` verify hook) and
+ *   LESS than stargaze;
+ * - the pointer over the sky lifts it to stargaze's level, and moving onto
+ *   the sheet brings it back down to paper's exact pixels;
+ * - the band's warmth follows the same order;
+ * - M82, the one deep-sky object with no palette, stays neutral in every state.
+ *
+ * Reduced motion, pinned clock (sky-hover's lesson): the chart cannot turn
+ * between reads and every state change snaps, so each frame is final. A
+ * second, motion-on page then asserts the ease itself.
  */
 async function checkSkyColour(browser) {
   const W = 1600;
   const H = 1000;
-  return pinnedSkyPage(browser, { W, H, date: SKY_COLOUR_INSTANT }, async (page) => {
+  const pixels = await pinnedSkyPage(browser, { W, H, date: SKY_COLOUR_INSTANT }, async (page) => {
     await waitStargazeReady(page);
-
-    const off = await sampleObjectDiscs(page, COLOURED_IDS, COLOUR_DISC_R);
-    const ids = Object.keys(off).sort();
-    if (ids.length < 6) {
-      const drawn = await page.evaluate(() => window.__sky.hits.map((h) => h.id));
-      throw new Error(
-        `only ${ids.length} of the ${COLOURED_IDS.length} coloured objects (${ids.join(", ") || "none"}) are fully on a ${W}x${H} canvas at ${SKY_COLOUR_INSTANT.toISOString()}; drawn hits were ${drawn.join(", ")} — pick another SKY_COLOUR_INSTANT`,
-      );
-    }
-    const familyOf = (id) => OBJECTS_DATA.objects.find((o) => o.id === id)?.symbol;
-    const families = new Set(ids.map(familyOf));
-    for (const want of ["galaxy", "nebula", "cluster"]) {
-      if (!families.has(want)) {
-        throw new Error(`no ${want} among the sampled coloured objects (${ids.map((id) => `${id}:${familyOf(id)}`).join(", ")}); the check would not cover that family's draw path`);
+    const satState = () => page.evaluate(() => ({ saturation: window.__sky.saturation, target: window.__sky.saturationTarget }));
+    const expectSat = async (v, why) => {
+      try {
+        await page.waitForFunction((v) => window.__sky.saturation === v, v, { timeout: 5000 });
+      } catch {
+        throw new Error(`${why}: window.__sky.saturation is ${JSON.stringify(await satState())}, expected ${v}`);
       }
+    };
+    const initial = await satState();
+    if (initial.saturation !== PAPER_SATURATION) {
+      throw new Error(`paper mode at rest should draw at PAPER_SATURATION ${PAPER_SATURATION}, window.__sky reports ${JSON.stringify(initial)}`);
     }
 
-    // Side 1: colour off. Nothing inside any of those squares may be coloured.
-    const neutral = {};
-    for (const id of ids) {
-      const w = worstChroma(off[id]);
-      neutral[id] = w;
-      if (w.chroma > NEUTRAL_MAX_CHROMA) {
-        throw new Error(
-          `colour is off, but ${id}'s disc has a coloured pixel: rgb(${w.rgb}) at device px (${w.x}, ${w.y}), channel spread ${w.chroma} over the ${NEUTRAL_MAX_CHROMA} neutral tolerance`,
-        );
+    // Two points on the sheet (alternated, so each move really moves), and
+    // one point on the bare sky that highlights nothing in either mode.
+    const sheetPts = await page.evaluate((sel) => {
+      const r = document.querySelector("[data-sheet]").getBoundingClientRect();
+      const pts = [
+        { x: r.left + r.width / 2, y: Math.max(r.top, 0) + 240 },
+        { x: r.left + r.width / 2 + 40, y: Math.max(r.top, 0) + 260 },
+      ];
+      return pts.map((p) => ({ ...p, onSheet: !!document.elementFromPoint(p.x, p.y)?.closest(sel) }));
+    }, "[data-sheet]");
+    if (!sheetPts.every((p) => p.onSheet)) throw new Error(`sheet sample points ${JSON.stringify(sheetPts)} are not over [data-sheet]`);
+    const toSheet = async (i) => page.mouse.move(sheetPts[i].x, sheetPts[i].y);
+
+    let skyPt = null;
+    const tried = [];
+    for (const x of [60, 150, 240, W - 240, W - 150, W - 60]) {
+      for (const y of [220, 420, 620, 820]) {
+        const el = await page.evaluate(([x, y, sel]) => {
+          const e = document.elementFromPoint(x, y);
+          return { tag: e?.tagName ?? null, blocked: !!e?.closest(sel) };
+        }, [x, y, NOT_SKY_SELECTOR]);
+        if (el.blocked) {
+          tried.push(`(${x},${y}) over ${el.tag}`);
+          continue;
+        }
+        await toSheet(0);
+        await page.mouse.move(x, y);
+        const st = await page.evaluate(() => ({ s: window.__sky.saturation, h: window.__sky.highlight }));
+        if (st.h !== null) {
+          tried.push(`(${x},${y}) highlights ${st.h}`);
+          continue;
+        }
+        if (st.s !== 1) throw new Error(`the pointer at (${x}, ${y}) is over ${el.tag}, not the sheet or a control, but saturation is ${st.s}, not 1`);
+        skyPt = { x, y };
+        break;
       }
+      if (skyPt) break;
     }
+    if (!skyPt) throw new Error(`no bare-sky point with nothing highlighted: ${tried.join("; ")}`);
 
+    // Paper.
+    await toSheet(0);
+    await expectSat(PAPER_SATURATION, "moving from the sky onto the sheet");
+    await snapSky(page, "paper");
+    // Saturation 0 at the same pixels, through the verify hook.
+    // (The hook is read when the target is recomputed, which a move from the
+    // sheet onto the sky does; the pointer's highlight is null there.)
+    await page.evaluate(() => (window.__skySaturationOverride = 0));
+    await page.mouse.move(skyPt.x, skyPt.y);
+    await expectSat(0, "with __skySaturationOverride = 0 and the pointer moved onto the sky");
+    await snapSky(page, "grey");
+    await page.evaluate(() => delete window.__skySaturationOverride);
+    await toSheet(0);
+    await expectSat(PAPER_SATURATION, "after clearing __skySaturationOverride");
+    // Hovered sky, then back onto the sheet.
+    await page.mouse.move(skyPt.x, skyPt.y);
+    await expectSat(1, `pointer over the sky at (${skyPt.x}, ${skyPt.y})`);
+    await snapSky(page, "hover");
+    await toSheet(1);
+    await expectSat(PAPER_SATURATION, "pointer moved back onto the sheet");
+    await snapSky(page, "lowered");
+    // Stargaze, pointer parked on the same bare sky.
     await page.getByRole("button", { name: STARGAZE_ENTER }).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
-    const on = await sampleObjectDiscs(page, COLOURED_IDS, COLOUR_DISC_R);
-
-    // Side 2: colour on, at the SAME pixels. Each object must own a pixel that
-    // was neutral a moment ago and is chromatic now.
-    const notes = [];
-    for (const id of ids) {
-      const a = off[id];
-      const b = on[id];
-      if (!b) throw new Error(`${id} was drawn with colour off but is not among the hits in stargaze`);
-      if (b.x0 !== a.x0 || b.y0 !== a.y0) {
-        throw new Error(`${id} moved from (${a.x.toFixed(1)}, ${a.y.toFixed(1)}) to (${b.x.toFixed(1)}, ${b.y.toFixed(1)}) on entering stargaze; the two samples are not the same pixels`);
-      }
-      let best = { chroma: -1, i: -1 };
-      for (let i = 0; i < b.data.length; i += 4) {
-        // Only pixels this check already proved neutral with colour off, so a
-        // star's own B-V tint (which is not a stargaze feature) can never be
-        // what passes this.
-        if (chromaAt(a.data, i) > NEUTRAL_MAX_CHROMA) continue;
-        const c = chromaAt(b.data, i);
-        if (c > best.chroma) best = { chroma: c, i };
-      }
-      if (best.chroma < CHROMATIC_MIN_CHROMA) {
-        throw new Error(
-          `${id} (${familyOf(id)}) draws no colour in stargaze: its most chromatic previously-neutral pixel is rgb(${b.data.slice(best.i, best.i + 3).join(",")}), channel spread ${best.chroma}, under the ${CHROMATIC_MIN_CHROMA} threshold (worst pixel with colour off was ${neutral[id].chroma})`,
-        );
-      }
-      const px = (best.i / 4) % b.n;
-      notes.push(`${id} (${px + b.x0}, ${Math.floor(best.i / 4 / b.n) + b.y0}) rgb(${a.data.slice(best.i, best.i + 3).join(",")})/${chromaAt(a.data, best.i)} -> rgb(${b.data.slice(best.i, best.i + 3).join(",")})/${best.chroma}`);
-    }
-
-    // Side 1 again: leaving stargaze puts the greys back, so the flag really
-    // is what drives it rather than a one-way switch thrown on entry.
+    await page.mouse.move(skyPt.x, skyPt.y);
+    await expectSat(1, "stargazing");
+    const hl = await page.evaluate(() => window.__sky.highlight);
+    if (hl !== null) throw new Error(`in stargaze the pointer at (${skyPt.x}, ${skyPt.y}) highlights ${hl}, which would draw over the samples`);
+    await snapSky(page, "stargaze");
     await page.getByRole("button", { name: STARGAZE_EXIT }).click();
     await page.waitForFunction(() => !document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
-    const back = await sampleObjectDiscs(page, COLOURED_IDS, COLOUR_DISC_R);
-    for (const id of ids) {
-      if (!back[id]) throw new Error(`${id} is not drawn any more after leaving stargaze`);
-      const w = worstChroma(back[id]);
-      if (w.chroma > NEUTRAL_MAX_CHROMA) {
-        throw new Error(`${id} kept a coloured pixel after leaving stargaze: rgb(${w.rgb}) at device px (${w.x}, ${w.y}), channel spread ${w.chroma}`);
-      }
-    }
+    await toSheet(0);
+    await expectSat(PAPER_SATURATION, "after leaving stargaze with the pointer on the sheet");
 
-    const worstOff = Math.max(...ids.map((id) => neutral[id].chroma));
-    return `${ids.length} coloured objects across ${[...families].sort().join("/")}; worst channel spread with colour off ${worstOff} (<= ${NEUTRAL_MAX_CHROMA}), grey again after exit; in stargaze each has a previously-neutral pixel over ${CHROMATIC_MIN_CHROMA}: ${notes.join("; ")}`;
+    return page.evaluate(
+      ([ids, r, bandClear]) => {
+        const f = window.__colourFrames;
+        const c = document.querySelector("body > canvas");
+        const s = c.width / window.innerWidth;
+        const Wd = c.width;
+        const chroma = (d, i) => Math.max(d[i], d[i + 1], d[i + 2]) - Math.min(d[i], d[i + 1], d[i + 2]);
+        const hits = window.__sky.hits;
+        const objects = {};
+        for (const h of hits) {
+          if (!ids.includes(h.id) && h.id !== "m82") continue;
+          const x0 = Math.round((h.x - r) * s);
+          const y0 = Math.round((h.y - r) * s);
+          const n = Math.round(2 * r * s) + 1;
+          if (x0 < 0 || y0 < 0 || x0 + n > c.width || y0 + n > c.height) continue;
+          if (h.id === "m82") {
+            // Its own centre, 3x3: M81 is 4.7px away, so a disc would be M81's colour.
+            const cx = Math.round(h.x * s);
+            const cy = Math.round(h.y * s);
+            const worst = {};
+            for (const k of ["grey", "paper", "hover", "stargaze"]) {
+              let w = 0;
+              for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) w = Math.max(w, chroma(f[k], ((cy + dy) * Wd + cx + dx) * 4));
+              worst[k] = w;
+            }
+            objects.m82 = { worst, rgb: [...f.stargaze.slice((cy * Wd + cx) * 4, (cy * Wd + cx) * 4 + 3)] };
+            continue;
+          }
+          // The pixel whose chroma vector moves furthest between saturation 0 and 1.
+          const cv = (d, i) => {
+            const y = 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+            return [d[i] - y, d[i + 1] - y, d[i + 2] - y];
+          };
+          let best = -Infinity;
+          let at = -1;
+          for (let yy = y0; yy < y0 + n; yy++) {
+            for (let xx = x0; xx < x0 + n; xx++) {
+              const i = (yy * Wd + xx) * 4;
+              const a = cv(f.grey, i);
+              const z = cv(f.stargaze, i);
+              const gain = Math.hypot(z[0] - a[0], z[1] - a[1], z[2] - a[2]);
+              if (gain > best) {
+                best = gain;
+                at = i;
+              }
+            }
+          }
+          objects[h.id] = {
+            px: [(at / 4) % Wd, Math.floor(at / 4 / Wd)],
+            rgb: Object.fromEntries(["grey", "paper", "hover", "lowered", "stargaze"].map((k) => [k, [...f[k].slice(at, at + 3)]])),
+          };
+        }
+        // The band: pixels whose warmth moves between saturation 0 and 1, clear of every object.
+        const warm = (d, i) => d[i] - d[i + 2];
+        const lum = (d, i) => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+        const pts = hits.map((h) => [h.x * s, h.y * s]);
+        const clear = bandClear * s;
+        const band = { grey: [], paper: [], stargaze: [], lumGrey: [], lumPaper: [], lumStargaze: [] };
+        for (let yy = 0; yy < c.height; yy += 2) {
+          for (let xx = 0; xx < c.width; xx += 2) {
+            const i = (yy * Wd + xx) * 4;
+            if (warm(f.stargaze, i) - warm(f.grey, i) < 3) continue;
+            if (pts.some(([px, py]) => Math.abs(px - xx) < clear && Math.abs(py - yy) < clear)) continue;
+            band.grey.push(warm(f.grey, i));
+            band.paper.push(warm(f.paper, i));
+            band.stargaze.push(warm(f.stargaze, i));
+            band.lumGrey.push(lum(f.grey, i));
+            band.lumPaper.push(lum(f.paper, i));
+            band.lumStargaze.push(lum(f.stargaze, i));
+          }
+        }
+        const median = (a) => {
+          const b = [...a].sort((x, y) => x - y);
+          return b.length ? b[b.length >> 1] : null;
+        };
+        const bandStats = { n: band.grey.length };
+        const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
+        for (const [k, v] of Object.entries(band)) {
+          bandStats[k] = median(v);
+          bandStats[`${k}Mean`] = mean(v);
+        }
+        return { objects, band: bandStats };
+      },
+      [COLOURED_IDS, COLOUR_DISC_R, BAND_CLEAR_PX],
+    );
   });
+
+  // --- the pixel assertions ---
+  const ids = Object.keys(pixels.objects).filter((id) => id !== "m82").sort();
+  if (ids.length < 6) throw new Error(`only ${ids.length} coloured objects (${ids.join(", ") || "none"}) fully on a ${W}x${H} canvas at ${SKY_COLOUR_INSTANT.toISOString()}; pick another SKY_COLOUR_INSTANT`);
+  const familyOf = (id) => OBJECTS_DATA.objects.find((o) => o.id === id)?.symbol;
+  const families = new Set(ids.map(familyOf));
+  for (const want of ["galaxy", "nebula", "cluster"]) {
+    if (!families.has(want)) throw new Error(`no ${want} among the sampled coloured objects (${ids.map((id) => `${id}:${familyOf(id)}`).join(", ")})`);
+  }
+  // A pixel's chroma vector: its channels minus its own Rec. 709 luminance.
+  // The grey chart is not chromaless (INK is a cream), so "more colour" is
+  // measured as movement AWAY from the saturation-0 pixel toward the
+  // stargaze pixel, never as raw channel spread.
+  const cv = ([r, g, b]) => {
+    const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return [r - y, g - y, b - y];
+  };
+  const sub = (a, b) => a.map((x, i) => x - b[i]);
+  const norm = (a) => Math.hypot(...a);
+  const dot = (a, b) => a.reduce((s, x, i) => s + x * b[i], 0);
+  const notes = [];
+  for (const id of ids) {
+    const o = pixels.objects[id];
+    const g = cv(o.rgb.grey);
+    const full = sub(cv(o.rgb.stargaze), g);
+    const paper = sub(cv(o.rgb.paper), g);
+    const dFull = norm(full);
+    const dPaper = norm(paper);
+    // How far along the grey -> stargaze line paper sits (0 grey, 1 stargaze).
+    const along = dFull > 0 ? dot(paper, full) / (dFull * dFull) : 0;
+    const dHover = norm(sub(cv(o.rgb.hover), cv(o.rgb.stargaze)));
+    const where = `${id} (${familyOf(id)}) at device px (${o.px.join(", ")}): rgb grey (${o.rgb.grey}), paper (${o.rgb.paper}), hovered (${o.rgb.hover}), back on the sheet (${o.rgb.lowered}), stargaze (${o.rgb.stargaze}); chroma moved ${dPaper.toFixed(1)} from grey in paper, ${dFull.toFixed(1)} in stargaze, paper ${(along * 100).toFixed(0)}% of the way`;
+    if (dFull < STARGAZE_MIN_CHROMA_SHIFT) throw new Error(`stargaze draws no colour here: ${where}; stargaze must move chroma at least ${STARGAZE_MIN_CHROMA_SHIFT}`);
+    if (dPaper < PAPER_MIN_CHROMA_SHIFT || along <= 0) throw new Error(`paper mode draws no more colour than saturation 0: ${where}; paper must move chroma at least ${PAPER_MIN_CHROMA_SHIFT} toward stargaze`);
+    if (along >= PAPER_MAX_ALONG) throw new Error(`paper mode draws as much colour as stargaze: ${where}; paper must stay under ${PAPER_MAX_ALONG * 100}% of the way`);
+    if (dHover > HOVER_STARGAZE_TOLERANCE) throw new Error(`the pointer over the sky does not reach stargaze's colour: ${where}; hovered differs from stargaze by ${dHover.toFixed(1)}, allowed ${HOVER_STARGAZE_TOLERANCE}`);
+    if (o.rgb.lowered.join() !== o.rgb.paper.join()) throw new Error(`moving onto the sheet did not return to paper's exact pixel: ${where}`);
+    notes.push(`${id} ${dPaper.toFixed(1)}/${dFull.toFixed(1)} (${(along * 100).toFixed(0)}%)`);
+  }
+  const m82 = pixels.objects.m82;
+  if (!m82) throw new Error(`M82 is not drawn fully on the canvas at ${SKY_COLOUR_INSTANT.toISOString()}; the no-palette control is missing`);
+  for (const [k, w] of Object.entries(m82.worst)) {
+    if (w > M82_NEUTRAL_MAX_CHROMA) throw new Error(`M82 has no palette but its centre carries colour ${k === "grey" ? "at saturation 0" : `in ${k}`}: channel spread ${w} over ${M82_NEUTRAL_MAX_CHROMA} (all states ${JSON.stringify(m82.worst)})`);
+  }
+  const m82Spread = Math.max(...Object.values(m82.worst)) - Math.min(...Object.values(m82.worst));
+  if (m82Spread > M82_MAX_STATE_SPREAD) throw new Error(`M82 has no palette but its centre's channel spread changes with saturation: ${JSON.stringify(m82.worst)}, spread ${m82Spread} over ${M82_MAX_STATE_SPREAD}`);
+  const b = pixels.band;
+  if (b.n < 5000) throw new Error(`only ${b.n} band pixels found (warmth moving between saturation 0 and 1, ${BAND_CLEAR_PX}px clear of objects)`);
+  // The band. ⚠️ Its HUE at paper saturation is measured, not asserted: the
+  // spec lerps INK -> tan by saturation, and at 0.25 over a 2-5% alpha wash
+  // that lands at zero levels of warmth (task-3 report). What paper does
+  // change is the band's brightness, through the alpha gain's lerp, so that
+  // is what paper is held to; stargaze must then add warmth on top.
+  if (!(b.lumPaperMean - b.lumGreyMean >= BAND_MIN_LUM_GAIN)) {
+    throw new Error(`the band's mean luminance over ${b.n} pixels is ${b.lumGreyMean.toFixed(2)} at saturation 0 and ${b.lumPaperMean.toFixed(2)} in paper mode; paper's alpha gain must add ${BAND_MIN_LUM_GAIN}`);
+  }
+  if (!(b.stargazeMean - b.paperMean >= BAND_MIN_WARMTH_GAIN && b.paperMean >= b.greyMean)) {
+    throw new Error(`the band's mean warmth (r-b) over ${b.n} pixels is ${b.greyMean.toFixed(2)} at saturation 0, ${b.paperMean.toFixed(2)} in paper mode, ${b.stargazeMean.toFixed(2)} in stargaze; paper may not cool it and stargaze must add ${BAND_MIN_WARMTH_GAIN}`);
+  }
+
+  // --- the ease, motion on ---
+  const ease = await withPage(browser, { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await waitSkyDrawn(page);
+    const sheet = await page.evaluate(() => {
+      const r = document.querySelector("[data-sheet]").getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: Math.max(r.top, 0) + 240 };
+    });
+    await page.mouse.move(sheet.x, sheet.y);
+    await page.waitForFunction((p) => window.__sky.saturation === p, PAPER_SATURATION, { timeout: 5000 });
+    // Record every painted saturation value, per animation frame, for 1s.
+    const record = () =>
+      page.evaluate(
+        () =>
+          new Promise((res) => {
+            const out = [];
+            const t0 = performance.now();
+            const tick = () => {
+              const t = performance.now() - t0;
+              out.push([Math.round(t), window.__sky.saturation]);
+              if (t < 1000) requestAnimationFrame(tick);
+              else res(out);
+            };
+            requestAnimationFrame(tick);
+          }),
+      );
+    const summarise = (trace, from, to) => {
+      const start = trace.find(([, v]) => v !== from);
+      const end = trace.find(([, v]) => v === to);
+      const values = [...new Set(trace.map(([, v]) => v))];
+      const between = values.filter((v) => v > Math.min(from, to) && v < Math.max(from, to));
+      let monotone = true;
+      for (let i = 1; i < trace.length; i++) if ((to - from) * (trace[i][1] - trace[i - 1][1]) < 0) monotone = false;
+      return { startMs: start?.[0] ?? null, settleMs: start && end ? end[0] - start[0] : null, between: between.length, monotone, final: trace[trace.length - 1][1] };
+    };
+    let pending = record();
+    await page.mouse.move(60, 450);
+    const up = summarise(await pending, PAPER_SATURATION, 1);
+    pending = record();
+    await page.mouse.move(sheet.x, sheet.y);
+    const down = summarise(await pending, 1, PAPER_SATURATION);
+    return { up, down };
+  });
+  for (const [dir, e, to] of [["onto the sky", ease.up, 1], ["back onto the sheet", ease.down, PAPER_SATURATION]]) {
+    const s = JSON.stringify(e);
+    if (e.final !== to) throw new Error(`easing ${dir} never reached ${to} within 1s: ${s}`);
+    if (!e.monotone) throw new Error(`easing ${dir} reversed direction: ${s}`);
+    if (e.between < EASE_MIN_PAINTED_STEPS) throw new Error(`easing ${dir} painted ${e.between} in-between values, under ${EASE_MIN_PAINTED_STEPS}: it snapped, or the frame gate did not rise (${s})`);
+    if (e.settleMs > EASE_MAX_SETTLE_MS) throw new Error(`easing ${dir} took ${e.settleMs}ms, over ${EASE_MAX_SETTLE_MS}: ${s}`);
+  }
+
+  return `${ids.length} coloured objects across ${[...families].sort().join("/")}, chroma shift paper/stargaze from saturation 0 at each object's most-moved pixel: ${notes.join(", ")}; hovered sky = stargaze, back on the sheet = paper exactly; M82 centre worst ${JSON.stringify(m82.worst)}; band mean warmth over ${b.n} px ${b.greyMean.toFixed(2)}/${b.paperMean.toFixed(2)}/${b.stargazeMean.toFixed(2)}, mean luminance ${b.lumGreyMean.toFixed(2)}/${b.lumPaperMean.toFixed(2)}/${b.lumStargazeMean.toFixed(2)}; ease up ${ease.up.settleMs}ms over ${ease.up.between} painted steps, down ${ease.down.settleMs}ms over ${ease.down.between}`;
 }
 
 async function checkStargazeCard(browser) {

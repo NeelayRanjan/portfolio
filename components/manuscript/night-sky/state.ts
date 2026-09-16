@@ -2,6 +2,7 @@ import type { SkyFact } from "@/content/sky-facts";
 import type { SkyData } from "@/lib/sky-data";
 import type { IssLook, IssTracker } from "@/lib/sky-iss";
 import type { ObjectGlyph, PreparedMilkyWay, SkyObjectsData } from "@/lib/sky-objects";
+import { PAPER_SATURATION } from "@/lib/sky-colour";
 import type { Vec } from "@/lib/sky-pan";
 import type { Highlight, Projected } from "@/lib/sky-render";
 
@@ -25,6 +26,8 @@ export type Drag = { id: number; startX: number; startY: number; base: Vec; move
 export type SkyState = {
   readonly narrowQ: MediaQueryList;
   readonly reducedQ: MediaQueryList;
+  /** A device with no hover (a phone): paper mode never lifts to full colour. */
+  readonly noHoverQ: MediaQueryList;
   readonly loadMs: number;
   alive: boolean;
   sky: SkyData | null;
@@ -52,12 +55,22 @@ export type SkyState = {
   velocity: Vec;
   springing: boolean;
   springLast: number;
+  /** The sourced colour's current saturation, 0..1, as drawn (lib/sky-colour.ts). */
+  saturation: number;
+  /** Where `saturation` is easing to. */
+  saturationTarget: number;
+  /** rAF timestamp of the last ease step; 0 when the ease is at rest. */
+  saturationLast: number;
+  /** Paper mode: the pointer is over the sky itself, not the sheet, a
+   *  control or the credit. */
+  pointerOverSky: boolean;
 };
 
 export function createSkyState(): SkyState {
   return {
     narrowQ: window.matchMedia("(max-width: 879px)"),
     reducedQ: window.matchMedia("(prefers-reduced-motion: reduce)"),
+    noHoverQ: window.matchMedia("(hover: none)"),
     loadMs: Date.now(),
     alive: true,
     sky: null,
@@ -82,5 +95,9 @@ export function createSkyState(): SkyState {
     velocity: { x: 0, y: 0 },
     springing: false,
     springLast: 0,
+    saturation: PAPER_SATURATION,
+    saturationTarget: PAPER_SATURATION,
+    saturationLast: 0,
+    pointerOverSky: false,
   };
 }

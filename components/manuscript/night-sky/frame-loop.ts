@@ -1,10 +1,13 @@
+import { stepSaturation } from "@/lib/sky-colour";
 import { springStep } from "@/lib/sky-pan";
 import type { SkyState } from "./state";
 
 /**
  * The frame loop: ~20 fps at >=880px, ~10 fps below, skipped while
  * document.hidden, lifted to ~60 fps while a drag or the return spring is
- * live. Under reduced motion it never runs; the sky paints on change only.
+ * live, or while the colour saturation eases toward a new target. Under
+ * reduced motion it never runs; the sky paints on change only (and the
+ * saturation snaps, pointer-controller.ts).
  */
 
 const FRAME_MS_WIDE = 50;
@@ -22,8 +25,15 @@ export function createFrameLoop(s: SkyState, paint: () => void) {
     if (!s.running) return;
     raf = requestAnimationFrame(step);
     if (document.hidden) return;
-    // A live drag or spring paints at ~60 fps; the idle sky keeps its 20/10 fps gate.
-    const interacting = s.drag !== null || s.springing;
+    // A live drag, spring or colour ease paints at ~60 fps; the idle sky
+    // keeps its 20/10 fps gate.
+    const easing = s.saturation !== s.saturationTarget;
+    const interacting = s.drag !== null || s.springing || easing;
+    if (easing) {
+      // Real elapsed ms, closed form (lib/sky-colour.ts): the same curve at any frame rate.
+      s.saturation = stepSaturation(s.saturation, s.saturationTarget, s.saturationLast ? t - s.saturationLast : 1000 / 60);
+      s.saturationLast = s.saturation === s.saturationTarget ? 0 : t;
+    }
     if (s.springing) {
       const r = springStep(s.offset, s.velocity, s.springLast ? t - s.springLast : 1000 / 60);
       s.springLast = t;

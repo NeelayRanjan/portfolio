@@ -6,6 +6,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, stat } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { register } from "node:module";
 
 // sky-facts.ts and sky-objects.ts (imported below) carry "NO RUNTIME
@@ -738,4 +739,157 @@ test("every coloured object's card cites the source its colour rests on", async 
       assert.ok(cited.has(url), `${id} draws a colour this card does not source: its Sources list must include ${url}, and holds ${[...cited].join(", ")}`);
     }
   }
+});
+
+// ---- discoverability task 3: saturation replaces the colour flag ----
+//
+// The draw layers are recorded through a fake 2D context that logs every call
+// and every style assignment, over five fixed scenes (four orientations at
+// 1600x1000 with names, one 400x800 without). The two digests below were
+// recorded from the colour-flag code immediately before the flag became a
+// number (commit 209247f): `colour: false` and `colour: true`. They are the
+// byte-identity contract for the two ends: saturation 0 must draw exactly
+// what the grey chart drew, saturation 1 with stargaze's chrome exactly what
+// stargaze drew. A changed digest means the ends moved, not that a fixture
+// needs refreshing.
+const TRACE_COLOUR_OFF = { n: 16577, sha: "f0ea2cc4199c4c1ba44549465a52ff6172ad6dfdc8cf8ae0ccd943a8555a34a4" };
+const TRACE_STARGAZE = { n: 17059, sha: "9703c058a9f7c3ba9f202c6a35ec48178a9ecfb8bcc53c226d4c1bc401736ad6" };
+const TRACE_SCENES = [[1600, 1000, 0, true], [1600, 1000, 90, true], [1600, 1000, 180, true], [1600, 1000, 270, true], [400, 800, 45, false]];
+
+const L = await import("../lib/sky-layers.ts");
+const SM = await import("../lib/sky-math.ts");
+const SC = await import("../lib/sky-colour.ts");
+const traceMw = O.prepareMilkyWay(mw);
+const traceGlyphs = O.prepareObjectGlyphs(data.objects);
+const traceRings = new Map(data.objects.filter((o) => o.symbol === "field").map((o) => [o.id, O.smallCircle(o.raDeg, o.decDeg, o.radiusDeg)]));
+
+/** Every call and style set the layers make, as text lines. */
+function traceLayers(viewExtra, objects = data.objects, { milkyWay = true } = {}) {
+  const log = [];
+  const target = { measureText: (t) => ({ width: t.length * 5.4 }) };
+  const ctx = new Proxy(target, {
+    get(t, k) {
+      if (k in t) return t[k];
+      return (...a) => {
+        log.push(`${String(k)}(${a.join(",")})`);
+      };
+    },
+    set(t, k, v) {
+      log.push(`${String(k)}=${v}`);
+      return true;
+    },
+  });
+  for (const [w, h, lst, names] of TRACE_SCENES) {
+    const chart = SM.chartFor(w, h, lst);
+    const v = { chart, width: w, height: h, fontFamily: "mono", names, suppressName: null, ...viewExtra };
+    if (milkyWay) L.drawMilkyWay(ctx, v, traceMw, data.objects.map((o) => SM.project(chart, o.raDeg, o.decDeg)));
+    L.drawObjects(ctx, v, objects, traceRings, traceGlyphs);
+  }
+  return log;
+}
+const digestOf = (log) => ({ n: log.length, sha: createHash("sha256").update(log.join("\n")).digest("hex") });
+/** Channel spread of every rgba() in a line; [] when it has none. */
+const chromasIn = (line) =>
+  [...line.matchAll(/rgba\((\d+),(\d+),(\d+),/g)].map((m) => Math.max(+m[1], +m[2], +m[3]) - Math.min(+m[1], +m[2], +m[3]));
+
+test("saturation 0 draws exactly the old grey chart, 1 exactly the old stargaze chart", () => {
+  assert.deepEqual(digestOf(traceLayers({ saturation: 0, stargazeChrome: false })), TRACE_COLOUR_OFF, "saturation 0 no longer matches the colour-off recording");
+  assert.deepEqual(digestOf(traceLayers({ saturation: 1, stargazeChrome: true })), TRACE_STARGAZE, "saturation 1 in stargaze no longer matches the stargaze recording");
+});
+
+test("chroma grows with saturation, call for call, and paper mode sits strictly between", () => {
+  const levels = [0.1, SC.PAPER_SATURATION, 0.5, 0.75, 1];
+  const logs = levels.map((s) => traceLayers({ saturation: s, stargazeChrome: false }));
+  // Above zero the geometry is the coloured path at every level, so the logs
+  // line up call for call and only colour strings may differ.
+  for (const log of logs) assert.equal(log.length, logs[0].length, "geometry changed with saturation above 0");
+  let grew = 0;
+  for (let i = 0; i < logs[0].length; i++) {
+    const per = logs.map((log) => chromasIn(log[i]));
+    if (!per[0].length) {
+      for (const log of logs) assert.equal(log[i], logs[0][i], `line ${i} has no colour but differs across saturation`);
+      continue;
+    }
+    for (let j = 1; j < per.length; j++) {
+      per[j].forEach((c, k) =>
+        assert.ok(c >= per[j - 1][k], `line ${i}: chroma fell from ${per[j - 1][k]} at s=${levels[j - 1]} to ${c} at s=${levels[j]} (${logs[j - 1][i]} -> ${logs[j][i]})`),
+      );
+    }
+    if (per[per.length - 1].some((c, k) => c > per[0][k])) grew++;
+  }
+  assert.ok(grew > 100, `only ${grew} styled calls gained chroma from s=0.1 to s=1`);
+  // Paper's total chroma is strictly above the grey chart's and below stargaze's.
+  const total = (log) => log.reduce((a, line) => a + chromasIn(line).reduce((x, y) => x + y, 0), 0);
+  const grey = total(traceLayers({ saturation: 0, stargazeChrome: false }));
+  const paper = total(logs[1]);
+  const full = total(logs[4]);
+  assert.ok(grey < paper && paper < full, `summed chroma grey ${grey}, paper ${paper}, full ${full} should increase strictly`);
+});
+
+test("the Milky Way band's hue and alpha both follow saturation", () => {
+  const bandStyles = (s) =>
+    traceLayers({ saturation: s, stargazeChrome: false }, [], { milkyWay: true })
+      .filter((l) => l.startsWith("fillStyle=rgba("))
+      .map((l) => l.match(/rgba\((\d+),(\d+),(\d+),([\d.e-]+)\)/).slice(1).map(Number));
+  const at0 = bandStyles(0);
+  const at25 = bandStyles(SC.PAPER_SATURATION);
+  const at1 = bandStyles(1);
+  assert.equal(at0.length, at1.length);
+  // Only the band's own fills (every one but the MUT label) take part.
+  let checked = 0;
+  for (let i = 0; i < at0.length; i++) {
+    const [r0, , b0, a0] = at0[i];
+    if (r0 === 154) continue; // MUT label
+    const [r1, , b1, a1] = at25[i];
+    const [r2, , b2, a2] = at1[i];
+    assert.ok(r0 - b0 < r1 - b1 && r1 - b1 < r2 - b2, `band style ${i}: warmth ${r0 - b0} / ${r1 - b1} / ${r2 - b2} should increase`);
+    assert.ok(a0 < a1 && a1 <= a2, `band style ${i}: alpha ${a0} / ${a1} / ${a2} should increase`);
+    checked++;
+  }
+  assert.ok(checked >= 10, `only ${checked} band styles checked`);
+});
+
+test("M82 draws identically at every saturation", () => {
+  const m82 = data.objects.filter((o) => o.id === "m82");
+  const ref = traceLayers({ saturation: 0, stargazeChrome: false }, m82, { milkyWay: false });
+  assert.ok(ref.length > 20, "M82 was not drawn in any scene");
+  for (const s of [0.01, SC.PAPER_SATURATION, 0.6, 1]) {
+    assert.deepEqual(traceLayers({ saturation: s, stargazeChrome: false }, m82, { milkyWay: false }), ref, `M82's draw calls changed at saturation ${s}`);
+  }
+});
+
+test("saturateRgb: exact at 1, luminance grey at 0, monotone spread between", () => {
+  for (const pal of Object.values(L.OBJECT_COLOURS)) {
+    for (const rgb of Object.values(pal)) {
+      assert.equal(SC.saturateRgb(rgb, 1), rgb);
+      const [r, g, b] = SC.saturateRgb(rgb, 0).split(",").map(Number);
+      assert.ok(Math.max(r, g, b) - Math.min(r, g, b) <= 1, `${rgb} at 0 is ${r},${g},${b}`);
+      let prev = -1;
+      for (let s = 0; s <= 1.0001; s += 0.05) {
+        const c = SC.saturateRgb(rgb, s).split(",").map(Number);
+        const spread = Math.max(...c) - Math.min(...c);
+        assert.ok(spread >= prev, `${rgb}: spread fell to ${spread} at s=${s.toFixed(2)}`);
+        prev = spread;
+      }
+    }
+  }
+});
+
+test("stepSaturation: frame-rate independent, no overshoot, settles in about 300ms", () => {
+  let a = SC.PAPER_SATURATION;
+  let b = SC.PAPER_SATURATION;
+  for (let t = 0; t < 120; t += 8) a = SC.stepSaturation(a, 1, 8);
+  for (let t = 0; t < 120; t += 40) b = SC.stepSaturation(b, 1, 40);
+  assert.ok(Math.abs(a - b) < 1e-9, `8ms frames reached ${a}, 40ms frames ${b}`);
+  let s = SC.PAPER_SATURATION;
+  let ms = 0;
+  while (s !== 1 && ms < 5000) {
+    const next = SC.stepSaturation(s, 1, 16);
+    assert.ok(next >= s && next <= 1, `overshoot or reversal: ${s} -> ${next}`);
+    s = next;
+    ms += 16;
+  }
+  assert.ok(ms >= 200 && ms <= 400, `0.25 -> 1 settled in ${ms}ms`);
+  assert.equal(SC.stepSaturation(1, SC.PAPER_SATURATION, 10_000), SC.PAPER_SATURATION);
+  assert.ok(SC.PAPER_SATURATION > 0 && SC.PAPER_SATURATION <= 0.5, "the owner offered 25-50%");
 });

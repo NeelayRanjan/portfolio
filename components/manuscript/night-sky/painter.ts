@@ -34,6 +34,9 @@ export type SkySnapshot = {
   offset: Vec;
   dragging: boolean;
   frameMsMedian: number | null;
+  /** The colour saturation this frame drew with, and where it is easing to. */
+  saturation: number;
+  saturationTarget: number;
   highlight: string | null;
   label: { x: number; y: number; w: number; h: number } | null;
   labelText: LabelText | null;
@@ -167,7 +170,8 @@ export function createPainter(
       objectGlyphs: s.objectGlyphs,
       showers: activeShowers,
       names: !s.narrowQ.matches,
-      colour: isStargazing(),
+      saturation: s.saturation,
+      stargazeChrome: isStargazing(),
       oneLiner: (id) => s.facts?.get(id)?.oneLiner ?? null,
       selectedId: s.selected?.id ?? null,
       iss,
@@ -186,6 +190,8 @@ export function createPainter(
       offset: { ...s.offset },
       dragging: s.drag !== null,
       frameMsMedian: sorted.length ? sorted[sorted.length >> 1] : null,
+      saturation: s.saturation,
+      saturationTarget: s.saturationTarget,
       highlight: s.highlight?.id ?? null,
       label: seen.label,
       labelText: seen.labelText,

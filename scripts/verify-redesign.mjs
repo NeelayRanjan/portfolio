@@ -3625,6 +3625,37 @@ async function checkStargazeAffordances(browser) {
     if (second.seen.some((f) => f.rings > 0)) throw new Error(`second entry with motion drew rings on ${second.seen.filter((f) => f.rings > 0).length} frames`);
     notes.push(`motion: rings on ${live.length} frames over ${span.toFixed(0)}ms, 0 by ${tail.length ? "1.7s" : "2s"}; second entry 0 over 2s`);
   });
+
+  // Entering stargaze before the sky has loaded must not spend the one
+  // showing on an empty chart (controller fix on Task 4): a visitor who taps
+  // straight in on a slow phone is exactly who the rings are for. Hold the
+  // star catalog, enter, confirm nothing fired, release it, and the rings
+  // must then appear.
+  await withPage(browser, { viewport: { width: 1440, height: 900 }, reducedMotion: "reduce", deviceScaleFactor: 1 }, async (page, context) => {
+    let release;
+    const held = new Promise((r) => (release = r));
+    await context.route("**/sky/sky.json", async (route) => {
+      await held;
+      await route.continue();
+    });
+    await page.goto(BASE, { waitUntil: "domcontentloaded" });
+    const toggle = page.getByRole("button", { name: STARGAZE_ENTER });
+    await toggle.waitFor({ state: "visible", timeout: 15000 });
+    await toggle.click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    await page.waitForTimeout(400);
+    const early = await page.evaluate(() => ({ drawn: window.__sky?.drawn ?? false, fired: window.__sky?.entryRingsFired ?? false }));
+    if (early.drawn) throw new Error("the held star catalog still drew before release; the slow-load case was not reproduced");
+    if (early.fired) throw new Error("entry rings were marked fired while the sky was still empty, so a slow-loading visitor never sees them");
+    release();
+    await page
+      .waitForFunction(() => window.__sky?.drawn && window.__sky.entryRingsFired && window.__sky.entryRings > 0, null, { timeout: 15000 })
+      .catch(async () => {
+        const st = await page.evaluate(() => ({ drawn: window.__sky?.drawn, fired: window.__sky?.entryRingsFired, rings: window.__sky?.entryRings }));
+        throw new Error(`after the catalog landed mid-stargaze the rings never showed: ${JSON.stringify(st)}`);
+      });
+    notes.push("slow load: nothing fired on the empty sky, rings showed once the catalog landed");
+  });
   return notes.join("; ");
 }
 

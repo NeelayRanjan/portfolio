@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { subscribeStargaze } from "@/lib/stargaze";
+import { isStargazing, subscribeStargaze } from "@/lib/stargaze";
 import { SkyCard, type CardModel } from "./SkyCard";
 import { createCardController } from "./night-sky/card-controller";
 import { ENTRY_RING_MS, pickEntryRingIds } from "./night-sky/entry-rings";
@@ -193,32 +193,48 @@ export function NightSky() {
     paint();
     loop.applyMode();
 
-    loadSkyLayers(s, { paint, resolveFont });
+    let entryRingTimer = 0;
+    // The entry rings: one showing per page load, the first time stargaze is
+    // on AND there is something drawn to ring. Not "first entry": a visitor
+    // who taps stargaze before the catalog lands (a slow phone, exactly the
+    // visitor this helps most) would otherwise spend the one showing on an
+    // empty sky, so the attempt repeats as each data layer lands (controller
+    // fix on Task 4). A still sky (reduced motion) has no loop to end them,
+    // so a timer paints the frame that clears them.
+    const tryStartEntryRings = () => {
+      if (s.entryRingsFired || !isStargazing() || !s.projected) return;
+      const ids = pickEntryRingIds(s.projected.hits, s.width, s.height);
+      if (!ids.length) return;
+      s.entryRingsFired = true;
+      s.entryRings = { ids, start: performance.now() };
+      window.clearTimeout(entryRingTimer);
+      if (!s.running) {
+        entryRingTimer = window.setTimeout(() => {
+          if (s.alive) paint();
+        }, ENTRY_RING_MS + 20);
+      }
+      paint();
+    };
+
+    loadSkyLayers(s, {
+      paint: () => {
+        paint();
+        tryStartEntryRings();
+      },
+      resolveFont,
+    });
 
     window.addEventListener("resize", onResize);
     s.reducedQ.addEventListener("change", loop.applyMode);
     pointer.attach();
     window.addEventListener("keydown", cards.onKeyDown, { capture: true });
-    let entryRingTimer = 0;
     const unsubStargaze = subscribeStargaze((on) => {
       s.highlight = null;
       pointer.clearPointerCursor();
-      // The entry rings: the first entry of this page load only, whether or
-      // not anything was on screen to ring. A still sky (reduced motion) has
-      // no loop to end them, so a timer paints the frame that clears them.
-      window.clearTimeout(entryRingTimer);
-      if (on && !s.entryRingsFired) {
-        s.entryRingsFired = true;
-        const ids = s.projected ? pickEntryRingIds(s.projected.hits, s.width, s.height) : [];
-        if (ids.length) {
-          s.entryRings = { ids, start: performance.now() };
-          if (!s.running) {
-            entryRingTimer = window.setTimeout(() => {
-              if (s.alive) paint();
-            }, ENTRY_RING_MS + 20);
-          }
-        }
-      } else if (!on) {
+      if (on) {
+        tryStartEntryRings();
+      } else {
+        window.clearTimeout(entryRingTimer);
         s.entryRings = null;
       }
       // Leaving stargaze closes any open card too, but focus is

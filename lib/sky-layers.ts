@@ -861,15 +861,25 @@ function drawNebulaGlyph(ctx: CanvasRenderingContext2D, p: { x: number; y: numbe
   }
 }
 
-/** A few overlapping low-alpha blobs read as a soft, irregular cloud instead
- *  of a dotted circle; M57 (Ring Nebula) gets a plain annulus instead, since
- *  that is the shape its own card describes. Overlap brightening is ordinary
- *  alpha compositing, no extra blend mode.
+/**
+ * A few overlapping low-alpha blobs read as a soft, irregular cloud instead
+ * of a dotted circle; M57 (Ring Nebula) gets a plain annulus instead, since
+ * that is the shape its own card describes. Overlap brightening is ordinary
+ * alpha compositing, no extra blend mode.
  *
- *  The two tail branches are for the shapes that have no cloud to draw, both
- *  of them objects the catalog only gained this round (the Veil's arcs and
- *  the Horsehead): an id that had a glyph before still draws its blobs or its
- *  ring and nothing else, which is what keeps colour-off output identical. */
+ * ⚠️ A dark nebula draws its cloud AND its silhouette over it, and this
+ * function used to return after the blobs, which made the silhouette branch
+ * unreachable for the only variant that fills one (final review M3): outside
+ * stargaze the Horsehead, an object defined by blocking light, rendered as an
+ * 11px grey glow. The silhouette now goes down over the backdrop in both
+ * modes, so the grey chart says the same thing about it that the coloured one
+ * does.
+ *
+ * The filament branch is the Veil's, the one shape here with no cloud at all.
+ * It stays gated on there being no blobs, which is what keeps the Crab's
+ * grey glyph byte-identical to its pre-colour-round self: its filaments are
+ * new this round and belong to the coloured path.
+ */
 function drawPlainNebula(ctx: CanvasRenderingContext2D, p: { x: number; y: number }, g: NebulaGlyph): void {
   if (g.ring) {
     ctx.beginPath();
@@ -890,17 +900,21 @@ function drawPlainNebula(ctx: CanvasRenderingContext2D, p: { x: number; y: numbe
       ctx.arc(p.x + b.dx, p.y + b.dy, b.r, 0, Math.PI * 2);
       ctx.fill();
     }
-    return;
   }
   if (g.silhouette.length) {
     ctx.beginPath();
     g.silhouette.forEach((s, i) => (i === 0 ? ctx.moveTo(p.x + s.dx, p.y + s.dy) : ctx.lineTo(p.x + s.dx, p.y + s.dy)));
     ctx.closePath();
+    // The dust itself, painted over the glow it hides: the same near-desk dark
+    // the coloured path uses, then the edge picked out in ink so the shape
+    // still reads where there is no backdrop behind it.
+    ctx.fillStyle = `rgba(${DUST_DARK},0.95)`;
+    ctx.fill();
     ctx.strokeStyle = `rgba(${INK},0.5)`;
     ctx.stroke();
     return;
   }
-  if (g.filaments.length) {
+  if (!g.blobs.length && g.filaments.length) {
     ctx.strokeStyle = `rgba(${INK},0.32)`;
     ctx.beginPath();
     for (const f of g.filaments) {

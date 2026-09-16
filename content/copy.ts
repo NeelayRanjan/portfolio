@@ -437,7 +437,7 @@ export const copy = {
       classify: {
         /** The claim leads (owner request, 2026-09-16); it used to close
          *  the paragraph as "No second classifier model required." */
-        a: "There’s no classifier model in this demo. The label guess comes from the same diffusion model that draws: it predicts the finished digit under all ten labels from identical noise, and whichever best matches your strokes wins. It needs a guess at all because the model is class-conditional and won’t generate without a label. ",
+        a: "There’s no classifier model in this demo. The label guess comes from the same diffusion model that draws: it predicts the finished digit under all ten labels from identical noise, and whichever best matches your strokes wins. It needs a guess because the demo steers each generation toward a chosen digit. ",
         bPre: "The ",
         /** ⚠️ The key name is v1's (leaf names were carried over wholesale), the
          *  VALUE is not: the fit tint moved from teal to the manuscript's warm
@@ -800,7 +800,7 @@ export const copy = {
     exit: "back to the page",
     /** The stargaze hint bar, composed (spec §4), pointer variant:
      *    "drag to look around, click a name or symbol to read about it
-     *     · 45 objects and 88 constellations have cards · browse the list"
+     *     · 44 objects, 88 constellations and more have cards · browse the list"
      *  The two numbers come from the loaded data, never from here; the
      *  separators are the bar's own markup. `browseList` is the control that
      *  opens the list as a visible panel.
@@ -811,9 +811,12 @@ export const copy = {
      *  final review F1). */
     hintPointer: "drag to look around, click a name or symbol to read about it",
     hintTouch: "drag to look around, tap a name or symbol to read about it",
-    /** "{objects} objects and {constellations} constellations have cards" */
-    countsObjects: " objects and ",
-    countsConstellations: " constellations have cards",
+    /** "{objects} objects, {constellations} constellations and more have cards":
+     *  "and more" because planets, the Moon, the Milky Way, the ISS and active
+     *  showers open cards too and aren't counted, so it must not read as a
+     *  total (final review m2). */
+    countsObjects: " objects, ",
+    countsConstellations: " constellations and more have cards",
     browseList: "browse the list",
     /** The screen-reader name of the stargaze keyboard list (NightSky, F2):
      *  one button per selectable currently on screen. */
@@ -824,12 +827,12 @@ export const copy = {
     listPanelClose: "close the list",
     /** Once per session, near the pointer, the first time it enters the sky
      *  in paper mode (spec §5). Short: it's gone in a few seconds. */
-    invite: "the real sky over NASA Ames, from the moment you arrived",
+    invite: "a real chart of the sky over NASA Ames",
     /** The second way in, at the foot of `/` and `/lab`: this lead line,
      *  then a button labelled with `enter` itself ("stargaze for a bit?"). A
      *  second door to the same feature carries the same name, or visitors
      *  don't connect the two (controller ruling, 2026-09-16). */
-    footerLead: "The sky behind this page is the real one over NASA Ames.",
+    footerLead: "The sky behind this page is a real chart of the sky over NASA Ames.",
     /** The owner's own sentences (trimmed 2026-09-16): keep both word for
      *  word. Each is a complete sentence ending in its own full stop, and
      *  `creditTail` follows either one, so it opens with a space:

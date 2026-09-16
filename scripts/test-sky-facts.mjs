@@ -50,7 +50,7 @@ const today = new Date().toISOString().slice(0, 10);
 const cites = (fact, re) => fact.citations.some((c) => re.test(c.url));
 
 test("coverage: exactly one fact per selectable id", () => {
-  assert.equal(EXPECTED.length, 138);
+  assert.equal(EXPECTED.length, 153); // 138, plus the fifteen deep-sky objects added 2026-09-15
   assert.equal(byId.size, SKY_FACTS.length, "duplicate fact ids");
   const missing = EXPECTED.filter((id) => !byId.has(id));
   const unknown = SKY_FACTS.map((f) => f.id).filter((id) => !EXPECTED.includes(id));
@@ -155,4 +155,77 @@ test("showers, planets, the Moon, spacecraft, the ISS: required sources", () => 
   }
   const m87 = factFor("m87");
   if (m87) assert.match(m87.body.join(" "), /black hole/i, "m87: the card covers the galaxy and its black hole (spec §4)");
+});
+
+/** The fifteen deep-sky objects added in the colour round (plan Task 2). */
+const COLOUR_ROUND = [
+  "m16", "m20", "m27", "m33", "m78", "m81", "m82", "m104", "horsehead",
+  "flame", "ngc869", "ngc884", "ngc7000", "ngc6960", "ngc6992",
+];
+/**
+ * Every source those cards may cite: the set .superpowers/sdd/colour-sources.md
+ * recorded as personally fetched and 200, re-fetched and re-read while the
+ * cards were written. The point of pinning it is that a plausible-looking but
+ * never-fetched NASA URL cannot slip into a card later; adding a source here
+ * means fetching it first.
+ */
+const COLOUR_SOURCE_URLS = new Set([
+  "https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-messier-catalog/messier-16/",
+  "https://aaa.org/2020/06/23/pillars-of-creation-using-the-hubble-palette/",
+  "https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-messier-catalog/messier-20/",
+  "https://esahubble.org/images/heic2608c/",
+  "https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-messier-catalog/messier-27/",
+  "https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-messier-catalog/messier-33/",
+  "https://science.nasa.gov/image-article/apod-2017-november-30-m33-triangulum-galaxy/",
+  "https://science.nasa.gov/image-article/apod-2000-april-24-reflection-nebula-m78/",
+  "https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-messier-catalog/messier-78/",
+  "https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-messier-catalog/messier-81/",
+  "https://science.nasa.gov/image-article/apod-1997-july-26-m81-in-true-color/",
+  "https://www.jpl.nasa.gov/images/pia09579-m81-galaxy-is-pretty-in-pink/",
+  "https://science.nasa.gov/image-detail/m82-2/",
+  "https://chandra.harvard.edu/photo/2010/m82/",
+  "https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-messier-catalog/messier-104/",
+  "https://esahubble.org/images/opo0328a/",
+  "https://science.nasa.gov/missions/webb/webb-captures-top-of-iconic-horsehead-nebula-in-unprecedented-detail/",
+  "https://www.esa.int/Science_Exploration/Space_Science/Euclid/Euclid_s_view_of_the_Horsehead_Nebula",
+  "https://www.nasa.gov/image-article/inside-flame-nebula/",
+  "https://science.nasa.gov/image-article/apod-2007-february-2-flame-nebula-close-up/",
+  "https://apod.nasa.gov/apod/ap140123.html",
+  "https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-caldwell-catalog/caldwell-20/",
+  "https://www.constellation-guide.com/north-america-nebula/",
+  "https://esahubble.org/news/heic0712/",
+  "https://science.nasa.gov/missions/hubble/hubble-captures-new-view-of-colorful-veil/",
+]);
+/** The two halves of the Double Cluster, and the two arcs of the Veil. */
+const PAIRS = [["ngc869", "ngc884"], ["ngc884", "ngc869"], ["ngc6960", "ngc6992"], ["ngc6992", "ngc6960"]];
+/**
+ * Objects.json carries no magnitude for these two and must not: B 33's Barnard
+ * number is an opacity class, and NGC 2024's catalog value was a 999 sentinel.
+ * A dark nebula and a nebula with no measured brightness do not get one in
+ * copy either (controller fix, Task 1).
+ */
+const NO_MAGNITUDE = ["horsehead", "flame"];
+
+test("the colour round: verified sources only, paired objects, no invented magnitudes", () => {
+  for (const id of COLOUR_ROUND) {
+    assert.ok(objects.objects.some((o) => o.id === id), `${id} is not in objects.json`);
+    const f = factFor(id);
+    if (!f) continue;
+    for (const c of f.citations) {
+      assert.ok(COLOUR_SOURCE_URLS.has(c.url), `${id}: ${c.url} is not in the fetch-verified source set`);
+    }
+  }
+  for (const [id, partner] of PAIRS) {
+    const f = factFor(id);
+    if (!f) continue;
+    const name = `NGC ${partner.slice(3)}`;
+    assert.ok(f.body.join(" ").includes(name), `${id}: the card must name its other half, ${name}`);
+  }
+  for (const id of NO_MAGNITUDE) {
+    assert.equal(objects.objects.find((o) => o.id === id)?.mag, undefined, `${id} should carry no magnitude in objects.json`);
+    const f = factFor(id);
+    if (!f) continue;
+    const own = [f.kind, f.oneLiner, ...f.body, f.visibility].join(" ");
+    assert.doesNotMatch(own, /magnitude/i, `${id}: no magnitude exists for this object, so the card cannot state one`);
+  }
 });

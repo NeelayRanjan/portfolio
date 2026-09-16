@@ -118,17 +118,137 @@ function wikipedia(title: string, oldid: number, year: string, accessed: string)
   };
 }
 
-/** A NASA Science page, by its path under https://science.nasa.gov/. */
-function nasaScience(path: string, title: string, accessed: string): Citation {
+/**
+ * A NASA Science page, by its path under https://science.nasa.gov/. `year` is
+ * the date the page itself carries (APOD entries and news articles all do);
+ * it stays "n.d." for the undated evergreen pages.
+ */
+function nasaScience(path: string, title: string, accessed: string, year = "n.d."): Citation {
   return {
     author: "NASA Science",
-    year: "n.d.",
+    year,
     title,
     site: "NASA Science",
     url: `https://science.nasa.gov/${path}`,
     accessed,
   };
 }
+
+/** A NASA Hubble Caldwell Catalog page. */
+function hubbleCaldwell(n: number, title: string, accessed: string): Citation {
+  return {
+    author: "NASA Science",
+    year: "n.d.",
+    title,
+    site: "NASA Hubble Caldwell Catalog",
+    url: `https://science.nasa.gov/mission/hubble/science/explore-the-night-sky/hubble-caldwell-catalog/caldwell-${n}/`,
+    accessed,
+  };
+}
+
+/* Sources behind the fifteen deep-sky objects added 2026-09-15. Each URL was
+   fetched and returned 200 while these cards were written; the set is the one
+   .superpowers/sdd/colour-sources.md verified, and scripts/test-sky-facts.mjs
+   holds those cards to it. */
+
+const AAA_HUBBLE_PALETTE: Citation = {
+  author: "Amateur Astronomers Association",
+  year: "2020",
+  title: "Pillars of Creation: Using the Hubble Palette",
+  site: "Amateur Astronomers Association",
+  url: "https://aaa.org/2020/06/23/pillars-of-creation-using-the-hubble-palette/",
+  accessed: "2026-09-15",
+};
+
+const ESA_TRIFID: Citation = {
+  author: "ESA/Hubble",
+  year: "2026",
+  title: "Trifid Nebula, annotated (heic2608c)",
+  site: "ESA/Hubble",
+  url: "https://esahubble.org/images/heic2608c/",
+  accessed: "2026-09-15",
+};
+
+const ESA_SOMBRERO: Citation = {
+  author: "ESA/Hubble",
+  year: "2004",
+  title: "Hubble mosaic of the majestic Sombrero Galaxy (opo0328a)",
+  site: "ESA/Hubble",
+  url: "https://esahubble.org/images/opo0328a/",
+  accessed: "2026-09-15",
+};
+
+const ESA_HORSEHEAD: Citation = {
+  author: "European Space Agency",
+  year: "2023",
+  title: "Euclid’s view of the Horsehead Nebula",
+  site: "esa.int",
+  url: "https://www.esa.int/Science_Exploration/Space_Science/Euclid/Euclid_s_view_of_the_Horsehead_Nebula",
+  accessed: "2026-09-15",
+};
+
+const NASA_FLAME: Citation = {
+  author: "NASA",
+  year: "2014",
+  title: "Inside the Flame Nebula",
+  site: "nasa.gov",
+  url: "https://www.nasa.gov/image-article/inside-flame-nebula/",
+  accessed: "2026-09-15",
+};
+
+const JPL_M81_PINK: Citation = {
+  author: "NASA/JPL-Caltech",
+  year: "n.d.",
+  title: "M81 Galaxy is Pretty in Pink",
+  site: "NASA Jet Propulsion Laboratory",
+  url: "https://www.jpl.nasa.gov/images/pia09579-m81-galaxy-is-pretty-in-pink/",
+  accessed: "2026-09-15",
+};
+
+const CHANDRA_M82: Citation = {
+  author: "NASA/CXC",
+  year: "2010",
+  title: "M82 and J144701-5919 (Chandra Photo Album, April 29, 2010)",
+  site: "Chandra X-ray Observatory",
+  url: "https://chandra.harvard.edu/photo/2010/m82/",
+  accessed: "2026-09-15",
+};
+
+const APOD_DOUBLE_CLUSTER: Citation = {
+  author: "Nemiroff, R., & Bonnell, J.",
+  year: "2014",
+  title: "Double Cluster in Perseus",
+  site: "Astronomy Picture of the Day",
+  url: "https://apod.nasa.gov/apod/ap140123.html",
+  accessed: "2026-09-15",
+};
+
+const CG_NORTH_AMERICA: Citation = {
+  author: "Constellation Guide",
+  year: "n.d.",
+  title: "North America Nebula",
+  site: "constellation-guide.com",
+  url: "https://www.constellation-guide.com/north-america-nebula/",
+  accessed: "2026-09-15",
+};
+
+const ESA_VEIL: Citation = {
+  author: "ESA/Hubble",
+  year: "n.d.",
+  title: "Hubble views the Veil Nebula (heic0712)",
+  site: "ESA/Hubble",
+  url: "https://esahubble.org/news/heic0712/",
+  accessed: "2026-09-15",
+};
+
+const NASA_VEIL: Citation = {
+  author: "NASA Science",
+  year: "2025",
+  title: "Hubble Captures New View of Colorful Veil",
+  site: "NASA Science",
+  url: "https://science.nasa.gov/missions/hubble/hubble-captures-new-view-of-colorful-veil/",
+  accessed: "2026-09-15",
+};
 
 const SKYWATCHING = nasaScience("skywatching/", "Skywatching Tips From NASA", "2026-09-15");
 
@@ -256,6 +376,205 @@ export const SKY_FACTS: readonly SkyFact[] = [
         accessed: "2026-09-15",
       },
     ],
+  },
+  {
+    id: "m16",
+    kind: "Emission nebula · 7,000 light-years",
+    oneLiner: "The Pillars of Creation stand inside it",
+    body: [
+      "The pillars are roughly 4 to 5 light-years tall, a small feature of a nebula that spans 70 by 55 light-years.",
+      "Ultraviolet light from a cluster of young stars just outside Hubble’s frame is slowly eroding them.",
+      "The colours of the famous picture are narrowband filters assigned to channels, oxygen to blue, sulphur to red, nitrogen and hydrogen together to green, which is the Hubble palette rather than the view through an eyepiece.",
+    ],
+    visibility: "Telescope, a small one for the star cluster; best viewed during August",
+    citations: [hubbleMessier(16, "Messier 16 (The Eagle Nebula)", "2026-09-15"), AAA_HUBBLE_PALETTE],
+  },
+  {
+    id: "m20",
+    kind: "Star-forming nebula · 5,000 light-years",
+    oneLiner: "Dust lanes cut it into three lobes",
+    body: [
+      "Astronomers compared a Hubble image from 2026 against one taken in 1997 and found the nebula had changed on a human time scale.",
+      "Two thin jets, each roughly three-quarters of a light-year long, are being eroded by radiation from a massive star just beyond the frame.",
+      "Its published colours are filter assignments, red for hydrogen and sulphur and green for oxygen, and the 2026 image carries a key naming each filter used.",
+    ],
+    visibility: "Telescope, a small one; best observed during August",
+    citations: [hubbleMessier(20, "Messier 20 (The Trifid Nebula)", "2026-09-15"), ESA_TRIFID],
+  },
+  {
+    id: "m27",
+    kind: "Planetary nebula · more than 1,200 light-years",
+    oneLiner: "The first planetary nebula anyone found",
+    body: [
+      "Charles Messier spotted it in 1764, and the name planetary nebula is a misnomer that comes from the round, planet-like look through smaller telescopes.",
+      "It holds knots of gas and dust 17 billion to 56 billion kilometres across, several times the distance from the Sun to Pluto, each carrying about as much mass as three Earths.",
+      "Hubble’s picture puts oxygen in blue, hydrogen in green and sulphur with nitrogen in red, so its colours track which atoms are emitting rather than what an eye would see.",
+    ],
+    visibility: "Telescope, a small one, most easily in September",
+    citations: [hubbleMessier(27, "Messier 27 (The Dumbbell Nebula)", "2026-09-15")],
+  },
+  {
+    id: "m33",
+    kind: "Spiral galaxy · about 3 million light-years",
+    oneLiner: "Stars form here ten times faster than in Andromeda",
+    body: [
+      "Blue regions scattered across the disk are sites of rapid star birth, and the brightest of them, NGC 604, is one of the largest stellar nurseries in the Local Group.",
+      "It is about half the size of the Milky Way and the third-largest galaxy in that group.",
+      "It could become a third party in the collision between Andromeda and the Milky Way more than 4 billion years from now.",
+    ],
+    visibility: "Binoculars, which suit it better than a telescope; naked eye under exceptionally dark skies",
+    citations: [
+      hubbleMessier(33, "Messier 33", "2026-09-15"),
+      nasaScience("image-article/apod-2017-november-30-m33-triangulum-galaxy/", "APOD: 2017 November 30, M33: Triangulum Galaxy", "2026-09-15", "2017"),
+    ],
+  },
+  {
+    id: "m78",
+    kind: "Reflection nebula · 1,600 light-years",
+    oneLiner: "It reflects starlight instead of emitting its own",
+    body: [
+      "Dust here reflects the light of several bright blue stars that formed recently inside it, and the same scattering that colours the daytime sky deepens the blue.",
+      "Pierre Méchain found it in 1780, and one side of it flares away like a comet’s tail, which has fooled comet hunters into believing they had a new discovery.",
+    ],
+    visibility: "Binoculars or a small telescope; 8 inches or larger reveals more detail, best in January",
+    citations: [
+      nasaScience("image-article/apod-2000-april-24-reflection-nebula-m78/", "APOD: 2000 April 24, Reflection Nebula M78", "2026-09-15", "2000"),
+      hubbleMessier(78, "Messier 78", "2026-09-15"),
+    ],
+  },
+  {
+    id: "m81",
+    kind: "Spiral galaxy · 11.6 million light-years",
+    oneLiner: "Blue arms of young stars around an old yellow core",
+    body: [
+      "The arms are blue because they are made of hot stars formed in the past few million years, while the central bulge holds much older, redder ones.",
+      "A black hole of 70 million solar masses sits at the centre, about 15 times the mass of the Milky Way’s.",
+      "The widely shared pink version of this galaxy is a composite of ultraviolet, visible and infrared data, where the pink marks dust lanes seen in infrared rather than a colour anyone could see.",
+    ],
+    visibility: "Binoculars show a faint patch beside M82; a small telescope resolves the core, best in April",
+    citations: [
+      hubbleMessier(81, "Messier 81", "2026-09-15"),
+      nasaScience("image-article/apod-1997-july-26-m81-in-true-color/", "APOD: 1997 July 26, M81 in True Color", "2026-09-15", "1997"),
+      JPL_M81_PINK,
+    ],
+  },
+  {
+    id: "m82",
+    kind: "Starburst galaxy · 12 million light-years",
+    oneLiner: "Star birth at its centre runs ten times the Milky Way’s",
+    body: [
+      "The starburst limits itself: star formation this vigorous consumes or destroys the material needed to make more stars, so it should subside in a few tens of millions of years.",
+      "Chandra sees gas heated to millions of degrees by the outflow blasting matter out of the galaxy, and Spitzer sees cool gas and dust being ejected with it.",
+      "Both of its best-known portraits carry data the eye cannot see: one puts hydrogen and infrared light in red, the other puts X-rays in blue and infrared in red.",
+    ],
+    visibility: "Binoculars show a patch of light beside M81; larger telescopes resolve the core",
+    citations: [nasaScience("image-detail/m82-2/", "Cigar Galaxy M82", "2026-09-15"), CHANDRA_M82],
+  },
+  {
+    id: "m104",
+    kind: "Spiral galaxy · 28 to 30 million light-years",
+    oneLiner: "A brilliant white core inside a ring of dark dust",
+    body: [
+      "We see it nearly edge-on, from about six degrees north of its equatorial plane.",
+      "The dust ring is where its stars form, and Hubble resolves nearly 2,000 globular clusters around it, ten times the number in the Milky Way.",
+      "Its mass equals about 800 billion Suns, which makes it one of the most massive objects in the Virgo cluster.",
+    ],
+    visibility: "Telescope, a small one; it sits just past naked-eye range, most easily in May",
+    citations: [hubbleMessier(104, "Messier 104", "2026-09-15"), ESA_SOMBRERO],
+  },
+  {
+    id: "horsehead",
+    kind: "Dark nebula · 1,300 to 1,375 light-years",
+    oneLiner: "A pillar too thick for the radiation to erode",
+    body: [
+      "The gas that surrounded it has already dissipated, and the head survives because it is made of thick clumps of material that are harder to erode.",
+      "Astronomers estimate it has about five million years left before it goes too.",
+      "It is the closest giant star-forming region to Earth, and the radiation shaping it comes from the bright star Sigma Orionis just above it.",
+    ],
+    visibility: "Telescope; a dark cloud shaped like a horse’s head",
+    citations: [
+      nasaScience(
+        "missions/webb/webb-captures-top-of-iconic-horsehead-nebula-in-unprecedented-detail/",
+        "Webb Captures Top of Iconic Horsehead Nebula in Unprecedented Detail",
+        "2026-09-15",
+      ),
+      ESA_HORSEHEAD,
+    ],
+  },
+  {
+    id: "flame",
+    kind: "Emission nebula · 1,400 to 1,500 light-years",
+    oneLiner: "Its reddish glow is hydrogen recombining",
+    body: [
+      "Hydrogen atoms stripped of their electrons glow as the atoms and electrons recombine, which is where the reddish colour comes from.",
+      "A dark lane of dust stands in silhouette against that glow and hides the young massive star whose ultraviolet light does the ionizing.",
+      "X-ray and infrared data put the stars at the cluster’s centre at about 200,000 years old and those on its outskirts at about 1.5 million, the reverse of the simplest picture of how a cluster forms.",
+    ],
+    visibility: "Telescope; the dust lane hides the nebula’s energy source from optical telescopes",
+    citations: [
+      NASA_FLAME,
+      nasaScience("image-article/apod-2007-february-2-flame-nebula-close-up/", "APOD: 2007 February 2, Flame Nebula Close-Up", "2026-09-15", "2007"),
+    ],
+  },
+  {
+    id: "ngc869",
+    kind: "Open cluster · 7,000 light-years",
+    oneLiner: "The western half of the Double Cluster in Perseus",
+    body: [
+      "Only a few hundred light-years separate it from NGC 884, and the ages of their individual stars put both at 13 million years, evidence that one star-forming region produced them.",
+      "Its stars are much younger and hotter than the Sun.",
+      "Faint clouds of reddish ionized hydrogen lie across the whole field, though binoculars miss them and most telescopic images leave them out.",
+    ],
+    visibility: "Naked eye from dark locations; always a rewarding sight in binoculars",
+    citations: [APOD_DOUBLE_CLUSTER],
+  },
+  {
+    id: "ngc884",
+    kind: "Open cluster · 7,000 light-years",
+    oneLiner: "The eastern half of the Double Cluster in Perseus",
+    body: [
+      "It sits a few hundred light-years from NGC 869, and both clusters are 13 million years young.",
+      "A third, smaller cluster nearby, NGC 957, has a similar age and distance and may be related to the pair.",
+      "The picture those ages come from is a colour composite with narrowband data added to bring out the hydrogen clouds, so its red is enhanced rather than recorded straight.",
+    ],
+    visibility: "Naked eye from dark locations; binoculars show it beside NGC 869",
+    citations: [APOD_DOUBLE_CLUSTER],
+  },
+  {
+    id: "ngc7000",
+    kind: "Emission nebula · 1,600 to 1,800 light-years",
+    oneLiner: "Its outline resembles the North American continent",
+    body: [
+      "Hydrogen dominates the gas, and sensitive cameras pick up the reddish colour that goes with it, though the shape and the colour show up only in photographs.",
+      "The dark notch along the “East Coast” is a cloud lying in front of the nebula, LDN 935, and not a gap in the gas.",
+      "The hot 6th-magnitude binary HD 199579 is what sets it aglow; Deneb, three degrees away, was long suspected instead.",
+    ],
+    visibility: "Binoculars; its surface brightness is low, so the unaided eye needs exceptional conditions",
+    citations: [hubbleCaldwell(20, "Caldwell 20 (North America Nebula)", "2026-09-15"), CG_NORTH_AMERICA],
+  },
+  {
+    id: "ngc6960",
+    kind: "Supernova remnant · 1,500 to 2,400 light-years",
+    oneLiner: "The western arc of the Cygnus Loop",
+    body: [
+      "The star that exploded was roughly 20 times the mass of the Sun, and the blast happened somewhere between 5,000 and 10,000 years ago.",
+      "The whole shell, with NGC 6992 along its eastern side, spans about 3 degrees, roughly six full Moons laid side by side.",
+      "Anyone watching at the time would have seen a star brighten to about the brightness of the crescent Moon.",
+    ],
+    visibility: "Telescope; the shell covers about six full Moons of sky",
+    citations: [ESA_VEIL, NASA_VEIL],
+  },
+  {
+    id: "ngc6992",
+    kind: "Supernova remnant · 1,500 to 2,400 light-years",
+    oneLiner: "The eastern arc of the Cygnus Loop",
+    body: [
+      "It is the far side of the same shell as NGC 6960, debris from one star that exploded thousands of years ago.",
+      "The published colours come from three filters, one each for hydrogen, sulphur and oxygen, so blue for oxygen and red for hydrogen is an assignment of filters to channels rather than the view.",
+      "Hubble photographed this nebula in 1994, 1997 and 2015, and comparing those frames tracks the motion of individual knots and filaments of gas.",
+    ],
+    visibility: "Telescope; the two arcs sit at opposite edges of one shell about 3 degrees across",
+    citations: [ESA_VEIL, NASA_VEIL],
   },
   {
     id: "sgr-a-star",

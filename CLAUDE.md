@@ -147,9 +147,11 @@ second, with motion and under reduced motion; the rings' slow-load case
 below; the pointer cursor over a symbol, not on empty sky, `grabbing` during
 a drag), **`stargaze-browse-1440`** / **`stargaze-browse-400`** (the counts
 equal counts the page computes from the SERVED `objects.json`/`sky.json`,
-and are absent while `objects.json` is held; the open panel is measured
+and are absent while `objects.json` is held, while "browse the list" stays
+once the list has items; the open panel is measured
 on top, in the viewport, clear of the exit control, with the same ids in the
-same order as the closed list; Escape order; at 400px the docked panel's
+same order as the closed list; Escape order; an open panel's rows frozen
+through a clock-jumped turn and a 2s refresh, refreshed on close; at 400px the docked panel's
 size, and phone names clearing a hint bar the check grows by 110px, which
 caught a content-box ResizeObserver ignoring padding), **`stargaze-doors`**
 (the mark is SSR'd and `aria-hidden`; the footer door follows References on
@@ -158,8 +160,9 @@ with its own `via`, whichever door comes second adds nothing; exit returns
 focus to the door used), **`sky-invite`** (nothing at rest; the first sky
 entry shows it at the same instant the colour target goes to 1; once per
 load, not again after a same-session reload, never under `hasTouch` (Firefox
-really reports `(hover: none)` there), never in stargaze; with
-`sessionStorage` throwing, once per load), **`stargaze-chrome`** (the
+really reports `(hover: none)` there), never in stargaze, and never after
+stargaze has been entered by either door, not even after a reload (proved to
+bite by dropping the spend); with `sessionStorage` throwing, once per load), **`stargaze-chrome`** (the
 backing's alpha measured per lit pixel behind a pill, median 0.86 against a
 0.75 floor; a covered name neither highlights nor opens a card, and does
 once the chrome's pointer-events are forced off; no name box at 400px meets
@@ -358,8 +361,9 @@ into `components/manuscript/night-sky/` first, with no behaviour change. See
    since the panel's title says "on screen now", but a visitor reading "44
    objects" can't reach most of them from the list). The invite is
    hover-only, so on a phone the footer door and the toggle are the only
-   ways in. The owner still owes a read of the invite's wording ("the real
-   sky over NASA Ames, from the moment you arrived") and of the credit's tail.
+   ways in. The owner still owes a read of the invite's wording ("a real
+   chart of the sky over NASA Ames", final review m1: the chart runs 180x, so
+   "the real sky" read as live) and of the credit's tail.
 2. **Stargaze on a phone: names drawn, still thinner than desktop.** Below
    880px, since 2026-09-16, the coloured objects draw names that are tap
    targets (planets and the Moon always drew theirs, and now keep clear of the
@@ -403,9 +407,7 @@ into `components/manuscript/night-sky/` first, with no behaviour change. See
    its 1.2s; on desktop, planet and star names under the stargaze chrome pills
    are shaded by the backing, not routed around it; the paper-mode credit now
    sits on a soft dark backing strip, an aesthetic call the owner may lighten
-   (the contrast gate allows down to ~3.49:1 at 400px); with `objects.json`
-   absent the bar shows no counts and no browse control, so the panel is
-   unreachable visually (the sr-only list still works).
+   (the contrast gate allows down to ~3.49:1 at 400px).
 9. Much later: a third headliner demo, a **live network-security honeypot**
    (exposed Pi, malicious ssh/https logged, LLM-categorized into a live UMAP
    of attack families). Needs a live-data seam the static site doesn't have;
@@ -1235,14 +1237,16 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   per-interaction events).
 - **Counts and the list panel** (2026-09-16, `lib/stargaze-browse.ts`,
   `StargazeToggle.tsx`, `night-sky/keyboard-list.tsx`): the hint bar reads
-  "… · 44 objects and 88 constellations have cards · browse the list". The
+  "… · 44 objects, 88 constellations and more have cards · browse the list"
+  ("and more": planets, the Moon, the Milky Way, the ISS and active showers
+  open cards too and aren't counted, so it must not read as a total). The
   numbers are never literals: `countCards()` counts `objects.json` objects
   north of `EDGE_DEC_DEG` (−35°) that have a fact, which leaves out Voyager 2
   (the check was proved against 45), and the catalog's constellations with a
   fact. They publish only once `sky`, `objectsData` and `facts` have all
   landed, so no zero ever stands in for data in flight; with `objects.json`
-  absent there are no counts and no browse control (the sr-only list still
-  works). **One list, two presentations**: "browse the list" (`aria-expanded`)
+  absent there are no counts, but "browse the list" follows the list, not the
+  counts (`setListHasItems`), so it stays whenever the list holds anything. **One list, two presentations**: "browse the list" (`aria-expanded`)
   opens the SAME `[data-sky-list]` group as a visible panel, same buttons,
   same order, same identity. Closed, its `[data-sky-list-panel="closed"]`
   wrapper has no role and no class, so the accessibility tree is exactly what
@@ -1253,7 +1257,13 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   16px)` so it never reaches the exit control, and a docked card hides it
   until the card closes (focus returns to the opening button). Opening
   focuses the panel itself, not a button, because focusing a button rings its
-  subject. An open panel blocks pan, sky clicks and hover like a card does;
+  subject. **An open panel's rows are frozen** (final review m3): the 2s
+  refresh skips while it's open, so a row can't move under a pointer as the
+  sky turns; it refreshes once on open and once on close, then the timer
+  resumes, and a row whose subject has left opens a card with the
+  out-of-view line. Asserted with the clock jumped 10 minutes (a ~90° turn),
+  proved to bite by removing the skip. The closed sr-only list is unchanged.
+  An open panel blocks pan, sky clicks and hover like a card does;
   leaving stargaze closes it. ⚠️ **Known mismatch**: the panel lists what is
   ON SCREEN now (its title says so) while the counts describe the whole
   catalog, so most of "44 objects" isn't reachable from the list at any
@@ -1348,9 +1358,11 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
     the pointer is in (max 240px wide, skipped under 96px), clear of the sheet,
     the toggle, the credit and the pointer; up for `INVITE_MS = 3500` with a
     300ms fade (none under reduced motion); hidden at once by a scroll that
-    would bring the sheet under it or by entering stargaze;
+    would bring the sheet under it or by entering stargaze, which also SPENDS
+    it for the session by either door (final review m4: the visitor has
+    already found what it points at);
     `pointer-events: none`. It needs the star catalog drawn first (a caption
-    about "the real sky" over a plain desk would claim nothing), and an entry
+    about a real chart of the sky over a plain desk would claim nothing), and an entry
     that can't show it doesn't spend it. Once per session through
     `sessionStorage` key `sky-invite-shown` (try/catch; if storage throws,
     once per page load). **`aria-hidden` on purpose**: the credit and the

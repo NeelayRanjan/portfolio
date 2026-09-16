@@ -81,11 +81,12 @@ honest limit: the main-thread ORT wasm heap never actually shrinks, only the
 chess worker's termination truly frees memory. `window.__sky` and
 `window.__offload` are verify hooks, not UI.
 
-**Verification: `scripts/verify-redesign.mjs`** — 29 named checks,
+**Verification: `scripts/verify-redesign.mjs`** — 30 named checks,
 Playwright-Firefox against a real `npm run build && npm start` on :3000, never
 the dev server; pass check-name substrings as args to run subsets. Covers the
-night sky (turning at 1280px with a measured median frame draw around 2.7-3.2ms
-against a 5.92ms budget (2x the pre-objects 2.96ms baseline), a headless
+night sky (turning at 1280px with a measured median frame draw around 2.54ms
+against a 5.92ms budget, flat against the pre-colour-round 2.40-2.48ms
+baseline, a headless
 Firefox number, not a device number; static under reduced motion; present in
 the 400px margins; orientation checked against an independently computed
 astronomy-engine LST and two expected bright pixels, both at the moved,
@@ -120,7 +121,13 @@ draws and its card opens with live altitude/speed/epoch; with the route
 returning `{ tle: null }`, no ISS and no console error; every OTHER check
 gets `{ tle: null }` from `withPage` by default, since the route is
 prerendered at build time and its TLE would otherwise draw an ISS into any
-pinned instant within 7 days of the build), stargaze mode
+pinned instant within 7 days of the build), **`sky-colour`** (colour is
+stargaze-only, asserted from BOTH sides at the same drawn pixels of the same
+coloured objects: neutral with colour off, a previously-neutral pixel goes
+chromatic in stargaze, neutral again on exit; proved to actually bite by
+mutating `NightSky` and rebuilding — `colour: true` fails the neutral side,
+`colour: false` fails the chromatic side, a blanket colour note fails on M82
+by name — which is the standard a new check should meet), stargaze mode
 (hiding the page with `inert` and firing no page-content fetch; offloading
 the chess worker and the draw/headshot sessions; cancelling a run in flight
 without ever showing it as a failure or counting `demo_used`; surviving
@@ -154,8 +161,8 @@ change touching a demo, a figure, or the page shell.
 `content/sky-facts.ts` with the same rules. **`node --test
 scripts/test-sky-data.mjs scripts/test-sky-math.mjs scripts/test-sky-pan.mjs
 scripts/test-sky-objects.mjs scripts/test-sky-facts.mjs
-scripts/test-sky-iss.mjs`** runs outside Playwright, in plain node (47 cases
-total): `test-sky-data` pins the committed `sky.json`'s shape (star
+scripts/test-sky-iss.mjs`** runs outside Playwright, in plain node (62 cases
+total, up from 47 in the colour round): `test-sky-data` pins the committed `sky.json`'s shape (star
 count/order/ranges, Polaris and Sirius by position and magnitude, all 88
 constellations with Serpens merged and bilingual names) against hand edits
 and bad regenerations; `test-sky-math` pins `lib/sky-math.ts`'s projection
@@ -165,9 +172,17 @@ plus the moved pole and the drag/spring math; `test-sky-pan` pins the rubber
 band and spring in isolation (constants, frame-rate independence, no
 overshoot); `test-sky-objects` pins `objects.json`/`milkyway.json`'s shape,
 the 15 named stars resolved by HIP id, shower windows, the constellation
-origin table, and the Milky Way's vertex budget; `test-sky-facts` pins that
+origin table, and the Milky Way's vertex budget, plus (colour round) that
+every galaxy/nebula/cluster variant prepares exactly the geometry its draw
+function reads, that colour-off geometry is byte-unchanged for every glyph
+that predates the round, that the nebula and cluster palettes keep the
+false-colour rulings, and that every coloured object has a fact citing its
+colour source; `test-sky-facts` pins that
 every drawn object, planet, the Moon, all 88 constellations, every shower,
-both Voyagers and the ISS carry a complete, cited fact; `test-sky-iss` pins
+both Voyagers and the ISS carry a complete, cited fact, plus (colour round)
+that the fifteen new objects cite only verified sources, ship the Double
+Cluster and the Veil as paired objects, and carry no invented magnitude;
+`test-sky-iss` pins
 `lib/sky-iss.ts`'s topocentric result against satellite.js's own look-angle
 conversion and the 7-day TLE-staleness gate. `SKY_FACTS_PARTIAL=1` in front
 of `test-sky-facts` exists only so facts can be written in batches without
@@ -208,6 +223,36 @@ for the contracts. JPL Horizons was down during the build session, so the
 Voyager rows first shipped from the recorded fallback; the generator was
 re-run live on 2026-09-15 (`source.horizons.mode: "live"`), and the live
 rows matched the recorded ones to every stored digit.
+
+**2026-09-15/16: a colour round adds sourced colour to the deep-sky objects,
+stargaze only, and fifteen more objects to the catalog (30 → 45).** Colour
+rides the same flag as everything else stargaze changes: `View`/`FrameInput`
+carries `colour: isStargazing()`, read only inside `lib/sky-layers.ts`'s
+galaxy/nebula/cluster/Milky Way draw paths, while `lib/sky-render.ts` itself
+stays pure and never reads the stargaze store. It's stargaze-only because the
+page's OWN figures use colour to mean something (green is x0-diffusion, red
+is SAM, amber is an instrument readout); a colourful desk on every other page
+would compete with that system. No colour here claims to be what an eye would
+see: at these brightnesses vision runs on rod cells, which register none, so
+every colour follows a long exposure instead, and the credit line and each
+coloured card's note say so. Colour is never invented: a colour may follow an
+emission line's OWN wavelength (O III really is blue-green at 500.7nm,
+H-alpha really is red at 656.3nm, cited to Lodriguss's *Color in astronomical
+objects*, a working astrophotographer's book, named honestly as such rather
+than dressed up as an institutional source), but never a false-colour palette
+that reassigns a line to a channel it doesn't belong to, which is what the
+famous Hubble/SHO portraits of several of this round's own objects do. M82
+stays grey outright: its famous colour is X-ray and infrared data with no
+visible-light counterpart at all. The fifteen new objects are eight more
+Messier picks (M16, M20, M27, M33, M78, M81, M82, M104), the Horsehead, the
+Flame, and the Double Cluster and the Veil, each shipped as two separate
+objects since neither has one defensible centre. Two data traps were dropped
+at the source, both with an assertion: NGC 2024's (the Flame's) catalog
+magnitude is d3-celestial's own literal `999` sentinel, and the Horsehead's
+(B 33) `2` is Barnard's opacity class, not a brightness. See "Night sky +
+stargaze" below for the full contracts, including the Milky Way label's
+anchor now avoiding drawn objects, and crowded object names stepping down
+instead of overlapping.
 
 **Open items, roughly in order:**
 1. **The moved pole hasn't been judged by the owner yet.** `sky-objects` is
@@ -628,6 +673,25 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   total) add no measurable draw cost at this catalog size; none of the
   planned fallbacks (per-level Path2D caching, off-canvas ring culling,
   half-resolution offscreen blit) were needed.
+- **Hue cannot survive low alpha, and a screenshot review can't catch that it
+  didn't.** Stargaze's first pass at warming the Milky Way band (colour
+  round, 2026-09-15) changed only its hue, and a screenshot review passed it
+  because the band looks warm in BOTH modes (the site's own `INK` token is a
+  cream, `234,229,218`). Measured afterward: the band paints at 2-5% alpha
+  over a (12,11,9) desk, and at that opacity the gap between `INK`'s warmth
+  (r−b = 16) and the sourced tan's (r−b = 40) composites to about ONE level
+  out of 255 — a 375-pixel sample across the band measured a median warmth
+  change of exactly zero between colour on and off. A hue you can't see is a
+  comment in the code, not a colour. Fixed by lifting the band's ALPHA
+  alongside its hue in stargaze (gain 2.6), which is honest rather than a
+  cheat: a real long exposure is genuinely brighter and more saturated than
+  the eye, and the credit line already says these are long-exposure colours.
+  After the fix: median warmth +6, p90 +12, luminance median +13, and normal
+  mode stayed byte-identical by construction and by a stash-diff screenshot
+  with a matching SHA-256. The general lesson, not just this one bug: measure
+  the DIFFERENCE between two states, not the appearance of either one alone —
+  and when an implementer hedges a measurement as "an observation, not a
+  verdict," that hedge is exactly the thing to go measure.
 
 ## The demos — contracts and traps (these carry into the redesign)
 
@@ -710,6 +774,17 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   the sky (stars, lines, whichever other layers did load) still draws; a
   malformed file throws, at the same "see the export bug, don't hide it"
   standard as the star catalog.
+- **The catalog grew from 30 to 45 objects in the colour round** (`objects.json`,
+  `scripts/prepare-sky-objects.mjs`): eight more Messier picks (M16, M20, M27,
+  M33, M78, M81, M82, M104), the Horsehead, the Flame, and the Double Cluster
+  and the Veil, the last two each shipping as TWO separate sourced objects
+  (NGC 869 + NGC 884, NGC 6960 + NGC 6992) rather than one, the same ruling
+  position-sources.md already applied elsewhere: neither pair has one
+  defensible centre. Two data traps caught at the source, each with an
+  assertion so a regeneration can't reintroduce it: NGC 2024's (the Flame's)
+  magnitude is d3-celestial's own literal `999` sentinel, not a real value,
+  and the Horsehead's (B 33) `2` is Barnard's OPACITY class, not a
+  brightness — a dark nebula emits nothing to have a magnitude.
 - **Not-to-scale deep-sky glyphs** (2026-09-15, `prepareObjectGlyphs` in
   `lib/sky-objects.ts` + the draw helpers in `lib/sky-layers.ts`): galaxies,
   nebulae and clusters are drawn as illustrative "zoomed in" shapes, sized by
@@ -728,7 +803,56 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   five levels went from a flat 0.022 alpha to a per-level ramp plus a grain
   stipple, which is what makes the band read as a band and the core read as a
   core. Frame-time after all of it: 2.40-2.48ms median against the 5.92ms
-  gate, under the 2.80-3.20ms it measured before.
+  gate, under the 2.80-3.20ms it measured before. **The colour round
+  (2026-09-15) replaced plain markers with a variant table**, still prepared
+  once per catalog load under the same determinism rule: galaxies pick
+  `spiral`, `spiral-companion`, `elliptical`, `edge-on` or `starburst`;
+  nebulae pick `emission`, `planetary`, `reflection`, `remnant` or `dark`;
+  clusters pick `open` or `globular` (`GALAXY_PX`/`NEBULA_PX`/`CLUSTER_PX` in
+  `lib/sky-objects.ts`). Each variant's draw path in `lib/sky-layers.ts`
+  composes the object's own dust lanes, filaments, stars and blobs from its
+  prepared `ObjectGlyph`, and colours them from `OBJECT_COLOURS` only when
+  `v.colour` is set; an id the variant tables don't know about still falls
+  back to the plain symbol. `test-sky-objects.mjs` pins that colour-off
+  geometry is byte-unchanged for every glyph that predates the round.
+- **Sourced colour is stargaze-only** (`lib/sky-layers.ts`'s `OBJECT_COLOURS`,
+  threaded through `View`/`FrameInput` as `colour: isStargazing()`; `lib/sky-
+  render.ts` stays pure and never reads the stargaze store itself, same
+  discipline as its clock): the page's OWN figures use colour to mean
+  something (green is x0-diffusion, red is SAM, amber is an instrument
+  readout — see Figure colour conventions), and a colourful desk on every
+  other page would compete with that system. **No colour here claims to be
+  what an eye would see**: at these brightnesses human vision runs on rod
+  cells, which register none, so every drawn colour follows a long exposure
+  instead, and both the credit line and each coloured card's
+  `copy.stargaze.card.colourNote` restate that mechanism, not just assert the
+  fact. M82 is the one deep-sky object with no colour note at all
+  (`OBJECT_COLOURS[id]` is absent), verified in-browser rather than only in
+  the table, which is the proof the gate is real and not blanket.
+- **The false-colour rule, ruling R-COLOUR-1**
+  (`.superpowers/sdd/sky-colour/progress.md`): colour may follow an emission
+  line's OWN wavelength, since a plain RGB camera really does record O III at
+  500.7nm as blue-green and H-alpha at 656.3nm as red — but it may never
+  follow a false-colour palette that reassigns a line to a channel it doesn't
+  belong to, which is exactly what the Hubble/SHO portraits behind several of
+  this round's own objects (M16, M27, the Veil among them) do, mapping
+  H-alpha onto GREEN. M82 stays grey outright rather than falling back to a
+  palette: its famous colour is X-ray and infrared data with no visible-light
+  counterpart at all. M104 gets a bulge and a dust lane and no disk colour:
+  colour-sources.md could not source a blue disk for this specific galaxy, so
+  none is drawn. An id absent from `OBJECT_COLOURS` draws in the site's plain
+  neutrals, same as before the round.
+- **R-COLOUR-2's citation, for the emission-line-to-colour link itself**: Lodriguss,
+  J., *Color in astronomical objects*, in *Beginner's Guide to Astronomical
+  Image Processing*, AstroPix
+  (astropix.com/books/BGAIP/chapter1/103.html). A freely published book by a
+  working astrophotographer, not an institution — accepted here specifically
+  because the claim (what colour a line photographs as) is exactly his field;
+  it sits below NASA/ESA in authority and must never be dressed up as an
+  institutional source. It supports H-alpha = red and O III = blue-green
+  only. **[N II] = red stayed unsourced and unstated**: the only pages
+  carrying it were unverified tutorials, so nothing on the site rests on it,
+  even though it circulates as folk knowledge among astrophotographers.
 - **Hit precedence** (`nearestHit` in `lib/sky-render.ts`, hover and
   stargaze clicks alike): a symbol the point is ON (within 6px by default,
   or a bigger glyph's own `core`, never past the caller's own hit radius)
@@ -749,6 +873,21 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   suppressed while its hover/selection label is showing (`View.suppressName`
   in `lib/sky-render.ts`, read back as `window.__sky.suppressedName`) so the
   two labels never double up.
+- **The Milky Way label's anchor avoids drawn objects and the page's own
+  chrome, not just the sheet** (colour round Task 3): the band's label
+  anchors sit inside the band by construction, so the Double Cluster (added
+  this round, and lying inside the band) landed 6-10px from the label and
+  made that stretch of the band unclickable — any object added inside the
+  band can recreate this. The label now prefers whichever anchor is clear of
+  every object drawn this frame AND of stargaze's own top hint bar and bottom
+  credit line, falling back to the closest anchor rather than ever dropping
+  the label.
+- **A crowded object name steps down past every name box already drawn this
+  frame** instead of printing on top of one (`drawnNameBoxes` in
+  `lib/sky-layers.ts`, controller fix on Task 4): the Double Cluster's two
+  labels and M81/M82's 4px separation both produced an unreadable, and
+  unclickable, smear before this — a drawn name is itself a hit target (see
+  Hit precedence above), so an overlapped name box can't be clicked either.
 - **Stargaze cards** (`components/manuscript/SkyCard.tsx`, a DOM `aside`
   with `aria-labelledby`, not canvas): a click under `CLICK_SLOP_PX` on a
   selectable opens a card; a click on empty sky, or the card's own close
@@ -1219,7 +1358,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 | `public/ascii_traj.json` | 586 KB | discrete/mask trajectories, same shape |
 | `public/chess_activations.json` | 43 KB | precomputed saliency, 8 curated positions |
 | `public/sky/sky.json` | ~57 KB | star catalog behind every page: 1,627 stars, 88 constellations, built by `scripts/prepare-sky.mjs` from a pinned d3-celestial commit |
-| `public/sky/objects.json` | ~15 KB | Messier picks, Sgr A*, the Kepler field, the Hubble Deep Field, the 15 named stars, both Voyagers, the 12 meteor showers, the constellation origin table; built by `scripts/prepare-sky-objects.mjs` |
+| `public/sky/objects.json` | ~17 KB | 45 deep-sky picks (colour round, 2026-09-15, added 15: eight more Messier objects plus the Horsehead, the Flame, and the Double Cluster and the Veil as paired objects), Sgr A*, the Kepler field, the Hubble Deep Field, the 15 named stars, both Voyagers, the 12 meteor showers, the constellation origin table; built by `scripts/prepare-sky-objects.mjs` |
 | `public/sky/milkyway.json` | ~30 KB | the Milky Way band, 5 nested levels, 2,267 vertices after simplification (budget 1,500-4,000); same generator |
 | `content/sky-facts.ts` | 138 facts, 862 string literals (voice-scanned) | every card's and one-liner's facts and citations; single source, typed, no runtime imports |
 | `public/jepa/manifest.json` | 483 KB | JEPA bundle: labels, UMAPs, neighbours, metrics |

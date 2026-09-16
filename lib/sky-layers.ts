@@ -273,6 +273,30 @@ const MILKY_WAY_GRAIN_ALPHA = [0.05, 0.07, 0.1, 0.15, 0.22];
  * describes without inventing a hue the source never names.
  */
 const MILKY_WAY_LEVEL_RGB = ["180,168,148", "193,181,159", "206,194,170", "219,207,181", "232,220,192"];
+/**
+ * ⚠️ Colour alone did nothing, and this is why (measured, colour round
+ * 2026-09-16). The band paints at 2 to 5 percent alpha over a desk of
+ * (12,11,9). At that opacity the difference between INK's warmth (r−b = 16)
+ * and the sourced tan's (r−b = 40) lands as about ONE level out of 255: a
+ * 375-pixel sample across the band measured a median warmth change of zero
+ * between the two modes. A hue you cannot see is not a colour, it is a
+ * comment in the code.
+ *
+ * So stargaze also lifts the band's opacity, which is the honest move rather
+ * than a cheat: a long exposure genuinely is brighter AND more saturated than
+ * the eye, the credit line already says these are long-exposure colours, and
+ * the same multiplier applies to the grain so the stipple keeps its relation
+ * to the wash. Normal mode reads neither of these and stays byte-identical.
+ *
+ * Tuned against the objects drawn on top: the band is the largest painted
+ * area in the scene, so the ceiling here is the point where it starts to
+ * drown a nebula, not the point where it stops looking pretty.
+ */
+const MILKY_WAY_STARGAZE_ALPHA_GAIN = 2.6;
+/** Saturated toward the tan a long exposure records. Same hue family as the
+ *  sourced core hex, pushed until it survives compositing; li4 keeps the
+ *  source's own brightness relationship to the rest. */
+const MILKY_WAY_LEVEL_RGB_STARGAZE = ["150,120,84", "168,134,92", "188,152,104", "208,172,120", "226,196,146"];
 
 /** What every layer needs to know about the frame. `suppressName` is the id
  *  (a hit id, or "milky-way") whose always-on name must be skipped because
@@ -345,9 +369,13 @@ export function drawMilkyWay(
     const phi = raRad - lst;
     return { x: c.cx + rho * Math.sin(phi), y: c.cy - rho * Math.cos(phi) };
   };
+  const bandRgb = (li: number) =>
+    v.colour
+      ? (MILKY_WAY_LEVEL_RGB_STARGAZE[li] ?? MILKY_WAY_LEVEL_RGB_STARGAZE[MILKY_WAY_LEVEL_RGB_STARGAZE.length - 1])
+      : INK;
+  const bandGain = v.colour ? MILKY_WAY_STARGAZE_ALPHA_GAIN : 1;
   mw.levels.forEach((rings, li) => {
-    const rgb = v.colour ? (MILKY_WAY_LEVEL_RGB[li] ?? MILKY_WAY_LEVEL_RGB[MILKY_WAY_LEVEL_RGB.length - 1]) : INK;
-    ctx.fillStyle = `rgba(${rgb},${MILKY_WAY_LEVEL_ALPHA[li] ?? 0.03})`;
+    ctx.fillStyle = `rgba(${bandRgb(li)},${(MILKY_WAY_LEVEL_ALPHA[li] ?? 0.03) * bandGain})`;
     ctx.beginPath();
     for (const ring of rings) {
       for (let i = 0; i < ring.length; i += 2) {
@@ -366,8 +394,9 @@ export function drawMilkyWay(
   // aligned to mw.levels, prepared once in lib/sky-objects.ts). Cheap: a
   // fillStyle change per level (5 total, not per point) and a fillRect each.
   mw.grain.forEach((pts, li) => {
-    const rgb = v.colour ? (MILKY_WAY_LEVEL_RGB[li] ?? MILKY_WAY_LEVEL_RGB[MILKY_WAY_LEVEL_RGB.length - 1]) : INK;
-    ctx.fillStyle = `rgba(${rgb},${MILKY_WAY_GRAIN_ALPHA[li] ?? 0.08})`;
+    // The grain takes the same gain as the wash, so the stipple keeps its
+    // relation to what it sits on instead of flattening into it.
+    ctx.fillStyle = `rgba(${bandRgb(li)},${Math.min(0.5, (MILKY_WAY_GRAIN_ALPHA[li] ?? 0.08) * bandGain)})`;
     for (let i = 0; i < pts.length; i += 2) {
       const { x, y } = toScreen(pts[i], pts[i + 1]);
       ctx.fillRect(x - 0.5, y - 0.5, 1, 1);

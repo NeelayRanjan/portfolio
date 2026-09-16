@@ -14,6 +14,7 @@ import {
 } from "@/lib/sky-math";
 import type { Vec } from "@/lib/sky-pan";
 import { isStargazing } from "@/lib/stargaze";
+import { getHintBottom } from "@/lib/stargaze-browse";
 import { ENTRY_RING_MS, entryRingAlpha } from "./entry-rings";
 import type { SkyLayers, SkyState } from "./state";
 
@@ -186,6 +187,7 @@ export function createPainter(
       names: !s.narrowQ.matches,
       saturation: s.saturation,
       stargazeChrome: stargazing,
+      chromeTopPx: stargazing ? getHintBottom() : 0,
       underlineNames: stargazing,
       colouredNames: stargazing,
       entryRings,

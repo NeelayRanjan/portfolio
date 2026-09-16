@@ -20,7 +20,7 @@ import type { SkyState } from "./state";
 
 const HOVER_PX = 24;
 /** Never start a pan on these: the page's own controls, and (Task 5) the card. */
-const PAN_BLOCKERS = "a, button, input, select, textarea, label, summary, [role='button'], [data-sky-card]";
+const PAN_BLOCKERS = "a, button, input, select, textarea, label, summary, [role='button'], [data-sky-card], [data-sky-list-panel='open']";
 /** Not the sky, for the colour target: the page's controls, the sheet, the credit line. */
 const NOT_SKY = `${PAN_BLOCKERS}, [data-sheet], [data-sky-credit]`;
 
@@ -165,8 +165,8 @@ export function createPointerController(s: SkyState, deps: PointerControllerDeps
       const el = e.target instanceof Element ? e.target : null;
       setPointerOverSky(!el?.closest(NOT_SKY) && !sheetContains(e.clientX, e.clientY));
     }
-    // Over the open card: nothing under it is being pointed at.
-    if (e.target instanceof Element && e.target.closest("[data-sky-card]")) {
+    // Over the open card or list panel: nothing under it is being pointed at.
+    if (e.target instanceof Element && e.target.closest("[data-sky-card], [data-sky-list-panel='open']")) {
       setPointerCursor(false);
       return setHighlight(null);
     }

@@ -359,6 +359,11 @@ export type View = {
    *  so the band's label keeps clear of it. Was read off `colour` when
    *  colour meant stargaze; the two are separate now. */
   stargazeChrome: boolean;
+  /** The stargaze hint bar's measured bottom edge in px (discoverability
+   *  Task 5). It wraps to more lines on a narrow screen as it gained counts
+   *  and "browse the list", so a fixed band stopped describing it. Absent or
+   *  0 (unmeasured) falls back to CHROME_TOP_PX. Only read with stargazeChrome. */
+  chromeTopPx?: number;
   /** Stargaze only (discoverability spec §4): every drawn name is a click
    *  target there, so it gets a dotted underline, the page's own "this is
    *  clickable" mark. Paper-mode names are not targets and stay plain. The
@@ -474,6 +479,13 @@ const LABEL_CLEARANCE_PX = 30;
  *  viewport for nothing, and moved it from where main draws it. */
 const CHROME_TOP_PX = 90;
 const CHROME_BOTTOM_PX = 130;
+/** Air between the measured hint bar and a phone name below it. */
+const CHROME_TOP_GAP_PX = 6;
+/** Where stargaze's top chrome ends for a phone name: the hint bar's measured
+ *  bottom plus a little air, or the old fixed band while it is unmeasured. */
+const phoneChromeTop = (v: View) => (v.chromeTopPx ? v.chromeTopPx + CHROME_TOP_GAP_PX : CHROME_TOP_PX);
+/** The band's label keeps the old, roomier band unless the bar has grown past it. */
+const labelChromeTop = (v: View) => Math.max(CHROME_TOP_PX, phoneChromeTop(v));
 /**
  * The box a name occupies when drawn with fillText at (x, baseline) in the
  * context's CURRENT font of `px` size: measured width, a cap height of
@@ -564,7 +576,7 @@ export function drawMilkyWay(
   ctx.font = `9px ${v.fontFamily}`;
   const labelHalfW = ctx.measureText("Milky Way").width / 2;
   const spoiled = (p: { x: number; y: number }) => {
-    if (v.stargazeChrome && (p.y < CHROME_TOP_PX || p.y > v.height - CHROME_BOTTOM_PX)) return true;
+    if (v.stargazeChrome && (p.y < labelChromeTop(v) || p.y > v.height - CHROME_BOTTOM_PX)) return true;
     return avoid.some((o) => Math.hypot(o.x - (p.x + labelHalfW), o.y - p.y) < LABEL_CLEARANCE_PX);
   };
   let best: { x: number; y: number } | null = null;
@@ -1191,7 +1203,7 @@ export function drawObjects(
       const dx = o.symbol === "field" ? 0 : glyph ? Math.max(8, glyph.corePx + 8) : 8;
       const textW = ctx.measureText(o.name).width;
       const x = p.x + dx + textW > v.width - PHONE_NAME_EDGE_PX ? p.x - dx - textW : p.x + dx;
-      const top = v.stargazeChrome ? CHROME_TOP_PX : 0;
+      const top = v.stargazeChrome ? phoneChromeTop(v) : 0;
       const bottom = v.height - (v.stargazeChrome ? CHROME_BOTTOM_PX : 0);
       let baseline = p.y + 3;
       let placed: Box | null = null;

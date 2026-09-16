@@ -82,6 +82,9 @@ export type FrameInput = {
   saturation: number;
   /** Stargaze's fixed chrome is on screen (the band's label avoids it). */
   stargazeChrome: boolean;
+  /** The stargaze hint bar's measured bottom edge in px (0 when unmeasured):
+   *  phone names keep clear of it. Data, like the rest; see View.chromeTopPx. */
+  chromeTopPx?: number;
   /** Dotted underlines under drawn names (View.underlineNames): stargaze only. */
   underlineNames: boolean;
   /** Names for coloured objects below 880px (View.colouredNames): stargaze only. */
@@ -142,7 +145,7 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
   // selectedId to the open card's subject (Task 5), so a selected object's
   // own name stays suppressed while its card is open, the same as a hover.
   const suppressName = f.highlight?.kind === "hit" ? f.highlight.id : f.selectedId;
-  const view: View = { chart: c, width, height, fontFamily: f.fontFamily, names: f.names, saturation: f.saturation, stargazeChrome: f.stargazeChrome, underlineNames: f.underlineNames, colouredNames: f.colouredNames, suppressName };
+  const view: View = { chart: c, width, height, fontFamily: f.fontFamily, names: f.names, saturation: f.saturation, stargazeChrome: f.stargazeChrome, chromeTopPx: f.chromeTopPx, underlineNames: f.underlineNames, colouredNames: f.colouredNames, suppressName };
   const onCanvas = (p: { x: number; y: number }, m: number) =>
     p.x > -m && p.x < width + m && p.y > -m && p.y < height + m;
   const radiusAt = (dec: number) => c.k * Math.tan(((90 - dec) / 2) * D2R);

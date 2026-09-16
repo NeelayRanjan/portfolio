@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { isStargazing, subscribeStargaze } from "@/lib/stargaze";
+import { countCards, getHintBottom, setCardCounts, setListPanelOpen, subscribeBrowse } from "@/lib/stargaze-browse";
 import { SkyCard, type CardModel } from "./SkyCard";
 import { createCardController } from "./night-sky/card-controller";
 import { ENTRY_RING_MS, pickEntryRingIds } from "./night-sky/entry-rings";
@@ -80,6 +81,13 @@ import { createSkyState } from "./night-sky/state";
  *   phones draw names for the coloured objects, and the first entry of a
  *   page load rings the four symbols nearest the centre once
  *   (night-sky/entry-rings.ts).
+ *
+ * - Counts and the list panel (discoverability spec §4): once the star
+ *   catalog, objects.json and the facts have landed, the hint bar's counts
+ *   are published from them (lib/stargaze-browse.ts), and the keyboard list
+ *   doubles as a visible panel (night-sky/keyboard-list.tsx has the panel,
+ *   card and Escape rules). Phone names keep clear of the hint bar's
+ *   measured height, so the sky repaints when that changes.
  */
 
 export function NightSky() {
@@ -216,10 +224,20 @@ export function NightSky() {
       paint();
     };
 
+    // The hint bar's counts, from the data itself: only once every layer
+    // they count has landed, so the bar never shows a zero for data that
+    // hasn't arrived (or never will: an absent objects.json shows no counts).
+    const publishCounts = () => {
+      const { sky, objectsData, facts } = s;
+      if (!sky || !objectsData || !facts) return;
+      setCardCounts(countCards(objectsData.objects, Object.keys(sky.constellations), (id) => facts.has(id)));
+    };
+
     loadSkyLayers(s, {
       paint: () => {
         paint();
         tryStartEntryRings();
+        publishCounts();
       },
       resolveFont,
     });
@@ -227,7 +245,19 @@ export function NightSky() {
     window.addEventListener("resize", onResize);
     s.reducedQ.addEventListener("change", loop.applyMode);
     pointer.attach();
+    // Order matters: both listen in the capture phase on window, and a
+    // visible list panel takes Escape before the card does.
+    window.addEventListener("keydown", list.onKeyDown, { capture: true });
     window.addEventListener("keydown", cards.onKeyDown, { capture: true });
+    // Phone names avoid the hint bar's measured bottom edge; a still sky
+    // (reduced motion) has no loop to pick a new height up on its own.
+    let lastHintBottom = getHintBottom();
+    const unsubBrowse = subscribeBrowse(() => {
+      const next = getHintBottom();
+      if (next === lastHintBottom) return;
+      lastHintBottom = next;
+      if (s.sky) paint();
+    });
     const unsubStargaze = subscribeStargaze((on) => {
       s.highlight = null;
       pointer.clearPointerCursor();
@@ -242,6 +272,7 @@ export function NightSky() {
       // button), not the exit control NightSky would otherwise reach for.
       if (!on) {
         cards.closeCard({ restoreFocus: false });
+        setListPanelOpen(false);
         pointer.endHeldDragForExit();
         // The one place the page always gets its composed offset back,
         // however stargaze was left: the exit button, Escape, or anything
@@ -269,7 +300,9 @@ export function NightSky() {
       loop.stop();
       window.removeEventListener("resize", onResize);
       s.reducedQ.removeEventListener("change", loop.applyMode);
+      window.removeEventListener("keydown", list.onKeyDown, { capture: true });
       window.removeEventListener("keydown", cards.onKeyDown, { capture: true });
+      unsubBrowse();
       pointer.detach();
       list.dispose();
       unsubStargaze();
@@ -286,7 +319,7 @@ export function NightSky() {
       {card ? (
         <SkyCard model={card} outOfView={cardOutOfView} cardRef={cardRef} onClose={() => closeRef.current()} />
       ) : null}
-      <SkyKeyboardList slot={listSlot} items={listItems} actionsRef={listActionsRef} />
+      <SkyKeyboardList slot={listSlot} items={listItems} actionsRef={listActionsRef} cardOpen={card !== null} />
     </>
   );
 }

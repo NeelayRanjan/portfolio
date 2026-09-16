@@ -37,7 +37,7 @@ import * as satellite from "satellite.js";
 import { readFileSync } from "node:fs";
 import { register } from "node:module";
 import { EMISSION_LINE_COLOUR, SKY_FACTS } from "../content/sky-facts.ts";
-import { moonEquatorial, planetEquatorial } from "../lib/sky-math.ts";
+import { EDGE_DEC_DEG, moonEquatorial, planetEquatorial } from "../lib/sky-math.ts";
 import { copy } from "../content/copy.ts";
 
 /**
@@ -3659,6 +3659,281 @@ async function checkStargazeAffordances(browser) {
   return notes.join("; ");
 }
 
+/* ---------------------------------------------------------------------- */
+/* discoverability Task 5: counts in the hint, the list as a panel         */
+/* ---------------------------------------------------------------------- */
+
+/** Counts computed IN THE PAGE from the served JSON, independently of the site's own code. */
+function servedCounts(page) {
+  return page.evaluate(async (edge) => {
+    const [objects, sky] = await Promise.all([
+      fetch("/sky/objects.json").then((r) => r.json()),
+      fetch("/sky/sky.json").then((r) => r.json()),
+    ]);
+    return {
+      objects: objects.objects.filter((o) => o.decDeg > edge).length,
+      belowEdge: objects.objects.filter((o) => o.decDeg <= edge).map((o) => o.id),
+      constellations: Object.keys(sky.constellations).length,
+    };
+  }, EDGE_DEC_DEG);
+}
+
+/** What the hint bar shows, read off the DOM. */
+function readHint(page) {
+  return page.evaluate(() => {
+    const hint = document.querySelector("[data-stargaze-hint]");
+    const num = (sel) => {
+      const el = document.querySelector(sel);
+      return el ? el.textContent : null;
+    };
+    return {
+      text: hint?.textContent ?? null,
+      objects: num("[data-stargaze-count-objects]"),
+      constellations: num("[data-stargaze-count-constellations]"),
+      browse: !!document.querySelector("[data-stargaze-browse]"),
+    };
+  });
+}
+
+/** A visible box, measured: bounding box, computed display/visibility/opacity, and what is on top at its centre. */
+function measureVisible(page, sel) {
+  return page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    const top = document.elementFromPoint(r.left + r.width / 2, r.top + Math.min(r.height / 2, 30));
+    return {
+      x: r.left,
+      y: r.top,
+      w: r.width,
+      h: r.height,
+      bottom: r.bottom,
+      right: r.right,
+      display: cs.display,
+      visibility: cs.visibility,
+      opacity: Number(cs.opacity),
+      onTop: !!top && el.contains(top),
+    };
+  }, sel);
+}
+
+const boxesIntersect = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+const isShown = (m) => !!m && m.w > 0 && m.h > 0 && m.display !== "none" && m.visibility === "visible" && m.opacity > 0.9;
+
+async function checkStargazeBrowse(browser) {
+  const W = 1440;
+  const H = 900;
+  const { date } = findInstant(new Date(Date.UTC(2026, 9, 1)), W, H, M31, 120);
+  const notes = [];
+
+  // Before the data lands: the hint without counts, never zeros.
+  await withPage(browser, { viewport: { width: W, height: H }, reducedMotion: "reduce", deviceScaleFactor: 1 }, async (page, context) => {
+    let release;
+    const held = new Promise((r) => (release = r));
+    await context.route("**/sky/objects.json", async (route) => {
+      await held;
+      await route.continue();
+    });
+    await page.clock.setFixedTime(date);
+    await page.goto(BASE, { waitUntil: "domcontentloaded" });
+    await waitStargazeReady(page);
+    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    await page.waitForTimeout(500);
+    const early = await readHint(page);
+    if (early.text !== copy.stargaze.hintPointer || early.objects !== null || early.browse) {
+      throw new Error(`with objects.json held back the hint bar reads ${JSON.stringify(early)}; expected the hint alone, no counts and no browse control`);
+    }
+    release();
+    await page.waitForSelector("[data-stargaze-count-objects]", { timeout: 10000 });
+    notes.push("objects.json held: hint alone; released: counts appeared");
+  });
+
+  await pinnedSkyPage(browser, { W, H, date }, async (page) => {
+    await page.waitForFunction(() => window.__sky.layers.facts === "ready", null, { timeout: 10000 });
+    await waitStargazeReady(page);
+    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    await page.waitForSelector("[data-stargaze-count-objects]", { timeout: 5000 });
+    await page.waitForFunction(() => document.querySelectorAll("[data-sky-list-item]").length > 0, null, { timeout: 5000 });
+
+    const served = await servedCounts(page);
+    const hint = await readHint(page);
+    if (Number(hint.objects) !== served.objects || Number(hint.constellations) !== served.constellations) {
+      throw new Error(
+        `hint says ${hint.objects} objects and ${hint.constellations} constellations; the served objects.json has ${served.objects} objects north of dec ${EDGE_DEC_DEG} (excluded: ${served.belowEdge.join(", ")}) and sky.json ${served.constellations} constellations`,
+      );
+    }
+    const t = copy.stargaze;
+    const composed = `${t.hintPointer} · ${served.objects}${t.countsObjects}${served.constellations}${t.countsConstellations} · ${t.browseList}`;
+    if (hint.text !== composed) throw new Error(`hint bar reads ${JSON.stringify(hint.text)}, expected ${JSON.stringify(composed)}`);
+    notes.push(`hint ${served.objects} objects / ${served.constellations} constellations = served JSON (excluded ${served.belowEdge.join(", ")})`);
+
+    // Closed: the list is the same sr-only group as before.
+    const closed = await page.evaluate(() => {
+      const g = document.querySelector("[data-sky-list]");
+      const r = g.getBoundingClientRect();
+      return {
+        label: g.getAttribute("aria-label"),
+        role: g.getAttribute("role"),
+        srOnly: g.classList.contains("sr-only"),
+        w: r.width,
+        h: r.height,
+        wrapperRole: g.parentElement.getAttribute("role"),
+        ids: [...g.querySelectorAll("[data-sky-list-item]")].map((b) => b.getAttribute("data-sky-list-item")),
+      };
+    });
+    if (closed.label !== t.listLabel || closed.role !== "group" || !closed.srOnly || closed.w > 1 || closed.h > 1 || closed.wrapperRole) {
+      throw new Error(`closed list: ${JSON.stringify({ ...closed, ids: closed.ids.length })}; expected the sr-only group "${t.listLabel}" (1px box) with no role on its wrapper`);
+    }
+
+    await page.getByRole("button", { name: t.browseList }).click();
+    await page.waitForSelector('[data-sky-list-panel="open"]', { timeout: 3000 });
+    const panel = await measureVisible(page, '[data-sky-list-panel="open"]');
+    const exit = await measureVisible(page, "[data-stargaze-exit]");
+    if (!isShown(panel) || panel.w < 200 || panel.h < 100 || !panel.onTop) throw new Error(`"browse the list" panel measured ${JSON.stringify(panel)}; expected a shown box at least 200x100 on top at its centre`);
+    if (panel.x < 0 || panel.right > W || panel.y < 0 || panel.bottom > H) throw new Error(`panel box ${JSON.stringify(panel)} runs off the ${W}x${H} viewport`);
+    if (boxesIntersect(panel, exit)) throw new Error(`panel box ${JSON.stringify(panel)} covers the exit control ${JSON.stringify(exit)}`);
+    const open = await page.evaluate(() => ({
+      ids: [...document.querySelectorAll("[data-sky-list] [data-sky-list-item]")].map((b) => b.getAttribute("data-sky-list-item")),
+      title: document.querySelector("#sky-list-panel-title")?.textContent,
+      focusIn: !!document.activeElement?.closest("[data-sky-list-panel]"),
+      lists: document.querySelectorAll("[data-sky-list]").length,
+      first: (() => {
+        const r = document.querySelector("[data-sky-list-item]").getBoundingClientRect();
+        return { w: r.width, h: r.height };
+      })(),
+    }));
+    if (open.lists !== 1) throw new Error(`${open.lists} [data-sky-list] groups with the panel open; there must be one list`);
+    if (open.ids.join("|") !== closed.ids.join("|")) throw new Error(`panel buttons ${open.ids.join(",")} differ from the closed list ${closed.ids.join(",")}`);
+    if (open.title !== t.listPanelTitle) throw new Error(`panel title ${JSON.stringify(open.title)}`);
+    if (!open.focusIn) throw new Error("opening the panel did not move focus into it");
+    if (open.first.w < 20 || open.first.h < 8) throw new Error(`first panel button measures ${JSON.stringify(open.first)}`);
+    notes.push(`panel ${panel.w.toFixed(0)}x${panel.h.toFixed(0)} at (${panel.x.toFixed(0)}, ${panel.y.toFixed(0)}), shown and on top, ${open.ids.length} buttons in the list's order`);
+
+    // A panel button opens its card; the panel stays open behind it on desktop.
+    const symbolId = open.ids.find((id) => !ABBRS.includes(id));
+    const button = page.locator(`[data-sky-list-panel="open"] [data-sky-list-item="${symbolId}"]`);
+    await button.scrollIntoViewIfNeeded();
+    await button.click();
+    await page.locator(`[data-sky-card="${symbolId}"]`).waitFor({ state: "visible", timeout: 3000 });
+    const both = await measureVisible(page, '[data-sky-list-panel="open"]');
+    if (!isShown(both)) throw new Error(`at ${W}px the panel was hidden when a card opened from it: ${JSON.stringify(both)}`);
+
+    // Escape: panel, then card, then stargaze.
+    await page.keyboard.press("Escape");
+    const after1 = await page.evaluate(() => ({
+      panel: document.querySelector("[data-sky-list-panel]")?.getAttribute("data-sky-list-panel") ?? null,
+      card: document.querySelector("[data-sky-card]")?.getAttribute("data-sky-card") ?? null,
+      stargaze: document.body.hasAttribute("data-stargaze"),
+    }));
+    if (after1.panel !== "closed" || after1.card !== symbolId || !after1.stargaze) throw new Error(`first Escape left ${JSON.stringify(after1)}; expected the panel closed, card ${symbolId} open, still stargazing`);
+    await page.keyboard.press("Escape");
+    await page.locator("[data-sky-card]").waitFor({ state: "detached", timeout: 2000 }).catch(() => {
+      throw new Error("second Escape did not close the card");
+    });
+    if (!(await page.evaluate(() => document.body.hasAttribute("data-stargaze")))) throw new Error("second Escape left stargaze along with the card");
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.body.hasAttribute("data-stargaze"), null, { timeout: 2000 }).catch(() => {
+      throw new Error("third Escape did not leave stargaze");
+    });
+    notes.push(`panel button opened ${symbolId}'s card (panel stayed); Escape x3: panel, card, stargaze`);
+
+    // The close button closes it too, and returns focus to "browse the list".
+    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    const reopened = await page.evaluate(() => document.querySelector("[data-sky-list-panel]")?.getAttribute("data-sky-list-panel") ?? null);
+    if (reopened === "open") throw new Error("the panel was still open on re-entering stargaze");
+    await page.getByRole("button", { name: t.browseList }).click();
+    await page.getByRole("button", { name: t.listPanelClose }).click();
+    const closedByButton = await page.evaluate(() => ({
+      panel: document.querySelector("[data-sky-list-panel]")?.getAttribute("data-sky-list-panel"),
+      focus: document.activeElement?.hasAttribute("data-stargaze-browse"),
+    }));
+    if (closedByButton.panel !== "closed" || !closedByButton.focus) throw new Error(`close button left ${JSON.stringify(closedByButton)}`);
+    notes.push("close button closes it, focus back on browse");
+  });
+  return notes.join("; ");
+}
+
+async function checkStargazeBrowse400(browser) {
+  const W = 400;
+  const H = 800;
+  const date = new Date(Date.UTC(2026, 9, 1, 6));
+  return pinnedSkyPage(browser, { W, H, date, contextOptions: { hasTouch: true } }, async (page) => {
+    await page.waitForFunction(() => window.__sky.layers.facts === "ready", null, { timeout: 10000 });
+    await waitStargazeReady(page);
+    await page.getByRole("button", { name: STARGAZE_ENTER }).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    await page.waitForSelector("[data-stargaze-count-objects]", { timeout: 5000 });
+    await page.waitForFunction(() => document.querySelectorAll("[data-sky-list-item]").length > 0, null, { timeout: 5000 });
+    // A paint after the bar's final height: the still sky repaints on a height change.
+    await page.waitForTimeout(300);
+
+    // Phone names are the coloured objects' (Task 4). Planet and Moon names
+    // draw at every width on their own path and are not part of this band.
+    const coloured = Object.keys(OBJECT_COLOURS);
+    const readLayout = () =>
+      page.evaluate((coloured) => {
+        const r = document.querySelector("[data-stargaze-bar]").getBoundingClientRect();
+        return {
+          bar: { x: r.left, y: r.top, w: r.width, h: r.height },
+          names: window.__sky.hits.filter((h) => h.box && coloured.includes(h.id)).map((h) => ({ id: h.id, box: h.box })),
+        };
+      }, coloured);
+    const layout = await readLayout();
+    const under = layout.names.filter((n) => boxesIntersect(n.box, layout.bar));
+    if (under.length) throw new Error(`at ${W}px the hint bar measures ${JSON.stringify(layout.bar)} and phone names overlap it: ${JSON.stringify(under)}`);
+    if (!layout.names.length) throw new Error(`no phone name drawn at ${date.toISOString()}, nothing to test against the hint bar`);
+    const note = [`hint bar ${layout.bar.h.toFixed(0)}px tall at ${W}px, ${layout.names.length} phone names all clear of it (highest name top ${Math.min(...layout.names.map((n) => n.box.y)).toFixed(0)})`];
+
+    // The band follows the bar's MEASURED height, not a fixed one: grow the
+    // bar past the old fixed 90px band and the names must still clear it.
+    await page.addStyleTag({ content: "[data-stargaze-bar] { padding-bottom: 110px; }" });
+    await page.waitForFunction((h) => document.querySelector("[data-stargaze-bar]").getBoundingClientRect().height > h + 100, layout.bar.h, { timeout: 2000 });
+    await page.waitForTimeout(300);
+    const grown = await readLayout();
+    const underGrown = grown.names.filter((n) => boxesIntersect(n.box, grown.bar));
+    if (underGrown.length) throw new Error(`with the hint bar grown to ${grown.bar.h.toFixed(0)}px, phone names still overlap it: ${JSON.stringify(underGrown)}`);
+    const displaced = layout.names.filter((n) => n.box.y < grown.bar.h).map((n) => n.id);
+    note.push(`bar grown to ${grown.bar.h.toFixed(0)}px: names clear, ${displaced.length ? displaced.join(", ") : "no name"} moved off the grown band`);
+    await page.evaluate(() => document.querySelectorAll("style").forEach((s) => s.textContent.includes("padding-bottom: 110px") && s.remove()));
+    await page.waitForFunction((h) => Math.abs(document.querySelector("[data-stargaze-bar]").getBoundingClientRect().height - h) < 1, layout.bar.h, { timeout: 2000 });
+
+    const t = copy.stargaze;
+    await page.getByRole("button", { name: t.browseList }).tap();
+    await page.waitForSelector('[data-sky-list-panel="open"]', { timeout: 3000 });
+    const panel = await measureVisible(page, '[data-sky-list-panel="open"]');
+    const exit = await measureVisible(page, "[data-stargaze-exit]");
+    if (!isShown(panel) || !panel.onTop) throw new Error(`phone panel measured ${JSON.stringify(panel)}; expected shown and on top`);
+    if (Math.abs(panel.bottom - H) > 1 || panel.h > 0.6 * H + 2 || panel.w < W - 1) throw new Error(`phone panel ${JSON.stringify(panel)}; expected docked full-width to the bottom of ${H}, at most 60% tall`);
+    if (boxesIntersect(panel, exit) || boxesIntersect(panel, layout.bar)) throw new Error(`phone panel ${JSON.stringify(panel)} covers the hint bar ${JSON.stringify(layout.bar)} or exit ${JSON.stringify(exit)}`);
+    note.push(`docked panel ${panel.h.toFixed(0)}px of ${H}, clear of the bar`);
+
+    // A docked card takes the panel's place, and gives it back.
+    const id = await page.evaluate(() => [...document.querySelectorAll("[data-sky-list-item]")].map((b) => b.getAttribute("data-sky-list-item"))[0]);
+    const button = page.locator(`[data-sky-list-item="${id}"]`);
+    await button.tap();
+    await page.locator(`[data-sky-card="${id}"]`).waitFor({ state: "visible", timeout: 3000 });
+    const hidden = await measureVisible(page, '[data-sky-list-panel="open"]');
+    if (hidden && hidden.display !== "none") throw new Error(`at ${W}px the panel stayed shown under the docked card: ${JSON.stringify(hidden)}`);
+    await page.keyboard.press("Escape");
+    await page.locator("[data-sky-card]").waitFor({ state: "detached", timeout: 2000 }).catch(() => {
+      throw new Error("on a phone, Escape with a card over the panel did not close the card first");
+    });
+    const back = await measureVisible(page, '[data-sky-list-panel="open"]');
+    if (!isShown(back)) throw new Error(`closing the card did not bring the panel back: ${JSON.stringify(back)}`);
+    const focus = await page.evaluate(() => document.activeElement?.getAttribute("data-sky-list-item"));
+    if (focus !== id) throw new Error(`focus after closing the card is on ${JSON.stringify(focus)}, not the panel button ${id}`);
+    await page.keyboard.press("Escape");
+    if ((await page.evaluate(() => document.querySelector("[data-sky-list-panel]")?.getAttribute("data-sky-list-panel"))) !== "closed") throw new Error("second Escape did not close the phone panel");
+    if (!(await page.evaluate(() => document.body.hasAttribute("data-stargaze")))) throw new Error("second Escape left stargaze");
+    note.push(`card from ${id} hid the panel, Escape closed the card and the panel came back with focus on ${id}, next Escape closed the panel`);
+    return note.join("; ");
+  });
+}
+
 const CHECKS = [
   ["sky-animates-1280", skyAnimatesAt1280],
   ["sky-static-reduced-motion", skyStaticUnderReducedMotion],
@@ -3690,6 +3965,8 @@ const CHECKS = [
   ["stargaze-keyboard-list", checkStargazeKeyboardList],
   ["stargaze-touch-400", checkStargazeTouch400],
   ["stargaze-affordances", checkStargazeAffordances],
+  ["stargaze-browse-1440", checkStargazeBrowse],
+  ["stargaze-browse-400", checkStargazeBrowse400],
   ["sky-iss", checkSkyIss],
 ];
 

@@ -1324,12 +1324,13 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 - **Reduced motion** paints one real frame at load from the actual current
   time and never advances; `SkyCredit`'s moving/still wording swap is pure CSS
   (`motion-reduce:` variants on two spans), not a JS branch, so a
-  reduced-motion visitor never reads the "180 times" language for a sky that,
-  for them, never turns.
+  reduced-motion visitor's credit never implies a sky that, for them, never
+  turns. (Neither credit variant states the 180x speed-up any more; the ISS
+  card's `issClock` still does, and must match `SKY_SPEEDUP`.)
 - **The credit line** (2026-09-16): the owner trimmed `credit`/`creditStill`
-  to one sentence each, kept verbatim ("The sky over NASA Ames from the moment
-  you arrived, turning 180 times faster than the real one." / "The sky over
-  NASA Ames at the moment you arrived."), followed by one honesty tail,
+  to one sentence each, then trimmed `credit` again at merge time to drop its
+  speed-up clause, both kept verbatim ("The sky over NASA Ames from the moment
+  you arrived." / "The sky over NASA Ames at the moment you arrived."), followed by one honesty tail,
   `creditTail`: " The shapes are enlarged and coloured as long exposures show
   them, but every position is real." The old `creditColour` span and its
   `body[data-stargaze]` CSS gate are gone: colour shows on every page now, so

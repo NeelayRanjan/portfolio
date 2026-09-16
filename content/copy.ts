@@ -792,9 +792,11 @@ export const copy = {
 
   /** Stargaze mode + the night-sky credit (components/manuscript/
    *  StargazeToggle.tsx, SkyCredit.tsx). `enter` is the owner's own wording.
-   *  ⚠️ `credit` states the speed-up; it must match SKY_SPEEDUP in
-   *  lib/sky-math.ts (180). `creditStill` is the reduced-motion variant: that
-   *  sky never turns, so the "180 times faster" sentence would be false there. */
+   *  `creditStill` is the reduced-motion variant ("at" rather than "from":
+   *  that sky never turns). Neither states the speed-up since the owner's
+   *  second trim (2026-09-16); if one ever does again, it must match
+   *  SKY_SPEEDUP in lib/sky-math.ts (180) and stay out of `creditStill`. The
+   *  ISS card's `issClock` still states it, and must match too. */
   stargaze: {
     enter: "stargaze for a bit?",
     exit: "back to the page",
@@ -833,19 +835,20 @@ export const copy = {
      *  second door to the same feature carries the same name, or visitors
      *  don't connect the two (controller ruling, 2026-09-16). */
     footerLead: "The sky behind this page is a real chart of the sky over NASA Ames.",
-    /** The owner's own sentences (trimmed 2026-09-16): keep both word for
-     *  word. Each is a complete sentence ending in its own full stop, and
-     *  `creditTail` follows either one, so it opens with a space:
-     *    "The sky over NASA Ames from the moment you arrived, turning 180
-     *     times faster than the real one. The shapes are enlarged and
-     *     coloured as long exposures show them, but every position is real."
+    /** The owner's own sentences (trimmed twice on 2026-09-16, the second
+     *  time dropping the speed-up clause): keep both word for word. Each is a
+     *  complete sentence ending in its own full stop, and `creditTail`
+     *  follows either one, so it opens with a space:
+     *    "The sky over NASA Ames from the moment you arrived. The shapes are
+     *     enlarged and coloured as long exposures show them, but every
+     *     position is real."
      *    "The sky over NASA Ames at the moment you arrived. The shapes are
      *     enlarged and coloured as long exposures show them, but every
      *     position is real."
      *  No longer stargaze-gated: the sky shows colour on every page since the
      *  discoverability round (spec §3, §7). */
     credit:
-      "The sky over NASA Ames from the moment you arrived, turning 180 times faster than the real one.",
+      "The sky over NASA Ames from the moment you arrived.",
     creditStill:
       "The sky over NASA Ames at the moment you arrived.",
     /** The eyes-see-grey reason lives on each coloured card's `colourNote`,

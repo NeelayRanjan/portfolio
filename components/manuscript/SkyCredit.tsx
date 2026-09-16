@@ -2,9 +2,11 @@ import { copy } from "@/content/copy";
 
 /**
  * What the sky behind the page is, and where its data comes from. Server
- * component: the motion/still wording is swapped by CSS media variants, so a
- * reduced-motion visitor (whose sky never turns) never reads "180 times
- * faster". Pinned to the viewport bottom while stargazing (app/globals.css).
+ * component: the motion/still wording ("from" / "at the moment you arrived")
+ * is swapped by CSS media variants, so a reduced-motion visitor's credit
+ * never implies a sky that moves. Neither variant states the speed-up since
+ * the owner's second trim (2026-09-16). Pinned to the viewport bottom while
+ * stargazing (app/globals.css).
  *
  * `creditTail` follows either variant and carries its own leading space. It
  * is no longer stargaze-gated: the sky shows colour on every page since the

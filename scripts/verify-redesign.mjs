@@ -811,6 +811,72 @@ async function checkNoEarlyHeavyPayload(browser) {
 }
 
 /* ---------------------------------------------------------------------- */
+/* 3b. The /lab rail (discoverability Task 7): the stamp is status only,  */
+/* no longer inside a link; the door is the bordered box below it; the   */
+/* References entry that was always the fallback door still resolves.    */
+/* ---------------------------------------------------------------------- */
+
+async function checkLabBoxNavigates(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    const box = page.locator("[data-lab-box]");
+    const count = await box.count();
+    if (count !== 1) throw new Error(`expected exactly one [data-lab-box] in the masthead rail, found ${count}`);
+    const href = await box.getAttribute("href");
+    if (href !== "/lab") throw new Error(`lab box href is ${JSON.stringify(href)}, expected "/lab"`);
+    const text = (await box.textContent()).trim();
+    if (!text.includes(copy.masthead.supplementLabel)) {
+      throw new Error(`lab box text ${JSON.stringify(text)} does not include copy.masthead.supplementLabel ${JSON.stringify(copy.masthead.supplementLabel)}`);
+    }
+    if (!text.includes(copy.masthead.supplementContents)) {
+      throw new Error(`lab box text ${JSON.stringify(text)} does not include copy.masthead.supplementContents ${JSON.stringify(copy.masthead.supplementContents)}`);
+    }
+    await box.click();
+    await page.waitForURL(`${BASE}/lab`, { timeout: 5000 });
+    if ((await page.locator("[data-sheet]").count()) < 1) {
+      throw new Error(`navigated to ${page.url()} but no [data-sheet] rendered there`);
+    }
+    return `[data-lab-box] href is /lab, carries the label and contents copy, click navigated to ${page.url()}`;
+  });
+}
+
+async function checkStampNoLinkAncestor(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    const stamps = page.locator("[data-stamp]");
+    const count = await stamps.count();
+    if (count !== 1) throw new Error(`expected exactly one [data-stamp], found ${count}`);
+    const ancestorTag = await stamps.first().evaluate((el) => el.closest("a")?.tagName ?? null);
+    if (ancestorTag) throw new Error(`[data-stamp] has an <a> ancestor (${ancestorTag}); the stamp must be status only, not a link`);
+    const stampText = (await stamps.first().textContent()).trim();
+    if (stampText !== copy.masthead.stamp) {
+      throw new Error(`stamp text is ${JSON.stringify(stampText)}, copy.masthead.stamp is ${JSON.stringify(copy.masthead.stamp)}`);
+    }
+    return `[data-stamp] ("${stampText}") has no <a> ancestor`;
+  });
+}
+
+async function checkReferencesLabLinkResolves(browser) {
+  const items = copy.references.items;
+  const last = items[items.length - 1];
+  if (last.href !== "/lab") {
+    throw new Error(`References' last item is ${JSON.stringify(last)}, expected the supplementary-material entry with href "/lab"`);
+  }
+  const res = await fetch(`${BASE}${last.href}`);
+  if (res.status !== 200) throw new Error(`GET ${BASE}${last.href} returned ${res.status}, expected 200`);
+  // Cross-check it's actually reachable through the rendered References list too.
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    const inReferences = await page.evaluate(
+      (label) => [...document.querySelectorAll("ol a")].some((a) => a.textContent.trim() === label),
+      last.label,
+    );
+    if (!inReferences) throw new Error(`References' list has no <a> reading ${JSON.stringify(last.label)}`);
+    return `References' last entry ("${last.label}" -> ${last.href}) rendered as a link and GET ${last.href} returned 200`;
+  });
+}
+
+/* ---------------------------------------------------------------------- */
 /* 4. Label-efficiency sweep (Figure 1,                                   */
 /* components/figures/LabelEfficiencyFigure.tsx +                         */
 /* public/research/label_efficiency.json)                                 */
@@ -4444,6 +4510,9 @@ const CHECKS = [
   ["no-h-scroll-home-400", checkNoHorizontalScroll("/")],
   ["no-h-scroll-lab-400", checkNoHorizontalScroll("/lab")],
   ["no-early-heavy-payload-400", checkNoEarlyHeavyPayload],
+  ["lab-box-navigates", checkLabBoxNavigates],
+  ["stamp-no-link-ancestor", checkStampNoLinkAncestor],
+  ["references-lab-link-resolves", checkReferencesLabLinkResolves],
   ["label-efficiency", checkLabelEfficiency],
   ["dice-cdf", checkDiceCdf],
   ["flight-video-play-pause", checkFlightVideoPlayPause],

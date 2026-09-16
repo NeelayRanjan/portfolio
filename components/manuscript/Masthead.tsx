@@ -24,13 +24,24 @@ export function Masthead() {
       rail={
         <div className="flex flex-col items-start gap-3">
           <HeadshotFigure />
-          {/* The stamp doubles as the way into /lab: the dotted-underlined
-              sub-line is the visible affordance, and the whole cluster is one
-              link so the hit target isn't a 10px line of text. */}
-          <Link href="/lab" className="group inline-block">
-            <Stamp>{t.stamp}</Stamp>
-            <span className="mt-1.5 block font-mono text-[10px] text-mut underline decoration-dotted underline-offset-[3px] transition-colors group-hover:text-red-ink group-hover:decoration-solid">
+          {/* The stamp is status only now (discoverability spec §6): no link
+              ancestor. The door into /lab is the bordered box below it, styled
+              like the manuscript's own figure frames (`border-rule`, corner
+              ticks aside) rather than a SaaS button. */}
+          <Stamp>{t.stamp}</Stamp>
+          <Link
+            href="/lab"
+            data-lab-box
+            className="group block w-full border border-rule px-3.5 py-3 transition-colors hover:border-mut focus-visible:border-mut"
+          >
+            <span className="flex items-baseline gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-ink transition-colors group-hover:text-link group-focus-visible:text-link">
               {t.supplementLabel}
+              <span aria-hidden className="inline-block transition-transform group-hover:translate-x-0.5 group-focus-visible:translate-x-0.5">
+                &rarr;
+              </span>
+            </span>
+            <span className="mt-1.5 block text-[12.5px] leading-snug text-mut">
+              {t.supplementContents}
             </span>
           </Link>
           <span className="block font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-mut">

@@ -14,7 +14,10 @@ import type { ReactNode } from "react";
  */
 export function Stamp({ children }: { children: ReactNode }) {
   return (
-    <span className="inline-block -rotate-2 border-[1.5px] border-red-ink px-3.5 py-[5px] font-mono text-[11px] font-semibold tracking-[0.14em] text-red-ink">
+    <span
+      data-stamp
+      className="inline-block -rotate-2 border-[1.5px] border-red-ink px-3.5 py-[5px] font-mono text-[11px] font-semibold tracking-[0.14em] text-red-ink"
+    >
       {children}
     </span>
   );

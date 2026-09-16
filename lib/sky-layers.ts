@@ -224,6 +224,28 @@ const MILKY_WAY_LEVEL_ALPHA = [0.02, 0.024, 0.03, 0.038, 0.05];
  *  outer dots, brighter inner ones, so the stipple itself gets denser and
  *  brighter toward the core, not just the wash underneath it. */
 const MILKY_WAY_GRAIN_ALPHA = [0.05, 0.07, 0.1, 0.15, 0.22];
+/**
+ * Stargaze-only colour ramp for the band's own five levels (li 0 faint/outer
+ * to li 4 bright/inner), "r,g,b" strings like INK/MUT/WARM so each draw site
+ * appends its own alpha. `colour: false` still paints plain INK at every
+ * level (see the draw sites below): this array is read only when stargaze's
+ * colour is on, so normal mode is byte-identical to before this ramp
+ * existed.
+ *
+ * Source: .superpowers/sdd/colour-sources.md, "Milky Way band" section.
+ * That section's photographed description is "yellowish-white galactic
+ * core/bulge (overlapping billions of stars), brown/tan dark dust lanes,
+ * scattered red emission nebulae, scattered blue reflection nebulae",
+ * suggested hex core `#e8dcc0`. The red/blue knots are individual emission
+ * and reflection nebulae, i.e. new geometry this task does not add (out of
+ * scope: "do not add new geometry", brief step 1); what IS in scope, the
+ * band's own overall wash, is that same section's "brightening toward the
+ * core" structure. li4 is exactly the sourced core hex `#e8dcc0` (232,220,192);
+ * li0 is a duller, cooler tan the other four levels interpolate away from, so
+ * the wash warms and brightens toward the centre the way the source
+ * describes without inventing a hue the source never names.
+ */
+const MILKY_WAY_LEVEL_RGB = ["180,168,148", "193,181,159", "206,194,170", "219,207,181", "232,220,192"];
 
 /** What every layer needs to know about the frame. `suppressName` is the id
  *  (a hit id, or "milky-way") whose always-on name must be skipped because
@@ -297,7 +319,8 @@ export function drawMilkyWay(
     return { x: c.cx + rho * Math.sin(phi), y: c.cy - rho * Math.cos(phi) };
   };
   mw.levels.forEach((rings, li) => {
-    ctx.fillStyle = `rgba(${INK},${MILKY_WAY_LEVEL_ALPHA[li] ?? 0.03})`;
+    const rgb = v.colour ? (MILKY_WAY_LEVEL_RGB[li] ?? MILKY_WAY_LEVEL_RGB[MILKY_WAY_LEVEL_RGB.length - 1]) : INK;
+    ctx.fillStyle = `rgba(${rgb},${MILKY_WAY_LEVEL_ALPHA[li] ?? 0.03})`;
     ctx.beginPath();
     for (const ring of rings) {
       for (let i = 0; i < ring.length; i += 2) {
@@ -316,7 +339,8 @@ export function drawMilkyWay(
   // aligned to mw.levels, prepared once in lib/sky-objects.ts). Cheap: a
   // fillStyle change per level (5 total, not per point) and a fillRect each.
   mw.grain.forEach((pts, li) => {
-    ctx.fillStyle = `rgba(${INK},${MILKY_WAY_GRAIN_ALPHA[li] ?? 0.08})`;
+    const rgb = v.colour ? (MILKY_WAY_LEVEL_RGB[li] ?? MILKY_WAY_LEVEL_RGB[MILKY_WAY_LEVEL_RGB.length - 1]) : INK;
+    ctx.fillStyle = `rgba(${rgb},${MILKY_WAY_GRAIN_ALPHA[li] ?? 0.08})`;
     for (let i = 0; i < pts.length; i += 2) {
       const { x, y } = toScreen(pts[i], pts[i + 1]);
       ctx.fillRect(x - 0.5, y - 0.5, 1, 1);

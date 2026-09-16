@@ -901,7 +901,17 @@ export function DrawDigit() {
         </figure>
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center gap-2">
+      {/* Permanent, not state-driven: renders before any drawing and stays put
+          through guessing/auto/yours, unlike the label state span below it
+          (owner request, 2026-09-16 — the no-classifier claim wasn't stressed
+          enough). `text-ink` (not the caption `text-mut/60`) is what makes it
+          read as a standing claim rather than another dim caption; no new
+          colour role. */}
+      <p className="mt-6 mb-2 font-mono text-[11px] leading-relaxed text-ink" data-draw-classify-lead>
+        {copy.systems.draw.classifyLead}
+      </p>
+
+      <div className="flex flex-wrap items-center gap-2">
         <span className="mr-1 font-mono text-xs text-mut/60">
           {copy.systems.draw.label_}
           {autoLabel ? (

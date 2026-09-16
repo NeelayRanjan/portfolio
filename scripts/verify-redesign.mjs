@@ -1192,6 +1192,21 @@ async function checkDrawAutoLabel(browser) {
     // that is technically "attached" but below the fold gets clicks on thin
     // air. Center it first.
     await canvas.scrollIntoViewIfNeeded();
+
+    // The classifyLead note (task 8, 2026-09-16) must stand on its own,
+    // before any stroke, unreplaced by the guessing/auto/yours states this
+    // sits above.
+    const leadLocator = page.locator("#fig-draw [data-draw-classify-lead]");
+    const leadBefore = await leadLocator.textContent();
+    if (!(await leadLocator.isVisible())) {
+      throw new Error("classifyLead note not visible at 1280px before any stroke");
+    }
+    if (leadBefore?.trim() !== copy.systems.draw.classifyLead) {
+      throw new Error(
+        `classifyLead note text is ${JSON.stringify(leadBefore)}, expected ${JSON.stringify(copy.systems.draw.classifyLead)}`,
+      );
+    }
+
     const box = await canvas.boundingBox();
     if (!box) throw new Error("drawing canvas has no bounding box");
     const cx = box.x + box.width * 0.35;
@@ -1209,7 +1224,51 @@ async function checkDrawAutoLabel(browser) {
       null,
       { timeout: 120000 },
     );
-    return "digit picker shows fit scores after one stroke (classifier ran)";
+
+    // Same note, same text, still standing after a stroke produced an auto
+    // label — it is not one of the guessing/auto/yours states it sits above.
+    const leadAfter = await leadLocator.textContent();
+    if (!(await leadLocator.isVisible())) {
+      throw new Error("classifyLead note not visible at 1280px after an auto-labeled stroke");
+    }
+    if (leadAfter?.trim() !== copy.systems.draw.classifyLead) {
+      throw new Error(
+        `classifyLead note text changed after classify: ${JSON.stringify(leadAfter)}`,
+      );
+    }
+
+    return "digit picker shows fit scores after one stroke (classifier ran); classifyLead note present, unchanged, before and after";
+  });
+}
+
+/* ---------------------------------------------------------------------- */
+/* 6b. classifyLead note present and visible at 400px, before any stroke  */
+/* (components/DrawDigit.tsx, content/copy.ts systems.draw.classifyLead)  */
+/* ---------------------------------------------------------------------- */
+
+async function checkDrawClassifyLead400(browser) {
+  return withPage(browser, { viewport: { width: 400, height: 800 } }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await scrollUntilAttached(page, "#fig-draw");
+
+    const leadLocator = page.locator("#fig-draw [data-draw-classify-lead]");
+    await leadLocator.scrollIntoViewIfNeeded();
+    if (!(await leadLocator.isVisible())) {
+      throw new Error("classifyLead note not visible at 400px before any stroke");
+    }
+    const text = (await leadLocator.textContent())?.trim();
+    if (text !== copy.systems.draw.classifyLead) {
+      throw new Error(
+        `classifyLead note text at 400px is ${JSON.stringify(text)}, expected ${JSON.stringify(copy.systems.draw.classifyLead)}`,
+      );
+    }
+    const box = await leadLocator.boundingBox();
+    if (!box) throw new Error("classifyLead note has no bounding box at 400px");
+    if (box.x < 0 || box.x + box.width > 400) {
+      throw new Error(`classifyLead note at 400px sits outside the viewport: ${JSON.stringify(box)}`);
+    }
+
+    return "classifyLead note present, visible and in-bounds at 400px before any stroke";
   });
 }
 
@@ -4517,6 +4576,7 @@ const CHECKS = [
   ["dice-cdf", checkDiceCdf],
   ["flight-video-play-pause", checkFlightVideoPlayPause],
   ["draw-stroke-auto-label", checkDrawAutoLabel],
+  ["draw-classify-lead-400", checkDrawClassifyLead400],
   ["chess-hint-g3", checkChessHint],
   ["jepa-seed-query-834", checkJepaSeedQuery834],
   ["jepa-triple-equality-mixed", checkJepaTripleEqualityOnMixedQuery],

@@ -110,9 +110,19 @@ function CitationItem({ c }: { c: Citation }) {
  */
 function cardCitations(model: CardModel): Citation[] {
   const base = model.fact.citations;
-  if (!model.colourNote || !model.colourEmissionLines) return base;
-  if (base.some((c) => c.url === EMISSION_LINE_COLOUR.url)) return base;
-  return [...base, EMISSION_LINE_COLOUR];
+  const out = !model.colourNote || !model.colourEmissionLines || base.some((c) => c.url === EMISSION_LINE_COLOUR.url) ? base : [...base, EMISSION_LINE_COLOUR];
+  if (!model.image) return out;
+  return [
+    ...out,
+    {
+      author: model.image.author,
+      year: "n.d.",
+      title: `${model.image.sourceTitle}${copy.stargaze.card.imageSourceSuffix}`,
+      site: copy.stargaze.card.imageSite,
+      url: model.image.sourceUrl,
+      accessed: model.image.accessed,
+    },
+  ];
 }
 
 function extraLines(extra: CardExtra): string[] {
@@ -160,6 +170,15 @@ export function SkyCard({
   // shows only while scrolling would reveal more and hides once the last
   // pixel is in view, so it never lies about there being anything left.
   const [showFade, setShowFade] = useState(false);
+  // A photograph that 404s (a stale index entry, a moved file) falls back to
+  // the card's un-photographed layout rather than an empty box or a broken-
+  // image glyph (task 3): the box is sized by CSS aspect-ratio before load,
+  // so this never causes a layout jump, only a removal.
+  const [imageFailed, setImageFailed] = useState(false);
+  useEffect(() => {
+    setImageFailed(false);
+  }, [model.id]);
+  const showImage = !!model.image && !imageFailed;
 
   const checkScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -194,9 +213,39 @@ export function SkyCard({
       tabIndex={-1}
       className="fixed inset-x-0 bottom-0 z-30 overflow-hidden border-t border-rule bg-panel/95 shadow-[0_0_40px_rgba(0,0,0,0.6)] outline-none min-[880px]:right-auto min-[880px]:bottom-auto min-[880px]:w-[320px] min-[880px]:border"
     >
+      {showImage ? (
+        // Sized by CSS aspect-ratio, never by the bitmap (owner layout call):
+        // the card's cached offsetHeight (card-controller.ts's updateCardSize,
+        // read on open/resize/ResizeObserver) must be correct before the
+        // photograph itself has loaded, or the viewport clamp in followCard
+        // would be a frame behind. 2:1 capped at 28dvh below 880px (so the
+        // whole docked card stays under its 60dvh cap); 4:3 uncapped from
+        // 880px, where the card no longer docks to the viewport height.
+        <figure
+          data-sky-card-image
+          className="m-0 aspect-[2/1] max-h-[28dvh] w-full overflow-hidden border-b border-rule min-[880px]:aspect-[4/3] min-[880px]:max-h-none"
+        >
+          {/* model.image is narrowed non-null by showImage, but TS can't see
+              that through the state read above. */}
+          <img
+            src={model.image!.src}
+            alt={model.image!.alt}
+            width={model.image!.width}
+            height={model.image!.height}
+            loading="lazy"
+            decoding="async"
+            draggable={false}
+            onError={() => setImageFailed(true)}
+            className="h-full w-full object-cover"
+          />
+        </figure>
+      ) : null}
       <div
         ref={scrollRef}
-        className="max-h-[60dvh] overflow-y-auto px-4 py-4 font-mono text-[12px] leading-relaxed text-mut min-[880px]:max-h-[calc(100vh-32px)] min-[880px]:text-[11px]"
+        className={[
+          "overflow-y-auto px-4 py-4 font-mono text-[12px] leading-relaxed text-mut min-[880px]:text-[11px]",
+          showImage ? "max-h-[32dvh] min-[880px]:max-h-[calc(100vh-32px-240px)]" : "max-h-[60dvh] min-[880px]:max-h-[calc(100vh-32px)]",
+        ].join(" ")}
       >
         <div className="flex items-start justify-between gap-3">
           <h2 id={titleId} className="font-serif text-[17px] leading-snug text-ink">
@@ -214,6 +263,13 @@ export function SkyCard({
         <p data-sky-card-kind className="mt-1 text-warm">
           {model.fact.kind}
         </p>
+        {showImage ? (
+          <p data-sky-card-image-credit className="mt-1 text-mut/80">
+            {t.imageCredit}
+            {model.image!.author} · {model.image!.license}
+            {model.image!.note ? ` ${model.image!.note}` : ""}
+          </p>
+        ) : null}
         {/* Polite, so a screen reader hears the subject leave (and the
             line go) without the card itself being re-announced. */}
         <div aria-live="polite">

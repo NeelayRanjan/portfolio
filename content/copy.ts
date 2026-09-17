@@ -864,6 +864,14 @@ export const copy = {
        *  stays open, and the line clears if the subject comes back. */
       outOfView: "Out of view for now.",
       sources: "Sources",
+      /** Under the photograph: "Photograph: NASA, ESA · Public domain". The
+       *  author and license are data from the Commons API (index.json), never
+       *  typed here. */
+      imageCredit: "Photograph: ",
+      /** The photograph's own citation, in the same APA shape as the facts':
+       *  author (year n.d.), "<file title> [Photograph]", Wikimedia Commons. */
+      imageSourceSuffix: " [Photograph]",
+      imageSite: "Wikimedia Commons",
       /** "Retrieved September 15, 2026, from https://…" (APA). */
       retrieved: "Retrieved",
       from: "from",

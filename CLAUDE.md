@@ -82,7 +82,7 @@ honest limit: the main-thread ORT wasm heap never actually shrinks, only the
 chess worker's termination truly frees memory. `window.__sky` and
 `window.__offload` are verify hooks, not UI.
 
-**Verification: `scripts/verify-redesign.mjs`** — 42 named checks (30 before
+**Verification: `scripts/verify-redesign.mjs`** — 43 named checks (30 before
 the discoverability round, 40 before the 2026-09-16 WebKit fix, which added
 **`ort-runtime-build`**: every `/ort/` request during the chess worker's load
 and the draw demo's first stroke, the plain `ort-wasm-simd-threaded.wasm`
@@ -179,7 +179,11 @@ pre-colour-round paper value: 3.68/3.69:1 at 400px against 3.49:1),
 **`lab-box-navigates`**, **`stamp-no-link-ancestor`** (proved by re-wrapping
 the stamp in a Link), **`references-lab-link-resolves`**,
 **`draw-classify-lead-400`** (the draw demo's lead line visible, exact and in
-bounds at 400px before any stroke), stargaze mode
+bounds at 400px before any stroke), **`stargaze-card-image`** (an `<img>`
+flush above Andromeda's card, CSS-sized before load, credited and cited;
+none on Polaris; the card complete with the index held; the docked phone
+card's photograph at most 28% of the viewport and the card at most 60%),
+stargaze mode
 (hiding the page with `inert` and firing no page-content fetch; offloading
 the chess worker and the draw/headshot sessions; cancelling a run in flight
 without ever showing it as a failure or counting `demo_used`; surviving
@@ -214,8 +218,9 @@ change touching a demo, a figure, or the page shell.
 `content/sky-facts.ts` with the same rules. **`node --test
 scripts/test-sky-data.mjs scripts/test-sky-math.mjs scripts/test-sky-pan.mjs
 scripts/test-sky-objects.mjs scripts/test-sky-facts.mjs
-scripts/test-sky-iss.mjs`** runs outside Playwright, in plain node (73 cases
-total, up from 62 before the discoverability round and 47 before the colour
+scripts/test-sky-iss.mjs scripts/test-sky-images.mjs`** runs outside
+Playwright, in plain node (80 cases total, up from 73 before the card
+photographs, 62 before the discoverability round and 47 before the colour
 round): `test-sky-data` pins the committed `sky.json`'s shape (star
 count/order/ranges, Polaris and Sirius by position and magnitude, all 88
 constellations with Serpens merged and bilingual names) against hand edits
@@ -251,7 +256,12 @@ that the fifteen new objects cite only verified sources, ship the Double
 Cluster and the Veil as paired objects, and carry no invented magnitude;
 `test-sky-iss` pins
 `lib/sky-iss.ts`'s topocentric result against satellite.js's own look-angle
-conversion and the 7-day TLE-staleness gate. `SKY_FACTS_PARTIAL=1` in front
+conversion and the 7-day TLE-staleness gate; `test-sky-images` pins
+`public/sky/images/index.json`'s shape against the pick list (every pick has
+an entry and every entry a pick, every file on disk is indexed, the right
+subjects per spec §2 coverage and no others), the generator's license
+allow-list matching the runtime validator's, and the validator itself
+accepting the committed index and rejecting malformed ones. `SKY_FACTS_PARTIAL=1` in front
 of `test-sky-facts` exists only so facts can be written in batches without
 the coverage assertion failing mid-work; it must never be set in CI or a
 verification run. Node prints a `MODULE_TYPELESS_PACKAGE_JSON` warning for
@@ -386,6 +396,23 @@ Speed Insights added, and a third event, `page_reload`, so the crash loop
 can be read in the field as reloads per page view by device. The trade
 stated once: the draw demo no longer asks for WebGPU, and no WebGPU number
 was ever measured for it.
+
+**2026-09-16 (night): card photographs, branch `sky-card-images`.** Every
+galaxy, nebula, cluster, remnant, the Hubble Deep Field, Sgr A*, the Milky
+Way, the five planets, the Moon and the ISS card opens with a real photograph
+flush above it, the card's full width (owner's layout call). 35 images,
+each Wikipedia's own lead image for the subject (the two Veil halves from
+NOIRLab), sourced through the Wikimedia Commons API so author, license and
+the original's sha1 are machine-read, never typed: `scripts/sky-image-picks.json`
+names the file, `scripts/prepare-sky-images.mjs` (hand-run) refuses any
+license outside its allow-list and writes `public/sky/images/index.json` plus
+640px WebPs (~1.7 MB total, fetched only when a card opens). Self-hosted
+because COEP forbids hotlinking anyway. The card prints the credit and adds
+a Commons citation; the box is CSS-sized (318x238.5 desktop, measuring the
+aside's 320px border-box less its 1px border against the 4:3 aspect; 2:1
+capped at 28dvh on phones, body cap 32dvh so the docked card stays under 60%)
+so the cached card height never goes stale. Stars, constellations, showers,
+the Voyagers and the Kepler field get none, on purpose.
 
 **Open items, roughly in order:**
 1. **Stargaze discoverability: built, not yet measured** (owner, 2026-09-14:
@@ -1307,6 +1334,20 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   card (back to the keyboard-list button that opened it, else
   `[data-stargaze-exit]`), or on an Escape with focus on nothing (the body,
   after a mouse drag blurred the card); a click on empty sky never yanks it.
+- **Card photographs** (2026-09-16, spec `docs/superpowers/specs/2026-09-16-sky-card-images-design.md`):
+  `lib/sky-images.ts` loads `index.json` on the same per-layer gate as
+  objects.json (`layers.images`: absent → no photographs, malformed → logged);
+  `card-controller.ts`'s `imageFor(id)` attaches the entry; `SkyCard.tsx`
+  renders it as the aside's FIRST child, outside the scroll body, `onError`
+  clearing it rather than showing a broken image. Allowed licenses are
+  public domain, CC0, CC BY and CC BY-SA (2.0 through 4.0), asserted equal in
+  the generator and `scripts/test-sky-images.mjs`; the Moon's note says it is
+  shown full, Sgr A*'s that it is a radio image, M57's that it is Webb's
+  infrared. The index (~20 KB) loads on the same after-first-paint pass as
+  the other layers (`loadSkyLayers`); only the photographs themselves are
+  lazy, fetched when a card actually opens (`<img loading="lazy">`). ⚠️ A new
+  object needs a pick, or the coverage test fails; a changed upstream file
+  fails the generator until `--repin`.
 - **The stargaze keyboard list** (NightSky, portalled into
   `[data-sky-list-slot]`, which `StargazeToggle` renders right after the exit
   control): the canvas is `aria-hidden`, so this `sr-only` group of buttons,
@@ -1894,6 +1935,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 | `public/headshot/v2/photos/{0,1,2}.webp` | 18/57/36 KB | the three approved crops, 512², q80, metadata stripped |
 | `public/headshot/v2/photos/{0,1,2}_thumb.webp` | ~2 KB each | 96² derivatives for the 44px face buttons (first paint) |
 | `public/research/*` | ~1.7 MB | prepare-research outputs: `label_efficiency.json` + `eff/` strip (Figure 1), `cdf/` stops + `cdf.json` (Figure 2), flight mp4 + poster, wipe assets (unrendered), `provenance.json` |
+| `public/sky/images/*` | ~1.7 MB | 35 card photographs (640px WebP, metadata stripped) plus `index.json` with author, license, Commons source and pinned sha1; built by `scripts/prepare-sky-images.mjs` from `scripts/sky-image-picks.json` |
 | `public/ort/*` | ~37 MB | onnxruntime-web wasm, vendored, **gitignored**, synced on prebuild |
 
 The JEPA bundle is produced by

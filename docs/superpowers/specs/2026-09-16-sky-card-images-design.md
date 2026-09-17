@@ -84,6 +84,18 @@ instant, so its credit line says which phase the photograph shows.
   `buildCard` attaches `image` to the `CardModel` when the index has the id.
   `lib/sky-render.ts` stays untouched: images are DOM, not canvas.
 
+  **Plan-time refinement:** the index itself does not wait for a card open.
+  `loadSkyLayers` already fetches every other per-layer artifact
+  (`sky.json`, `objects.json`, `milkyway.json`, the ISS TLE, the sky-facts
+  chunk) as one after-first-paint pass on its own gate, and `index.json` is
+  small enough (~20 KB) to ride along on that same pass rather than earn its
+  own trigger — a card opened before a card-open-triggered fetch resolved
+  would otherwise show no photograph until reopened, which the shared gate
+  avoids for free. Only the photographs themselves (~1.7 MB across 35 WebPs)
+  stay lazy, fetched by the browser when a card that carries one actually
+  opens (`<img loading="lazy">`), which is where the weight was always meant
+  to be deferred.
+
 ## 5. Layout, per the owner
 
 The image is the card's first child, above the title, the full width of the

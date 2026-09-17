@@ -82,8 +82,16 @@ honest limit: the main-thread ORT wasm heap never actually shrinks, only the
 chess worker's termination truly frees memory. `window.__sky` and
 `window.__offload` are verify hooks, not UI.
 
-**Verification: `scripts/verify-redesign.mjs`** — 40 named checks (30 before
-the discoverability round),
+**Verification: `scripts/verify-redesign.mjs`** — 42 named checks (30 before
+the discoverability round, 40 before the 2026-09-16 WebKit fix, which added
+**`ort-runtime-build`**: every `/ort/` request during the chess worker's load
+and the draw demo's first stroke, the plain `ort-wasm-simd-threaded.wasm`
+fetched by each and never an asyncify, jsep or jspi build, and
+**`draw-ink-survives-height-resize-400`**: lit pixels unchanged and the clear
+button still enabled after an 800→700 height-only resize, the buffer reset by
+a 400→360 width change; `analytics-queue` also asserts the same-origin Speed
+Insights script and `page_reload` at 0 on a fresh navigation and 1 after a
+reload),
 Playwright-Firefox against a real `npm run build && npm start` on :3000, never
 the dev server; pass check-name substrings as args to run subsets. Covers the
 night sky (turning at 1280px with a measured median frame draw around 2.54ms
@@ -349,6 +357,35 @@ draw demo leads with classifier-free classification. `NightSky.tsx` was split
 into `components/manuscript/night-sky/` first, with no behaviour change. See
 "Night sky + stargaze" and "Draw-a-digit" below for the contracts.
 
+**2026-09-16 (evening): the iPhone crash loop is root-caused and fixed,
+branch `fix/ort-wasm-entry`, pending the owner's phone.** It was never the
+26 MB model or the main thread. Every ORT import used the
+`onnxruntime-web/webgpu` entry, and in 1.27 that entry always fetches ORT's
+**asyncify** wasm build (24.3 MB) whatever provider is requested, so chess
+and headshot, wasm-only by policy, loaded it too. JavaScriptCore's
+optimizing wasm tier runs away on that build (microsoft/onnxruntime issue
+26827, profiled looping in B3's stack allocator), on every WebKit browser:
+iOS Safari, Chrome and Firefox on iOS, desktop Safari. Reproduced here in
+WebKitGTK 2.52 (`scripts/probe-webkit-draw.py`, hand-run): one stroke,
+classify and generate, then a minute of idle, the web process sat at ~395%
+CPU and grew from 5.3 to 11.5 GB; on a phone that is a jetsam kill, and the
+reload does it again, which is Safari's "a problem repeatedly occurred".
+The fix is the `onnxruntime-web/wasm` entry everywhere (draw, headshot,
+chess worker) and `["wasm"]` for the draw demo: same run, peak 891 MB, idle
+flat at ~800 MB, and the demo ran faster (classify 2.2 s after the stroke
+vs 3.6-4.5 s), with the runtime download 13.5 MB instead of 24.3 MB.
+`sync-ort` now copies only the plain pair and removes a stale asyncify pair.
+Asserted from the network by the new `ort-runtime-build` check (proved to
+bite by pointing one loader back at `/webgpu`). Known bug 1, the URL-bar
+resize wiping the drawing, went in the same round (width-only guard,
+`draw-ink-survives-height-resize-400`, proved to bite). Analytics grew with
+the Pro plan the owner bought the same day: custom events confirmed
+ingested (stargaze 3 visitors, chess 3, headshot 2, draw 1 since launch),
+Speed Insights added, and a third event, `page_reload`, so the crash loop
+can be read in the field as reloads per page view by device. The trade
+stated once: the draw demo no longer asks for WebGPU, and no WebGPU number
+was ever measured for it.
+
 **Open items, roughly in order:**
 1. **Stargaze discoverability: built, not yet measured** (owner, 2026-09-14:
    "We 100% need to make that button more noticable, I have had to tell
@@ -385,16 +422,13 @@ into `components/manuscript/night-sky/` first, with no behaviour change. See
    pole position at 1280-1440px (the margin-based rule's low end, where it sits
    closest to the sheet), the drag feel and docked card on a real phone, and a
    WebGPU pass in desktop Chrome. Headless Firefox cannot speak to any of it.
-4. **The mobile draw-demo crash got worse** (owner, 2026-09-14, iPhone 17 Pro):
-   beyond the silent reloads, repeated refreshes now land on Safari's
-   crash-loop error page ("a problem repeatedly occurred"), and friends
-   testing the site call the section "super buggy". The top engineering
-   priority now that the night sky has shipped; see Known bugs. Stargaze mode
-   (2026-09-15) lets a visitor voluntarily release the draw session, but does
-   nothing for this bug's own crash path (the main-thread-only architecture),
-   so it stays open. Candidates that changed recently:
-   phones now get the 256 headshot (viewport gate removed 2026-09-13), iOS 26
-   Safari ships WebGPU, threaded wasm under COOP/COEP.
+4. **The iPhone crash loop: fixed on `fix/ort-wasm-entry`, owner's phone
+   test owed** (owner, 2026-09-14, iPhone 17 Pro: repeated refreshes landed
+   on Safari's "a problem repeatedly occurred", friends called the section
+   "super buggy"). Root cause and measurements in Current state and Known
+   bugs; the field readout is `page_reload` against page views, mobile vs
+   desktop, before and after the deploy. None of the 2026-09-14 candidates
+   (the 256 headshot on phones, iOS 26 WebGPU, threaded wasm) was it.
 5. **arXiv link** (~2026-09-18) swaps into the references when the preprint is
    live; the owner then creates a Google Scholar profile, which joins the
    identity links (the link list is data-driven copy).
@@ -644,7 +678,8 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   (`NeelayRanjan/portfolio`).
 - **Analytics (wired 2026-09-13): Vercel Web Analytics.** `<Analytics />` in
   `app/layout.tsx` records cookieless page views (client navigations
-  included). Custom events live ONLY in `lib/track.ts`, deliberately two:
+  included). Custom events live ONLY in `lib/track.ts`, deliberately three
+  (two until 2026-09-16):
   `outbound_link {label}` on every identity and reference link (via the
   `TrackedLink` client leaf, so Masthead/References stay server components;
   `onAuxClick` catches middle-click), and `demo_used {demo}` once per demo
@@ -652,16 +687,25 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   2026-09-16, naming the FIRST door used that load: a property, never a
   second event, so the quota rule holds), fired only AFTER real output (a completed headshot run, a
   completed digit generation, an accepted chess move) so failures and
-  slider-scrubbing never count. Quota-conscious on purpose: don't add
-  per-interaction events. ⚠️ Production loads the tracker SAME-ORIGIN from
+  slider-scrubbing never count, and (2026-09-16) `page_reload`, no
+  properties, once per page load whose navigation type is `reload`: the one
+  field signal a silent tab crash leaves, read as a rate against page views
+  by device (`ReloadBeacon` in the layout calls `trackReloadOnce`). Quota-conscious on purpose: don't add
+  per-interaction events. **Speed Insights** (`@vercel/speed-insights`,
+  `<SpeedInsights />` beside `<Analytics />`, 2026-09-16) reports Core Web
+  Vitals per route and device, same-origin from `/_vercel/speed-insights/`;
+  it must be ENABLED in the dashboard like Web Analytics or its script 404s.
+  ⚠️ Production loads the tracker SAME-ORIGIN from
   `/_vercel/insights/script.js`, which is why COEP never blocks it; dev mode
   loads a debug copy from va.vercel-scripts.com, which works only because that
   host sends `cross-origin-resource-policy: cross-origin` (measured). Locally
   the insights path 404s, so events wait in `window.vaq` forever, and that
   queue is what the verify check reads; real delivery is only visible in the
   Vercel dashboard, and Web Analytics must be ENABLED there or production's
-  script 404s too. Whether custom events are ingested depends on the plan
-  (unconfirmed from here); page views work on every plan.
+  script 404s too. **The project is on Vercel Pro since 2026-09-16** (the
+  Hobby plan answered custom-event queries with HTTP 402); custom events are
+  ingested and readable, back to launch, through the Vercel MCP's
+  `get_web_analytics` with project slug `portfolio` and no team.
 - **⚠️ `/models/*`, `/ort/*` and `/headshot/*` are served `immutable` for a year**
   (`next.config.ts`). That makes filenames the cache key: a retrained model or a
   refreshed export MUST ship under a new filename (and the code path that loads it
@@ -676,10 +720,16 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   needs CORP headers or `crossorigin="anonymous"` or it's blocked outright.
 - `scripts/sync-ort.mjs` (wired to `predev`/`prebuild`) copies ORT's wasm into
   `public/ort/` — version-locked to the JS, so bumping `onnxruntime-web` without it
-  fails at runtime. It copies the **asyncify** build because that is what ort-web
-  1.27's webgpu entry actually fetches; a wrong build 404s and surfaces as the
-  useless "no available backend found". If ORT changes what it fetches, the
-  network tab names the file — don't guess.
+  fails at runtime. It copies the **plain** `ort-wasm-simd-threaded` pair, which
+  is what the `onnxruntime-web/wasm` entry fetches, and removes a stale asyncify
+  pair if one is lying around (2026-09-16; before that it copied the asyncify
+  build for the `/webgpu` entry, see the WebKit trap below). ⚠️ The entry point
+  decides the build: in 1.27 `/webgpu` always fetches asyncify and the BARE
+  `onnxruntime-web` entry always fetches jsep, and both run away in
+  JavaScriptCore; only `/wasm` fetches the plain build. A wrong build 404s and
+  surfaces as the useless "no available backend found". If ORT changes what it
+  fetches, the network tab names the file — don't guess, and the
+  `ort-runtime-build` verify check asserts it from the network.
 - `scripts/gen-icons.py` (fontTools + cairosvg venv; fetches the STIX variable
   TTF, see its header), `scripts/gen-og.mjs` (Playwright),
   `scripts/prepare-sky.mjs` (fetches the star catalog from a commit-pinned
@@ -728,6 +778,22 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 - **Headless Firefox is not a browser for timing**: no WebGPU adapter, ~20x slower
   ONNX inference than the same machine natively. Verify UX timing in a real
   browser; quote only measured numbers.
+- **Headless Firefox is not a WebKit either, and the iPhone crash loop lived
+  in JavaScriptCore** (2026-09-16). The site imported `onnxruntime-web/webgpu`
+  for every model, that entry always fetches ORT's asyncify wasm build, and
+  JSC's optimizing wasm tier runs away on it (ORT issue 26827) while every
+  Firefox-based check passed and every Chrome visitor was fine. It was blamed
+  on the 26 MB model on the main thread for two months, and the memory
+  measurements in this file (the ~24 MB runtime, the never-shrinking heap)
+  were all true and all beside the point. What found it: a real WebKit on
+  the dev machine (WebKitGTK through python gi, `scripts/probe-webkit-draw.py`)
+  and measuring the DIFFERENCE between two builds of the same run, same as
+  the band-warmth lesson above: asyncify 5.3→11.5 GB and ~395% CPU across a
+  minute of idle, plain build 802→790 MB and ~96%. Two habits follow. Any
+  bug reported only from an iPhone gets a WebKitGTK run before a theory; and
+  a dependency's ENTRY POINT is a build choice (ORT's `/webgpu`, bare and
+  `/wasm` entries fetch three different binaries), so a loader that "only
+  asks for wasm" can still ship the wrong runtime.
 - **Dev-server red herrings**, all confirmed harmless: the dev overlay loads its
   own Geist copies and triggers font-preload warnings (production: zero); a
   hydration error in a dev log right after a Fast Refresh full reload is not
@@ -1429,9 +1495,9 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 - **The honest memory limit**: the main-thread ORT wasm heap never actually
   shrinks after `release()` (only a full page reload does that); of the three
   offloaded models, only the chess worker's termination truly frees memory,
-  since terminating a worker frees its whole heap. Stargazing on a phone that
-  already loaded the draw model does not fix that phone's memory pressure —
-  see Known bugs, item 1.
+  since terminating a worker frees its whole heap. (This limit was long
+  assumed to be behind the iPhone crash loop; it wasn't, see Known bugs. It
+  still stands as a description of what stargaze can and can't free.)
 - `window.__sky` (`drawn`, `simMs`, `lstDeg`, `k`, `cx`, `cy`, `offset`,
   `dragging`, `frameMsMedian`, `saturation`, `saturationTarget`, `highlight`,
   `label`, `labelText`, `suppressedName`, `hits`, `milkyWay`, `radiants`,
@@ -1540,8 +1606,8 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   and must not be clamped again.
 - **Nothing model-related is fetched at rest.** The masthead is first paint, so
   the box is a plain `<img>` until a face is pressed; the first press starts ORT
-  + the weights (`loadHeadshotModel`, memoized, same `onnxruntime-web/webgpu`
-  specifier as draw/chess so the runtime is shared). Deliberately NOT in
+  + the weights (`loadHeadshotModel`, memoized, same `onnxruntime-web/wasm`
+  specifier as draw/chess so the runtime is shared; `/webgpu` until 2026-09-16). Deliberately NOT in
   `lib/warm.ts`: the warm window is spent on the runtime the two big demos share.
 - Within the 128 family, int8 first with an fp32 fallback if a runtime rejects
   the quantized graph. Same ruling as chess: losing the "int8" label costs
@@ -1827,15 +1893,26 @@ stay out of `public/`. Git LFS: settled, not needed (~47 MB tracked binaries).
 
 ## Known bugs — open on the live site
 
-Inherited from v1's draw demo; both code paths survived the re-chrome intact:
-1. **Mobile: drawing wiped when scrolling to hit generate.** `DrawDigit`'s
-   resize handler re-runs `setup()`, which resets the canvas buffer; mobile
-   scroll collapses the URL bar → viewport height changes → resize fires. Fix
-   shape: re-setup only on WIDTH change, or preserve ink across resizes
-   (`components/DrawDigit.tsx`).
-2. **Occasional mobile page reloads.** The 26MB draw model + ORT run on the
-   MAIN thread (chess got a worker; draw never did); tab crashes under memory
-   pressure reload silently. Fix shape: a draw worker mirroring the chess
-   architecture, or accepting the cost on phones.
+Both of v1's draw-demo bugs were fixed on 2026-09-16 (branch
+`fix/ort-wasm-entry`); they stay listed until the owner's phone confirms
+the second, and because the second's diagnosis was wrong for two months.
+1. **Mobile: drawing wiped when scrolling to hit generate. FIXED.**
+   `DrawDigit`'s resize handler re-ran `setup()`, which resets the canvas
+   buffer, and a phone's URL bar collapsing on scroll fires `resize` at the
+   same width. The handler now compares the canvas width to the last
+   `setup()` and returns when it is unchanged; a width change still resets
+   the buffer (the backing store and pen width derive from it). Verified by
+   `draw-ink-survives-height-resize-400`.
+2. **Reloads and Safari's "a problem repeatedly occurred" on iPhone. FIXED,
+   pending the owner's phone.** NOT memory pressure from the 26 MB model on
+   the main thread, which is what this entry said until the fix: every ORT
+   import used the `onnxruntime-web/webgpu` entry, which always fetches the
+   asyncify wasm build, and JavaScriptCore's optimizing wasm tier runs away on
+   it (ORT issue 26827) on every WebKit browser, including Chrome and Firefox
+   on iOS and desktop Safari. Measured in WebKitGTK after one classify and one
+   generate: ~395% CPU and 5.3→11.5 GB over a minute of idle; the plain build
+   from the `/wasm` entry held ~800 MB. The main-thread architecture is
+   unchanged and a draw worker is no longer on the table for this bug. Field
+   readout: `page_reload` per page view, mobile vs desktop, before and after.
 
 @AGENTS.md

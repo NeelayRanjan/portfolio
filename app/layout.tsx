@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { STIX_Two_Text, Spline_Sans_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { copy } from "@/content/copy";
 import { NightSky } from "@/components/manuscript/NightSky";
 import { SkyCredit } from "@/components/manuscript/SkyCredit";
 import { StargazeToggle } from "@/components/manuscript/StargazeToggle";
+import { ReloadBeacon } from "@/components/ReloadBeacon";
 
 const stix = STIX_Two_Text({
   variable: "--font-stix",
@@ -77,6 +79,13 @@ export default function RootLayout({
             in lib/track.ts. In production it loads same-origin from
             /_vercel/insights/, so the COOP/COEP headers never block it. */}
         <Analytics />
+        {/* Speed Insights (Pro, 2026-09-16): Core Web Vitals per route and
+            device. Same-origin in production, /_vercel/speed-insights/, so
+            COEP never blocks it either. */}
+        <SpeedInsights />
+        {/* The page_reload event: the one field signal a silent tab crash
+            leaves. See lib/track.ts. */}
+        <ReloadBeacon />
       </body>
     </html>
   );

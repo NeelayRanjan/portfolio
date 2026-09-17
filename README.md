@@ -116,19 +116,26 @@ scripts/           gates, generators, verification
 external_materials/  gitignored source data the figures are derived from
 ```
 
-Runtime deps are exactly `chess.js`, `onnxruntime-web`, `@vercel/analytics`
-and `satellite.js` (SGP4 for the live ISS, lazy-loaded only after the ISS
-route returns a TLE). No component libraries.
+Runtime deps are exactly `chess.js`, `onnxruntime-web`, `@vercel/analytics`,
+`@vercel/speed-insights` and `satellite.js` (SGP4 for the live ISS,
+lazy-loaded only after the ISS route returns a TLE). No component libraries.
+Every model imports ORT through the `onnxruntime-web/wasm` entry: the
+`/webgpu` and bare entries fetch wasm builds that JavaScriptCore runs away
+on, which is what crashed the draw demo on every iPhone until 2026-09-16
+(`scripts/probe-webkit-draw.py` is the WebKit measurement).
 
 ## Analytics
 
 Vercel Web Analytics: cookieless page views from `<Analytics />` in
-`app/layout.tsx`, plus two custom events defined only in `lib/track.ts`:
-`outbound_link {label}` (Resume, GitHub, ORCID, Email, references) and
+`app/layout.tsx`, plus three custom events defined only in `lib/track.ts`:
+`outbound_link {label}` (Resume, GitHub, ORCID, Email, references),
 `demo_used {demo}` (once per demo per page load, after real output; stargaze's
-also carries `via`, toggle or footer). Web
-Analytics has to be enabled on the project in the Vercel dashboard. Nothing is
-recorded locally; the verify suite reads the pending `window.vaq` queue instead.
+also carries `via`, toggle or footer) and `page_reload` (a load whose
+navigation type is reload: the one field signal a silent tab crash leaves).
+Speed Insights (`<SpeedInsights />`) reports Core Web Vitals. Both have to be
+enabled on the project in the Vercel dashboard, and custom events need the Pro
+plan. Nothing is recorded locally; the verify suite reads the pending
+`window.vaq` queue instead.
 
 ## Hand-run generators (never wired to prebuild)
 
@@ -137,6 +144,7 @@ recorded locally; the verify suite reads the pending `window.vaq` queue instead.
 | `prepare-research.mjs` | derives `public/research/` from the paper's data; asserts the headline number before writing; `--image N` (retired wipe), `--eff-image N` (Figure 1 strip), `--accept-csv-drift` (required: SAM's re-run masks are stochastic) | ffmpeg, `external_materials/` including `paper1/data/test_predictions/` (ships as base64-encoded `test_pred.zip`) |
 | `gen-icons.py` | the STIX-N favicon set from site tokens | python venv (fontTools, cairosvg) + the STIX variable TTF (see header) |
 | `gen-og.mjs` | screenshots the top of the page into `public/og.png`; rerun after any masthead copy or layout change | Playwright, server on :3000 |
+| `probe-webkit-draw.py` | drives one stroke, classify and generate in a real WebKit and samples the web process's RSS and CPU through a minute of idle; rerun after bumping `onnxruntime-web` or changing which ORT entry any loader imports | system WebKitGTK 4.1 + python gi, a display, server on :3000 |
 | `measure-mono.mjs` | measures a mono's advance (why the ASCII grids keep Geist Mono) | Playwright, dev server |
 | `prepare-sky.mjs` | derives `public/sky/sky.json`, the star catalog behind every page, from a commit-pinned d3-celestial | network access to GitHub raw |
 | `prepare-sky-objects.mjs` | derives `public/sky/objects.json` and `public/sky/milkyway.json` from pinned d3-celestial data, JPL Horizons (Voyager positions on the run date), the archived IMO 2026 calendar and a pinned Wikipedia revision | network access (GitHub raw, ssd.jpl.nasa.gov, web.archive.org, en.wikipedia.org) |

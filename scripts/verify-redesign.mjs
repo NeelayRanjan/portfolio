@@ -2084,7 +2084,28 @@ async function checkAnalyticsQueue(browser) {
     if (!hit) {
       throw new Error(`no outbound_link{Resume} queued; queue holds ${JSON.stringify(events)}`);
     }
-    return `tracker injected at ${src}; Resume click queued outbound_link{label: "Resume"}`;
+
+    // Speed Insights (Pro, 2026-09-16): same-origin like the tracker.
+    const siSrc = await page.evaluate(
+      () => document.querySelector('script[src*="_vercel/speed-insights"]')?.getAttribute("src") ?? null,
+    );
+    if (!siSrc) throw new Error("no Speed Insights script injected");
+    if (!siSrc.startsWith("/")) throw new Error(`Speed Insights script is not same-origin: ${siSrc}`);
+
+    // page_reload: never on a fresh navigation, exactly once after a reload.
+    const reloads = () =>
+      page.evaluate(
+        () => (window.vaq ?? []).filter(([kind, ev]) => kind === "event" && ev?.name === "page_reload").length,
+      );
+    const fresh = await reloads();
+    if (fresh !== 0) throw new Error(`page_reload queued ${fresh}x on a fresh navigation`);
+    await page.reload({ waitUntil: "networkidle" });
+    await page.waitForFunction(() => Array.isArray(window.vaq), null, { timeout: 10000 });
+    await page.waitForTimeout(300);
+    const after = await reloads();
+    if (after !== 1) throw new Error(`page_reload queued ${after}x after one reload, expected 1`);
+
+    return `tracker injected at ${src}, Speed Insights at ${siSrc}; Resume click queued outbound_link{label: "Resume"}; page_reload 0 fresh / 1 after reload`;
   });
 }
 

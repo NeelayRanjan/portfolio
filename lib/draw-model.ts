@@ -61,7 +61,7 @@ export function loadDrawModel(): Promise<AsciiDiffusion | null> {
     // Both dynamic: neither the runtime nor the module belongs in the main bundle.
     const [{ AsciiDiffusion: AD }, ort] = await Promise.all([
       import("./ascii-diffusion.js"),
-      import("onnxruntime-web/webgpu"),
+      import("onnxruntime-web/wasm"),
     ]);
 
     // ORT fetches its wasm at runtime, so it needs a served path. Vendored into
@@ -74,8 +74,17 @@ export function loadDrawModel(): Promise<AsciiDiffusion | null> {
     if (!globalThis.crossOriginIsolated) ort.env.wasm.numThreads = 1;
 
     // The module injects `ort` rather than importing it, so this controls the
-    // providers: WebGPU where available, wasm everywhere else.
-    return AD.load(MODEL_URL, { ort, executionProviders: ["webgpu", "wasm"] });
+    // providers. wasm only, since 2026-09-16: the demo used to ask for
+    // ["webgpu", "wasm"] through the `onnxruntime-web/webgpu` entry, and that
+    // entry always fetches ORT's asyncify wasm build, whatever provider ends
+    // up running. JavaScriptCore's optimizing wasm tier runs away on that
+    // build (ORT issue 26827; measured in WebKitGTK: ~395% CPU and 5.3 to
+    // 11.5 GB of RSS in a minute of idle after one generate), which is what
+    // crashed this demo on every iPhone. The `/wasm` entry fetches the plain
+    // build, which measured flat at ~800 MB. No WebGPU speed number was ever
+    // measured for this 28x28 batch-2 model; the verify suite only ever
+    // proved the wasm path. See scripts/probe-webkit-draw.py.
+    return AD.load(MODEL_URL, { ort, executionProviders: ["wasm"] });
   })().catch((err) => {
     // Identity guard: an older failed load must not wipe a newer `cache` a
     // stargaze round trip has since installed. Without this, that newer

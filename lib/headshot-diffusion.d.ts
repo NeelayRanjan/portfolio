@@ -89,14 +89,14 @@ export interface HeadshotGenerateOptions {
    * A live onnxruntime-web `InferenceSession` for the headshot graph.
    *
    * Typed against the runtime rather than left `unknown`: `lib/headshot-model.ts`
-   * imports `onnxruntime-web/webgpu` (the same specifier the draw demo and the
+   * imports `onnxruntime-web/wasm` (the same specifier the draw demo and the
    * chess worker use, so the module instance and its wasm are shared), and
    * `import type` costs nothing at runtime.
    */
-  session: import("onnxruntime-web/webgpu").InferenceSession;
+  session: import("onnxruntime-web/wasm").InferenceSession;
   /** The ORT module itself. The module constructs its own tensors rather than
    *  importing ORT, which is what lets the caller own wasmPaths and providers. */
-  ort: typeof import("onnxruntime-web/webgpu");
+  ort: typeof import("onnxruntime-web/wasm");
   meta: HeadshotMeta;
   /** Which photo to sample. Integer in 0..meta.k-1; the module throws
    *  otherwise. Required unless `classWeights` is given, which the site never

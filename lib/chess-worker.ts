@@ -29,10 +29,10 @@ const MODEL_INT8 = "/models/chess-int8.onnx";
 /** Fallback if a runtime ever rejects the quantized graph. Same answers, 1.8MB. */
 const MODEL_FP32 = "/models/chess-fp32.onnx";
 
-type Ort = typeof import("onnxruntime-web/webgpu");
+type Ort = typeof import("onnxruntime-web/wasm");
 
 let ort: Ort | null = null;
-let session: import("onnxruntime-web/webgpu").InferenceSession | null = null;
+let session: import("onnxruntime-web/wasm").InferenceSession | null = null;
 let build: EngineBuild = "int8";
 
 /** Set by a `cancel`, read between simulations. The board moved on. */
@@ -52,7 +52,7 @@ async function init(): Promise<void> {
     return;
   }
 
-  ort = await import("onnxruntime-web/webgpu");
+  ort = await import("onnxruntime-web/wasm");
   ort.env.wasm.wasmPaths = "/ort/";
   ort.env.logLevel = "error";
   // Cross-origin isolation is what buys multi-threaded WASM (see next.config.ts).

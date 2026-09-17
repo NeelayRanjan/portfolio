@@ -412,9 +412,11 @@ export function DrawDigit() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    let lastWidth = 0;
     const setup = () => {
       const rect = canvas.getBoundingClientRect();
       if (!rect.width) return;
+      lastWidth = rect.width;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = Math.round(rect.width * dpr);
       canvas.height = Math.round(rect.height * dpr);
@@ -431,7 +433,16 @@ export function DrawDigit() {
     let t = 0;
     const onResize = () => {
       window.clearTimeout(t);
-      t = window.setTimeout(setup, 150); // resizing resets the buffer either way
+      t = window.setTimeout(() => {
+        // Width only. A phone's URL bar collapsing on scroll fires `resize`
+        // with the SAME width, and re-running setup() there wiped the
+        // drawing between the last stroke and the generate button (v1 known
+        // bug 1, open on the live site until 2026-09-16). The backing store
+        // and the pen width are derived from the width, so a width change
+        // still resets the buffer.
+        if (canvas.getBoundingClientRect().width === lastWidth) return;
+        setup();
+      }, 150);
     };
     window.addEventListener("resize", onResize);
     return () => {

@@ -811,6 +811,119 @@ async function checkNoEarlyHeavyPayload(browser) {
 }
 
 /* ---------------------------------------------------------------------- */
+/* 3c. Which ORT runtime build the page actually fetches                  */
+/* (lib/draw-model.ts, lib/headshot-model.ts, lib/chess-worker.ts,        */
+/* scripts/sync-ort.mjs). Since 2026-09-16 every ORT import goes through  */
+/* the `onnxruntime-web/wasm` entry. The `/webgpu` entry always fetched   */
+/* the asyncify build, whatever provider was asked for, and               */
+/* JavaScriptCore's optimizing wasm tier runs away on that build (ORT     */
+/* issue 26827): measured in WebKitGTK 2.52 driving one stroke, the       */
+/* classify and one generate, the web process then sat at ~395% CPU and  */
+/* grew from 5.3 to 11.5 GB in a minute of idle; on iOS that is a jetsam  */
+/* kill and Safari's "a problem repeatedly occurred". The plain build     */
+/* measured flat at ~800 MB (scripts/probe-webkit-draw.py). Asserted on  */
+/* the network, not the source: the chess worker's load and the main     */
+/* thread's draw load must both fetch the plain runtime, and nothing may  */
+/* fetch an asyncify, jsep or jspi build. Proved to bite by pointing one  */
+/* import back at `/webgpu`.                                              */
+/* ---------------------------------------------------------------------- */
+
+const ORT_PATH_RE = /\/ort\/[^?#]+/;
+const ORT_BAD_BUILD_RE = /\.(asyncify|jsep|jspi)\./;
+
+async function checkOrtRuntimeBuild(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    const urls = [];
+    page.on("request", (req) => urls.push(req.url()));
+    await page.goto(BASE, { waitUntil: "networkidle" });
+
+    // The worker's runtime: reaching Figure 4 loads the chess engine, and the
+    // hint button enables once the session exists.
+    await scrollUntilAttached(page, "#fig-chess");
+    await page.waitForFunction(
+      () => {
+        const btn = [...document.querySelectorAll("#fig-chess button")].find(
+          (b) => b.textContent.trim() === "hint",
+        );
+        return !!btn && !btn.disabled;
+      },
+      null,
+      { timeout: 90000 },
+    );
+    const afterWorker = urls.length;
+
+    // The main thread's runtime: the first stroke starts the draw model, and
+    // the fit scores prove a session ran on it.
+    await scrollUntilAttached(page, "#fig-draw");
+    await drawStroke(page);
+    await waitDrawFits(page);
+
+    const ortOf = (list) => list.map((u) => (u.match(ORT_PATH_RE) || [])[0]).filter(Boolean);
+    const workerOrt = ortOf(urls.slice(0, afterWorker));
+    const mainOrt = ortOf(urls.slice(afterWorker));
+    const all = [...workerOrt, ...mainOrt];
+    const bad = all.filter((u) => ORT_BAD_BUILD_RE.test(u));
+    if (bad.length) {
+      throw new Error(`an asyncify/jsep/jspi runtime was fetched: ${[...new Set(bad)].join(", ")}`);
+    }
+    const plainWasm = (list) => list.filter((u) => u.endsWith("/ort-wasm-simd-threaded.wasm")).length;
+    if (plainWasm(workerOrt) < 1) {
+      throw new Error(`the chess worker did not fetch the plain runtime; its /ort/ requests: ${JSON.stringify(workerOrt)}`);
+    }
+    if (plainWasm(mainOrt) < 1) {
+      throw new Error(`the draw demo did not fetch the plain runtime; its /ort/ requests: ${JSON.stringify(mainOrt)}`);
+    }
+    return `plain runtime fetched by the worker (${plainWasm(workerOrt)}x) and the main thread (${plainWasm(mainOrt)}x); no asyncify/jsep/jspi build; files: ${[...new Set(all)].join(", ")}`;
+  });
+}
+
+/* ---------------------------------------------------------------------- */
+/* 3d. Ink survives a height-only resize (components/DrawDigit.tsx).      */
+/* A phone's URL bar collapsing on scroll fires `resize` with the same    */
+/* width, and the panel used to re-run setup() there and wipe the         */
+/* drawing (v1 known bug 1). A width change still resets the buffer: the  */
+/* pen width and the backing store are derived from it.                   */
+/* ---------------------------------------------------------------------- */
+
+async function checkDrawInkSurvivesHeightResize(browser) {
+  return withPage(browser, { viewport: { width: 400, height: 800 } }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await scrollUntilAttached(page, "#fig-draw");
+    await drawStroke(page);
+    const inkPixels = () =>
+      page.evaluate(() => {
+        const c = document.querySelector("#fig-draw canvas");
+        const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+        let n = 0;
+        for (let i = 0; i < d.length; i += 4) if (d[i] > 128) n++;
+        return n;
+      });
+    const before = await inkPixels();
+    if (before < 100) throw new Error(`stroke left only ${before} lit pixels`);
+
+    // The URL bar: same width, shorter viewport.
+    await page.setViewportSize({ width: 400, height: 700 });
+    await page.waitForTimeout(400); // past the 150ms resize debounce
+    const afterHeight = await inkPixels();
+    if (afterHeight !== before) {
+      throw new Error(`height-only resize changed the ink: ${before} -> ${afterHeight} lit pixels`);
+    }
+    const clearEnabled = await page
+      .locator("#fig-draw button", { hasText: copy.systems.draw.clear })
+      .first()
+      .isEnabled();
+    if (!clearEnabled) throw new Error("clear button disabled after height-only resize: hasInk was reset");
+
+    // A width change still resets the buffer.
+    await page.setViewportSize({ width: 360, height: 700 });
+    await page.waitForTimeout(400);
+    const afterWidth = await inkPixels();
+    if (afterWidth !== 0) throw new Error(`width resize kept ${afterWidth} lit pixels; setup() should have reset the buffer`);
+    return `ink (${before} lit px) survived 800->700 height resize; a 400->360 width resize reset the buffer`;
+  });
+}
+
+/* ---------------------------------------------------------------------- */
 /* 3b. The /lab rail (discoverability Task 7): the stamp is status only,  */
 /* no longer inside a link; the door is the bordered box below it; the   */
 /* References entry that was always the fallback door still resolves.    */
@@ -4645,6 +4758,8 @@ const CHECKS = [
   ["draw-stroke-auto-label", checkDrawAutoLabel],
   ["draw-classify-lead-400", checkDrawClassifyLead400],
   ["chess-hint-g3", checkChessHint],
+  ["ort-runtime-build", checkOrtRuntimeBuild],
+  ["draw-ink-survives-height-resize-400", checkDrawInkSurvivesHeightResize],
   ["jepa-seed-query-834", checkJepaSeedQuery834],
   ["jepa-triple-equality-mixed", checkJepaTripleEqualityOnMixedQuery],
   ["headshot-samples-photo", checkHeadshotSamplesPhoto],

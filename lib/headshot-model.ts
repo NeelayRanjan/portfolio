@@ -48,8 +48,8 @@ export type HeadshotModel = {
   /** The chosen model's OWN meta. `res` differs between the families (256 vs
    *  128), so nothing downstream may assume one of them. */
   meta: HeadshotMeta;
-  session: import("onnxruntime-web/webgpu").InferenceSession;
-  ort: typeof import("onnxruntime-web/webgpu");
+  session: import("onnxruntime-web/wasm").InferenceSession;
+  ort: typeof import("onnxruntime-web/wasm");
   build: HeadshotBuild;
   /**
    * Whether the vendored sampler supports transition mode (init/strength).
@@ -152,7 +152,7 @@ function wantsPrimary(): boolean {
  *
  * Memoized, so a second press reuses the same promise rather than downloading
  * again — and the ORT dynamic import is the SAME specifier
- * (`onnxruntime-web/webgpu`) the draw demo and the chess worker use, so module
+ * (`onnxruntime-web/wasm`) the draw demo and the chess worker use, so module
  * caching hands back the instance already in memory if either has loaded.
  */
 export function loadHeadshotModel(): Promise<HeadshotModel | null> {
@@ -182,7 +182,7 @@ export function loadHeadshotModel(): Promise<HeadshotModel | null> {
 
     const [mod, ort] = await Promise.all([
       import("./headshot-diffusion.js"),
-      import("onnxruntime-web/webgpu"),
+      import("onnxruntime-web/wasm"),
     ]);
     const { generate } = mod;
     const canMorph = MODULE_SUPPORTS_TRANSITIONS;

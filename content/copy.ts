@@ -872,6 +872,12 @@ export const copy = {
        *  author (year n.d.), "<file title> [Photograph]", Wikimedia Commons. */
       imageSourceSuffix: " [Photograph]",
       imageSite: "Wikimedia Commons",
+      /** Final-review fix #2: Commons' CC BY / CC BY-SA licenses ask that a
+       *  modification be disclosed. Appended to the credit line right after
+       *  the license name, chosen by the index entry's `cropped` flag (every
+       *  photograph is resized; two, m8 and m33, are also cropped). */
+      imageResized: ", resized",
+      imageCropped: ", cropped and resized",
       /** "Retrieved September 15, 2026, from https://…" (APA). */
       retrieved: "Retrieved",
       from: "from",
@@ -886,15 +892,22 @@ export const copy = {
        *  colour (colour round task 7: an id in lib/sky-layers.ts's
        *  OBJECT_COLOURS, plus the Milky Way's band). M82 has no palette, so
        *  its card carries no colour note. The grey is sourced, same
-       *  citation as the credit line's. */
+       *  citation as the credit line's.
+       *
+       *  Final-review fix #1: with a photograph now sitting above this text,
+       *  "these colours" read as a claim about the PHOTOGRAPH, which for a
+       *  narrowband composite (several of this round's picks) is false.
+       *  Reworded so the subject is unmistakably the drawn symbol, not the
+       *  photograph above it; the photograph's own colour honesty is a
+       *  separate per-pick `note` (see scripts/sky-image-picks.json). */
       colourNote:
-        "These colours follow long-exposure photographs; your own eyes would see it grey, because at that brightness vision runs on rod cells, which register no colour.",
+        "The symbol's colours follow long-exposure photographs; your own eyes would see it grey, because at that brightness vision runs on rod cells, which register no colour.",
       /** Appended to the note on the nebulae and remnants whose palette
        *  rests on an emission line's own wavelength (EMISSION_LINE_COLOURED),
        *  and the reason those cards also list Lodriguss under Sources. Star
        *  colour is temperature, so the clusters and the galaxies get neither. */
       colourNoteLines:
-        "The colour is what this object's own emission lines emit, not a narrowband palette that maps those lines onto other colours.",
+        "The symbol's colour is what this object's own emission lines emit, not a narrowband palette that maps those lines onto other colours.",
       /** "Active Jul 17 to Aug 24, peak Aug 13. Zenithal hourly rate (ZHR) at peak: 100." */
       showerActive: "Active ",
       showerTo: " to ",

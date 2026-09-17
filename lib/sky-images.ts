@@ -19,6 +19,11 @@ export type SkyImage = {
   sourceTitle: string;
   sourceUrl: string;
   sha1: string;
+  /** Set only when the pick list's `crop` narrowed the source frame (fix
+   *  round #2): CC BY / CC BY-SA ask that a modification be disclosed, and
+   *  the card's credit line reads this to add ", cropped and resized" in
+   *  place of the plain ", resized" every entry gets. */
+  cropped?: true;
   note?: string;
 };
 

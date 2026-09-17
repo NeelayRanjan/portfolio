@@ -112,6 +112,10 @@ function cardCitations(model: CardModel): Citation[] {
   const base = model.fact.citations;
   const out = !model.colourNote || !model.colourEmissionLines || base.some((c) => c.url === EMISSION_LINE_COLOUR.url) ? base : [...base, EMISSION_LINE_COLOUR];
   if (!model.image) return out;
+  // Fix round #7: guarded against a duplicate URL the same way the colour
+  // citation above is, so a fact that happens to already cite the same
+  // Commons file page doesn't render (or key) the same <li> twice.
+  if (out.some((c) => c.url === model.image!.sourceUrl)) return out;
   return [
     ...out,
     {
@@ -221,6 +225,12 @@ export function SkyCard({
         // would be a frame behind. 2:1 capped at 28dvh below 880px (so the
         // whole docked card stays under its 60dvh cap); 4:3 uncapped from
         // 880px, where the card no longer docks to the viewport height.
+        // Fix round #4: the desktop body's own cap below hard-codes 240px
+        // for this box, but at the aside's actual 320px border-box less its
+        // 1px border each side (318px content width, min-[880px]:border),
+        // 4:3 measures 318 * 3/4 = 238.5px. The 1.5px difference is
+        // deliberate slack, not a bug: it leaves the body cap very slightly
+        // under 100vh-32px rather than over it.
         <figure
           data-sky-card-image
           className="m-0 aspect-[2/1] max-h-[28dvh] w-full overflow-hidden border-b border-rule min-[880px]:aspect-[4/3] min-[880px]:max-h-none"
@@ -244,7 +254,12 @@ export function SkyCard({
         ref={scrollRef}
         className={[
           "overflow-y-auto px-4 py-4 font-mono text-[12px] leading-relaxed text-mut min-[880px]:text-[11px]",
-          showImage ? "max-h-[32dvh] min-[880px]:max-h-[calc(100vh-32px-240px)]" : "max-h-[60dvh] min-[880px]:max-h-[calc(100vh-32px)]",
+          // Fix round #3: figure 28dvh + body 32dvh + the aside's own 1px
+          // border-t (present at every width, not just min-[880px]) used to
+          // total 60dvh + 1px, a hair over CLAUDE.md's "the docked card
+          // stays under 60%". The body's phone cap absorbs that 1px instead.
+          // Desktop cap: see the 240px comment on the figure element above.
+          showImage ? "max-h-[calc(32dvh-1px)] min-[880px]:max-h-[calc(100vh-32px-240px)]" : "max-h-[60dvh] min-[880px]:max-h-[calc(100vh-32px)]",
         ].join(" ")}
       >
         <div className="flex items-start justify-between gap-3">
@@ -266,7 +281,19 @@ export function SkyCard({
         {showImage ? (
           <p data-sky-card-image-credit className="mt-1 text-mut/80">
             {t.imageCredit}
-            {model.image!.author} · {model.image!.license}
+            {model.image!.author} ·{" "}
+            {/* Fix round #2: CC BY / CC BY-SA ask for a link to the license
+                itself, not just its name. Public-domain entries carry an
+                empty licenseUrl (the generator never invents one), so they
+                stay plain text exactly as before. */}
+            {model.image!.licenseUrl ? (
+              <a href={model.image!.licenseUrl} target="_blank" rel="noopener" className="break-all text-link underline underline-offset-2">
+                {model.image!.license}
+              </a>
+            ) : (
+              model.image!.license
+            )}
+            {model.image!.cropped ? t.imageCropped : t.imageResized}
             {model.image!.note ? ` ${model.image!.note}` : ""}
           </p>
         ) : null}

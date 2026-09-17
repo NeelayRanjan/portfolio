@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type Ref } from "react";
 import { copy } from "@/content/copy";
 import { EMISSION_LINE_COLOUR, type Citation, type SkyFact } from "@/content/sky-facts";
+import type { SkyImage } from "@/lib/sky-images";
 import type { SkyShower } from "@/lib/sky-objects";
 
 /**
@@ -70,6 +71,10 @@ export type CardModel = {
    *  Sources list gains `EMISSION_LINE_COLOUR`. Only read when `colourNote`
    *  is set. */
   colourEmissionLines?: boolean;
+  /** The card's photograph (spec 2026-09-16): the index entry plus the
+   *  index's generation date, which is the citation's access date. Absent
+   *  for stars, constellations, showers, the Voyagers and the Kepler field. */
+  image?: SkyImage & { accessed: string };
 };
 
 const LONG_DATE = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });

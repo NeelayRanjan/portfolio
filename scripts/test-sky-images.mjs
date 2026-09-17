@@ -6,6 +6,25 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readdir, readFile, stat } from "node:fs/promises";
+import { register } from "node:module";
+
+// lib/sky-images.ts carries "no runtime imports except ./sky-objects", and
+// that import (like sky-layers.ts's of sky-math) is a real relative
+// specifier with no extension, which node's ESM resolver refuses to
+// resolve on its own (unlike TypeScript's "bundler" moduleResolution).
+// Same resolve-hook workaround as test-sky-objects.mjs: retry a failed
+// relative specifier with ".ts" appended, scoped to this process only.
+register(
+  `data:text/javascript,${encodeURIComponent(`
+export async function resolve(specifier, context, nextResolve) {
+  try { return await nextResolve(specifier, context); }
+  catch (err) {
+    if (specifier.startsWith(".") && !/\\.[a-zA-Z0-9]+$/.test(specifier)) return nextResolve(specifier + ".ts", context);
+    throw err;
+  }
+}`)}`,
+  import.meta.url,
+);
 
 const ROOT = new URL("../", import.meta.url);
 const INDEX = new URL("public/sky/images/index.json", ROOT);
@@ -82,4 +101,13 @@ test("the allow-list equals the generator's", async () => {
   const m = src.match(/const ALLOWED_LICENSES = (\[[\s\S]*?\]);/);
   assert.ok(m, "generator has no ALLOWED_LICENSES literal");
   assert.deepEqual(JSON.parse(m[1].replace(/,\s*\]/, "]").replace(/\n/g, "")), ALLOWED_LICENSES);
+});
+
+const { validateImagesIndex } = await import("../lib/sky-images.ts");
+
+test("the runtime validator accepts the committed index and rejects the malformed", () => {
+  assert.equal(validateImagesIndex(index), null);
+  assert.match(validateImagesIndex({ version: 2, images: {} }) ?? "", /version/);
+  assert.match(validateImagesIndex({ version: 1, generated: "2026-09-16", images: null }) ?? "", /images/);
+  assert.match(validateImagesIndex({ version: 1, generated: "2026-09-16", images: { m31: { src: "x" } } }) ?? "", /m31/);
 });

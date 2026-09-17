@@ -1,5 +1,6 @@
 import type { SkyFact } from "@/content/sky-facts";
 import type { SkyData } from "@/lib/sky-data";
+import type { SkyImagesIndex } from "@/lib/sky-images";
 import type { IssLook, IssTracker } from "@/lib/sky-iss";
 import type { ObjectGlyph, PreparedMilkyWay, SkyObjectsData } from "@/lib/sky-objects";
 import { PAPER_SATURATION } from "@/lib/sky-colour";
@@ -17,7 +18,7 @@ import type { Highlight, Projected } from "@/lib/sky-render";
 
 export type LayerState = "loading" | "ready" | "absent" | "error";
 
-export type SkyLayers = { objects: LayerState; milkyWay: LayerState; facts: LayerState; iss: LayerState };
+export type SkyLayers = { objects: LayerState; milkyWay: LayerState; facts: LayerState; iss: LayerState; images: LayerState };
 
 // Drag to pan. `offset` slides the whole chart (lib/sky-math.ts chartFor);
 // `velocity` is the return spring's, px/s.
@@ -37,6 +38,7 @@ export type SkyState = {
   objectGlyphs: ReadonlyMap<string, ObjectGlyph>;
   milkyWay: PreparedMilkyWay | null;
   facts: Map<string, SkyFact> | null;
+  images: SkyImagesIndex | null;
   readonly layers: SkyLayers;
   issTracker: IssTracker | null;
   /** The ISS as of the last paint. */
@@ -89,7 +91,8 @@ export function createSkyState(): SkyState {
     objectGlyphs: new Map(),
     milkyWay: null,
     facts: null,
-    layers: { objects: "loading", milkyWay: "loading", facts: "loading", iss: "loading" },
+    images: null,
+    layers: { objects: "loading", milkyWay: "loading", facts: "loading", iss: "loading", images: "loading" },
     issTracker: null,
     issNow: null,
     width: 0,

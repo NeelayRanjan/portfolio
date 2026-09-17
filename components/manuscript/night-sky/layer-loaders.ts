@@ -1,4 +1,5 @@
 import { loadSky } from "@/lib/sky-data";
+import { loadImages } from "@/lib/sky-images";
 import { loadIss, MOFFETT_HEIGHT_KM } from "@/lib/sky-iss";
 import { MOFFETT } from "@/lib/sky-math";
 import { loadMilkyWay, loadObjects, prepareMilkyWay, prepareObjectGlyphs, smallCircle } from "@/lib/sky-objects";
@@ -62,6 +63,17 @@ export function loadSkyLayers(s: SkyState, deps: { paint: () => void; resolveFon
       layers.milkyWay = "error";
       console.error("NightSky: milkyway.json is malformed; the sky draws without the band.", err);
       if (s.alive) paint();
+    });
+  loadImages()
+    .then((d) => {
+      if (!s.alive) return;
+      s.images = d;
+      layers.images = d ? "ready" : "absent";
+      // No repaint: photographs are DOM on the card, not canvas.
+    })
+    .catch((err) => {
+      layers.images = "error";
+      console.error("NightSky: sky/images/index.json is malformed; cards open without photographs.", err);
     });
   loadIss(() => import("satellite.js"), { ...MOFFETT, heightKm: MOFFETT_HEIGHT_KM })
     .then((t) => {

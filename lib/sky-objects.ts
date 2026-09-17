@@ -104,7 +104,7 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-function gate<T>(url: string, validate: (body: T) => string | null): () => Promise<T | null> {
+export function gate<T>(url: string, validate: (body: T) => string | null): () => Promise<T | null> {
   let cache: Promise<T | null> | null = null;
   return () => {
     if (cache) return cache;

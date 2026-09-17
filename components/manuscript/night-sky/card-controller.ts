@@ -60,6 +60,13 @@ export function createCardController(s: SkyState, deps: CardControllerDeps) {
   };
 
   // ---- cards ----
+  /** The card's photograph, if the index has one for this id (task 2): the
+   *  index entry plus its generation date, which the card cites as the
+   *  photograph's access date. Constellations and showers never call this. */
+  const imageFor = (id: string): CardModel["image"] | undefined => {
+    const im = s.images?.images[id];
+    return im ? { ...im, accessed: s.images!.generated } : undefined;
+  };
   const buildCard = (h: { kind: Highlight["kind"]; id: string }): CardModel | null => {
     const { sky, objectsData, issTracker, issNow } = s;
     const fact = s.facts?.get(h.id);
@@ -87,11 +94,12 @@ export function createCardController(s: SkyState, deps: CardControllerDeps) {
         // absent from that table (ruling R-COLOUR-1) and so gets no note.
         colourNote: OBJECT_COLOURS[object.id] !== undefined,
         colourEmissionLines: EMISSION_LINE_COLOURED.has(object.id),
+        image: imageFor(h.id),
       };
     }
     const planet = PLANETS.find((name) => name.toLowerCase() === h.id);
-    if (planet) return { id: h.id, title: planet, fact, extra: { type: "none" } };
-    if (h.id === "moon") return { id: h.id, title: copy.stargaze.card.titleMoon, fact, extra: { type: "none" } };
+    if (planet) return { id: h.id, title: planet, fact, extra: { type: "none" }, image: imageFor(h.id) };
+    if (h.id === "moon") return { id: h.id, title: copy.stargaze.card.titleMoon, fact, extra: { type: "none" }, image: imageFor(h.id) };
     if (h.id === "iss" && issTracker && issNow) {
       return {
         id: h.id,
@@ -105,6 +113,7 @@ export function createCardController(s: SkyState, deps: CardControllerDeps) {
           epoch: issTracker.tle.epoch,
           still: s.reducedQ.matches,
         },
+        image: imageFor(h.id),
       };
     }
     if (h.id === "milky-way") {
@@ -113,7 +122,15 @@ export function createCardController(s: SkyState, deps: CardControllerDeps) {
       // OBJECT_COLOURS (its ramp is its own), so it is set here directly,
       // the same way notToScale is. Its colour is star and dust colour, not
       // line emission, so no emission sentence and no Lodriguss citation.
-      return { id: h.id, title: copy.stargaze.card.titleMilkyWay, fact, extra: { type: "none" }, notToScale: true, colourNote: true };
+      return {
+        id: h.id,
+        title: copy.stargaze.card.titleMilkyWay,
+        fact,
+        extra: { type: "none" },
+        notToScale: true,
+        colourNote: true,
+        image: imageFor(h.id),
+      };
     }
     return null;
   };

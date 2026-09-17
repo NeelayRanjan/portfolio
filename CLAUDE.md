@@ -451,7 +451,20 @@ was ever measured for it.
    are shaded by the backing, not routed around it; the paper-mode credit now
    sits on a soft dark backing strip, an aesthetic call the owner may lighten
    (the contrast gate allows down to ~3.49:1 at 400px).
-9. Much later: a third headliner demo, a **live network-security honeypot**
+9. **A "research directions" section is PARKED** (2026-09-16). Designed to
+   the copy stage: the owner's proposed robotic vascular-ultrasound project
+   with Dr. Gonzalez, as a plan figure with honest status lamps. The owner
+   held it: the project is a concept, and Dr. Gonzalez may not want it
+   discussed publicly yet. Don't propose it again unless the owner raises it;
+   if revived, a themes-only version (label efficiency, generative priors for
+   perception in safety-critical domains, systems that act) that names no
+   project and no collaborator is the fallback, with hover ties to the
+   figures that already show each theme as its artifact. Facts settled the
+   same day: the JAMIA submission is expected within the week of 2026-09-16
+   (the site says "in preparation" until the owner confirms it went in), the
+   lunar digital twin is officially dropped, and the antenna title is the
+   resume's.
+10. Much later: a third headliner demo, a **live network-security honeypot**
    (exposed Pi, malicious ssh/https logged, LLM-categorized into a live UMAP
    of attack families). Needs a live-data seam the static site doesn't have;
    the systems figure column is trivially appendable when it comes.

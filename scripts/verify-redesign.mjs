@@ -3291,6 +3291,170 @@ async function checkStargazeCard(browser) {
   return `${m31Summary}; voyager-1 card "${voyager.title}" data "${spacecraftLine}"; planet card "${mars.title}" / "${mars.kind}"; Moon card "${moon.title}" / "${moon.kind}"; ${objectCards}`;
 }
 
+/* ---------------------------------------------------------------------- */
+/* Stargaze card photographs (spec 2026-09-16-sky-card-images): a licensed */
+/* image flush above the card, CSS-sized before it loads, credited and     */
+/* cited; none on a star; nothing at all with the index held.              */
+/* ---------------------------------------------------------------------- */
+
+// public/sky/sky.json's own star entries are bare [ra, dec, mag, ...]
+// tuples with no name field (see checkStargazeCardImage's Polaris pick
+// below by dec > 89, same as scripts/prepare-sky.mjs and test-sky-data.mjs).
+// The named, id-bearing Polaris entry lives in public/sky/objects.json
+// instead ({"id":"polaris","name":"Polaris",...,"raDeg":37.9545,"decDeg":89.2641}),
+// so that is what this constant is read from.
+const POLARIS = { raDeg: 37.9545, decDeg: 89.2641 };
+
+async function checkStargazeCardImage(browser) {
+  const W = 1600;
+  const H = 1000;
+  const { date, p } = findInstant(new Date(Date.UTC(2026, 9, 1)), W, H, M31, 120);
+  const notes = [];
+
+  await pinnedSkyPage(browser, { W, H, date }, async (page) => {
+    // Firefox observed to lag the images gate specifically (never objects,
+    // milkyWay or facts, which pinnedSkyPage and this same wait already
+    // clear) when this check runs immediately after the heaviest check in
+    // the suite (stargaze-card, ~9s of drags and 11 card opens) — the same
+    // "right after the heaviest checks" contention checkStargazeCard's own
+    // drag waits already document. Named here rather than left as a bare
+    // "Timeout 10000ms exceeded" for the same reason that fix exists.
+    await page.waitForFunction(() => window.__sky.layers.facts === "ready" && window.__sky.layers.images === "ready", null, { timeout: 10000 }).catch(async () => {
+      const s = await page.evaluate(() => ({ ...window.__sky.layers }));
+      throw new Error(`layers never became ready within 10s: ${JSON.stringify(s)}`);
+    });
+    await waitStargazeReady(page);
+    await stargazeToggle(page).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+
+    await page.mouse.click(p.x, p.y);
+    const card = page.locator('[data-sky-card="m31"]');
+    await card.waitFor({ state: "attached", timeout: 3000 });
+    const fig = card.locator("[data-sky-card-image]");
+    if ((await fig.count()) !== 1) throw new Error("Andromeda's card has no [data-sky-card-image]");
+    const before = await fig.boundingBox();
+    // The card is a fixed-width 320px border-box with a 1px border
+    // (min-[880px]:w-[320px] min-[880px]:border on the aside), so the
+    // figure's own content width is 318px, not 320 — 320x240 is the
+    // design's shorthand for the 4:3 box, not what boundingBox() measures.
+    // Task 3's own report measured this exact figure at 318x238.5 and
+    // confirmed it matches min-[880px]:aspect-[4/3]; that is the value
+    // pinned here, not a bug in SkyCard.tsx.
+    if (!before || Math.abs(before.height - 238.5) > 1 || Math.abs(before.width - 318) > 1) {
+      throw new Error(`image box is ${before?.width}x${before?.height}, expected 318x238.5 from CSS before load`);
+    }
+    // The box must be the aside's first child, its bottom on the body's top.
+    const order = await card.evaluate((el) => {
+      const first = el.firstElementChild;
+      const body = first?.nextElementSibling;
+      const a = first?.getBoundingClientRect();
+      const b = body?.getBoundingClientRect();
+      return { firstIsFigure: first?.hasAttribute("data-sky-card-image") ?? false, gap: a && b ? b.top - a.bottom : null, width: a && b ? a.width - b.width : null };
+    });
+    if (!order.firstIsFigure) throw new Error("the photograph is not the card's first child");
+    if (order.gap === null || Math.abs(order.gap) > 1) throw new Error(`gap between photograph and body is ${order.gap}px`);
+    if (order.width === null || Math.abs(order.width) > 1) throw new Error(`photograph and body widths differ by ${order.width}px`);
+
+    await page.waitForFunction(() => {
+      const img = document.querySelector('[data-sky-card="m31"] [data-sky-card-image] img');
+      return img && img.complete && img.naturalWidth > 0;
+    }, null, { timeout: 10000 }).catch(async () => {
+      const s = await page.evaluate(() => {
+        const img = document.querySelector('[data-sky-card="m31"] [data-sky-card-image] img');
+        return img ? { src: img.getAttribute("src"), complete: img.complete, naturalWidth: img.naturalWidth } : null;
+      });
+      throw new Error(`image never finished loading: ${JSON.stringify(s)}`);
+    });
+    const after = await fig.boundingBox();
+    if (Math.abs(after.height - before.height) > 1) throw new Error(`image box changed height on load: ${before.height} -> ${after.height}`);
+    const info = await card.evaluate((el) => ({
+      src: el.querySelector("[data-sky-card-image] img")?.getAttribute("src"),
+      alt: el.querySelector("[data-sky-card-image] img")?.getAttribute("alt") ?? "",
+      credit: el.querySelector("[data-sky-card-image-credit]")?.textContent ?? "",
+      sourceLinks: [...el.querySelectorAll("[data-sky-card-sources] a")].map((a) => a.getAttribute("href")),
+      bottom: el.getBoundingClientRect().bottom,
+    }));
+    if (info.src !== "/sky/images/m31.webp") throw new Error(`src is ${info.src}`);
+    if (info.alt.length < 20) throw new Error(`alt is ${JSON.stringify(info.alt)}`);
+    if (!info.credit.startsWith(copy.stargaze.card.imageCredit)) throw new Error(`credit is ${JSON.stringify(info.credit)}`);
+    if (!info.sourceLinks.some((h) => h && h.startsWith("https://commons.wikimedia.org/wiki/File:"))) {
+      throw new Error(`no Commons citation among ${JSON.stringify(info.sourceLinks)}`);
+    }
+    if (info.bottom > H - 8) throw new Error(`card bottom at ${info.bottom} runs past the viewport (${H})`);
+    notes.push(`m31: 318x238.5 box before and after load, credit ${JSON.stringify(info.credit)}`);
+
+    // A star: no photograph, no credit, no Commons link.
+    await page.keyboard.press("Escape");
+    await card.waitFor({ state: "detached", timeout: 2000 });
+    const pol = findInstant(date, W, H, POLARIS, 40);
+    await page.mouse.click(pol.p.x, pol.p.y);
+    const starCard = page.locator("[data-sky-card]");
+    await starCard.waitFor({ state: "attached", timeout: 3000 });
+    const star = await starCard.evaluate((el) => ({
+      id: el.getAttribute("data-sky-card"),
+      figures: el.querySelectorAll("[data-sky-card-image]").length,
+      credit: el.querySelectorAll("[data-sky-card-image-credit]").length,
+      commons: [...el.querySelectorAll("[data-sky-card-sources] a")].filter((a) => (a.getAttribute("href") ?? "").includes("commons.wikimedia.org")).length,
+    }));
+    if (star.figures || star.credit || star.commons) throw new Error(`${star.id}'s card carries image markup: ${JSON.stringify(star)}`);
+    notes.push(`${star.id}: no image markup`);
+  });
+
+  // The index held: no image, no error, the card otherwise complete.
+  await withPage(browser, { viewport: { width: W, height: H }, reducedMotion: "reduce", deviceScaleFactor: 1 }, async (page, context) => {
+    await context.route("**/sky/images/index.json", (route) => route.fulfill({ status: 404, body: "" }));
+    const errors = [];
+    page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+    await page.clock.setFixedTime(date);
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await waitSkyDrawn(page);
+    await page.waitForFunction(() => window.__sky.layers.images === "absent" && window.__sky.layers.facts === "ready", null, { timeout: 10000 });
+    await waitStargazeReady(page);
+    await stargazeToggle(page).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    await page.mouse.click(p.x, p.y);
+    const card = page.locator('[data-sky-card="m31"]');
+    await card.waitFor({ state: "attached", timeout: 3000 });
+    const held = await card.evaluate((el) => ({
+      figures: el.querySelectorAll("[data-sky-card-image]").length,
+      oneLiner: el.querySelector("[data-sky-card-oneliner]")?.textContent ?? "",
+      sources: el.querySelectorAll("[data-sky-card-sources] a").length,
+    }));
+    if (held.figures) throw new Error("index held but the card shows a photograph");
+    if (!held.oneLiner || held.sources < 1) throw new Error(`index held and the card is incomplete: ${JSON.stringify(held)}`);
+    const imgErrors = errors.filter((e) => /images|index\.json/.test(e));
+    if (imgErrors.length) throw new Error(`console errors with the index held: ${imgErrors.join(" | ")}`);
+    notes.push("index 404: card complete, no photograph, no console error");
+  });
+
+  // 400px, touch: the docked card, photograph at most 28% tall, card at most 60%.
+  const P = { W: 400, H: 800 };
+  const phone = findInstant(new Date(Date.UTC(2026, 9, 1)), P.W, P.H, M31, 40);
+  await pinnedSkyPage(browser, { W: P.W, H: P.H, date: phone.date, contextOptions: { hasTouch: true } }, async (page) => {
+    await page.waitForFunction(() => window.__sky.layers.facts === "ready" && window.__sky.layers.images === "ready", null, { timeout: 10000 });
+    await waitStargazeReady(page);
+    await stargazeToggle(page).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    await page.touchscreen.tap(phone.p.x, phone.p.y);
+    const card = page.locator('[data-sky-card="m31"]');
+    await card.waitFor({ state: "attached", timeout: 3000 });
+    const sizes = await card.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const f = el.querySelector("[data-sky-card-image]")?.getBoundingClientRect();
+      const small = [...el.querySelectorAll("*")].filter((n) => n.textContent?.trim() && parseFloat(getComputedStyle(n).fontSize) < 12).length;
+      return { card: r.height, img: f?.height ?? 0, imgW: f?.width ?? 0, cardW: r.width, small };
+    });
+    if (!sizes.img) throw new Error("no photograph on the docked card");
+    if (sizes.img > 0.28 * P.H + 1) throw new Error(`phone photograph ${sizes.img}px tall, over 28% of ${P.H}`);
+    if (sizes.card > 0.6 * P.H + 2) throw new Error(`phone card ${sizes.card}px tall, over 60% of ${P.H}`);
+    if (Math.abs(sizes.imgW - sizes.cardW) > 1) throw new Error(`phone photograph width ${sizes.imgW} vs card ${sizes.cardW}`);
+    if (sizes.small) throw new Error(`${sizes.small} element(s) under 12px on the phone card`);
+    notes.push(`400px: photograph ${Math.round(sizes.img)}px of card ${Math.round(sizes.card)}px`);
+  });
+
+  return notes.join("; ");
+}
+
 /**
  * Final review F2: keyboard and screen-reader users reach every card. In
  * stargaze, a visually hidden list of buttons, one per selectable on screen
@@ -4792,6 +4956,7 @@ const CHECKS = [
   ["stargaze-cancels-run", checkStargazeCancelsRun],
   ["stargaze-during-download", checkStargazeDuringDownload],
   ["stargaze-card", checkStargazeCard],
+  ["stargaze-card-image", checkStargazeCardImage],
   ["stargaze-keyboard-list", checkStargazeKeyboardList],
   ["stargaze-touch-400", checkStargazeTouch400],
   ["stargaze-affordances", checkStargazeAffordances],

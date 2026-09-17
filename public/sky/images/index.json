@@ -116,7 +116,7 @@
       "width": 640,
       "height": 640,
       "alt": "M87: a smooth, round elliptical galaxy with a straight jet of plasma pointing out from its core, from Hubble.",
-      "author": "en:NASA, en:STScI, en:WikiSky",
+      "author": "NASA, STScI, WikiSky",
       "license": "Public domain",
       "licenseUrl": "",
       "sourceTitle": "Messier 87 Hubble WikiSky.jpg",
@@ -175,14 +175,14 @@
     "m27": {
       "src": "/sky/images/m27.webp",
       "width": 640,
-      "height": 426,
-      "alt": "The Dumbbell Nebula: a blue-green oval shell of gas with red edges, photographed by an amateur astronomer.",
-      "author": "Alpha Zhang (AstroBin: shyzhang127)",
-      "license": "CC BY-SA 4.0",
-      "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
-      "sourceTitle": "Messier 27 (1).jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Messier_27_(1).jpg",
-      "sha1": "fab47c4e016c03c972c9f512a12ca4a99c879a4e"
+      "height": 548,
+      "alt": "The Dumbbell Nebula: a round green shell of gas with pink edges, crossed by a scatter of foreground stars, from NOIRLab.",
+      "author": "REU program/NOIRLab/NSF/AURA",
+      "license": "CC BY 4.0",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+      "sourceTitle": "M27, NGC 6853, Dumbbell Nebula (noao-m27).tiff",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:M27,_NGC_6853,_Dumbbell_Nebula_(noao-m27).tiff",
+      "sha1": "53868b1a32f80a7745f70957c04b56abf65682e6"
     },
     "m33": {
       "src": "/sky/images/m33.webp",

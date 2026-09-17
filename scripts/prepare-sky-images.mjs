@@ -49,6 +49,11 @@ mkdirSync(OUT_DIR, { recursive: true });
 
 const stripHtml = (s) => (s ?? "").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&nbsp;/g, " ");
 const firstLine = (s) => s.split(/\r?\n/).map((l) => l.trim()).find((l) => l.length > 0) ?? "";
+// Commons' Artist field sometimes keeps wikitext interwiki prefixes after HTML
+// stripping (m87: "en:NASA, en:STScI, en:WikiSky"); drop a lowercase two-letter
+// language code before a capitalised name, narrow enough to leave real credit
+// text ("NASA/JPL-Caltech") and any URL untouched.
+const stripInterwiki = (s) => s.replace(/(^|[,/(]\s*)[a-z]{2}:(?=[A-Z])/g, "$1");
 const stripUtm = (u) => u.replace(/\?utm_source=.*$/, "");
 
 async function commonsInfo(titles) {
@@ -72,7 +77,7 @@ async function commonsInfo(titles) {
       sha1: ii.sha1,
       license: stripHtml(m.LicenseShortName?.value ?? "").trim(),
       licenseUrl: stripHtml(m.LicenseUrl?.value ?? "").trim(),
-      author: firstLine(stripHtml(m.Artist?.value ?? "")).replace(/\s+/g, " ").slice(0, 160),
+      author: stripInterwiki(firstLine(stripHtml(m.Artist?.value ?? "")).replace(/\s+/g, " ")).slice(0, 160),
     });
   }
   // The API normalises titles (underscores to spaces); map back by normalised form.

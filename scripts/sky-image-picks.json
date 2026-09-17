@@ -14,7 +14,7 @@
     { "id": "hubble-deep-field", "file": "File:HubbleDeepField.800px.jpg", "alt": "The Hubble Deep Field: hundreds of faint galaxies of every shape and colour scattered across a tiny patch of dark sky." },
     { "id": "m16", "file": "File:Eagle Nebula from ESO.jpg", "alt": "The Eagle Nebula: dark pillars of dust rising into a red glowing cloud, from ESO's La Silla observatory." },
     { "id": "m20", "file": "File:Trifid Nebula (noirlab2521ah).jpg", "alt": "The Trifid Nebula: a pink emission cloud split by three dark lanes, beside a blue reflection nebula, from the Rubin Observatory." },
-    { "id": "m27", "file": "File:Messier 27 (1).jpg", "alt": "The Dumbbell Nebula: a blue-green oval shell of gas with red edges, photographed by an amateur astronomer." },
+    { "id": "m27", "file": "File:M27, NGC 6853, Dumbbell Nebula (noao-m27).tiff", "alt": "The Dumbbell Nebula: a round green shell of gas with pink edges, crossed by a scatter of foreground stars, from NOIRLab." },
     { "id": "m33", "file": "File:VST snaps a very detailed view of the Triangulum Galaxy.jpg", "alt": "The Triangulum Galaxy: a loose face-on spiral with a bright white core and red star-forming regions, from the VLT Survey Telescope.", "crop": "0.1,0.15,0.8,0.7" },
     { "id": "m78", "file": "File:Messier 78.jpg", "alt": "M78: two bright blue reflection nebulae lit by young stars, with dark dust clouds around them, from ESO." },
     { "id": "m81", "file": "File:Messier 81 HST.jpg", "alt": "Bode's Galaxy: a grand-design spiral with a yellow core and blue arms, from Hubble." },

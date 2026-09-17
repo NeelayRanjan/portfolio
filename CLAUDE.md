@@ -358,7 +358,8 @@ into `components/manuscript/night-sky/` first, with no behaviour change. See
 "Night sky + stargaze" and "Draw-a-digit" below for the contracts.
 
 **2026-09-16 (evening): the iPhone crash loop is root-caused and fixed,
-branch `fix/ort-wasm-entry`, pending the owner's phone.** It was never the
+merged to `main` the same evening after the owner approved the preview;
+the field readout is still owed.** It was never the
 26 MB model or the main thread. Every ORT import used the
 `onnxruntime-web/webgpu` entry, and in 1.27 that entry always fetches ORT's
 **asyncify** wasm build (24.3 MB) whatever provider is requested, so chess
@@ -422,8 +423,8 @@ was ever measured for it.
    pole position at 1280-1440px (the margin-based rule's low end, where it sits
    closest to the sheet), the drag feel and docked card on a real phone, and a
    WebGPU pass in desktop Chrome. Headless Firefox cannot speak to any of it.
-4. **The iPhone crash loop: fixed on `fix/ort-wasm-entry`, owner's phone
-   test owed** (owner, 2026-09-14, iPhone 17 Pro: repeated refreshes landed
+4. **The iPhone crash loop: fixed and LIVE (merged 2026-09-16 evening); the
+   field readout is owed** (owner, 2026-09-14, iPhone 17 Pro: repeated refreshes landed
    on Safari's "a problem repeatedly occurred", friends called the section
    "super buggy"). Root cause and measurements in Current state and Known
    bugs; the field readout is `page_reload` against page views, mobile vs
@@ -1894,8 +1895,9 @@ stay out of `public/`. Git LFS: settled, not needed (~47 MB tracked binaries).
 ## Known bugs — open on the live site
 
 Both of v1's draw-demo bugs were fixed on 2026-09-16 (branch
-`fix/ort-wasm-entry`); they stay listed until the owner's phone confirms
-the second, and because the second's diagnosis was wrong for two months.
+merged to `main` the same evening); they stay listed until `page_reload`
+confirms the second in the field, and because the second's diagnosis was
+wrong for two months.
 1. **Mobile: drawing wiped when scrolling to hit generate. FIXED.**
    `DrawDigit`'s resize handler re-ran `setup()`, which resets the canvas
    buffer, and a phone's URL bar collapsing on scroll fires `resize` at the

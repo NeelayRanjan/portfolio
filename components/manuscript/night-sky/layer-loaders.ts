@@ -69,11 +69,17 @@ export function loadSkyLayers(s: SkyState, deps: { paint: () => void; resolveFon
       if (!s.alive) return;
       s.images = d;
       layers.images = d ? "ready" : "absent";
-      // No repaint: photographs are DOM on the card, not canvas.
+      // The card itself reads s.images directly, so this repaint draws no
+      // new pixels — but window.__sky.layers is a snapshot taken only at
+      // paint (painter.ts), and under reduced motion nothing else refreshes
+      // it once the last other layer has landed, so a landing this late
+      // would otherwise report "loading" forever (fix round 1).
+      paint();
     })
     .catch((err) => {
       layers.images = "error";
       console.error("NightSky: sky/images/index.json is malformed; cards open without photographs.", err);
+      if (s.alive) paint();
     });
   loadIss(() => import("satellite.js"), { ...MOFFETT, heightKm: MOFFETT_HEIGHT_KM })
     .then((t) => {

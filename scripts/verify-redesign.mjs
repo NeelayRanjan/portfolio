@@ -3294,7 +3294,9 @@ async function checkStargazeCard(browser) {
 /* ---------------------------------------------------------------------- */
 /* Stargaze card photographs (spec 2026-09-16-sky-card-images): a licensed */
 /* image flush above the card, CSS-sized before it loads, credited and     */
-/* cited; none on a star; nothing at all with the index held.              */
+/* cited; none on a star; nothing at all with the index held; and (fix     */
+/* round 1) the window.__sky.layers snapshot still reaches "ready" when    */
+/* the index lands after every other layer under reduced motion.          */
 /* ---------------------------------------------------------------------- */
 
 // public/sky/sky.json's own star entries are bare [ra, dec, mag, ...]
@@ -3477,6 +3479,29 @@ async function checkStargazeCardImage(browser) {
     if (Math.abs(sizes.imgW - sizes.cardW) > 1) throw new Error(`phone photograph width ${sizes.imgW} vs card ${sizes.cardW}`);
     if (sizes.small) throw new Error(`${sizes.small} element(s) under 12px on the phone card`);
     notes.push(`400px: photograph ${Math.round(sizes.img)}px of card ${Math.round(sizes.card)}px`);
+  });
+
+  // Fix round 1: window.__sky.layers is a snapshot taken only at paint
+  // (painter.ts), and under reduced motion (every section above) the sky
+  // repaints only when a layer landing calls paint(). Delaying the index's
+  // own response past every other layer's landing makes that race
+  // deterministic instead of relying on real network timing to occasionally
+  // reproduce it — the images loader must call paint() on its own landing,
+  // or this snapshot reports "loading" forever.
+  await withPage(browser, { viewport: { width: W, height: H }, reducedMotion: "reduce", deviceScaleFactor: 1 }, async (page, context) => {
+    await context.route("**/sky/images/index.json", async (route) => {
+      await new Promise((r) => setTimeout(r, 2500));
+      await route.continue();
+    });
+    await page.clock.setFixedTime(date);
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await waitSkyDrawn(page);
+    await page.waitForFunction(() => window.__sky.layers.facts === "ready", null, { timeout: 10000 });
+    await page.waitForFunction(() => window.__sky.layers.images === "ready", null, { timeout: 10000 }).catch(async () => {
+      const layers = await page.evaluate(() => ({ ...window.__sky.layers }));
+      throw new Error(`delayed index: layers snapshot never reached images "ready" within 10s: ${JSON.stringify(layers)}`);
+    });
+    notes.push("index delayed 2.5s: snapshot reached ready");
   });
 
   return notes.join("; ");

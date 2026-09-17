@@ -148,6 +148,7 @@ plan. Nothing is recorded locally; the verify suite reads the pending
 | `measure-mono.mjs` | measures a mono's advance (why the ASCII grids keep Geist Mono) | Playwright, dev server |
 | `prepare-sky.mjs` | derives `public/sky/sky.json`, the star catalog behind every page, from a commit-pinned d3-celestial | network access to GitHub raw |
 | `prepare-sky-objects.mjs` | derives `public/sky/objects.json` and `public/sky/milkyway.json` from pinned d3-celestial data, JPL Horizons (Voyager positions on the run date), the archived IMO 2026 calendar and a pinned Wikipedia revision | network access (GitHub raw, ssd.jpl.nasa.gov, web.archive.org, en.wikipedia.org) |
+| `prepare-sky-images.mjs` | derives `public/sky/images/` (one licensed WebP per deep-sky object, planet, the Moon, the ISS, the Milky Way, plus `index.json` with author, license and a pinned sha1) from `scripts/sky-image-picks.json`, via the Wikimedia Commons API; refuses any license outside its allow-list; `--repin` accepts an upstream file change | network, ffmpeg |
 
 Outputs are committed; Vercel never runs any of these.
 

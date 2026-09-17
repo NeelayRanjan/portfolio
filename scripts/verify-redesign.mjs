@@ -3305,6 +3305,14 @@ async function checkStargazeCard(browser) {
 // so that is what this constant is read from.
 const POLARIS = { raDeg: 37.9545, decDeg: 89.2641 };
 
+// Fix round 2: same precedent as checkSkyIss's ISS_KNOWN_HARMLESS_CONSOLE —
+// collect every console error on the index-held page, not only ones
+// matching an images/index.json keyword (a generically worded error from
+// the images-absent path would slip past a positive keyword filter), and
+// fail on anything not explicitly listed here as harmless. Empty is the
+// correct default, not a placeholder to fill in preemptively.
+const CARD_IMAGE_KNOWN_HARMLESS_CONSOLE = [];
+
 async function checkStargazeCardImage(browser) {
   const W = 1600;
   const H = 1000;
@@ -3385,13 +3393,19 @@ async function checkStargazeCardImage(browser) {
     if (info.bottom > H - 8) throw new Error(`card bottom at ${info.bottom} runs past the viewport (${H})`);
     notes.push(`m31: 318x238.5 box before and after load, credit ${JSON.stringify(info.credit)}`);
 
-    // A star: no photograph, no credit, no Commons link.
+    // A star: no photograph, no credit, no Commons link. Located by its own
+    // id, not the generic [data-sky-card] — a projection or hit-precedence
+    // regression that opened a neighbouring star or constellation instead
+    // (every one of them image-free too) would otherwise still pass.
     await page.keyboard.press("Escape");
     await card.waitFor({ state: "detached", timeout: 2000 });
     const pol = findInstant(date, W, H, POLARIS, 40);
     await page.mouse.click(pol.p.x, pol.p.y);
-    const starCard = page.locator("[data-sky-card]");
-    await starCard.waitFor({ state: "attached", timeout: 3000 });
+    const starCard = page.locator('[data-sky-card="polaris"]');
+    await starCard.waitFor({ state: "attached", timeout: 3000 }).catch(async () => {
+      const opened = await page.evaluate(() => document.querySelector("[data-sky-card]")?.getAttribute("data-sky-card") ?? null);
+      throw new Error(`clicking Polaris at (${pol.p.x.toFixed(0)}, ${pol.p.y.toFixed(0)}) opened ${opened ?? "no card"}, not polaris`);
+    });
     const star = await starCard.evaluate((el) => ({
       id: el.getAttribute("data-sky-card"),
       figures: el.querySelectorAll("[data-sky-card-image]").length,
@@ -3406,7 +3420,13 @@ async function checkStargazeCardImage(browser) {
   await withPage(browser, { viewport: { width: W, height: H }, reducedMotion: "reduce", deviceScaleFactor: 1 }, async (page, context) => {
     await context.route("**/sky/images/index.json", (route) => route.fulfill({ status: 404, body: "" }));
     const errors = [];
-    page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+    page.on("pageerror", (err) => errors.push(`pageerror: ${err.message}`));
+    page.on("console", (m) => {
+      if (m.type() !== "error") return;
+      const text = m.text();
+      if (CARD_IMAGE_KNOWN_HARMLESS_CONSOLE.some((re) => re.test(text))) return;
+      errors.push(`console: ${text}`);
+    });
     await page.clock.setFixedTime(date);
     await page.goto(BASE, { waitUntil: "networkidle" });
     await waitSkyDrawn(page);
@@ -3427,8 +3447,7 @@ async function checkStargazeCardImage(browser) {
     }));
     if (held.figures) throw new Error("index held but the card shows a photograph");
     if (!held.oneLiner || held.sources < 1) throw new Error(`index held and the card is incomplete: ${JSON.stringify(held)}`);
-    const imgErrors = errors.filter((e) => /images|index\.json/.test(e));
-    if (imgErrors.length) throw new Error(`console errors with the index held: ${imgErrors.join(" | ")}`);
+    if (errors.length) throw new Error(`console errors with the index held: ${errors.join(" | ")}`);
     notes.push("index 404: card complete, no photograph, no console error");
   });
 

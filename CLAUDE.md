@@ -400,10 +400,14 @@ was ever measured for it.
 **2026-09-16 (night): card photographs, branch `sky-card-images`.** Every
 galaxy, nebula, cluster, remnant, the Hubble Deep Field, Sgr A*, the Milky
 Way, the five planets, the Moon and the ISS card opens with a real photograph
-flush above it, the card's full width (owner's layout call). 35 images,
-each Wikipedia's own lead image for the subject (the two Veil halves from
-NOIRLab), sourced through the Wikimedia Commons API so author, license and
-the original's sha1 are machine-read, never typed: `scripts/sky-image-picks.json`
+flush above it, the card's full width (owner's layout call). 35 images, most
+Wikipedia's own lead image for the subject; the two Veil halves have no
+single Wikipedia lead (both come from NOIRLab), and two more were swapped
+away from their Wikipedia lead for cause (final-review fix #9, 2026-09-17):
+m27 to a different NOIRLab frame free of a watermark, Saturn to a
+square-cropped Cassini derivative. All sourced through the Wikimedia Commons
+API so author, license and the original's sha1 are machine-read, never
+typed: `scripts/sky-image-picks.json`
 names the file, `scripts/prepare-sky-images.mjs` (hand-run) refuses any
 license outside its allow-list and writes `public/sky/images/index.json` plus
 640px WebPs (~1.7 MB total, fetched only when a card opens). Self-hosted
@@ -1347,7 +1351,28 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   the other layers (`loadSkyLayers`); only the photographs themselves are
   lazy, fetched when a card actually opens (`<img loading="lazy">`). ⚠️ A new
   object needs a pick, or the coverage test fails; a changed upstream file
-  fails the generator until `--repin`.
+  fails the generator until `--repin`, and that pin has a real boundary: it
+  checks the upstream ORIGINAL as Commons reported it at generation time,
+  only when the generator itself runs; it never authenticates the fetched
+  thumbnail bytes and never ties the committed WebP back to the pin at
+  build, deploy or load time.
+  **Final-review fix wave (2026-09-17)**: `colourNote`/`colourNoteLines`
+  reworded so their subject is unmistakably the drawn symbol, not the
+  photograph now sitting above the card (a narrowband composite's own colour
+  can be false in exactly the way R-COLOUR-1 forbids); eight picks whose own
+  Commons description says composite/narrowband/mapped-emission-line/
+  infrared (m42, m87, m33, m78, m82, ngc6960, ngc6992, mercury) gained a
+  `note` saying so, on the description's own word, never a guess. The credit
+  line now links the license name to `licenseUrl` (public-domain entries
+  have none and stay plain text) and states the modification every
+  photograph gets (", resized", or ", cropped and resized" for the pick
+  list's two crops, m8 and m33, via a new `cropped` field the generator
+  sets). The docked phone body cap dropped 1px (`calc(32dvh-1px)`) so
+  figure + body + the aside's own border-t lands at exactly 60dvh, not
+  60dvh+1px. The generator now stages each WebP and moves it into place only
+  once the whole run has no failures, wraps its temp source fetch in
+  try/finally, and never upscales past a source's own resolution
+  (`min(long side, 640)`).
 - **The stargaze keyboard list** (NightSky, portalled into
   `[data-sky-list-slot]`, which `StargazeToggle` renders right after the exit
   control): the canvas is `aria-hidden`, so this `sr-only` group of buttons,
@@ -1945,7 +1970,8 @@ repo generates it. `public/headshot/v2/` is copied verbatim out of
 to the `headshot256*` / `headshot128*` scheme; the photos re-encoded from the new
 `photos/{i}.png` with `ffmpeg -map_metadata -1 -c:v libwebp -quality 80`, 512²
 plus 96² thumbs); the bundle's `vectors/` and `*_{128,256}.png` training inputs
-stay out of `public/`. Git LFS: settled, not needed (~47 MB tracked binaries).
+stay out of `public/`. Git LFS: settled, not needed (~49 MB tracked binaries,
+up from ~47 MB since the card photographs; final-review fix #9, 2026-09-17).
 
 ## Known bugs — open on the live site
 

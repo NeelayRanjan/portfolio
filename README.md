@@ -162,6 +162,10 @@ image/script/iframe needs CORP headers or `crossorigin="anonymous"`.
 
 **`/models/*`, `/ort/*`, `/headshot/*` are cached immutable for a year**:
 filenames are the cache key, so a retrained model must ship under a new name.
+**`/sky/images/*` is deliberately NOT in that list**: `next.config.ts` sets
+no immutable header for it, so a regenerated pick under the same filename
+(a re-pin, a cropped-differently rerun) reaches returning visitors instead
+of being stuck behind a year-long cache.
 
 **The metrics CSV's `image_index` is not the image id.** Mask filenames and the
 benchmark are id-space; the CSV is index-space; each run's

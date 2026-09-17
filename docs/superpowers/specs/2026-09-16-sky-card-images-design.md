@@ -50,12 +50,23 @@ instant, so its credit line says which phase the photograph shows.
 - **Attribution is shown, not just stored**: the card prints the credit line
   (`Artist` from the API, HTML stripped, plus the license short name) under
   the image, and the Sources list gains a citation to the Commons file page,
-  in the same `Citation` shape every fact uses. CC BY-SA needs nothing beyond
-  the credit and the license name for display.
+  in the same `Citation` shape every fact uses.
+  **Final-review fix #2 (2026-09-17)**: the sentence above once read "CC
+  BY-SA needs nothing beyond the credit and the license name for display,"
+  which was wrong: CC BY and CC BY-SA both ask for a link to the license
+  itself and a note when the work has been modified. The card now links the
+  license name (when the index carries a `licenseUrl`; public-domain entries
+  don't, and stay plain text) to that license, and appends ", resized" or,
+  for the two picks the pick list crops (m8, m33), ", cropped and resized"
+  to the credit line.
 - **Pinned bytes**: the generator records each source file's SHA-1 as Commons
   reports it, and refuses to regenerate a subject whose upstream file has
   changed unless told to re-pin. A silent upstream swap can't change a
-  photograph on the site.
+  photograph on the site. **Its boundary** (final-review fix #10): this pins
+  the upstream ORIGINAL as Commons reported it at generation time, checked
+  only when the generator itself runs; it does not authenticate the fetched
+  thumbnail bytes against that sha1, and it does not tie the committed WebP
+  back to the pin at any later point (a build, a deploy, a visitor's load).
 - **Self-hosted, never hotlinked**: the site sends
   `Cross-Origin-Embedder-Policy: require-corp`, so a cross-origin image loads
   only if its server cooperates, and hotlinking would also send every
@@ -63,7 +74,8 @@ instant, so its credit line says which phase the photograph shows.
   hand-run generator, downscaled to 640px on the long side, re-encoded to WebP
   at quality 80 with metadata stripped (ffmpeg, the same treatment as the
   headshot photos), and committed under `public/sky/images/<id>.webp`.
-  Roughly 55 files at 20 to 50 KB each, fetched only when a card opens.
+  Shipped: 35 files (spec §2's coverage list, not 55), 5 to 153 KB each,
+  about 1.7 MB total (final-review fix #9), fetched only when a card opens.
 
 ## 4. Data
 

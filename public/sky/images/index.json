@@ -24,7 +24,8 @@
       "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
       "sourceTitle": "VST images the Lagoon Nebula.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:VST_images_the_Lagoon_Nebula.jpg",
-      "sha1": "65b137ff11f5ac550ea54474efdf1865807cdec8"
+      "sha1": "65b137ff11f5ac550ea54474efdf1865807cdec8",
+      "cropped": true
     },
     "m13": {
       "src": "/sky/images/m13.webp",
@@ -60,7 +61,8 @@
       "licenseUrl": "",
       "sourceTitle": "Orion Nebula - Hubble 2006 mosaic 18000.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Orion_Nebula_-_Hubble_2006_mosaic_18000.jpg",
-      "sha1": "b4d829576efbbbfb39c722c177c4abc79a77442a"
+      "sha1": "b4d829576efbbbfb39c722c177c4abc79a77442a",
+      "note": "A composite of visible and near-infrared filters plus an H-alpha filter, not a single visible-light exposure."
     },
     "m44": {
       "src": "/sky/images/m44.webp",
@@ -121,7 +123,8 @@
       "licenseUrl": "",
       "sourceTitle": "Messier 87 Hubble WikiSky.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Messier_87_Hubble_WikiSky.jpg",
-      "sha1": "706db7b8b62f720d37e2ceaa96f5da301c84de75"
+      "sha1": "706db7b8b62f720d37e2ceaa96f5da301c84de75",
+      "note": "A composite of visible and infrared observations made to resolve the jet, not a single visible-light photograph."
     },
     "sgr-a-star": {
       "src": "/sky/images/sgr-a-star.webp",
@@ -194,7 +197,9 @@
       "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
       "sourceTitle": "VST snaps a very detailed view of the Triangulum Galaxy.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:VST_snaps_a_very_detailed_view_of_the_Triangulum_Galaxy.jpg",
-      "sha1": "ff0a38b9984fc207f7336c64ed0000228ed116b5"
+      "sha1": "ff0a38b9984fc207f7336c64ed0000228ed116b5",
+      "cropped": true,
+      "note": "A composite that adds a narrowband H-alpha filter to broadband colour, so its red gas clouds read brighter than true colour."
     },
     "m78": {
       "src": "/sky/images/m78.webp",
@@ -206,7 +211,8 @@
       "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
       "sourceTitle": "Messier 78.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Messier_78.jpg",
-      "sha1": "ffdfec1cf8637e78a9147d41bb121bafac3784dc"
+      "sha1": "ffdfec1cf8637e78a9147d41bb121bafac3784dc",
+      "note": "A composite that adds a narrowband hydrogen filter to broadband colour, so its red gas glows brighter than true colour."
     },
     "m81": {
       "src": "/sky/images/m81.webp",
@@ -230,7 +236,8 @@
       "licenseUrl": "",
       "sourceTitle": "M82 HST ACS 2006-14-a-large web.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:M82_HST_ACS_2006-14-a-large_web.jpg",
-      "sha1": "1ba1c5e81ff582481f3ee1ba40501c3556bca8a3"
+      "sha1": "1ba1c5e81ff582481f3ee1ba40501c3556bca8a3",
+      "note": "A composite of visible, infrared and hydrogen-emission filters, not a single visible-light exposure."
     },
     "m104": {
       "src": "/sky/images/m104.webp",
@@ -314,7 +321,8 @@
       "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
       "sourceTitle": "The Veil Nebula, NGC 6960 (noao-veil-wiyn-0-9-m).jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:The_Veil_Nebula,_NGC_6960_(noao-veil-wiyn-0-9-m).jpg",
-      "sha1": "b7d1c5f213b6a54157fc3ca030df1aa7e2f6313c"
+      "sha1": "b7d1c5f213b6a54157fc3ca030df1aa7e2f6313c",
+      "note": "A narrowband composite: hydrogen mapped to red, oxygen to blue, sulfur to green, not colours the eye would see."
     },
     "ngc6992": {
       "src": "/sky/images/ngc6992.webp",
@@ -326,7 +334,8 @@
       "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
       "sourceTitle": "NGC 6992 (Cygnus Loop) (noao-ngc6992).jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:NGC_6992_(Cygnus_Loop)_(noao-ngc6992).jpg",
-      "sha1": "a20cd35a77ee5ce49ff7a09bb5247d39b4092c41"
+      "sha1": "a20cd35a77ee5ce49ff7a09bb5247d39b4092c41",
+      "note": "A narrowband composite: oxygen mapped to blue, sulfur to green, hydrogen to orange, not colours the eye would see."
     },
     "milky-way": {
       "src": "/sky/images/milky-way.webp",
@@ -350,7 +359,8 @@
       "licenseUrl": "",
       "sourceTitle": "Mercury in true color.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Mercury_in_true_color.jpg",
-      "sha1": "917a63f95d0c14131f2027479a53678c1055a40c"
+      "sha1": "917a63f95d0c14131f2027479a53678c1055a40c",
+      "note": "A composite of three narrow-band filters assigned to blue, green and red, MESSENGER's own approximation of true colour."
     },
     "venus": {
       "src": "/sky/images/venus.webp",

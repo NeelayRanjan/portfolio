@@ -20,7 +20,7 @@
  * headshot photos.
  */
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync, renameSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -86,14 +86,19 @@ async function commonsInfo(titles) {
 }
 
 function encode(inputPath, outPath, crop) {
-  // crop: "x,y,w,h" as fractions of the source; then scale so the long side is OUT_PX.
+  // crop: "x,y,w,h" as fractions of the source; then scale so the long side
+  // is at most OUT_PX. min(iw,OUT_PX)/min(ih,OUT_PX) (fix round: never
+  // upscale) means a source already narrower than 640 on its long side
+  // keeps its own resolution rather than being blown up past its real detail.
   const filters = [];
   if (crop) {
     const [x, y, w, h] = crop.split(",").map(Number);
     filters.push(`crop=iw*${w}:ih*${h}:iw*${x}:ih*${y}`);
   }
-  filters.push(`scale='if(gt(iw,ih),${OUT_PX},-2)':'if(gt(iw,ih),-2,${OUT_PX})'`);
-  execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", inputPath, "-map_metadata", "-1", "-vf", filters.join(","), "-c:v", "libwebp", "-quality", "80", outPath], { stdio: "inherit" });
+  filters.push(`scale='if(gt(iw,ih),min(iw\\,${OUT_PX}),-2)':'if(gt(iw,ih),-2,min(ih\\,${OUT_PX}))'`);
+  // -f webp: outPath is a .webp.stage staging name (fix round #6) so ffmpeg
+  // can't infer the muxer from its extension; say it explicitly.
+  execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", inputPath, "-map_metadata", "-1", "-vf", filters.join(","), "-c:v", "libwebp", "-quality", "80", "-f", "webp", outPath], { stdio: "inherit" });
   const probe = execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", outPath]).toString().trim();
   const [width, height] = probe.split(",").map(Number);
   return { width, height };
@@ -103,6 +108,12 @@ const selected = only.size ? picks.filter((p) => only.has(p.id)) : picks;
 const lookup = await commonsInfo(selected.map((p) => p.file));
 const images = { ...previous.images };
 const failures = [];
+// Fix round #6: encode into a staging path per pick and rename into place
+// only after the whole run has no failures, so a failed run leaves every
+// already-committed public/sky/images/<id>.webp byte-for-byte untouched
+// rather than half-overwritten by whichever picks got through before the
+// failing one. Staged files are cleaned up on either exit.
+const staged = [];
 
 for (const pick of selected) {
   const info = lookup(pick.file);
@@ -113,16 +124,28 @@ for (const pick of selected) {
   if (prev && prev.sha1 !== info.sha1 && !repin) { failures.push(`${pick.id}: upstream changed (sha1 ${prev.sha1} -> ${info.sha1}); re-run with --repin to accept`); continue; }
 
   const tmp = join(OUT_DIR, `.${pick.id}.src`);
-  const res = await fetch(info.thumbUrl, { headers: { "User-Agent": UA } });
-  if (!res.ok) { failures.push(`${pick.id}: thumbnail fetch ${res.status}`); continue; }
-  writeFileSync(tmp, Buffer.from(await res.arrayBuffer()));
-  const out = join(OUT_DIR, `${pick.id}.webp`);
-  const { width, height } = encode(tmp, out, pick.crop);
-  rmSync(tmp);
+  const stage = join(OUT_DIR, `.${pick.id}.webp.stage`);
+  let dims;
+  try {
+    const res = await fetch(info.thumbUrl, { headers: { "User-Agent": UA } });
+    if (!res.ok) { failures.push(`${pick.id}: thumbnail fetch ${res.status}`); continue; }
+    writeFileSync(tmp, Buffer.from(await res.arrayBuffer()));
+    dims = encode(tmp, stage, pick.crop);
+  } catch (err) {
+    failures.push(`${pick.id}: ${err.message}`);
+    rmSync(stage, { force: true });
+    continue;
+  } finally {
+    // An ffmpeg failure throws out of encode() before this would otherwise
+    // run; the try/finally is what stops the fetched original getting
+    // stranded as a stray file inside the served public/sky/images/ dir.
+    rmSync(tmp, { force: true });
+  }
+  staged.push({ id: pick.id, stage, final: join(OUT_DIR, `${pick.id}.webp`) });
 
   images[pick.id] = {
     src: `/sky/images/${pick.id}.webp`,
-    width, height,
+    width: dims.width, height: dims.height,
     alt: pick.alt,
     author: info.author,
     license: info.license,
@@ -130,14 +153,20 @@ for (const pick of selected) {
     sourceTitle: info.title.replace(/^File:/, ""),
     sourceUrl: stripUtm(info.descriptionUrl),
     sha1: info.sha1,
+    ...(pick.crop ? { cropped: true } : {}),
     ...(pick.note ? { note: pick.note } : {}),
   };
-  console.log(`${pick.id.padEnd(18)} ${info.license.padEnd(14)} ${width}x${height}  ${info.author}`);
+  console.log(`${pick.id.padEnd(18)} ${info.license.padEnd(14)} ${dims.width}x${dims.height}  ${info.author}`);
 }
 
 if (failures.length) {
+  for (const s of staged) rmSync(s.stage, { force: true });
   console.error("\nprepare-sky-images: refusing to write index.json:\n  " + failures.join("\n  "));
   process.exit(1);
+}
+// Only now, with the whole run clean, does anything committed change.
+for (const s of staged) {
+  renameSync(s.stage, s.final);
 }
 // Drop entries whose pick is gone, so the index and the pick list never drift.
 const pickIds = new Set(picks.map((p) => p.id));

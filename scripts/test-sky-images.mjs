@@ -43,6 +43,41 @@ const WITH_IMAGE_SYMBOLS = new Set(["galaxy", "nebula", "cluster", "core", "squa
 const FIXED_WITH_IMAGE = ["milky-way", "mercury", "venus", "mars", "jupiter", "saturn", "moon", "iss"];
 const NEVER_WITH_IMAGE_SYMBOLS = new Set(["star", "chevron", "field"]);
 
+/**
+ * Fix round #5: the WebP container's own VP8/VP8L/VP8X chunk carries the
+ * pixel dimensions the codec actually wrote, independent of whatever
+ * width/height the index claims. Parsing it (rather than trusting ffprobe,
+ * which the generator already uses to WRITE the index) is what lets this
+ * test catch a hand-edited or stale index.json entry. RIFF layout: bytes
+ * 0-3 "RIFF", 8-11 "WEBP", then one chunk starting at byte 12: a 4-byte
+ * fourCC, a 4-byte LE size, then the chunk's own data.
+ */
+function webpDimensions(bytes) {
+  const fourCC = bytes.subarray(12, 16).toString("latin1");
+  const data = bytes.subarray(20);
+  if (fourCC === "VP8 ") {
+    // Lossy: a 3-byte frame tag, a 3-byte start code (9d 01 2a), then
+    // 14-bit width and 14-bit height, each LE, the top 2 bits a scale factor.
+    const w = data.readUInt16LE(6) & 0x3fff;
+    const h = data.readUInt16LE(8) & 0x3fff;
+    return { width: w, height: h };
+  }
+  if (fourCC === "VP8L") {
+    // Lossless: a 1-byte signature (0x2f), then a 4-byte LE bitfield: 14-bit
+    // width-1, 14-bit height-1, then an alpha bit and a 3-bit version.
+    const bits = data.readUInt32LE(1);
+    return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 };
+  }
+  if (fourCC === "VP8X") {
+    // Extended container (used when metadata chunks are present): 1 flags
+    // byte, 3 reserved, then 24-bit LE canvas width-1 and height-1.
+    const w = data.readUIntLE(4, 3) + 1;
+    const h = data.readUIntLE(7, 3) + 1;
+    return { width: w, height: h };
+  }
+  throw new Error(`unrecognised WebP chunk ${JSON.stringify(fourCC)}`);
+}
+
 const index = JSON.parse(await readFile(INDEX, "utf8"));
 const picks = JSON.parse(await readFile(PICKS, "utf8")).picks;
 const objects = JSON.parse(await readFile(new URL("public/sky/objects.json", ROOT), "utf8")).objects;
@@ -70,6 +105,8 @@ test("every entry is complete, licensed, served, and sized as the file says", as
     assert.equal(bytes.subarray(8, 12).toString("latin1"), "WEBP", `${id}: not a WebP`);
     assert.ok(Number.isInteger(im.width) && Number.isInteger(im.height) && im.width > 0 && im.height > 0, id);
     assert.ok(Math.max(im.width, im.height) <= 640, `${id}: ${im.width}x${im.height}`);
+    const dims = webpDimensions(bytes);
+    assert.deepEqual(dims, { width: im.width, height: im.height }, `${id}: index says ${im.width}x${im.height}, the file says ${dims.width}x${dims.height}`);
     assert.ok(ALLOWED_LICENSES.includes(im.license), `${id}: license ${JSON.stringify(im.license)}`);
     assert.ok(im.author.trim().length > 0 && !im.author.includes("<"), `${id}: author`);
     assert.match(im.sourceUrl, /^https:\/\/commons\.wikimedia\.org\/wiki\/File:/, id);

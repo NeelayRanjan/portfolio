@@ -1,6 +1,6 @@
 {
   "picks": [
-    { "id": "m1", "file": "File:Crab Nebula.jpg", "alt": "The Crab Nebula: a tangled orange and blue cloud of filaments around a bright core, in a Hubble mosaic." },
+    { "id": "m1", "file": "File:Crab Nebula.jpg", "alt": "The Crab Nebula: a tangled orange and blue cloud of filaments around a bright core, in a Hubble mosaic.", "note": "A Hubble composite: neutral oxygen mapped to blue, sulfur to green, doubly ionized oxygen to red, not colours the eye would see." },
     { "id": "m8", "file": "File:VST images the Lagoon Nebula.jpg", "alt": "The Lagoon Nebula: a wide pink and red cloud of glowing gas crossed by dark lanes, from the VLT Survey Telescope.", "crop": "0.2,0.1,0.6,0.8" },
     { "id": "m13", "file": "File:M13-Globular-Cluster.png", "alt": "The Hercules globular cluster: a dense round swarm of hundreds of thousands of stars, brightest at the centre." },
     { "id": "m31", "file": "File:Andromeda Galaxy 2025.png", "alt": "The Andromeda Galaxy: a tilted spiral with a yellow core, blue outer arms and dark dust lanes, with two small companion galaxies." },

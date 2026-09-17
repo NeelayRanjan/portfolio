@@ -3317,11 +3317,13 @@ async function checkStargazeCardImage(browser) {
     // clear) when this check runs immediately after the heaviest check in
     // the suite (stargaze-card, ~9s of drags and 11 card opens) — the same
     // "right after the heaviest checks" contention checkStargazeCard's own
-    // drag waits already document. Named here rather than left as a bare
-    // "Timeout 10000ms exceeded" for the same reason that fix exists.
-    await page.waitForFunction(() => window.__sky.layers.facts === "ready" && window.__sky.layers.images === "ready", null, { timeout: 10000 }).catch(async () => {
-      const s = await page.evaluate(() => ({ ...window.__sky.layers }));
-      throw new Error(`layers never became ready within 10s: ${JSON.stringify(s)}`);
+    // drag waits already document. 20s (double the file's usual 10s) plus a
+    // diagnostic that names the layer still pending, following the style of
+    // checkStargazeCard's own catch blocks, rather than a bare
+    // "Timeout 10000ms exceeded" that names nothing.
+    await page.waitForFunction(() => window.__sky.layers.facts === "ready" && window.__sky.layers.images === "ready", null, { timeout: 20000 }).catch(async () => {
+      const layers = await page.evaluate(() => ({ ...window.__sky.layers }));
+      throw new Error("desktop: layers not ready within 20s: " + JSON.stringify(layers));
     });
     await waitStargazeReady(page);
     await stargazeToggle(page).click();
@@ -3408,7 +3410,10 @@ async function checkStargazeCardImage(browser) {
     await page.clock.setFixedTime(date);
     await page.goto(BASE, { waitUntil: "networkidle" });
     await waitSkyDrawn(page);
-    await page.waitForFunction(() => window.__sky.layers.images === "absent" && window.__sky.layers.facts === "ready", null, { timeout: 10000 });
+    await page.waitForFunction(() => window.__sky.layers.images === "absent" && window.__sky.layers.facts === "ready", null, { timeout: 20000 }).catch(async () => {
+      const layers = await page.evaluate(() => ({ ...window.__sky.layers }));
+      throw new Error("index-held: layers not ready within 20s: " + JSON.stringify(layers));
+    });
     await waitStargazeReady(page);
     await stargazeToggle(page).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
@@ -3431,7 +3436,10 @@ async function checkStargazeCardImage(browser) {
   const P = { W: 400, H: 800 };
   const phone = findInstant(new Date(Date.UTC(2026, 9, 1)), P.W, P.H, M31, 40);
   await pinnedSkyPage(browser, { W: P.W, H: P.H, date: phone.date, contextOptions: { hasTouch: true } }, async (page) => {
-    await page.waitForFunction(() => window.__sky.layers.facts === "ready" && window.__sky.layers.images === "ready", null, { timeout: 10000 });
+    await page.waitForFunction(() => window.__sky.layers.facts === "ready" && window.__sky.layers.images === "ready", null, { timeout: 20000 }).catch(async () => {
+      const layers = await page.evaluate(() => ({ ...window.__sky.layers }));
+      throw new Error("phone: layers not ready within 20s: " + JSON.stringify(layers));
+    });
     await waitStargazeReady(page);
     await stargazeToggle(page).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });

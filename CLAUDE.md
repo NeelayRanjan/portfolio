@@ -449,13 +449,15 @@ it for metadataBase, og:url, the canonicals, robots and the sitemap), **a
 canonical per page** (`/` and `/lab` each name themselves; the 404 names
 nothing), **robots.txt and a sitemap** (`app/robots.ts`, `app/sitemap.ts`,
 both prerendered), and **stable icon URLs** (see the Stack bullet and the
-trap below). ⚠️ **Two owner actions finish it, and code can't do either**:
-Vercel redirected the apex TO `www` until this round, the opposite of what
-the site now declares, so in the Vercel dashboard's Domains the apex must be
-set primary with `www` redirecting to it; and Google Search Console (verify
-the property, URL Inspection on the homepage, Request indexing, submit the
-sitemap) is the documented way to speed a favicon and snippet refresh,
-which otherwise takes days to weeks.
+trap below). **Both owner actions are DONE (2026-09-17)**: Vercel's Domains
+now make the apex primary (verified: `www` 308s to `neelayranjan.dev`; it
+redirected the other way until this round), and Google Search Console has a
+property for `neelayranjan.dev` with the sitemap submitted. Search Console
+first showed the sitemap as "Couldn't fetch"; its URL Inspection live test
+said the URL is available to Google, i.e. the status meant PENDING, a known
+Search Console quirk for a fresh sitemap, not a failure. If the favicon or
+snippet in results is still stale after a couple of weeks, Request indexing
+on the homepage is the lever, not code.
 
 **Open items, roughly in order:**
 1. **Stargaze discoverability: built, not yet measured** (owner, 2026-09-14:

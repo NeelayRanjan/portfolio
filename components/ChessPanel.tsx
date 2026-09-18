@@ -844,6 +844,7 @@ export function ChessPanel() {
                 deviations,
                 played: lastReply?.played ?? null,
                 top: lastReply?.ranked[0]?.uci ?? null,
+                hint: hint?.uci ?? null,
               })}
             >
               {lastReply ? (

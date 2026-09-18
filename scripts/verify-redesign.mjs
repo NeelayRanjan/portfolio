@@ -1055,30 +1055,34 @@ async function checkChessSelfPlay(browser) {
     await waitChessReady(page);
     const stale = await chessState(page);
     if (stale.played !== null) throw new Error(`a reply from the old game landed on the new board: ${JSON.stringify(stale)}`);
-    await page.locator('#fig-chess [aria-label="e2 wp"]').click();
-    await page.locator('#fig-chess [aria-label="e4 empty"]').click();
-    await page.waitForFunction(
-      () => {
-        const st = JSON.parse(document.querySelector("#fig-chess [data-chess-self-play]").getAttribute("data-chess-self-play"));
-        return st.plies === 2 && st.played;
-      },
-      null,
-      { timeout: 60000 },
-    ).catch(async () => {
-      const dbg = await page.evaluate(() => ({
-        state: document.querySelector("#fig-chess [data-chess-self-play]")?.getAttribute("data-chess-self-play"),
-        buttons: [...document.querySelectorAll("#fig-chess button")].map((b) => `${b.textContent.trim()}${b.disabled ? "(disabled)" : ""}`).join(" | "),
-        e2: document.querySelector('#fig-chess [aria-label^="e2"]')?.getAttribute("aria-label"),
-        e4: document.querySelector('#fig-chess [aria-label^="e4"]')?.getAttribute("aria-label"),
-        err: [...document.querySelectorAll("#fig-chess p")].map((p) => p.textContent).filter((t) => /error|illegal/i.test(t)).join(" | "),
-      }));
-      throw new Error(`the human game never got an engine reply: ${JSON.stringify(dbg)}`);
-    });
-    const human = await chessState(page);
-    if (human.played !== human.top) throw new Error(`in a human game the engine played ${human.played}, not its top move ${human.top}`);
-    if (human.deviations.length) throw new Error(`a new game kept old departures: ${JSON.stringify(human.deviations)}`);
+    // Eight moves, the human side playing the engine's own hint each time:
+    // every reply must be the top move and nothing may be recorded as a
+    // departure. One move was not enough to mean anything (the mutation that
+    // let human games sample still passed: that single reply happened not to
+    // hit a near-tie and win the coin).
+    const replies = [];
+    for (let move = 1; move <= 8; move++) {
+      await waitChessReady(page);
+      await page.locator("#fig-chess button", { hasText: /^hint$/ }).click();
+      await page.waitForFunction(() => JSON.parse(document.querySelector("#fig-chess [data-chess-self-play]").getAttribute("data-chess-self-play")).hint, null, { timeout: 60000 });
+      const uci = (await chessState(page)).hint;
+      await page.locator(`#fig-chess [aria-label^="${uci.slice(0, 2)} "]`).click();
+      await page.locator(`#fig-chess [aria-label^="${uci.slice(2, 4)} "]`).click();
+      await page
+        .waitForFunction((n) => {
+          const st = JSON.parse(document.querySelector("#fig-chess [data-chess-self-play]").getAttribute("data-chess-self-play"));
+          return st.plies === n && st.played;
+        }, move * 2, { timeout: 60000 })
+        .catch(async () => {
+          throw new Error(`human move ${move} (${uci}) never got an engine reply: ${JSON.stringify(await chessState(page))}`);
+        });
+      const st = await chessState(page);
+      if (st.played !== st.top) throw new Error(`human game, reply ${move}: the engine played ${st.played}, not its top move ${st.top}`);
+      if (st.deviations.length) throw new Error(`human game recorded a departure: ${JSON.stringify(st.deviations)}`);
+      replies.push(st.played);
+    }
     if ((await rule.count()) !== 0 && (await rule.isVisible())) throw new Error("the self-play rule still shows in a human game");
-    notes.push(`human game: reply ${human.played} is the top move`);
+    notes.push(`human game, 8 hint moves: every reply the top move (${replies.join(" ")})`);
 
     return notes.join("; ");
   });

@@ -495,6 +495,15 @@ export const copy = {
       mapCaption: "its move map",
       mapCaptionTail: " · where the engine wanted to go, brightest = most wanted",
       selfPlayCaption: "engine vs engine · it plays both sides",
+      /** Shown while self-play runs at one ply, the only mode where it applies
+       *  (lib/chess-selfplay.ts). The numbers are the rule's own constants. */
+      selfPlayRule:
+        "At one ply it plays its top choice, except up to twice a game, when its second or third choice is nearly tied with the first (at least 80% as likely). Then it sometimes plays that one instead, so most games come out different.",
+      /** "took its second choice · p=0.211 vs 0.236", when a departure was just played. */
+      selfPlayTookPre: "took its ",
+      selfPlaySecond: "second choice",
+      selfPlayThird: "third choice",
+      selfPlayVs: " vs ",
       boardCaptionIdle: "you are white · click a piece, then a square",
       moveMap: "move map",
       mapNoteMcts:

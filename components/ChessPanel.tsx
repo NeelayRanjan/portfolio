@@ -18,6 +18,7 @@ import {
 } from "@/lib/chess-engine";
 import { subscribeStargaze } from "@/lib/stargaze";
 import { loadChessActivations, type ActivationSet } from "@/lib/chess-activations";
+import { mulberry32, pickSelfPlayMove, SELF_PLAY_MAX_DEVIATIONS } from "@/lib/chess-selfplay";
 import { copy } from "@/content/copy";
 
 /** ~230ms a simulation, measured in Firefox (6.6ms/board x ~35 legal moves). Quote
@@ -213,6 +214,10 @@ export function ChessPanel() {
     ms: number;
     mode: "argmin" | "mcts";
     sims: number;
+    /** The move actually played. Always ranked[0] except in one-ply self-play,
+     *  where it can be a near-tied second or third choice, so the list marks
+     *  THIS, not the top row. */
+    played: string;
   } | null>(null);
   /** Simulations done, while a search is running. Null when nothing is. A search
    *  is ~1 minute, so without this the panel is indistinguishable from a hang. */
@@ -235,11 +240,30 @@ export function ChessPanel() {
   /** Paint the engine's move distribution on the live board. On by default: it's
    *  free, and watching where it wants to go is the point of playing it. */
   const [showMap, setShowMap] = useState(true);
-  /** Engine plays both sides. Its own documented weakness shows up fast here:
-   *  with no move history in the search it shuffles in won endgames, so games
-   *  tend to end in the threefold the panel detects. That's honest, and it's the
-   *  clearest possible demo of why the site has to own draw detection. */
+  /** Engine plays both sides. MEASURED 2026-09-17 (node, the worker's exact
+   *  scoring path, ten openings): most games end in checkmate, 7 of 10, after
+   *  recognisable opening theory and then a one-move tactical blunder, which is
+   *  what one ply with no lookahead predicts. The other 3 were threefold
+   *  draws, and only late (first repeat at ply 116-133, five to eight pieces
+   *  left): the no-history shuffle in won endgames is real but rare, so the
+   *  site's draw detection still matters without being the usual ending. At
+   *  one ply it may take a near-tied second or third choice, at most twice a
+   *  game (lib/chess-selfplay.ts), or every press replays the same game. */
   const [selfPlay, setSelfPlay] = useState(false);
+  const selfPlayRef = useRef(false);
+  selfPlayRef.current = selfPlay;
+  /** Self-play's departures this game, for the list and the verify hook. */
+  const [deviations, setDeviations] = useState<{ ply: number; rank: number; ratio: number }[]>([]);
+  /** Bumped by every new game, so the departure budget is per game: stopping
+   *  and restarting self-play mid-game never refills it. */
+  const gameIdRef = useRef(0);
+  const spRef = useRef<{ game: number; rand: () => number; left: number }>({ game: -1, rand: () => 1, left: 0 });
+  /** The loop runs only while someone could be watching (Constitution: pause
+   *  everything animated off-screen or tab-hidden). A move already in flight
+   *  still lands; the next one waits. */
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [onScreen, setOnScreen] = useState(true);
+  const [tabVisible, setTabVisible] = useState(true);
   /** The engine's suggestion for YOUR move, on demand. Not automatic: a hint
    *  standing on every turn stops being a game and starts being a solver. */
   const [hint, setHint] = useState<ScoredMove | null>(null);
@@ -332,16 +356,42 @@ export function ChessPanel() {
   const engineMove = useCallback(async () => {
     const g = gameRef.current;
     if (!engine || g.isGameOver()) return;
+    const gameAtStart = gameIdRef.current;
     setThinking(true);
     setProgress(null);
     try {
       const reply = await engine.move(g.fen(), sims, (done, total) =>
         setProgress({ done, total }),
       );
-      g.move(reply.best.san);
+      // "new game" while this was in flight: the answer is about a board that
+      // no longer exists. Without this it landed on the fresh board's list
+      // (found 2026-09-17 by the self-play check: the new game's top 3 showed
+      // the old game's e7e6). `finally` still clears thinking.
+      if (gameAtStart !== gameIdRef.current) return;
+      let chosen = reply.best;
+      const selfPlaying = selfPlayRef.current;
+      if (selfPlaying && sims === 0) {
+        const sp = spRef.current;
+        if (sp.game !== gameIdRef.current) {
+          // First self-play move of this game: a fresh seed from the press,
+          // so presses differ while one game stays reproducible under a
+          // pinned clock (which is how the verify check replays it).
+          spRef.current = { game: gameIdRef.current, rand: mulberry32(Date.now()), left: SELF_PLAY_MAX_DEVIATIONS };
+        }
+        const pick = pickSelfPlayMove(reply.ranked, spRef.current.left, spRef.current.rand);
+        if (pick.index > 0) {
+          chosen = reply.ranked[pick.index];
+          spRef.current.left--;
+          const ply = g.history().length + 1;
+          setDeviations((ds) => [...ds, { ply, rank: pick.index + 1, ratio: pick.ratio }]);
+        }
+      }
+      g.move(chosen.san);
       // Keep every move: the top 3 feeds the list, the whole set feeds the map.
-      setLastReply({ ranked: reply.ranked, ms: reply.ms, mode: reply.mode, sims: reply.sims });
+      setLastReply({ ranked: reply.ranked, ms: reply.ms, mode: reply.mode, sims: reply.sims, played: chosen.uci });
       sync();
+      // Watching it play itself is using the demo: real output, no human move.
+      if (selfPlaying) trackDemoOnce("chess");
     } catch (e) {
       // Unloaded by stargaze mid-search: idle, not broken.
       if (!(e instanceof EngineUnloaded)) setErr((e as Error).message);
@@ -397,6 +447,7 @@ export function ChessPanel() {
     const g = gameRef.current;
     if (!engine || thinking || g.isGameOver()) return;
     if (!selfPlay && g.turn() !== "b") return;
+    if (selfPlay && (!onScreen || !tabVisible)) return;
     let cancelled = false;
     const t = window.setTimeout(
       () => {
@@ -410,7 +461,20 @@ export function ChessPanel() {
       window.clearTimeout(t);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fen, engine, selfPlay, sims]);
+  }, [fen, engine, selfPlay, sims, onScreen, tabVisible]);
+
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([e]) => setOnScreen(e.isIntersecting));
+    io.observe(el);
+    const onVis = () => setTabVisible(document.visibilityState !== "hidden");
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      io.disconnect();
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, []);
 
   const legalFrom = useMemo(() => {
     if (!selected) return new Set<string>();
@@ -462,6 +526,8 @@ export function ChessPanel() {
     // A search in flight is about a board that is about to stop existing.
     engine?.cancel();
     gameRef.current = new Chess();
+    gameIdRef.current++;
+    setDeviations([]);
     setSelfPlay(false);
     setSelected(null);
     setPendingPromo(null);
@@ -516,6 +582,7 @@ export function ChessPanel() {
       caption={copy.systems.chess.figureCaption}
       readout={status}
     >
+      <div ref={rootRef}>
       {/* h3, not h2: the page's `<h2>` is the "Live systems" section above. */}
       {/* pr-40 keeps the heading clear of the figure's absolutely-positioned
           readout, which runs to ~"searching · 250/250" at its longest. */}
@@ -769,11 +836,20 @@ export function ChessPanel() {
             <span className="font-mono text-xs text-mut/60">
               {copy.systems.chess.top3}
             </span>
-            <div className="mt-2 min-h-[76px] font-mono text-[11px] leading-relaxed">
+            <div
+              className="mt-2 min-h-[76px] font-mono text-[11px] leading-relaxed"
+              // Verify hook (scripts/verify-redesign.mjs chess-self-play), not UI.
+              data-chess-self-play={JSON.stringify({
+                plies: game.history().length,
+                deviations,
+                played: lastReply?.played ?? null,
+                top: lastReply?.ranked[0]?.uci ?? null,
+              })}
+            >
               {lastReply ? (
-                lastReply.ranked.slice(0, 3).map((m, i) => (
+                lastReply.ranked.slice(0, 3).map((m) => (
                   <div key={m.uci} className="flex items-baseline gap-4">
-                    <span className={i === 0 ? "w-10 text-ok" : "w-10 text-mut"}>
+                    <span className={m.uci === lastReply.played ? "w-10 text-ok" : "w-10 text-mut"}>
                       {m.san}
                     </span>
                     {/* n= is what the search decided, p= is what the model
@@ -791,6 +867,20 @@ export function ChessPanel() {
                 </span>
               )}
             </div>
+            {lastReply && lastReply.ranked[0] && lastReply.played !== lastReply.ranked[0].uci ? (
+              // A departure, stated with its own numbers: the move map shows
+              // the same near-tie on the board.
+              <p data-chess-self-play-took className="mt-2 font-mono text-[11px] text-warm">
+                {copy.systems.chess.selfPlayTookPre}
+                {lastReply.ranked[1]?.uci === lastReply.played
+                  ? copy.systems.chess.selfPlaySecond
+                  : copy.systems.chess.selfPlayThird}
+                {" · p="}
+                {lastReply.ranked.find((m) => m.uci === lastReply.played)?.prior.toFixed(3)}
+                {copy.systems.chess.selfPlayVs}
+                {lastReply.ranked[0].prior.toFixed(3)}
+              </p>
+            ) : null}
             {lastReply ? (
               <p className="mt-2 font-mono text-[11px] text-mut/60">
                 {lastReply.mode === "mcts"
@@ -847,6 +937,12 @@ export function ChessPanel() {
               </button>
             </div>
 
+            {selfPlay && sims === 0 ? (
+              <p data-chess-self-play-rule className="mt-4 max-w-sm font-mono text-[11px] leading-relaxed text-mut/60">
+                {copy.systems.chess.selfPlayRule}
+              </p>
+            ) : null}
+
             <p className="mt-4 max-w-sm font-mono text-[11px] leading-relaxed text-mut/60">
               <span className="text-link">{copy.systems.chess.hintNote.word}</span>
               {copy.systems.chess.hintNote.post}
@@ -860,6 +956,7 @@ export function ChessPanel() {
           </div>
         </div>
       )}
+      </div>
     </InstrumentFigure>
   );
 }

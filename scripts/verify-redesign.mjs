@@ -924,6 +924,167 @@ async function checkDrawInkSurvivesHeightResize(browser) {
 }
 
 /* ---------------------------------------------------------------------- */
+/* 5b. Self-play (components/ChessPanel.tsx, lib/chess-selfplay.ts).      */
+/* The engine is deterministic, so engine-vs-engine used to replay one    */
+/* 41-move game on every press. At one ply it may now take its second or */
+/* third choice when that move is nearly tied with the first, at most     */
+/* twice a game (the rule itself is pinned in node by                     */
+/* test-chess-selfplay.mjs). This pins the wiring: every departure the    */
+/* panel records is a near-tie in the top three and within budget, the   */
+/* rule is stated while it applies, watching counts as using the demo,    */
+/* the loop stops when the panel leaves the viewport or the tab is        */
+/* hidden and resumes after, and a human game is untouched (the engine's  */
+/* reply is its top move). Date.now() seeds the game, so the clock is     */
+/* pinned and the game is the same on every run.                          */
+/* ---------------------------------------------------------------------- */
+
+const SELF_PLAY_DATE = new Date(Date.UTC(2026, 8, 17, 12, 0, 0));
+
+function chessState(page) {
+  return page.evaluate(() => {
+    const el = document.querySelector("#fig-chess [data-chess-self-play]");
+    return el ? JSON.parse(el.getAttribute("data-chess-self-play")) : null;
+  });
+}
+
+async function waitChessReady(page) {
+  await page.waitForFunction(
+    () => {
+      const btn = [...document.querySelectorAll("#fig-chess button")].find((b) => b.textContent.trim() === "hint");
+      return !!btn && !btn.disabled;
+    },
+    null,
+    { timeout: 90000 },
+  );
+}
+
+async function pliesSettle(page, ms) {
+  const a = (await chessState(page)).plies;
+  await page.waitForTimeout(ms);
+  const b = (await chessState(page)).plies;
+  return { a, b };
+}
+
+async function checkChessSelfPlay(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.clock.setFixedTime(SELF_PLAY_DATE);
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await scrollUntilAttached(page, "#fig-chess");
+    await page.locator("#fig-chess").scrollIntoViewIfNeeded();
+    await waitChessReady(page);
+    const notes = [];
+
+    const start = page.locator("#fig-chess button", { hasText: copy.systems.chess.engineVsEngine });
+    await start.click();
+
+    // The rule is stated while it applies.
+    const rule = page.locator("#fig-chess [data-chess-self-play-rule]");
+    await rule.waitFor({ state: "visible", timeout: 5000 });
+    const ruleText = (await rule.textContent())?.trim();
+    if (ruleText !== copy.systems.chess.selfPlayRule) {
+      throw new Error(`self-play rule reads ${JSON.stringify(ruleText)}, expected copy.systems.chess.selfPlayRule`);
+    }
+
+    // Play until the budget is spent or the game is long enough to judge.
+    await page
+      .waitForFunction(
+        () => {
+          const el = document.querySelector("#fig-chess [data-chess-self-play]");
+          if (!el) return false;
+          const st = JSON.parse(el.getAttribute("data-chess-self-play"));
+          return st.deviations.length >= 2 || st.plies >= 40;
+        },
+        null,
+        { timeout: 240000 },
+      )
+      .catch(async () => {
+        throw new Error(`self-play stalled: ${JSON.stringify(await chessState(page))}`);
+      });
+
+    const st = await chessState(page);
+    if (st.deviations.length < 1) {
+      throw new Error(`no departure in ${st.plies} plies at the pinned seed; the sampling is not wired: ${JSON.stringify(st)}`);
+    }
+    if (st.deviations.length > 2) throw new Error(`${st.deviations.length} departures, budget is 2: ${JSON.stringify(st.deviations)}`);
+    for (const d of st.deviations) {
+      if (d.rank !== 2 && d.rank !== 3) throw new Error(`departure took rank ${d.rank}: ${JSON.stringify(d)}`);
+      if (!(d.ratio >= 0.8)) throw new Error(`departure at ratio ${d.ratio}, under the 0.8 tie: ${JSON.stringify(d)}`);
+    }
+    notes.push(`departures ${JSON.stringify(st.deviations.map((d) => `ply ${d.ply}: rank ${d.rank} at ${d.ratio.toFixed(3)}`))} by ply ${st.plies}`);
+
+    // Watching counts as using the demo, with no human move made.
+    const used = await demoEvents(page, "chess");
+    if (used !== 1) throw new Error(`self-play alone queued demo_used{chess} ${used}x, expected 1`);
+
+    // Off-screen: the loop stops (a move already in flight may still land).
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(1500);
+    const off = await pliesSettle(page, 6000);
+    if (off.b - off.a > 0) throw new Error(`self-play kept playing off-screen: ${off.a} -> ${off.b} plies in 6s`);
+    await page.locator("#fig-chess").scrollIntoViewIfNeeded();
+    await page
+      .waitForFunction((n) => JSON.parse(document.querySelector("#fig-chess [data-chess-self-play]").getAttribute("data-chess-self-play")).plies > n, off.b, { timeout: 15000 })
+      .catch(() => {
+        throw new Error(`self-play did not resume after scrolling back (stuck at ${off.b} plies)`);
+      });
+    notes.push(`off-screen held at ${off.b} plies for 6s, resumed on return`);
+
+    // Tab hidden: same.
+    const setHidden = (hidden) =>
+      page.evaluate((h) => {
+        Object.defineProperty(document, "visibilityState", { configurable: true, get: () => (h ? "hidden" : "visible") });
+        Object.defineProperty(document, "hidden", { configurable: true, get: () => h });
+        document.dispatchEvent(new Event("visibilitychange"));
+      }, hidden);
+    await setHidden(true);
+    await page.waitForTimeout(1500);
+    const hid = await pliesSettle(page, 6000);
+    if (hid.b - hid.a > 0) throw new Error(`self-play kept playing with the tab hidden: ${hid.a} -> ${hid.b} plies in 6s`);
+    await setHidden(false);
+    await page
+      .waitForFunction((n) => JSON.parse(document.querySelector("#fig-chess [data-chess-self-play]").getAttribute("data-chess-self-play")).plies > n, hid.b, { timeout: 15000 })
+      .catch(() => {
+        throw new Error(`self-play did not resume after the tab came back (stuck at ${hid.b} plies)`);
+      });
+    notes.push(`tab hidden held at ${hid.b} plies, resumed on visible`);
+
+    // A human game is untouched: stop, start over, play e4, the reply is the top move.
+    await page.locator("#fig-chess button", { hasText: copy.systems.chess.stop }).click();
+    await page.locator("#fig-chess button", { hasText: copy.systems.chess.newGame }).click();
+    // A self-play move may still be in flight: wait until the board takes input.
+    await waitChessReady(page);
+    const stale = await chessState(page);
+    if (stale.played !== null) throw new Error(`a reply from the old game landed on the new board: ${JSON.stringify(stale)}`);
+    await page.locator('#fig-chess [aria-label="e2 wp"]').click();
+    await page.locator('#fig-chess [aria-label="e4 empty"]').click();
+    await page.waitForFunction(
+      () => {
+        const st = JSON.parse(document.querySelector("#fig-chess [data-chess-self-play]").getAttribute("data-chess-self-play"));
+        return st.plies === 2 && st.played;
+      },
+      null,
+      { timeout: 60000 },
+    ).catch(async () => {
+      const dbg = await page.evaluate(() => ({
+        state: document.querySelector("#fig-chess [data-chess-self-play]")?.getAttribute("data-chess-self-play"),
+        buttons: [...document.querySelectorAll("#fig-chess button")].map((b) => `${b.textContent.trim()}${b.disabled ? "(disabled)" : ""}`).join(" | "),
+        e2: document.querySelector('#fig-chess [aria-label^="e2"]')?.getAttribute("aria-label"),
+        e4: document.querySelector('#fig-chess [aria-label^="e4"]')?.getAttribute("aria-label"),
+        err: [...document.querySelectorAll("#fig-chess p")].map((p) => p.textContent).filter((t) => /error|illegal/i.test(t)).join(" | "),
+      }));
+      throw new Error(`the human game never got an engine reply: ${JSON.stringify(dbg)}`);
+    });
+    const human = await chessState(page);
+    if (human.played !== human.top) throw new Error(`in a human game the engine played ${human.played}, not its top move ${human.top}`);
+    if (human.deviations.length) throw new Error(`a new game kept old departures: ${JSON.stringify(human.deviations)}`);
+    if ((await rule.count()) !== 0 && (await rule.isVisible())) throw new Error("the self-play rule still shows in a human game");
+    notes.push(`human game: reply ${human.played} is the top move`);
+
+    return notes.join("; ");
+  });
+}
+
+/* ---------------------------------------------------------------------- */
 /* 3b. The /lab rail (discoverability Task 7): the stamp is status only,  */
 /* no longer inside a link; the door is the bordered box below it; the   */
 /* References entry that was always the fallback door still resolves.    */
@@ -4995,6 +5156,7 @@ const CHECKS = [
   ["draw-stroke-auto-label", checkDrawAutoLabel],
   ["draw-classify-lead-400", checkDrawClassifyLead400],
   ["chess-hint-g3", checkChessHint],
+  ["chess-self-play", checkChessSelfPlay],
   ["ort-runtime-build", checkOrtRuntimeBuild],
   ["draw-ink-survives-height-resize-400", checkDrawInkSurvivesHeightResize],
   ["jepa-seed-query-834", checkJepaSeedQuery834],

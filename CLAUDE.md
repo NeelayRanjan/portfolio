@@ -82,7 +82,8 @@ honest limit: the main-thread ORT wasm heap never actually shrinks, only the
 chess worker's termination truly frees memory. `window.__sky` and
 `window.__offload` are verify hooks, not UI.
 
-**Verification: `scripts/verify-redesign.mjs`** — 44 named checks (30 before
+**Verification: `scripts/verify-redesign.mjs`** — 45 named checks (43 before the
+2026-09-17 rounds added `chess-self-play` and `search-basics`; 30 before
 the discoverability round, 40 before the 2026-09-16 WebKit fix, which added
 **`ort-runtime-build`**: every `/ort/` request during the chess worker's load
 and the draw demo's first stroke, the plain `ort-wasm-simd-threaded.wasm`
@@ -410,8 +411,8 @@ can be read in the field as reloads per page view by device. The trade
 stated once: the draw demo no longer asks for WebGPU, and no WebGPU number
 was ever measured for it.
 
-**2026-09-17: chess self-play stopped being a recording, branch
-`chess-self-play`.** Engine-vs-engine replayed one game forever; at one ply it
+**2026-09-17: chess self-play stopped being a recording, LIVE** (merged to
+`main` the same day with the search round). Engine-vs-engine replayed one game forever; at one ply it
 now takes a near-tied second or third choice up to twice a game, 9 distinct
 games in 12 presses. Same round: watching counts as demo use, the loop
 pauses off-screen and tab-hidden, a stale in-flight reply no longer lands on
@@ -438,7 +439,8 @@ capped at 28dvh on phones, body cap 32dvh so the docked card stays under 60%)
 so the cached card height never goes stale. Stars, constellations, showers,
 the Voyagers and the Kepler field get none, on purpose.
 
-**2026-09-17: what search engines read, branch `search-basics`.** The owner
+**2026-09-17: what search engines read, LIVE** (merged to `main` with the
+chess round). The owner
 saw search results still showing the old logo and old text. Production was
 serving the new icons and current copy; Google had a stale crawl. Four
 things on our side slowed or muddied the refresh, each fixed: **one host**

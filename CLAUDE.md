@@ -176,7 +176,13 @@ backing's alpha measured per lit pixel behind a pill, median 0.86 against a
 once the chrome's pointer-events are forced off; no name box at 400px meets
 the bar or credit; credit contrast over the band, backed, at or above its
 pre-colour-round paper value: 3.68/3.69:1 at 400px against 3.49:1),
-**`lab-box-navigates`**, **`stamp-no-link-ancestor`** (proved by re-wrapping
+**`search-basics`** (2026-09-17: one canonical per page on `lib/site.ts`'s
+host, none on the 404; the icon links exactly the three stable `public/`
+paths with no query string, each served with the type and pixel size its
+link claims, the PNG 48px or larger, no `/icon.svg` or `/icon.png`;
+robots.txt disallowing `/api/` and naming the sitemap; the sitemap listing
+exactly `/` and `/lab`; proved to bite by deleting the sitemap, moving the
+canonical into the layout, and reinstalling an `app/icon.svg`), **`lab-box-navigates`**, **`stamp-no-link-ancestor`** (proved by re-wrapping
 the stamp in a Link), **`references-lab-link-resolves`**,
 **`draw-classify-lead-400`** (the draw demo's lead line visible, exact and in
 bounds at 400px before any stroke), **`stargaze-card-image`** (an `<img>`
@@ -432,6 +438,23 @@ capped at 28dvh on phones, body cap 32dvh so the docked card stays under 60%)
 so the cached card height never goes stale. Stars, constellations, showers,
 the Voyagers and the Kepler field get none, on purpose.
 
+**2026-09-17: what search engines read, branch `search-basics`.** The owner
+saw search results still showing the old logo and old text. Production was
+serving the new icons and current copy; Google had a stale crawl. Four
+things on our side slowed or muddied the refresh, each fixed: **one host**
+(owner's call: `neelayranjan.dev` is the main address; `lib/site.ts` holds
+it for metadataBase, og:url, the canonicals, robots and the sitemap), **a
+canonical per page** (`/` and `/lab` each name themselves; the 404 names
+nothing), **robots.txt and a sitemap** (`app/robots.ts`, `app/sitemap.ts`,
+both prerendered), and **stable icon URLs** (see the Stack bullet and the
+trap below). ⚠️ **Two owner actions finish it, and code can't do either**:
+Vercel redirected the apex TO `www` until this round, the opposite of what
+the site now declares, so in the Vercel dashboard's Domains the apex must be
+set primary with `www` redirecting to it; and Google Search Console (verify
+the property, URL Inspection on the homepage, Request indexing, submit the
+sitemap) is the documented way to speed a favicon and snippet refresh,
+which otherwise takes days to weeks.
+
 **Open items, roughly in order:**
 1. **Stargaze discoverability: built, not yet measured** (owner, 2026-09-14:
    "We 100% need to make that button more noticable, I have had to tell
@@ -575,8 +598,8 @@ and the owner's SOP tell one story.
   `public/og.png` was regenerated for the new rail.
 - v1's draw-demo bugs survived the re-chrome where the code path survived
   (see Known bugs) — they are open on the live site.
-- Navigation listings (menus, the 404's directory joke if it survives) track the
-  real set of pages — v1 kept its 404 `ls` in step with its sections; keep that
+- Navigation listings (menus, the 404's directory joke if it survives, and
+  since 2026-09-17 `app/sitemap.ts`) track the real set of pages — v1 kept its 404 `ls` in step with its sections; keep that
   discipline whatever shape it takes.
 
 ## Content facts — the source of truth for copy
@@ -807,7 +830,15 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   is outside the frame), waiting on `window.__sky?.drawn` (2026-09-15, not the
   old DeskField-specific readiness check it used to poll) before it shoots, so
   re-run it after ANY masthead copy or layout change; `metadataBase` in `layout.tsx` is required
-  or `/og.png` never resolves in unfurls.
+  or `/og.png` never resolves in unfurls. **The icons live in `public/` and
+  are declared in `layout.tsx`'s `icons` (2026-09-17)**, not through the
+  `app/` icon file conventions: `public/favicon.ico` (the tuned 16 and 32),
+  `public/icon-192.png` (the mark rendered from its SVG, because Google
+  ignores SVG favicons and recommends 48px or more) and
+  `public/apple-icon.png`. The SVG is no longer served; its vector master is
+  `scripts/icon-mark.svg`. `icon-192.png` was rendered from that SVG through
+  a Firefox canvas (this machine has no cairosvg); `gen-icons.py` now emits
+  the same size for its next run.
 - The chess worker must stay a literal
   `new Worker(new URL("./chess-worker.ts", import.meta.url), { type: "module" })`
   or the bundler loses the dependency. **onnxruntime-web is imported in the worker
@@ -823,6 +854,17 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 
 ## Hard-won traps — measured; they will bite again
 
+- **An `app/` file-convention icon's URL changes on every Vercel deploy**
+  (2026-09-17). Next appends a content hash (`/favicon.ico?favicon.<hash>.ico`)
+  and, when `NEXT_DEPLOYMENT_ID` is set, as it is on Vercel, `&dpl=<deployment
+  id>` to every metadata-image link, and Google's favicon guidance asks for a
+  stable URL. Reproduce locally with `NEXT_DEPLOYMENT_ID=dpl_x npm run build`.
+  Icons declared as plain `public/` paths in `metadata.icons` carry no query
+  string at all, measured under the same build. Two side effects, both
+  measured: declaring `icons` in config dropped the file-based `apple-icon`
+  link (so the whole set moved to config), and a stray `app/icon.svg` beside
+  the config does not change the links but IS still served, which
+  `search-basics` catches.
 - **Turbopack has served stale CSS** for hours, silently. If a CSS change appears
   to do nothing, curl the served chunk before doubting the code; `rm -rf .next`
   fixes it.

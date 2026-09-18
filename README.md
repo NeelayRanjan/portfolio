@@ -144,7 +144,7 @@ plan. Nothing is recorded locally; the verify suite reads the pending
 | script | what | needs |
 |---|---|---|
 | `prepare-research.mjs` | derives `public/research/` from the paper's data; asserts the headline number before writing; `--image N` (retired wipe), `--eff-image N` (Figure 1 strip), `--accept-csv-drift` (required: SAM's re-run masks are stochastic) | ffmpeg, `external_materials/` including `paper1/data/test_predictions/` (ships as base64-encoded `test_pred.zip`) |
-| `gen-icons.py` | the STIX-N favicon set from site tokens | python venv (fontTools, cairosvg) + the STIX variable TTF (see header) |
+| `gen-icons.py` | the STIX-N favicon set from site tokens; installs to `public/` (favicon.ico, icon-192.png, apple-icon.png), declared in `layout.tsx`, never through `app/` icon files (their URLs change every deploy) | python venv (fontTools, cairosvg) + the STIX variable TTF (see header) |
 | `gen-og.mjs` | screenshots the top of the page into `public/og.png`; rerun after any masthead copy or layout change | Playwright, server on :3000 |
 | `probe-webkit-draw.py` | drives one stroke, classify and generate in a real WebKit and samples the web process's RSS and CPU through a minute of idle; rerun after bumping `onnxruntime-web` or changing which ORT entry any loader imports | system WebKitGTK 4.1 + python gi, a display, server on :3000 |
 | `measure-mono.mjs` | measures a mono's advance (why the ASCII grids keep Geist Mono) | Playwright, dev server |

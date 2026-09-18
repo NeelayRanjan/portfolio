@@ -7,6 +7,10 @@ import { JepaSection } from "@/components/JepaPanel";
 import { SampleSpace } from "@/components/SampleSpace";
 import { SampleSpaceWriteup } from "@/components/SampleSpaceWriteup";
 import { copy } from "@/content/copy";
+import type { Metadata } from "next";
+
+/** The canonical address of this page, on the one host (lib/site.ts). */
+export const metadata: Metadata = { alternates: { canonical: "/lab" } };
 
 // /lab — "Supplementary material": the three demos that left page 1, re-chromed
 // with logic intact. Figures S1 (trajectory viewer), S2 (JEPA retrieval), S3

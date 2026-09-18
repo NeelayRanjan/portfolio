@@ -14,6 +14,10 @@ import { DrawDigit } from "@/components/DrawDigit";
 import { ChessPanel } from "@/components/ChessPanel";
 import { WarmKick } from "@/components/WarmKick";
 import { copy } from "@/content/copy";
+import type { Metadata } from "next";
+
+/** The canonical address of this page, on the one host (lib/site.ts). */
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 // The real page-one assembly (replaces Task 3's smoke content). Figures 4 (the
 // chess engine) and 5 (the draw demo) both mount here behind `DeferredMount`.

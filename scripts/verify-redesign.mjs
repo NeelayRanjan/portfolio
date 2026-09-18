@@ -39,6 +39,7 @@ import { register } from "node:module";
 import { EMISSION_LINE_COLOUR, SKY_FACTS } from "../content/sky-facts.ts";
 import { EDGE_DEC_DEG, moonEquatorial, planetEquatorial } from "../lib/sky-math.ts";
 import { copy } from "../content/copy.ts";
+import { SITE } from "../lib/site.ts";
 
 /**
  * The colour round's `sky-colour` and the card checks read the palette table
@@ -1083,7 +1084,99 @@ async function checkChessSelfPlay(browser) {
     }
     if ((await rule.count()) !== 0 && (await rule.isVisible())) throw new Error("the self-play rule still shows in a human game");
     notes.push(`human game, 8 hint moves: every reply the top move (${replies.join(" ")})`);
+    return notes.join("; ");
+  });
+}
 
+/* ---------------------------------------------------------------------- */
+/* 3e. What search engines read (app/layout.tsx icons, app/page.tsx and   */
+/* app/lab/page.tsx canonicals, app/robots.ts, app/sitemap.ts,            */
+/* lib/site.ts). 2026-09-17: search results still showed the old logo and */
+/* text. One host everywhere (neelayranjan.dev, owner's call); each page  */
+/* names itself as canonical and the 404 names nothing; the icons are the */
+/* owner's STIX-N mark at STABLE paths (a file-convention icon link       */
+/* carries a hash and, on Vercel, the deployment id, which changes every  */
+/* deploy; Google asks for a stable favicon URL); no SVG icon (Google     */
+/* ignores SVG) and a PNG of 48px or more (Google's recommendation).      */
+/* ---------------------------------------------------------------------- */
+
+const EXPECTED_ICONS = [
+  { rel: "icon", href: "/favicon.ico", type: "image/x-icon", sizes: "16x16 32x32" },
+  { rel: "icon", href: "/icon-192.png", type: "image/png", sizes: "192x192" },
+  { rel: "apple-touch-icon", href: "/apple-icon.png", type: "image/png", sizes: "180x180" },
+];
+
+function pngSize(buf) {
+  if (buf.subarray(1, 4).toString("latin1") !== "PNG") return null;
+  return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
+}
+
+async function checkSearchBasics(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    const notes = [];
+    const headOf = (path) =>
+      page.goto(BASE + path, { waitUntil: "domcontentloaded" }).then(() =>
+        page.evaluate(() => ({
+          canonicals: [...document.querySelectorAll('link[rel="canonical"]')].map((l) => l.getAttribute("href")),
+          icons: [...document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"], link[rel="shortcut icon"]')].map((l) => ({
+            rel: l.getAttribute("rel"),
+            href: l.getAttribute("href"),
+            type: l.getAttribute("type"),
+            sizes: l.getAttribute("sizes"),
+          })),
+        })),
+      );
+
+    for (const [path, canonical] of [["/", SITE], ["/lab", `${SITE}/lab`]]) {
+      const h = await headOf(path);
+      if (h.canonicals.length !== 1 || h.canonicals[0] !== canonical) {
+        throw new Error(`${path}: canonical ${JSON.stringify(h.canonicals)}, expected exactly ${canonical}`);
+      }
+      if (JSON.stringify(h.icons) !== JSON.stringify(EXPECTED_ICONS)) {
+        throw new Error(`${path}: icon links ${JSON.stringify(h.icons)}, expected ${JSON.stringify(EXPECTED_ICONS)} (stable paths, no SVG, no query string)`);
+      }
+    }
+    const missing = await headOf("/this-page-does-not-exist");
+    if (missing.canonicals.length) throw new Error(`the 404 names a canonical: ${JSON.stringify(missing.canonicals)}`);
+    notes.push(`canonicals ${SITE} and ${SITE}/lab, none on the 404; icons at stable paths`);
+
+    for (const icon of EXPECTED_ICONS) {
+      const res = await page.request.get(BASE + icon.href);
+      if (res.status() !== 200 || res.headers()["content-type"] !== icon.type) {
+        throw new Error(`${icon.href}: ${res.status()} ${res.headers()["content-type"]}, expected 200 ${icon.type}`);
+      }
+      const buf = await res.body();
+      if (icon.type === "image/png") {
+        const [w, h] = icon.sizes.split("x").map(Number);
+        const got = pngSize(buf);
+        if (!got || got.w !== w || got.h !== h) throw new Error(`${icon.href} is ${JSON.stringify(got)}, its link says ${icon.sizes}`);
+        if (w < 48) throw new Error(`${icon.href} is ${w}px; Google recommends 48px or larger`);
+      } else {
+        const n = buf.readUInt16LE(4);
+        const sizes = Array.from({ length: n }, (_, i) => buf[6 + 16 * i] || 256).sort((a, b) => a - b);
+        if (sizes.join(",") !== "16,32") throw new Error(`/favicon.ico holds ${sizes.join(",")}, its link says 16 and 32`);
+      }
+    }
+    for (const gone of ["/icon.svg", "/icon.png"]) {
+      const res = await page.request.get(BASE + gone);
+      if (res.status() !== 404) throw new Error(`${gone} is still served (${res.status()})`);
+    }
+
+    const robots = await page.request.get(`${BASE}/robots.txt`);
+    const robotsText = await robots.text();
+    if (robots.status() !== 200 || !robots.headers()["content-type"]?.startsWith("text/plain")) {
+      throw new Error(`/robots.txt: ${robots.status()} ${robots.headers()["content-type"]}`);
+    }
+    for (const line of ["User-Agent: *", "Allow: /", "Disallow: /api/", `Sitemap: ${SITE}/sitemap.xml`]) {
+      if (!robotsText.split("\n").map((l) => l.trim()).includes(line)) throw new Error(`/robots.txt lacks ${JSON.stringify(line)}: ${JSON.stringify(robotsText)}`);
+    }
+
+    const sitemap = await page.request.get(`${BASE}/sitemap.xml`);
+    const locs = [...(await sitemap.text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+    if (sitemap.status() !== 200 || JSON.stringify(locs) !== JSON.stringify([SITE, `${SITE}/lab`])) {
+      throw new Error(`/sitemap.xml: ${sitemap.status()}, locs ${JSON.stringify(locs)}, expected ${JSON.stringify([SITE, `${SITE}/lab`])}`);
+    }
+    notes.push(`robots.txt disallows /api/ and names the sitemap; sitemap lists ${locs.length} pages on ${SITE}`);
     return notes.join("; ");
   });
 }
@@ -5152,6 +5245,7 @@ const CHECKS = [
   ["no-h-scroll-lab-400", checkNoHorizontalScroll("/lab")],
   ["no-early-heavy-payload-400", checkNoEarlyHeavyPayload],
   ["lab-box-navigates", checkLabBoxNavigates],
+  ["search-basics", checkSearchBasics],
   ["stamp-no-link-ancestor", checkStampNoLinkAncestor],
   ["references-lab-link-resolves", checkReferencesLabLinkResolves],
   ["label-efficiency", checkLabelEfficiency],

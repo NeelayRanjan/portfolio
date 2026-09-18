@@ -4,8 +4,14 @@
 Hand-run only (like gen-og.mjs). Needs: STIXTwoText[wght].ttf beside it (fetch:
 https://github.com/google/fonts/raw/main/ofl/stixtwotext/STIXTwoText%5Bwght%5D.ttf
 - not committed), and a venv with: pip install fonttools cairosvg.
-Outputs land in out/; install as app/icon.svg, app/icon.png (32),
-app/apple-icon.png (180), app/favicon.ico. Colors are the site tokens.
+Outputs land in out/. Install (since 2026-09-17) as public/favicon.ico,
+public/icon-192.png and public/apple-icon.png (from apple-touch-icon.png),
+declared in app/layout.tsx's `icons`, NOT through the app/ icon file
+conventions: those links carry a content hash plus, on Vercel, a deployment
+id that changes every deploy, and Google asks for a stable favicon URL. Do
+not install the SVG anywhere under app/ or public/: Google ignores SVG
+favicons, and scripts/icon-mark.svg keeps the committed vector copy of
+out/favicon.svg. Colors are the site tokens.
 """
 from fontTools.ttLib import TTFont
 from fontTools.pens.svgPathPen import SVGPathPen
@@ -52,7 +58,8 @@ open("out/favicon-16.svg","w").write(svg(16, brackets=False, cap=0.72, rx=3))
 gs,g=gs_main,g_main; bp=BoundsPen(gs); g.draw(bp); xmin,ymin,xmax,ymax=bp.bounds
 open("out/favicon-32.svg","w").write(svg(32, cap=0.54, sw=2, bk=0.16))
 for name, size, src in [("favicon-16.png",16,"favicon-16.svg"),("favicon-32.png",32,"favicon-32.svg"),
-                        ("apple-touch-icon.png",180,"favicon.svg"),("icon-512.png",512,"favicon.svg")]:
+                        ("apple-touch-icon.png",180,"favicon.svg"),("icon-192.png",192,"favicon.svg"),
+                        ("icon-512.png",512,"favicon.svg")]:
     cairosvg.svg2png(url="out/"+src, write_to="out/"+name, output_width=size, output_height=size)
 cairosvg.svg2png(url="out/favicon.svg", write_to="out/preview-96.png", output_width=96, output_height=96)
 

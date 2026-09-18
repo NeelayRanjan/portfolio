@@ -8,6 +8,7 @@ import { NightSky } from "@/components/manuscript/NightSky";
 import { SkyCredit } from "@/components/manuscript/SkyCredit";
 import { StargazeToggle } from "@/components/manuscript/StargazeToggle";
 import { ReloadBeacon } from "@/components/ReloadBeacon";
+import { SITE } from "@/lib/site";
 
 const stix = STIX_Two_Text({
   variable: "--font-stix",
@@ -21,13 +22,29 @@ const splineMono = Spline_Sans_Mono({
   weight: ["400", "500", "600"],
 });
 
-// A URL, not copy — metadataBase and the canonical OG url. Stays here.
-const SITE = "https://neelayranjan.dev";
-
 export const metadata: Metadata = {
   // Required for the relative OG image below to resolve to an absolute URL —
   // without it the card unfurls with no image at all.
   metadataBase: new URL(SITE),
+  /**
+   * Declared here from STABLE paths in public/, not through the app/ icon
+   * file conventions (2026-09-17). Measured: a file-convention icon's link
+   * carries a content hash plus, on Vercel, `?dpl=<deployment id>`, which
+   * changes on every deploy, and Google asks for a stable favicon URL. The
+   * same build with these config links: no query string at all. Declaring
+   * `icons` in config also drops the file-based apple-icon, so the whole set
+   * lives here. Google ignores SVG favicons and prefers 48px or larger, so
+   * the owner's STIX-N mark ships as a 192px PNG rendered from the SVG; the
+   * .ico keeps the hand-tuned 16 and 32 for browser tabs. Source artwork:
+   * scripts/gen-icons.py.
+   */
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "16x16 32x32", type: "image/x-icon" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   title: copy.meta.title,
   // Same blurb as the share card: it's already the concrete, first-person
   // description written for the one place a recruiter or admissions reader

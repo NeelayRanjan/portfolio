@@ -31,17 +31,17 @@ build time.
 ### Verify before believing
 
 ```bash
-node scripts/verify-redesign.mjs           # all 43 checks, against npm start on :3000
+node scripts/verify-redesign.mjs           # all 44 checks, against npm start on :3000
 node scripts/verify-redesign.mjs chess cdf # any check-name substrings run a subset
 node scripts/verify-headshot-256.mjs       # hand-run: the 256 headshot + morph, in node
 node scripts/check-voice.mjs               # copy.ts + sky-facts.ts voice gate (banned words, em-dashes)
 node --test scripts/test-sky-data.mjs scripts/test-sky-math.mjs scripts/test-sky-pan.mjs \
              scripts/test-sky-objects.mjs scripts/test-sky-facts.mjs scripts/test-sky-iss.mjs \
-             scripts/test-sky-images.mjs
+             scripts/test-sky-images.mjs scripts/test-chess-selfplay.mjs
                                             # plain node: the committed sky data's shape, the projection/
                                             # drag math pinned against astronomy-engine, the colour ends pinned
-                                            # by draw-call digest, card-image index shape, and fact coverage
-                                            # (80 cases)
+                                            # by draw-call digest, card-image index shape, fact coverage, and
+                                            # the chess self-play rule (90 cases)
 ```
 
 The suite is Playwright-Firefox against a real production build and asserts

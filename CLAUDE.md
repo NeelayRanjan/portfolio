@@ -82,7 +82,7 @@ honest limit: the main-thread ORT wasm heap never actually shrinks, only the
 chess worker's termination truly frees memory. `window.__sky` and
 `window.__offload` are verify hooks, not UI.
 
-**Verification: `scripts/verify-redesign.mjs`** — 43 named checks (30 before
+**Verification: `scripts/verify-redesign.mjs`** — 44 named checks (30 before
 the discoverability round, 40 before the 2026-09-16 WebKit fix, which added
 **`ort-runtime-build`**: every `/ort/` request during the chess worker's load
 and the draw demo's first stroke, the plain `ort-wasm-simd-threaded.wasm`
@@ -196,7 +196,13 @@ the slider, and the strip's panels carrying the json's Dice and repainting per
 budget), the Dice-CDF slider (curves, readouts vs `cdf.json`, repaint on stop
 change), flight video play/pause, a drawn stroke producing a real auto-label (with the classifier-free lead
 line present and unchanged before and after),
-the chess hint matching vector D (`g3 p=0.236`), JEPA seed query 834 plus the
+the chess hint matching vector D (`g3 p=0.236`), **`chess-self-play`** (pinned
+clock, so the seed and the game are fixed: at least one departure, every one
+a near-tie in the top three and within budget, the rule stated while it
+applies, watching alone queuing one `demo_used{chess}`, the loop holding
+still for 6s off-screen and with the tab hidden and resuming after, and a
+human game of eight hint moves where every reply is the top move; proved
+to bite four ways, one per contract), JEPA seed query 834 plus the
 triple-equality, Vercel Analytics (tracker injected same-origin, a Resume click
 queues `outbound_link`; two headshot runs queue exactly one `demo_used`), and
 the headshot toy (no model fetched at rest; the sampled
@@ -218,8 +224,9 @@ change touching a demo, a figure, or the page shell.
 `content/sky-facts.ts` with the same rules. **`node --test
 scripts/test-sky-data.mjs scripts/test-sky-math.mjs scripts/test-sky-pan.mjs
 scripts/test-sky-objects.mjs scripts/test-sky-facts.mjs
-scripts/test-sky-iss.mjs scripts/test-sky-images.mjs`** runs outside
-Playwright, in plain node (80 cases total, up from 73 before the card
+scripts/test-sky-iss.mjs scripts/test-sky-images.mjs
+scripts/test-chess-selfplay.mjs`** runs outside
+Playwright, in plain node (90 cases total, 10 of them the self-play rule's; 80 before it, 73 before the card
 photographs, 62 before the discoverability round and 47 before the colour
 round): `test-sky-data` pins the committed `sky.json`'s shape (star
 count/order/ranges, Polaris and Sirius by position and magnitude, all 88
@@ -396,6 +403,13 @@ Speed Insights added, and a third event, `page_reload`, so the crash loop
 can be read in the field as reloads per page view by device. The trade
 stated once: the draw demo no longer asks for WebGPU, and no WebGPU number
 was ever measured for it.
+
+**2026-09-17: chess self-play stopped being a recording, branch
+`chess-self-play`.** Engine-vs-engine replayed one game forever; at one ply it
+now takes a near-tied second or third choice up to twice a game, 9 distinct
+games in 12 presses. Same round: watching counts as demo use, the loop
+pauses off-screen and tab-hidden, a stale in-flight reply no longer lands on
+a new game, and `chess-self-play` pins all of it. Contract under "Chess" below.
 
 **2026-09-16 (night): card photographs, branch `sky-card-images`.** Every
 galaxy, nebula, cluster, remnant, the Hubble Deep Field, Sgr A*, the Milky
@@ -731,7 +745,8 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   per page load (stargaze's carries `via: "toggle" | "footer"` since
   2026-09-16, naming the FIRST door used that load: a property, never a
   second event, so the quota rule holds), fired only AFTER real output (a completed headshot run, a
-  completed digit generation, an accepted chess move) so failures and
+  completed digit generation, an accepted chess move, or a self-play move
+  landing, since watching the engine play itself is real output) so failures and
   slider-scrubbing never count, and (2026-09-16) `page_reload`, no
   properties, once per page load whose navigation type is `reload`: the one
   field signal a silent tab crash leaves, read as a rate against page views
@@ -1595,7 +1610,9 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   `data-sky-list-panel`, `data-sky-list`, `data-sky-list-item`,
   `data-sky-list-close`, `data-sky-invite`, `data-stargaze-footer`,
   `data-stargaze-footer-enter`, `data-lab-box`, `data-stamp`,
-  `data-draw-classify-lead`. The CSS variable `--stargaze-hint-h` is real
+  `data-draw-classify-lead`, and the chess panel's `data-chess-self-play`
+  (JSON: plies, departures, the move played, the top move, the current
+  hint), `data-chess-self-play-rule` and `data-chess-self-play-took`. The CSS variable `--stargaze-hint-h` is real
   layout, not a hook: the panel and phone names both read it.
 
 ### Draw-a-digit (SDEdit, live MNIST diffusion) — page 1
@@ -1786,6 +1803,33 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 - int8 (553KB) ships in the browser for download size; fp32 (1.8MB) is the
   fallback build. The Pi ships fp32 because it's faster on ARM. int8's win here
   is bytes, not speed.
+- **Self-play varies itself inside the model's own near-ties** (owner's idea,
+  2026-09-17; `lib/chess-selfplay.ts`, pinned by `scripts/test-chess-selfplay.mjs`).
+  The engine is deterministic, so engine-vs-engine replayed ONE 41-move game
+  on every press. At one ply self-play now plays its top move except up to
+  twice a game (`SELF_PLAY_MAX_DEVIATIONS`), when the second or third choice
+  is at least 0.8 of the top prior (`SELF_PLAY_TIE_RATIO`); then a coin
+  (`SELF_PLAY_TAKE_P = 0.5`) may take it, uniformly among the qualifying two.
+  Seeded per game from `Date.now()` at its first self-play move (mulberry32);
+  the budget is per game (`gameIdRef`), so stop-and-restart never refills it.
+  **Scope, deliberately**: a human game and the hint stay pure argmin
+  (varying them would weaken the engine on purpose and bend the strength
+  claim), and "let it think" self-play plays the search's move. Measured
+  first, in node on the served int8 model through the worker's exact path:
+  argmin self-play over ten openings ended 7 mates / 3 late threefolds
+  (first repeat at ply 116-133, 5-8 pieces left), so the old comment's
+  "tends to end in the threefold" was wrong about the common case; with the
+  rule, 12 presses gave 9 distinct games and 10 mates (median 95 plies);
+  forcing the first departure into the opening measured WORSE (7 of 12:
+  every game then took the same alternative first move), which is why the
+  coin is flat across the game. The list marks the move PLAYED (it used to
+  colour the top row), a departure prints its own numbers ("took its second
+  choice · p=0.211 vs 0.236"), the rule is stated while it applies, watching
+  self-play counts as `demo_used{chess}`, and the loop pauses off-screen
+  (IntersectionObserver) or tab-hidden and resumes after (a move already in
+  flight still lands). **A reply for an older game is discarded**: a move in
+  flight when "new game" was pressed used to land on the fresh board's list
+  (pre-existing; the self-play check found it).
 - The interpretability view is precomputed (`public/chess_activations.json`),
   gated on the file, and reads `grid`/`layers` from it — never hardcode. Works
   for this model because the backbone never downsamples below 8x8; don't attempt

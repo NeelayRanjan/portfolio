@@ -609,9 +609,50 @@ and the owner's SOP tell one story.
 ## Content facts — the source of truth for copy
 
 (`content/resume-notes.md` was stale and was deleted with v1.) The facts below
-are the source of truth; for anything else, read the live Resume/CV Google Docs
-(Drive connector) and ask the owner. Any fact on the resume is cleared for
-publication.
+are the source of truth; for anything else, read the resume and ask the owner.
+Any fact on the resume is cleared for publication, with two exceptions below.
+
+**⚠️ The resume moved to a private GitHub repo (owner, 2026-09-22): read it
+there, not from Drive.** `NeelayRanjan/SAVE` (private, default branch
+`master`), directory `Resume/`: `NeelayRanjan_Resume_Public.{tex,pdf}` (the
+designed one, altacv) and `NeelayRanjan_Resume_ATS.{tex,pdf}` (plain, for
+application forms). The `.tex` files are the ones to read, being plain text.
+The machine's `gh` is authenticated with `repo` scope, so:
+`gh api repos/NeelayRanjan/SAVE/contents/Resume/NeelayRanjan_Resume_ATS.tex -q .content | base64 -d`.
+**Never publish two things that repo holds**: the owner's phone number, which
+both resumes carry and no page here ever shows, and anything outside
+`Resume/` (it also stores `Unofficial Transcript.pdf` and NASA material).
+The Drive URLs below still work and are what the site links today, but the
+owner now updates GitHub, so treat Drive as possibly stale.
+
+**⚠️ UNRESOLVED DRIFT, 2026-09-22: the current resume disagrees with the
+facts below, and the owner has to rule before any copy changes.** Read the
+repo, don't assume either side. What differs, measured against the resumes
+fetched that day:
+  - **NASA is one role on the resume, not the two-engagement arc**:
+    "Generative Modeling Research Intern, Generative Trajectory Modeling",
+    May 2026 to present, building weather- and hazard-aware aircraft routing
+    with diffusion on FAA radar-track (TRX) data, a mid-sampling
+    gradient-guidance step that reroutes around hazards with no retraining,
+    integrated into ATM simulation software used by NASA and the FAA. The
+    flight-plan LLM (~44,000 flights) is one bullet under it. SLAAC, the
+    synthetic ATC-speech pipeline, Sheth and Clarke appear nowhere.
+  - **The paper is now three**: "three first-author manuscripts in
+    preparation" (benchmark angiograms surpassing SAM, real-world SAM-x0
+    refinement, seven-shot moyamoya MRA), where this file and the site say
+    one.
+  - **The headline numbers differ**: the resume leads with "80% Dice vs
+    SAM's 73% with just 18 labeled images", plus 70% Dice at 22 labels for
+    the SAM-x0 refinement and ~55% vs ~20% on 7-image moyamoya. This file
+    pins 0.882 at 16 labels and a ~75% correction-time speedup, and bans
+    "80% Dice at 19 images" as a superseded v1 number; the new one is that
+    same shape. Which is current is the owner's call.
+  - Regenstrief reads "Jul 2024 to present, Applied Vision-AI Researcher"
+    (this file says Feb 2024); Davinci Wearables is absent from both
+    resumes while the site's Experience still lists it; neither resume
+    mentions the leave the site shows as a "gap semester" row; and the
+    resume still says the Pi runs ~1 s/move, which the owner already ruled
+    the site states its own way.
 
 - **First-author paper**: "Bootstrapping surgeon labeling campaigns with
   x0-diffusion: label-efficient vessel segmentation of catheter-based angiograms"

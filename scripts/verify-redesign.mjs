@@ -1182,6 +1182,50 @@ async function checkSearchBasics(browser) {
 }
 
 /* ---------------------------------------------------------------------- */
+/* 3f. The resume the site serves (2026-09-22, owner call). It used to be  */
+/* a Google Drive link; the resume now lives in a PRIVATE GitHub repo,     */
+/* which can't serve a public link, so scripts/pull-resume.mjs copies the  */
+/* PDF into public/. Linkable but not indexable: the site's own page is    */
+/* what should rank for the owner's name, and the PDF carries a phone      */
+/* number that needn't be in a search index.                               */
+/* ---------------------------------------------------------------------- */
+
+async function checkResumePdf(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    const links = await page.evaluate(() =>
+      [...document.querySelectorAll('[data-track-label="Resume"]')].map((a) => a.getAttribute("href")),
+    );
+    if (links.length < 1) throw new Error("no Resume link on the page");
+    for (const href of links) {
+      if (href !== "/resume.pdf") throw new Error(`a Resume link points at ${href}, expected /resume.pdf`);
+    }
+    const drive = await page.evaluate(() =>
+      [...document.querySelectorAll("a[href]")].map((a) => a.getAttribute("href")).filter((h) => h.includes("docs.google.com")),
+    );
+    if (drive.length) throw new Error(`Drive is still linked: ${drive.join(", ")}`);
+
+    const res = await page.request.get(`${BASE}/resume.pdf`);
+    const type = res.headers()["content-type"] ?? "";
+    if (res.status() !== 200 || !type.startsWith("application/pdf")) {
+      throw new Error(`/resume.pdf: ${res.status()} ${type}`);
+    }
+    const body = await res.body();
+    if (body.subarray(0, 5).toString("latin1") !== "%PDF-") {
+      throw new Error(`/resume.pdf does not start %PDF- (${JSON.stringify(body.subarray(0, 8).toString("latin1"))})`);
+    }
+    const robots = res.headers()["x-robots-tag"] ?? "";
+    if (!robots.includes("noindex")) throw new Error(`/resume.pdf has X-Robots-Tag ${JSON.stringify(robots)}, expected noindex`);
+
+    // The sitemap lists pages, never the PDF.
+    const sitemap = await (await page.request.get(`${BASE}/sitemap.xml`)).text();
+    if (sitemap.includes("resume")) throw new Error("the sitemap lists the resume PDF");
+
+    return `${links.length} Resume link(s) at /resume.pdf, served ${(body.length / 1024).toFixed(1)} KB as ${type}, noindex, absent from the sitemap; no Drive link left`;
+  });
+}
+
+/* ---------------------------------------------------------------------- */
 /* 3b. The /lab rail (discoverability Task 7): the stamp is status only,  */
 /* no longer inside a link; the door is the bordered box below it; the   */
 /* References entry that was always the fallback door still resolves.    */
@@ -5246,6 +5290,7 @@ const CHECKS = [
   ["no-early-heavy-payload-400", checkNoEarlyHeavyPayload],
   ["lab-box-navigates", checkLabBoxNavigates],
   ["search-basics", checkSearchBasics],
+  ["resume-pdf", checkResumePdf],
   ["stamp-no-link-ancestor", checkStampNoLinkAncestor],
   ["references-lab-link-resolves", checkReferencesLabLinkResolves],
   ["label-efficiency", checkLabelEfficiency],

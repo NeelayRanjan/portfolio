@@ -187,8 +187,12 @@ export const copy = {
     date: "September 2026",
     links: [
       {
+        // Served by this site (owner call, 2026-09-22), not Drive: the resume
+        // now lives in a PRIVATE GitHub repo, which can't serve a public
+        // link, and the Drive copy went stale. scripts/pull-resume.mjs copies
+        // the PDF in; the path is stable, so it survives every update.
         label: "Resume",
-        href: "https://docs.google.com/document/d/1Du0NEDaov2tRzY-tWbuN0wrO6xk6SFDi/preview",
+        href: "/resume.pdf",
       },
       // CV hidden (owner call, 2026-09-14: not public-facing yet). Its /preview
       // URL is in CLAUDE.md's links; restore it here and in references.items.
@@ -641,10 +645,7 @@ export const copy = {
           "F. Perez, J. Morisaki, H. Kanakri, M. Rizkalla, et al. (incl. N. Ranjan), “Helical Antenna for Electromagnetic Field Stimulation in Alzheimer’s Disease Therapy,” IEEE MWSCAS 2026 (oral)",
         href: "",
       },
-      {
-        label: "Resume",
-        href: "https://docs.google.com/document/d/1Du0NEDaov2tRzY-tWbuN0wrO6xk6SFDi/preview",
-      },
+      { label: "Resume", href: "/resume.pdf" },
       // CV hidden with the masthead's (see masthead.links).
       { label: "GitHub", href: "https://github.com/NeelayRanjan" },
       { label: "ORCID", href: "https://orcid.org/0009-0008-9482-0160" },

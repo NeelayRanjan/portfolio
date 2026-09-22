@@ -53,6 +53,20 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // The resume PDFs (2026-09-22): linkable, not indexable. The site's
+        // own page is what should rank for the owner's name, and the PDF
+        // carries a phone number that needn't be in a search index. This is
+        // not privacy: anyone who opens the link still sees it. Two literal
+        // paths, not a pattern: Next's matcher rejects a repeated param with
+        // no prefix ("Can not repeat 'path' without a prefix and suffix").
+        source: "/resume.pdf",
+        headers: [{ key: "X-Robots-Tag", value: "noindex" }],
+      },
+      {
+        source: "/resume-ats.pdf",
+        headers: [{ key: "X-Robots-Tag", value: "noindex" }],
+      },
+      {
         // Model and runtime are content-addressed by filename: a new model means
         // a new name, so these can be cached hard.
         source: "/models/:path*",

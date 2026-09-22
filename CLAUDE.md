@@ -82,7 +82,8 @@ honest limit: the main-thread ORT wasm heap never actually shrinks, only the
 chess worker's termination truly frees memory. `window.__sky` and
 `window.__offload` are verify hooks, not UI.
 
-**Verification: `scripts/verify-redesign.mjs`** — 45 named checks (43 before the
+**Verification: `scripts/verify-redesign.mjs`** — 46 named checks (45 before
+`resume-pdf`, 2026-09-22; 43 before the
 2026-09-17 rounds added `chess-self-play` and `search-basics`; 30 before
 the discoverability round, 40 before the 2026-09-16 WebKit fix, which added
 **`ort-runtime-build`**: every `/ort/` request during the chess worker's load
@@ -177,6 +178,11 @@ backing's alpha measured per lit pixel behind a pill, median 0.86 against a
 once the chrome's pointer-events are forced off; no name box at 400px meets
 the bar or credit; credit contrast over the band, backed, at or above its
 pre-colour-round paper value: 3.68/3.69:1 at 400px against 3.49:1),
+**`resume-pdf`** (2026-09-22: every `[data-track-label="Resume"]` points at
+`/resume.pdf`, nothing on the page links Drive, the file serves 200 as
+`application/pdf` starting `%PDF-`, carries `X-Robots-Tag: noindex` and is
+absent from the sitemap; proved to bite by pointing the masthead back at
+Drive and by flipping the header to `all`),
 **`search-basics`** (2026-09-17: one canonical per page on `lib/site.ts`'s
 host, none on the 404; the icon links exactly the three stable `public/`
 paths with no query string, each served with the type and pixel size its
@@ -232,8 +238,9 @@ change touching a demo, a figure, or the page shell.
 scripts/test-sky-data.mjs scripts/test-sky-math.mjs scripts/test-sky-pan.mjs
 scripts/test-sky-objects.mjs scripts/test-sky-facts.mjs
 scripts/test-sky-iss.mjs scripts/test-sky-images.mjs
-scripts/test-chess-selfplay.mjs`** runs outside
-Playwright, in plain node (90 cases total, 10 of them the self-play rule's; 80 before it, 73 before the card
+scripts/test-chess-selfplay.mjs scripts/test-resume.mjs`** runs outside
+Playwright, in plain node (93 cases total, 3 of them the served resume's and
+10 the self-play rule's; 80 before those, 73 before the card
 photographs, 62 before the discoverability round and 47 before the colour
 round): `test-sky-data` pins the committed `sky.json`'s shape (star
 count/order/ranges, Polaris and Sirius by position and magnitude, all 88
@@ -625,10 +632,20 @@ both resumes carry and no page here ever shows, and anything outside
 The Drive URLs below still work and are what the site links today, but the
 owner now updates GitHub, so treat Drive as possibly stale.
 
-**⚠️ UNRESOLVED DRIFT, 2026-09-22: the current resume disagrees with the
-facts below, and the owner has to rule before any copy changes.** Read the
-repo, don't assume either side. What differs, measured against the resumes
-fetched that day:
+**Drift, 2026-09-22: the owner fixed the resume the same day and most of it
+is gone.** The resume now reads 88.2% Dice at 16 labels, the 75%
+correction-time speedup, Regenstrief from Feb 2024, and both first-author
+manuscripts by name, all matching this file. **Two gaps are still open and
+are the owner's call**: the resume describes NASA as ONE role (generative
+trajectory modelling: diffusion hazard-aware routing on FAA radar-track
+data, a mid-sampling gradient-guidance step, integrated into ATM simulation
+software used by NASA and the FAA, with the flight-plan LLM as one bullet),
+while the site still says SLAAC plus the synthetic ATC-speech pipeline; and
+the resume lists TWO first-author manuscripts in preparation (the second,
+"Modular SAM-prior diffusion refinement for real-world angiogram and
+seven-shot moyamoya MRA vessel segmentation"), while the site names one.
+Davinci Wearables is on the site and not on the resume, which is a superset,
+not a contradiction. The original drift list, for the record:
   - **NASA is one role on the resume, not the two-engagement arc**:
     "Generative Modeling Research Intern, Generative Trajectory Modeling",
     May 2026 to present, building weather- and hazard-aware aircraft routing
@@ -702,7 +719,15 @@ fetched that day:
   "RaspPi 2W (~1s / move)"; the owner ruled (2026-09-14) the site says
   **Raspberry Pi Zero 2 W**, not "Pi 4".
 - **Links** (footer set is data-driven; Google Scholar joins after the preprint):
-  - Resume: https://docs.google.com/document/d/1Du0NEDaov2tRzY-tWbuN0wrO6xk6SFDi/preview
+  - Resume: **`/resume.pdf`, served by this site** (owner call, 2026-09-22).
+    `scripts/pull-resume.mjs` copies the designed PDF out of the private
+    `NeelayRanjan/SAVE` repo into `public/`; the Drive URL below is retired as
+    the public copy and nothing on the site links Drive any more. Re-run the
+    script whenever the owner updates the resume, or the site keeps serving
+    the old one. The ATS variant can be pulled with `--ats` to
+    `/resume-ats.pdf`; it is deliberately NOT linked (one Resume link, and the
+    designed one is what a human should open).
+  - Retired Drive resume (kept only as history): https://docs.google.com/document/d/1Du0NEDaov2tRzY-tWbuN0wrO6xk6SFDi/preview
   - CV (HIDDEN from the site since 2026-09-14, owner call; restore on request): https://docs.google.com/document/d/1mzXEobC6bxIV_SqX761EVrDTmsYtrbsA/preview
   - Always the `/preview` form of a Drive URL, never `/edit?usp=sharing&ouid=…`
     (`ouid` is the owner's account id; `/edit` opens editing chrome;
@@ -858,6 +883,18 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   surfaces as the useless "no available backend found". If ORT changes what it
   fetches, the network tab names the file — don't guess, and the
   `ort-runtime-build` verify check asserts it from the network.
+- `scripts/pull-resume.mjs` (2026-09-22, hand-run, needs `gh` with `repo`
+  scope) copies the resume PDF out of the private `NeelayRanjan/SAVE` repo to
+  `public/resume.pdf` and records repo, path, blob sha, sha256, size and date
+  in `scripts/resume-source.json` (committed, never served, since it names a
+  private repo). `scripts/test-resume.mjs` re-hashes the committed PDF against
+  that record, so a stale or hand-edited file fails rather than shipping. ⚠️ It
+  pulls exactly one named file: that repo also holds the owner's transcript
+  and NASA material, which must never be served here. ⚠️ Both resumes print
+  the owner's phone number, so hosting the PDF publishes it;
+  `next.config.ts` sends `X-Robots-Tag: noindex` for `/resume.pdf` and
+  `/resume-ats.pdf` so the file isn't indexed (the site's own page should rank
+  for the name), which is about indexing, not privacy.
 - `scripts/gen-icons.py` (fontTools + cairosvg venv; fetches the STIX variable
   TTF, see its header), `scripts/gen-og.mjs` (Playwright),
   `scripts/prepare-sky.mjs` (fetches the star catalog from a commit-pinned

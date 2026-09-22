@@ -37,11 +37,12 @@ node scripts/verify-headshot-256.mjs       # hand-run: the 256 headshot + morph,
 node scripts/check-voice.mjs               # copy.ts + sky-facts.ts voice gate (banned words, em-dashes)
 node --test scripts/test-sky-data.mjs scripts/test-sky-math.mjs scripts/test-sky-pan.mjs \
              scripts/test-sky-objects.mjs scripts/test-sky-facts.mjs scripts/test-sky-iss.mjs \
-             scripts/test-sky-images.mjs scripts/test-chess-selfplay.mjs
+             scripts/test-sky-images.mjs scripts/test-chess-selfplay.mjs \
+             scripts/test-resume.mjs
                                             # plain node: the committed sky data's shape, the projection/
                                             # drag math pinned against astronomy-engine, the colour ends pinned
                                             # by draw-call digest, card-image index shape, fact coverage, and
-                                            # the chess self-play rule (90 cases)
+                                            # the chess self-play rule, and the served resume (93 cases)
 ```
 
 The suite is Playwright-Firefox against a real production build and asserts
@@ -144,6 +145,7 @@ plan. Nothing is recorded locally; the verify suite reads the pending
 | script | what | needs |
 |---|---|---|
 | `prepare-research.mjs` | derives `public/research/` from the paper's data; asserts the headline number before writing; `--image N` (retired wipe), `--eff-image N` (Figure 1 strip), `--accept-csv-drift` (required: SAM's re-run masks are stochastic) | ffmpeg, `external_materials/` including `paper1/data/test_predictions/` (ships as base64-encoded `test_pred.zip`) |
+| `pull-resume.mjs` | copies the resume PDF from the private `NeelayRanjan/SAVE` repo to `public/resume.pdf` (the site serves it; a private repo can't). `--ats` pulls the plain variant | `gh` with repo scope |
 | `gen-icons.py` | the STIX-N favicon set from site tokens; installs to `public/` (favicon.ico, icon-192.png, apple-icon.png), declared in `layout.tsx`, never through `app/` icon files (their URLs change every deploy) | python venv (fontTools, cairosvg) + the STIX variable TTF (see header) |
 | `gen-og.mjs` | screenshots the top of the page into `public/og.png`; rerun after any masthead copy or layout change | Playwright, server on :3000 |
 | `probe-webkit-draw.py` | drives one stroke, classify and generate in a real WebKit and samples the web process's RSS and CPU through a minute of idle; rerun after bumping `onnxruntime-web` or changing which ORT entry any loader imports | system WebKitGTK 4.1 + python gi, a display, server on :3000 |

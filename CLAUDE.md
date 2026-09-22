@@ -1072,6 +1072,14 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   total) add no measurable draw cost at this catalog size; none of the
   planned fallbacks (per-level Path2D caching, off-canvas ring culling,
   half-resolution offscreen blit) were needed.
+  **⚠️ This check fails on a loaded machine, and the failure says nothing
+  about the sky** (2026-09-22): with an unrelated python job holding half a
+  core and load average above 3, it read 8.00ms, then 9.56-9.72ms over three
+  reruns. The A/B that settles it in one build: check out the commit BEFORE
+  the round, rebuild, run the same check under the same load. That read
+  9.72-12.18ms, worse than the tree under suspicion, so the machine was the
+  variable. Do that before touching a draw path; the same shape of answer
+  applies to any timing check here.
 - **Hue cannot survive low alpha, and a screenshot review can't catch that it
   didn't.** Stargaze's first pass at warming the Milky Way band (colour
   round, 2026-09-15) changed only its hue, and a screenshot review passed it

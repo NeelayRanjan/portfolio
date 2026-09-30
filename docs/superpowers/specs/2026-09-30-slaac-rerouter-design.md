@@ -137,10 +137,15 @@ material:
 `/models/*` is served `immutable` for a year, so the ONNX file carries a content
 hash in its name and the loader reads that name from `meta.json`.
 
-**Route library**: roughly 40-60 origin-destination pairs between major hubs,
-picked by hand (not ranked from `flights.csv`, which is real TRX data), chosen so
-many of them pass a launch site (Florida, California and Virginia routes
-especially). For each pair, 8 routes from `route_lm_best.pt` via the owner's own
+**Route library**: roughly 40-60 origin-destination pairs between major hubs.
+The hubs come from a PUBLIC list, the FAA's published passenger-boarding
+(enplanement) rankings, lower 48 only (owner, 2026-09-30), never ranked from
+`flights.csv`, which is real TRX data. Checked 2026-09-30: the LM's vocabulary
+has 2,316 airport tokens and covers every top-40 hub in the lower 48 (only
+KHNL, outside the domain, is missing). Display names come from `airports.txt`
+(publishable). Pairs are chosen from those hubs so that many pass a launch site
+(Florida, California and Virginia routes especially), and the list goes to the
+owner before the LM run. For each pair, 8 routes from `route_lm_best.pt` via the owner's own
 `generate_batch` (temperature 0.8, top-k 40) under one fixed context per pair
 (a common type such as B738 or A320, a typical cruise level, a weekday, midday);
 geocoded with the owner's Viterbi `nearest` geocoder from `gen_trx_sua.py`, with
@@ -329,8 +334,13 @@ the owner's phone for the WebKit pass), not headless Firefox.
 
 ## 12. Open items the build will settle, with the owner where marked
 
-- **Denoising steps**: `plan_cli` defaults to 40; the poster says 50. The
-  demo uses 40 unless the owner says 50 (owner).
+- **Denoising steps and the other sampler settings**: the owner's ruling
+  (2026-09-30) is "whatever is performant and accurate". So the build sweeps
+  steps (for example 20, 30, 40, 50) in Python over the gate's case set, and
+  the demo ships the fewest steps whose gate metrics (legs-crossing rate,
+  median added distance, minimum clearance) stay within a stated tolerance of
+  the 40-step `plan_cli` default, then confirms the browser time. The chosen
+  value and its measured cost are recorded in the rail note and CLAUDE.md.
 - W-386's number and the Spaceport America PDF, before those polygons ship.
 - The route library's pair list: drafted by hand, shown to the owner before
   the LM run (owner).

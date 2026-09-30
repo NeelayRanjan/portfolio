@@ -1,0 +1,247 @@
+{
+ "source_url": "https://www.faa.gov/airports/planning_capacity/passenger_allcargo_stats/passenger/arp-cy2025-commercial-service-enplanements.xlsx",
+ "year": 2025,
+ "retrieved": "2026-09-30",
+ "hubs": [
+  {
+   "icao": "KATL",
+   "faa_lid": "ATL",
+   "rank": 1,
+   "name": "Hartsfield/Jackson Atlanta International",
+   "city": "Atlanta",
+   "state": "GA"
+  },
+  {
+   "icao": "KDFW",
+   "faa_lid": "DFW",
+   "rank": 2,
+   "name": "Dallas-Fort Worth International",
+   "city": "Fort Worth",
+   "state": "TX"
+  },
+  {
+   "icao": "KORD",
+   "faa_lid": "ORD",
+   "rank": 3,
+   "name": "Chicago O'Hare International",
+   "city": "Chicago",
+   "state": "IL"
+  },
+  {
+   "icao": "KDEN",
+   "faa_lid": "DEN",
+   "rank": 4,
+   "name": "Denver International",
+   "city": "Denver",
+   "state": "CO"
+  },
+  {
+   "icao": "KLAX",
+   "faa_lid": "LAX",
+   "rank": 5,
+   "name": "Los Angeles International",
+   "city": "Los Angeles",
+   "state": "CA"
+  },
+  {
+   "icao": "KJFK",
+   "faa_lid": "JFK",
+   "rank": 6,
+   "name": "John F Kennedy International",
+   "city": "New York",
+   "state": "NY"
+  },
+  {
+   "icao": "KMCO",
+   "faa_lid": "MCO",
+   "rank": 7,
+   "name": "Orlando International",
+   "city": "Orlando",
+   "state": "FL"
+  },
+  {
+   "icao": "KLAS",
+   "faa_lid": "LAS",
+   "rank": 8,
+   "name": "Harry Reid International",
+   "city": "Las Vegas",
+   "state": "NV"
+  },
+  {
+   "icao": "KMIA",
+   "faa_lid": "MIA",
+   "rank": 9,
+   "name": "Miami International",
+   "city": "Miami",
+   "state": "FL"
+  },
+  {
+   "icao": "KSFO",
+   "faa_lid": "SFO",
+   "rank": 10,
+   "name": "San Francisco International",
+   "city": "San Francisco International Airport",
+   "state": "CA"
+  },
+  {
+   "icao": "KCLT",
+   "faa_lid": "CLT",
+   "rank": 11,
+   "name": "Charlotte/Douglas International",
+   "city": "Charlotte",
+   "state": "NC"
+  },
+  {
+   "icao": "KSEA",
+   "faa_lid": "SEA",
+   "rank": 12,
+   "name": "Seattle-Tacoma International",
+   "city": "Seattle",
+   "state": "WA"
+  },
+  {
+   "icao": "KPHX",
+   "faa_lid": "PHX",
+   "rank": 13,
+   "name": "Phoenix Sky Harbor International",
+   "city": "Phoenix",
+   "state": "AZ"
+  },
+  {
+   "icao": "KEWR",
+   "faa_lid": "EWR",
+   "rank": 14,
+   "name": "Newark Liberty International",
+   "city": "Newark",
+   "state": "NJ"
+  },
+  {
+   "icao": "KIAH",
+   "faa_lid": "IAH",
+   "rank": 15,
+   "name": "George Bush Intcntl/Houston",
+   "city": "Houston",
+   "state": "TX"
+  },
+  {
+   "icao": "KBOS",
+   "faa_lid": "BOS",
+   "rank": 16,
+   "name": "General Edward Lawrence Logan International",
+   "city": "Boston",
+   "state": "MA"
+  },
+  {
+   "icao": "KMSP",
+   "faa_lid": "MSP",
+   "rank": 17,
+   "name": "Minneapolis-St Paul International/Wold-Chamberlain",
+   "city": "Minneapolis",
+   "state": "MN"
+  },
+  {
+   "icao": "KDTW",
+   "faa_lid": "DTW",
+   "rank": 18,
+   "name": "Detroit Metro Wayne County",
+   "city": "Detroit",
+   "state": "MI"
+  },
+  {
+   "icao": "KLGA",
+   "faa_lid": "LGA",
+   "rank": 19,
+   "name": "Laguardia",
+   "city": "New York",
+   "state": "NY"
+  },
+  {
+   "icao": "KFLL",
+   "faa_lid": "FLL",
+   "rank": 20,
+   "name": "Fort Lauderdale/Hollywood International",
+   "city": "Fort Lauderdale",
+   "state": "FL"
+  },
+  {
+   "icao": "KPHL",
+   "faa_lid": "PHL",
+   "rank": 21,
+   "name": "Philadelphia International",
+   "city": "Philadelphia",
+   "state": "PA"
+  },
+  {
+   "icao": "KIAD",
+   "faa_lid": "IAD",
+   "rank": 22,
+   "name": "Washington Dulles International",
+   "city": "Dulles",
+   "state": "VA"
+  },
+  {
+   "icao": "KSLC",
+   "faa_lid": "SLC",
+   "rank": 23,
+   "name": "Salt Lake City International",
+   "city": "Salt Lake City",
+   "state": "UT"
+  },
+  {
+   "icao": "KSAN",
+   "faa_lid": "SAN",
+   "rank": 24,
+   "name": "San Diego International",
+   "city": "San Diego",
+   "state": "CA"
+  },
+  {
+   "icao": "KBNA",
+   "faa_lid": "BNA",
+   "rank": 25,
+   "name": "Nashville International",
+   "city": "Nashville",
+   "state": "TN"
+  },
+  {
+   "icao": "KBWI",
+   "faa_lid": "BWI",
+   "rank": 26,
+   "name": "Baltimore/Washington International Thurgood Marshall",
+   "city": "Glen Burnie",
+   "state": "MD"
+  },
+  {
+   "icao": "KTPA",
+   "faa_lid": "TPA",
+   "rank": 27,
+   "name": "Tampa International",
+   "city": "Tampa",
+   "state": "FL"
+  },
+  {
+   "icao": "KDCA",
+   "faa_lid": "DCA",
+   "rank": 28,
+   "name": "Ronald Reagan Washington Ntl",
+   "city": "Arlington",
+   "state": "VA"
+  },
+  {
+   "icao": "KAUS",
+   "faa_lid": "AUS",
+   "rank": 29,
+   "name": "Austin-Bergstrom International",
+   "city": "Austin",
+   "state": "TX"
+  },
+  {
+   "icao": "KMDW",
+   "faa_lid": "MDW",
+   "rank": 31,
+   "name": "Chicago Midway International",
+   "city": "Chicago",
+   "state": "IL"
+  }
+ ]
+}

@@ -1,0 +1,342 @@
+{
+ "status": "draft \u2014 awaiting owner approval",
+ "context_note": "Hubs are the top lower-48 airports by FAA CY2025 enplanements (hubs.json). Pairs are chosen by great-circle chord proximity to launch-site polygons, not from any traffic data.",
+ "pairs": [
+  {
+   "origin": "KIAH",
+   "dest": "KSAN",
+   "gc_nm": 1130,
+   "nearest_site": "van-horn",
+   "nearest_site_nm": 0
+  },
+  {
+   "origin": "KJFK",
+   "dest": "KMIA",
+   "gc_nm": 949,
+   "nearest_site": "ksc",
+   "nearest_site_nm": 0
+  },
+  {
+   "origin": "KMIA",
+   "dest": "KBOS",
+   "gc_nm": 1095,
+   "nearest_site": "ksc",
+   "nearest_site_nm": 0
+  },
+  {
+   "origin": "KSAN",
+   "dest": "KAUS",
+   "gc_nm": 1010,
+   "nearest_site": "van-horn",
+   "nearest_site_nm": 0
+  },
+  {
+   "origin": "KFLL",
+   "dest": "KSAN",
+   "gc_nm": 1968,
+   "nearest_site": "van-horn",
+   "nearest_site_nm": 1
+  },
+  {
+   "origin": "KMCO",
+   "dest": "KPHL",
+   "gc_nm": 750,
+   "nearest_site": "ksc",
+   "nearest_site_nm": 3
+  },
+  {
+   "origin": "KLAX",
+   "dest": "KAUS",
+   "gc_nm": 1077,
+   "nearest_site": "van-horn",
+   "nearest_site_nm": 7
+  },
+  {
+   "origin": "KDTW",
+   "dest": "KMCO",
+   "gc_nm": 834,
+   "nearest_site": "ksc",
+   "nearest_site_nm": 14
+  },
+  {
+   "origin": "KPHX",
+   "dest": "KAUS",
+   "gc_nm": 756,
+   "nearest_site": "van-horn",
+   "nearest_site_nm": 14
+  },
+  {
+   "origin": "KLGA",
+   "dest": "KTPA",
+   "gc_nm": 879,
+   "nearest_site": "wallops",
+   "nearest_site_nm": 25
+  },
+  {
+   "origin": "KPHX",
+   "dest": "KBNA",
+   "gc_nm": 1256,
+   "nearest_site": "spaceport-america",
+   "nearest_site_nm": 50
+  },
+  {
+   "origin": "KSEA",
+   "dest": "KFLL",
+   "gc_nm": 2359,
+   "nearest_site": "ksc",
+   "nearest_site_nm": 53
+  },
+  {
+   "origin": "KCLT",
+   "dest": "KSAN",
+   "gc_nm": 1801,
+   "nearest_site": "spaceport-america",
+   "nearest_site_nm": 59
+  },
+  {
+   "origin": "KDCA",
+   "dest": "KPHX",
+   "gc_nm": 1716,
+   "nearest_site": "spaceport-america",
+   "nearest_site_nm": 79
+  },
+  {
+   "origin": "KLAS",
+   "dest": "KDFW",
+   "gc_nm": 915,
+   "nearest_site": "spaceport-america",
+   "nearest_site_nm": 82
+  },
+  {
+   "origin": "KTPA",
+   "dest": "KSLC",
+   "gc_nm": 1638,
+   "nearest_site": "ksc",
+   "nearest_site_nm": 91
+  },
+  {
+   "origin": "KEWR",
+   "dest": "KATL",
+   "gc_nm": 648,
+   "nearest_site": "wallops",
+   "nearest_site_nm": 93
+  },
+  {
+   "origin": "KMDW",
+   "dest": "KBWI",
+   "gc_nm": 529,
+   "nearest_site": "wallops",
+   "nearest_site_nm": 93
+  },
+  {
+   "origin": "KLAX",
+   "dest": "KBOS",
+   "gc_nm": 2264,
+   "nearest_site": "vandenberg",
+   "nearest_site_nm": 96
+  },
+  {
+   "origin": "KLAX",
+   "dest": "KDEN",
+   "gc_nm": 748,
+   "nearest_site": "vandenberg",
+   "nearest_site_nm": 96
+  },
+  {
+   "origin": "KLAX",
+   "dest": "KMSP",
+   "gc_nm": 1332,
+   "nearest_site": "vandenberg",
+   "nearest_site_nm": 96
+  },
+  {
+   "origin": "KORD",
+   "dest": "KLAX",
+   "gc_nm": 1513,
+   "nearest_site": "vandenberg",
+   "nearest_site_nm": 96
+  },
+  {
+   "origin": "KDFW",
+   "dest": "KSFO",
+   "gc_nm": 1270,
+   "nearest_site": "spaceport-america",
+   "nearest_site_nm": 107
+  },
+  {
+   "origin": "KATL",
+   "dest": "KIAD",
+   "gc_nm": 464,
+   "nearest_site": "wallops",
+   "nearest_site_nm": 112
+  },
+  {
+   "origin": "KDTW",
+   "dest": "KIAD",
+   "gc_nm": 333,
+   "nearest_site": "wallops",
+   "nearest_site_nm": 112
+  },
+  {
+   "origin": "KSFO",
+   "dest": "KLAS",
+   "gc_nm": 359,
+   "nearest_site": "vandenberg",
+   "nearest_site_nm": 131
+  },
+  {
+   "origin": "KEWR",
+   "dest": "KDEN",
+   "gc_nm": 1391,
+   "nearest_site": "wallops",
+   "nearest_site_nm": 171
+  },
+  {
+   "origin": "KEWR",
+   "dest": "KORD",
+   "gc_nm": 623,
+   "nearest_site": "wallops",
+   "nearest_site_nm": 173
+  },
+  {
+   "origin": "KEWR",
+   "dest": "KSEA",
+   "gc_nm": 2082,
+   "nearest_site": "wallops",
+   "nearest_site_nm": 175
+  },
+  {
+   "origin": "KLGA",
+   "dest": "KDEN",
+   "gc_nm": 1404,
+   "nearest_site": "wallops",
+   "nearest_site_nm": 178
+  },
+  {
+   "origin": "KMSP",
+   "dest": "KJFK",
+   "gc_nm": 892,
+   "nearest_site": "wallops",
+   "nearest_site_nm": 179
+  },
+  {
+   "origin": "KMDW",
+   "dest": "KLGA",
+   "gc_nm": 628,
+   "nearest_site": "wallops",
+   "nearest_site_nm": 180
+  },
+  {
+   "origin": "KLGA",
+   "dest": "KORD",
+   "gc_nm": 636,
+   "nearest_site": "wallops",
+   "nearest_site_nm": 181
+  },
+  {
+   "origin": "KSLC",
+   "dest": "KLGA",
+   "gc_nm": 1718,
+   "nearest_site": "wallops",
+   "nearest_site_nm": 182
+  },
+  {
+   "origin": "KLGA",
+   "dest": "KMSP",
+   "gc_nm": 884,
+   "nearest_site": "wallops",
+   "nearest_site_nm": 185
+  },
+  {
+   "origin": "KLGA",
+   "dest": "KSEA",
+   "gc_nm": 2091,
+   "nearest_site": "wallops",
+   "nearest_site_nm": 185
+  },
+  {
+   "origin": "KSLC",
+   "dest": "KIAH",
+   "gc_nm": 1038,
+   "nearest_site": "spaceport-america",
+   "nearest_site_nm": 211
+  },
+  {
+   "origin": "KMDW",
+   "dest": "KIAH",
+   "gc_nm": 798,
+   "nearest_site": "starbase",
+   "nearest_site_nm": 243
+  },
+  {
+   "origin": "KSEA",
+   "dest": "KIAH",
+   "gc_nm": 1627,
+   "nearest_site": "starbase",
+   "nearest_site_nm": 243
+  },
+  {
+   "origin": "KMDW",
+   "dest": "KCLT",
+   "gc_nm": 507,
+   "nearest_site": "wallops",
+   "nearest_site_nm": 300
+  },
+  {
+   "origin": "KMSP",
+   "dest": "KCLT",
+   "gc_nm": 808,
+   "nearest_site": "wallops",
+   "nearest_site_nm": 300
+  },
+  {
+   "origin": "KORD",
+   "dest": "KCLT",
+   "gc_nm": 521,
+   "nearest_site": "wallops",
+   "nearest_site_nm": 300
+  },
+  {
+   "origin": "KSLC",
+   "dest": "KDEN",
+   "gc_nm": 339,
+   "nearest_site": "spaceport-america",
+   "nearest_site_nm": 390
+  },
+  {
+   "origin": "KDEN",
+   "dest": "KBNA",
+   "gc_nm": 879,
+   "nearest_site": "spaceport-america",
+   "nearest_site_nm": 391
+  },
+  {
+   "origin": "KDEN",
+   "dest": "KMDW",
+   "gc_nm": 776,
+   "nearest_site": "spaceport-america",
+   "nearest_site_nm": 391
+  },
+  {
+   "origin": "KDEN",
+   "dest": "KMSP",
+   "gc_nm": 590,
+   "nearest_site": "spaceport-america",
+   "nearest_site_nm": 391
+  },
+  {
+   "origin": "KSLC",
+   "dest": "KMSP",
+   "gc_nm": 859,
+   "nearest_site": "spaceport-america",
+   "nearest_site_nm": 493
+  },
+  {
+   "origin": "KMSP",
+   "dest": "KORD",
+   "gc_nm": 290,
+   "nearest_site": "wallops",
+   "nearest_site_nm": 621
+  }
+ ]
+}

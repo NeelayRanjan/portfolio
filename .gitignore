@@ -51,3 +51,5 @@ next-env.d.ts
 
 # local asset mine for the redesign (45MB, data tarballs); derivatives are built into public/
 /external_materials/
+
+scripts/slaac/__pycache__/

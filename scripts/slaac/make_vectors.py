@@ -381,13 +381,7 @@ SUA_CENTRES = [(38.9, -113.5, 1.0), (33.3, -107.5, 0.9), (43.5, -94.7, 1.0),
 
 
 def snap_table(ws, nasa_dir):
-    _, gen = nasa.paths(nasa_dir)
-    wpdb = ws.load_waypoints(os.path.join(gen, "wyp345plus.txt"), fix_types={"VOR", "WAYPOINT"},
-                             exclude_digit_names=True, exclude_prefixes=("VP",))
-    # exactly plan_cli.build's --snap-table vor3 filter
-    m3 = np.array([len(str(n)) == 3 and str(n).isalpha() for n in wpdb.names])
-    i3 = np.where(m3)[0]
-    return ws.WaypointDB(wpdb.names[i3], wpdb.lat[i3], wpdb.lon[i3])
+    return nasa.snap_table(ws, nasa_dir)  # shared with prepare_nav.py
 
 
 def nominal_route(sg, w3, o, d, spacing_nm=150.0):

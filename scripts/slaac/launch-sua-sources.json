@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "research": "docs/superpowers/specs/2026-09-30-launch-sua-sources.md",
+  "layer": "https://services6.arcgis.com/ssFJjBXIUyZDrSYZ/arcgis/rest/services/Special_Use_Airspace/FeatureServer/0",
+  "licence": "FAA AIS item licenseInfo: \"The data provided is for public use.\" (US federal work)",
+  "sites": [
+    {
+      "id": "ksc", "name": "Cape Canaveral / KSC", "kind": "charted",
+      "designators": ["R-2932", "R-2933", "R-2934", "R-2935", "W-497A", "W-497B"],
+      "basis": "https://www.faa.gov/space/spaceports_by_state"
+    },
+    {
+      "id": "vandenberg", "name": "Vandenberg SFB", "kind": "charted",
+      "designators": ["R-2516", "R-2517", "R-2534A", "R-2534B", "W-532S"],
+      "basis": "https://www.faa.gov/space/spaceports_by_state"
+    },
+    {
+      "id": "wallops", "name": "Wallops Flight Facility", "kind": "charted",
+      "designators": ["R-6604A", "R-6604B"],
+      "basis": "https://www.nasa.gov/wp-content/uploads/2024/10/airspace-r6604-cde-ea-fonsi.pdf",
+      "excluded": {
+        "W-386": "Opened the NASA Wallops Range User's Handbook (840-HDBK-0003, 2023): section 3.1.4 says only \"VACAPES Warning Areas and International Waters\" and \"Restricted Area R-6604: Restricted airspace connecting WFF and offshore warning areas (Figure 3-4)\"; Figure 3-4 (page 26) is a schematic labelled \"OFFSHORE WARNING AREA\" with no W number. No opened source ties W-386 to Wallops, so it is left out. R-6604A/B is named in the NASA R-6604 C/D/E EA: \"WFF's existing R-6604A/B airspace\"."
+      }
+    },
+    {
+      "id": "spaceport-america", "name": "Spaceport America", "kind": "charted",
+      "designators": ["R-5111A", "R-5111B"],
+      "basis": "https://www.faa.gov/about/office_org/headquarters_offices/apl/aee/env_policy/sfa_supersonic/Hermeus_SFA_gtM1_WSMR_20260409_Final.pdf",
+      "confirmed": "Opened the FAA PDF: \"Spaceport America, located within WSMR's R-5111 A & B restricted area, is an FAA-licensed launch complex\""
+    },
+    {
+      "id": "starbase", "name": "Starbase, Boca Chica", "kind": "past-tfr",
+      "label": "Starship Flight 10 launch TFR, FDC 5/3325",
+      "designators": ["FDC 5/3325"],
+      "xml": "https://tfr.faa.gov/download/detail_5_3325.xml",
+      "basis": "https://tfr.faa.gov/download/detail_5_3325.xml"
+    },
+    {
+      "id": "van-horn", "name": "Blue Origin, Van Horn", "kind": "past-tfr",
+      "label": "New Shepard NS-35 launch TFR, FDC 5/0611",
+      "designators": ["FDC 5/0611"],
+      "xml": "https://tfr.faa.gov/download/detail_5_0611.xml",
+      "basis": "https://tfr.faa.gov/download/detail_5_0611.xml"
+    }
+  ],
+  "omitted": {
+    "white-sands": "missile range, not a launch-hazard site for this demo; dominates the map",
+    "mojave": "FAA lists R-2508/2515 as access to Edwards airspace, not launch-hazard airspace",
+    "kodiak": "outside the lower-48 model domain; no charted SUA",
+    "W-532E/N": "no source ties them to launches",
+    "W-387": "low-confidence association",
+    "R-6604C-E": "low-altitude UAS areas"
+  }
+}

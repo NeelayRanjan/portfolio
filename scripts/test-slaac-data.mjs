@@ -1,0 +1,113 @@
+// node --test scripts/test-slaac-data.mjs
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync, existsSync } from "node:fs";
+import * as D from "../lib/slaac/data.ts";
+
+const pub = (n) => new URL(`../public/slaac/${n}`, import.meta.url);
+const J = (n) => JSON.parse(readFileSync(pub(n)));
+const SRC = JSON.parse(readFileSync(new URL("./slaac/launch-sua-sources.json", import.meta.url)));
+const APPROVED = ["ksc", "vandenberg", "wallops", "spaceport-america", "starbase", "van-horn"];
+const BOX = { lat: [24, 50], lon: [-126, -66] };
+
+// Drop one field (or one nested path) from a deep copy.
+const without = (o, ...path) => {
+  const c = structuredClone(o);
+  let t = c;
+  for (const k of path.slice(0, -1)) t = t[k];
+  delete t[path[path.length - 1]];
+  return c;
+};
+
+test("navaids: parallel arrays of 3-letter names inside the box", () => {
+  const n = J("navaids.json");
+  assert.equal(n.version, 1);
+  assert.ok(n.names.length >= 300, `${n.names.length} navaids`);
+  assert.equal(n.lat.length, n.names.length);
+  assert.equal(n.lon.length, n.names.length);
+  n.names.forEach((nm, i) => {
+    assert.match(nm, /^[A-Z]{3}$/);
+    assert.ok(n.lat[i] >= 17 && n.lat[i] <= 50 && n.lon[i] >= -130 && n.lon[i] <= -60, nm);
+  });
+  assert.doesNotThrow(() => D.validateNavaids(n));
+  assert.throws(() => D.validateNavaids(without(n, "lon")));
+  assert.throws(() => D.validateNavaids({ ...n, lat: n.lat.slice(1) }));
+});
+
+test("us-outline: lon/lat pairs with null segment breaks", () => {
+  const o = J("us-outline.json");
+  assert.equal(o.version, 1);
+  assert.ok(o.lonlat.length > 100);
+  assert.ok(o.lonlat.some((p) => p === null), "segment breaks kept");
+  for (const p of o.lonlat) if (p) assert.ok(p[0] >= -130 && p[0] <= -60 && p[1] >= 17 && p[1] <= 50);
+  assert.doesNotThrow(() => D.validateOutline(o));
+  assert.throws(() => D.validateOutline(without(o, "lonlat")));
+});
+
+test("launch-sua: approved sites, sourced polygons, sources file agrees", () => {
+  const l = J("launch-sua.json");
+  assert.equal(l.version, 1);
+  assert.match(l.cycle, /^\d{4}-\d\d-\d\d\.\.\d{4}-\d\d-\d\d$/);
+  const excludedSites = new Set(SRC.sites.filter((s) => s.excluded && typeof s.excluded === "string").map((s) => s.id));
+  const want = APPROVED.filter((id) => !excludedSites.has(id));
+  assert.deepEqual(l.sites.map((s) => s.id), want);
+  for (const banned of ["white-sands", "mojave", "kodiak"]) assert.ok(!l.sites.some((s) => s.id === banned));
+  const listed = new Map(SRC.sites.map((s) => [s.id, new Set(s.designators)]));
+  const excludedDesig = new Set(SRC.sites.flatMap((s) => Object.keys(s.excluded && typeof s.excluded === "object" ? s.excluded : {})));
+  for (const s of l.sites) {
+    assert.ok(s.polys.length >= 1, s.id);
+    assert.ok(["charted", "past-tfr"].includes(s.kind));
+    if (s.kind === "past-tfr") assert.ok(s.label, `${s.id} past-tfr needs a label`);
+    assert.match(s.basis, /^https:\/\//);
+    for (const p of s.polys) {
+      assert.ok(p.ring.length >= 3, `${s.id} ${p.designator}`);
+      assert.match(p.source, /^https:\/\//);
+      assert.ok(listed.get(s.id).has(p.designator), `${p.designator} not in sources file`);
+      assert.ok(!excludedDesig.has(p.designator), `${p.designator} was excluded`);
+      assert.equal(typeof p.clipped, "boolean");
+      for (const [la, lo] of p.ring) {
+        assert.ok(la >= BOX.lat[0] && la <= BOX.lat[1] && lo >= BOX.lon[0] && lo <= BOX.lon[1], `${p.designator} outside domain box`);
+      }
+    }
+  }
+  assert.doesNotThrow(() => D.validateLaunch(l));
+  assert.throws(() => D.validateLaunch(without(l, "cycle")));
+  assert.throws(() => D.validateLaunch(without(l, "sites", 0, "polys", 0, "source")));
+  assert.throws(() => D.validateLaunch(without(l, "sites", 0, "basis")));
+});
+
+test("sources file records why excluded items are out", () => {
+  const w = SRC.sites.find((s) => s.id === "wallops");
+  assert.ok(w.excluded["W-386"].length > 40);
+  assert.ok(!w.designators.includes("W-386"));
+  assert.ok(SRC.sites.find((s) => s.id === "spaceport-america").designators.includes("R-5111A"));
+});
+
+test("meta validates and rejects a missing field", () => {
+  const m = J("meta.json");
+  assert.doesNotThrow(() => D.validateMeta(m));
+  assert.throws(() => D.validateMeta(without(m, "xy_scale")));
+  assert.throws(() => D.validateMeta(without(m, "sampler", "steps")));
+  assert.throws(() => D.validateMeta(without(m, "scheduler")));
+  assert.throws(() => D.validateMeta({ ...m, version: 2 }));
+});
+
+test("airports", (t) => {
+  if (!existsSync(pub("airports.json"))) return t.skip("airports.json not generated yet (needs scripts/slaac/pairs.json, Task 9)");
+  const a = J("airports.json");
+  assert.doesNotThrow(() => D.validateAirports(a));
+  assert.throws(() => D.validateAirports(without(a, "airports")));
+});
+
+test("routes", (t) => {
+  if (!existsSync(pub("routes.json"))) return t.skip("routes.json absent until Task 9");
+  const r = J("routes.json");
+  assert.doesNotThrow(() => D.validateRoutes(r));
+  assert.throws(() => D.validateRoutes(without(r, "pairs")));
+  assert.throws(() => D.validateRoutes(without(r, "pairs", 0, "routes", 0, "fixes")));
+});
+
+test("validators reject non-objects", () => {
+  for (const v of [D.validateMeta, D.validateRoutes, D.validateNavaids, D.validateAirports, D.validateOutline, D.validateLaunch])
+    assert.throws(() => v(null));
+});

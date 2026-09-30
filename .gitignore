@@ -53,3 +53,4 @@ next-env.d.ts
 /external_materials/
 
 scripts/slaac/__pycache__/
+scripts/slaac/.cache/

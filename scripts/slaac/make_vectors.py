@@ -265,7 +265,7 @@ class OrtModel(torch.nn.Module):
         return torch.from_numpy(self.s.run(None, feed)[0])
 
 
-def run_sample(model, sched, st, plan_cli, sg, eps, polys, steps, r0, cfg, trace=None):
+def run_sample(model, sched, st, plan_cli, sg, eps, polys, steps, r0, cfg, trace=None, cf_calls=None):
     """plan_cli.sample_paths with its ONE torch.randn call replaced by r0 (asserted)."""
     from diffusers import DPMSolverMultistepScheduler
     sch = DPMSolverMultistepScheduler.from_config(sched.config)
@@ -286,7 +286,11 @@ def run_sample(model, sched, st, plan_cli, sg, eps, polys, steps, r0, cfg, trace
 
         def cf(*a, **k):
             trace.append(stash["x0"][0].clone())          # arc 0's x0 as self-conditioning saw it
-            return orig_cf(*a, **k)
+            o = orig_cf(*a, **k)
+            if cf_calls is not None:                      # the REAL float32 args, as torch saw them
+                cf_calls.append(dict(p_xy=a[0].clone(), endpoints=a[1].clone(), res_scale=float(a[2]),
+                                     out=o.clone()))
+            return o
         plan_cli.v_to_x0, plan_cli.chord_features = v2x0, cf
     torch.randn = fake_randn
     try:
@@ -310,10 +314,11 @@ def sampler(model, sched, st, plan_cli, sg):
     ort_model = OrtModel(os.path.join(ROOT, "public/models", meta["model"]), meta["null_type"])
     xm = np.asarray(st.xy_mean, np.float64).reshape(1, 2, 1)
     xs = float(st.xy_scale)
-    out = {"chord_features": [], "runs": []}
+    out = {"note": "chord is computed in float32; the pinned end is A+(D-A)*1.0 in float32",
+           "chord_features": [], "runs": []}
 
     # chord_features on 3 random paths (float64): chord + a smooth random residual
-    for _ in range(3):
+    for kk in range(3):
         n = 2
         eps = torch.from_numpy(rng.normal(0, 0.5, size=(n, 2, 6)))
         s = torch.linspace(0, 1, N, dtype=torch.float64)
@@ -321,7 +326,8 @@ def sampler(model, sched, st, plan_cli, sg):
         res = torch.from_numpy(rng.normal(0, 1, size=(n, 2, N))).cumsum(2) * 0.004
         p = ch + res
         o = plan_cli.chord_features(p, eps, st.res_scale)
-        out["chord_features"].append(dict(p_xy=p, endpoints=eps, res_scale=st.res_scale, out=o))
+        out["chord_features"].append(dict(label=f"random-{kk}", p_xy=p, endpoints=eps,
+                                          res_scale=st.res_scale, out=o))
 
     cfg = dict(guidance=2.0, sua_strength=1.0, sua_margin_nm=25.0, sua_smooth=1.0, lowpass_sigma=2.0)
     ods = [((37.62, -122.38), (39.86, -104.67)),       # KSFO -> KDEN
@@ -331,8 +337,14 @@ def sampler(model, sched, st, plan_cli, sg):
     for label, steps, seed, polys_ll in [("no-sua", 20, 1, []), ("sua", 40, 2, sua_ll)]:
         polys = sg.load_sua(polys_ll) if polys_ll else []
         r0 = torch.randn(len(ods), st.channels, N, generator=torch.Generator().manual_seed(seed))
-        trace = []
-        final = run_sample(model, sched, st, plan_cli, sg, eps, polys, steps, r0, cfg, trace)
+        trace, cf_calls = [], []
+        final = run_sample(model, sched, st, plan_cli, sg, eps, polys, steps, r0, cfg, trace, cf_calls)
+        if polys:
+            # The demo's real input: x0's ends are pinned, so p_xy's last column is the float32
+            # chord end A+(D-A)*1.0, which can sit 1 ulp off E. A float64 port reads to_end as
+            # exactly 0 there and flips the dh_e channels; these cases pin that.
+            for i, c in enumerate(cf_calls[:3]):
+                out["chord_features"].append(dict(label=f"pipeline-step-{i}", **c))
         final_ort = run_sample(ort_model, sched, st, plan_cli, sg, eps, polys, steps, r0, cfg)
         a = final[:, :2].double().numpy() * xs + xm
         b = final_ort[:, :2].double().numpy() * xs + xm
@@ -368,7 +380,7 @@ SUA_CENTRES = [(38.9, -113.5, 1.0), (33.3, -107.5, 0.9), (43.5, -94.7, 1.0),
                (37.1, -79.1, 0.8), (33.6, -91.5, 0.9)]
 
 
-def snap_table(ws, plan_cli, nasa_dir):
+def snap_table(ws, nasa_dir):
     _, gen = nasa.paths(nasa_dir)
     wpdb = ws.load_waypoints(os.path.join(gen, "wyp345plus.txt"), fix_types={"VOR", "WAYPOINT"},
                              exclude_digit_names=True, exclude_prefixes=("VP",))
@@ -423,7 +435,7 @@ def run_local(sg, model, sched, st, plan_cli, cache, w3, nominal, polys, hug, ma
 
 
 def reroute(sg, ws, model, sched, st, plan_cli, nasa_dir):
-    w3 = snap_table(ws, plan_cli, nasa_dir)
+    w3 = snap_table(ws, nasa_dir)
     polys = sg.load_sua([ring(la, lo, r) for la, lo, r in SUA_CENTRES])
     cache = {}
     out = {"snap_table": {"names": [str(n) for n in w3.names], "lat": w3.lat, "lon": w3.lon},
@@ -579,11 +591,20 @@ def validate():
     assert {"crossing", "grazing", "two-polygons"} <= labels, labels
 
     sm = L("sampler.json")
-    assert set(sm) == {"chord_features", "runs"}
+    assert set(sm) == {"note", "chord_features", "runs"}
     for c in sm["chord_features"]:
-        need(c, ["p_xy", "endpoints", "out"], "chord_features")
+        need(c, ["label", "p_xy", "endpoints", "out"], "chord_features")
         n, two, Nn = shape(c["p_xy"]); assert two == 2
         assert shape(c["endpoints"]) == (n, 2, 6) and shape(c["out"]) == (n, 6, Nn)
+    pipe = [c for c in sm["chord_features"] if c["label"].startswith("pipeline-step-")]
+    assert [c["label"] for c in pipe] == ["pipeline-step-0", "pipeline-step-1", "pipeline-step-2"]
+    assert sum(c["label"].startswith("random-") for c in sm["chord_features"]) == 3
+    ulp = 0
+    for c in pipe:                                    # float32 values are exact in float64
+        E = np.array(c["endpoints"])[:, 1, :2]
+        to_end = E - np.array(c["p_xy"])[:, :, -1]
+        ulp += int(np.count_nonzero(to_end))
+    assert ulp > 0, "no pipeline case has a non-zero to_end at column N-1: the ulp is not exercised"
     assert sorted(r["steps"] for r in sm["runs"]) == [20, 40]
     assert sorted(bool(r["polys_m"]) for r in sm["runs"]) == [False, True]
     for r in sm["runs"]:

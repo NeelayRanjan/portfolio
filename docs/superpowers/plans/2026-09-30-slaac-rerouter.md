@@ -80,7 +80,7 @@ Vectors are JSON with float64 arrays as plain numbers. Every TS test reads them 
 - Modify: `.gitignore` (add `scripts/slaac/__pycache__/`)
 
 **Interfaces:**
-- Produces: `nasa.load(nasa_dir) -> (model, sched, stats, sg, ws, plan_cli)`; `nasa.fixed_local_reroute(...)` (the owner's function with `return plan, roles` added to the wide branch); `meta.json` schema:
+- Produces: `nasa.load(nasa_dir) -> (model, sched, stats, sg, ws, plan_cli)`; `sg.local_reroute(...)` (the owner's function with `return plan, roles` added to the wide branch); `meta.json` schema:
   ```json
   {"version":1,"model":"flightdiff-xxxxxxxx.onnx","sha256":"...","channels":7,"num_types":448,
    "null_type":448,"sample_size":256,"res_scale":0.0737...,"xy_mean":[x,y],"xy_scale":1225841.79,
@@ -287,7 +287,7 @@ Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>"
 - Create (output): `scripts/slaac-vectors/{albers,geometry,dpm,guidance,sampler,reroute}.json`
 
 **Interfaces:**
-- Consumes: `nasa.load`, `nasa.fixed_local_reroute`.
+- Consumes: `nasa.load`, `sg.local_reroute`.
 - Produces: the vector files below; each is `{"cases": [...]}` with the named fields. Arrays are nested lists, float64.
   - `albers.json`: `{lat, lon, x, y}` for 64 points (grid over 20-52N, -128 to -64E) plus inverse round-trip.
   - `geometry.json`: cases for `inside` (pts, poly, out bools), `nearest_boundary`, `seg_crosses_poly`, `seg_poly_dist`, `seg_illegal` (margin 0 and 25 nm), `pt_illegal`, `dist_to_sua_nm`, `rdp_mask` (tol), including a concave poly and a point exactly on a vertex.
@@ -356,7 +356,7 @@ def run_sample(model, sched, st, plan_cli, sg, ep_ll_pairs, polys_ll, steps, see
     return dict(r0=r0, endpoints=eps, final=final, polys_m=polys or [], steps=steps)
 ```
 Record two runs (no SUA / with a polygon straddling the chord), each with 2 arcs (KSFO→KDEN-ish and KMIA→KATL-ish endpoints as lat/lon). Before trusting it, assert `sample_paths` calls `torch.randn` exactly once (count calls in the lambda); if the count differs, fail loudly. Also record `plan_cli.chord_features` on 3 random paths.
-- `reroute(sg, ws, plan_cli)`: build a snap table exactly like `plan_cli.build` (`ws.load_waypoints(fixes, fix_types={"VOR","WAYPOINT"}, exclude_digit_names=True, exclude_prefixes=("VP",))`, then the `vor3` filter). Use 6 nominal routes as fix lists taken from the snap table itself (e.g. strings of 3-letter VORs across the country), 5 polygons. The sampler stub: a class whose `__call__(entry_ll, rejoin_ll, polys)` returns a recorded arc: for determinism, arc = the real `plan_cli.Sampler` output computed once and cached by key, with `cfg` from `plan_cli`'s defaults (seed 0, steps 20 to keep it fast). Record `calls`, `arcs`, `plan`, `roles` for hug and wide (via `nasa.fixed_local_reroute(sg)`), margins 25 and 40, `clear_margin_nm` = margin (plan_cli's default). Include the "endpoint inside" case (a polygon over the route's first fix). Also export the snap table used (names/lat/lon) into `reroute.json` as `snap_table` so the TS tests use identical fixes.
+- `reroute(sg, ws, plan_cli)`: build a snap table exactly like `plan_cli.build` (`ws.load_waypoints(fixes, fix_types={"VOR","WAYPOINT"}, exclude_digit_names=True, exclude_prefixes=("VP",))`, then the `vor3` filter). Use 6 nominal routes as fix lists taken from the snap table itself (e.g. strings of 3-letter VORs across the country), 5 polygons. The sampler stub: a class whose `__call__(entry_ll, rejoin_ll, polys)` returns a recorded arc: for determinism, arc = the real `plan_cli.Sampler` output computed once and cached by key, with `cfg` from `plan_cli`'s defaults (seed 0, steps 20 to keep it fast). Record `calls`, `arcs`, `plan`, `roles` for hug and wide (via `sg.local_reroute`), margins 25 and 40, `clear_margin_nm` = margin (plan_cli's default). Include the "endpoint inside" case (a polygon over the route's first fix). Also export the snap table used (names/lat/lon) into `reroute.json` as `snap_table` so the TS tests use identical fixes.
 
 - [ ] **Step 2: Run it**
 
@@ -794,10 +794,10 @@ test("endpoint inside: returns, reports the residual, never hangs", () => {
 - Modify: `public/slaac/meta.json` (`sampler.steps`, and a new `"display": "snapped" | "continuous"`)
 
 **Interfaces:**
-- Consumes: `nasa.load`, `nasa.fixed_local_reroute`, `routes.json`, `launch-sua.json`, `navaids.json`.
+- Consumes: `nasa.load`, `sg.local_reroute`, `routes.json`, `launch-sua.json`, `navaids.json`.
 - Produces: `report.json` with, per policy (`hug`, `wide`) and per steps in [20, 30, 40, 50]: `n_reroutes`, `leg_clear_rate_pct` (legs crossing = 0), `clear_at_margin_pct`, `added_nm_median`, `added_pct_median`, `min_clearance_nm_median`, `shorter_after_reroute`, `exceptions`, `t_gen_s_median`; plus `chosen_steps`, `display`, and the failing cases (pair, route index, polygon id, legs crossing) when any.
 
-- [ ] **Step 1: Write `gate.py`.** Case set: every route in the library × {the launch preset (all sites at once), 200 random polygons generated with `eval_sua.py`'s own random-polygon function (import it by path; if it isn't importable as a function, port its generator into `gate.py` from `eval_sua.py` and cite the lines)} × {hug, wide} × steps, margin 25, `clear_margin_nm = 25`. Skip (and count) route/polygon combinations with no affected leg. Sampler: `plan_cli.Sampler` with `cfg` from `plan_cli` defaults and the swept `steps`, on `cuda`. Reroute with `nasa.fixed_local_reroute(sg)`. Metrics with `plan_cli.leg_crossings` / `min_clearance_nm` / `path_len_nm`.
+- [ ] **Step 1: Write `gate.py`.** Case set: every route in the library × {the launch preset (all sites at once), 200 random polygons generated with `eval_sua.py`'s own random-polygon function (import it by path; if it isn't importable as a function, port its generator into `gate.py` from `eval_sua.py` and cite the lines)} × {hug, wide} × steps, margin 25, `clear_margin_nm = 25`. Skip (and count) route/polygon combinations with no affected leg. Sampler: `plan_cli.Sampler` with `cfg` from `plan_cli` defaults and the swept `steps`, on `cuda`. Reroute with `sg.local_reroute`. Metrics with `plan_cli.leg_crossings` / `min_clearance_nm` / `path_len_nm`.
 - [ ] **Step 2: Decision rule, coded:**
   - A steps value is ACCEPTABLE if, versus steps=40 on the same cases: leg-clear rate within 0.5 points, median added nm within 10%, median min clearance within 2 nm.
   - `chosen_steps` = the smallest acceptable value.

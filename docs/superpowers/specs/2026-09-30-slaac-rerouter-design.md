@@ -90,11 +90,10 @@ From `flight_path_generation/Hazard-Aware Generative Flight Planning/`
 5. Metrics: legs crossing (the one that must be 0), minimum clearance, added nm
    and %.
 
-**Found while reading, to fix in the port and report to the owner**: the
-wide-berth branch of `local_reroute` (`hug=0`) has no `return plan, roles`, so it
-returns `None`. `plan_cli` defaults to `hug=1`, which is why it never surfaced.
-The archived `results_final` evaluation ran wide berth successfully, so it came
-from a version that still had the return.
+**Corrected 2026-09-30**: an earlier draft claimed the wide-berth branch of
+`local_reroute` had no `return`. It does: the file's last line, `return plan,
+roles`, has no trailing newline, and the line-count tools used to read it hid
+it. There is no bug; the port calls the owner's function as-is.
 
 **Also to note in the port**: `Sampler.__call__` reseeds with the same seed for
 every arc, so every arc in a run starts from identical noise. The port keeps

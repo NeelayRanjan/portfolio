@@ -33,7 +33,7 @@
 1. **A polygon that swallows an origin or destination airport** (or a filed anchor that can never clear): the pipeline cannot clear it; the figure must say so for that flight ("can't clear: an endpoint is inside the airspace"), show the residual legs crossing honestly, and never hang. Test: Task 7 step "endpoint inside" + Task 12 readout.
 2. **A polygon no route comes near**: no reroute is needed, so the model must NOT download; the figure says no flight comes within the margin. Test: Task 11 (`planArcs` returns zero arcs) + Task 14 `slaac-nothing-at-rest` variant.
 3. **A degenerate or self-crossing drawn ring** (fewer than 3 vertices, a closing click on the first vertex with 2 points, edges that cross): closing is refused with a short message; a self-crossing ring is refused rather than fed to the even-odd `_inside`. Test: Task 12 `ring.test`.
-4. **Pressing reroute again, switching pair, or changing margin/lookahead while a run is in flight**: the old run is cancelled and its late replies are discarded by run id, never painted onto the new state (the chess stale-reply trap). Test: Task 11 worker protocol test + Task 14 `slaac-reroute` second press.
+4. **Pressing reroute again, switching pair, or changing margin/lookahead while a run is in flight**: the old run is cancelled and its late replies are discarded by run id, never painted onto the new state (the chess stale-reply trap). Test: Task 14 `slaac-reroute` (two presses back to back; only the last run lands; bite by dropping the runId filter).
 5. **The launch preset plus a large drawn polygon on a phone**: many arcs; the worker chunks the batch under its cap, progress keeps moving, and stargaze or cancel stops it within one step. Test: Task 11 chunking test + Task 14 `slaac-stargaze-cancel`.
 
 ---
@@ -820,6 +820,7 @@ test("endpoint inside: returns, reports the residual, never hangs", () => {
 - Produces:
   ```ts
   // lib/slaac/arcs.ts
+  export type RerouteOpts = Parameters<typeof localReroute>[3]; // the opts object localReroute takes
   export type FlightIn = { id: string; nominal: Fix[] };
   export type ArcJob = { flight: string; index: number; entry: Fix; rejoin: Fix };
   export function planArcs(flights: FlightIn[], polys: Poly[], opts: RerouteOpts): ArcJob[];
@@ -837,7 +838,8 @@ test("endpoint inside: returns, reports the residual, never hangs", () => {
     | { kind: "cancelled"; runId: number } | { kind: "error"; runId: number; message: string };
 
   // lib/slaac-engine.ts
-  export class SlaacUnloaded extends Error {}
+  export class SlaacUnloaded extends Error {}   // stargaze terminated the worker
+  export class SlaacCancelled extends Error {}  // a newer reroute press superseded this one
   export type SlaacEngine = { reroute(req: Omit<RerouteReq, "kind" | "runId">, onProgress: (p: Extract<Res, { kind: "progress" }>) => void): Promise<Extract<Res, { kind: "done" }>>; cancel(): void; terminate(): void };
   export function loadSlaacEngine(): Promise<SlaacEngine | null>; // memoized; null if meta or model 404s
   export function unloadSlaacEngine(): void; // stargaze offload; noteOffload("slaac")
@@ -875,10 +877,10 @@ test("endpoint inside: returns, reports the residual, never hangs", () => {
   - Controls row (mono 11px, wraps at 400px): pair `<select>` (label "route"), "draw airspace" toggle button, "clear", "all launch sites" checkbox, margin `<input type="range" min=10 max=50 step=5>` with its value, lookahead segmented control ("1 waypoint" / "infinite"), "reroute" button. Margin/lookahead changes after a run mark the result stale (readout says so) and the next press re-runs; nothing re-runs by itself.
   - Canvas: width = container, height = `min(0.62 * width, 60vh)`, DPR-aware; ResizeObserver redraws on WIDTH change only.
   - Drawing: pointerdown on canvas while "draw airspace" is on adds a vertex (`fromScreen`); clicking within 12px (22px touch) of the first vertex closes the ring via `checkRing`; refusal shows `copy.research.figReroute.ringTooFew` / `ringSelfCrossing` for 3s. Escape cancels the in-progress ring.
-  - Reroute press: disable controls; `loadSlaacEngine()` (first press downloads the model; readout "loading model"); null → unavailable line; then `engine.reroute({ flights, rings, marginNm, hug, seed: Date.now() >>> 0, steps: meta.sampler.steps, batchCap: isPhone ? BATCH_CAP_PHONE : BATCH_CAP_DESKTOP, display: meta.display })`, where `isPhone = matchMedia("(max-width: 879px)").matches`. Progress repaints the arcs (rAF-coalesced). On done: table per flight (added nm, added %, min clearance, legs crossing; `cannot-clear` rows say `copy.research.figReroute.cannotClear`), one runtime line ("<n> arcs, <s> s, in your browser" is NOT allowed: say "<n> arcs in <s> s"); `trackDemoOnce("slaac")`.
+  - Reroute press: disable controls; `loadSlaacEngine()` (first press downloads the model; readout "loading model"); null → unavailable line; then `engine.reroute({ flights, rings, marginNm, hug, seed: Date.now() >>> 0, steps: meta.sampler.steps, batchCap: isPhone ? BATCH_CAP_PHONE : BATCH_CAP_DESKTOP, display: meta.display })`, where `isPhone = matchMedia("(max-width: 879px)").matches`. Progress repaints the arcs (rAF-coalesced). On done: table per flight (added nm, added %, min clearance, legs crossing; `cannot-clear` rows say `copy.research.figReroute.cannotClear`), one runtime line, `<n> arcs in <s> s` (no "in your browser": page 1 already says it twice, the no-self-vouching limit); `trackDemoOnce("slaac")`.
   - Zero arcs → readout `copy.research.figReroute.noConflict`, no model load.
   - `SlaacCancelled` / `SlaacUnloaded` → controls re-enable silently (never an error line).
-  - Stargaze: `subscribeStargaze(true)` → `unloadSlaacEngine()` if loaded (remember `wasLoaded`); on false → nothing reloads (the next press loads, like the headshot rule; the chess reload-on-return rule doesn't apply because the model is only loaded by a press).
+  - Stargaze (the spec's rule, the chess shape): `subscribeStargaze(true)` → remember `wasLoaded = engine loaded or loading`, then `unloadSlaacEngine()`; on `false` → reload (`loadSlaacEngine()`) only if `wasLoaded`. A load that resolves after an unload is discarded by a load-generation counter, as the other panels do.
   - Off-screen / tab hidden: no animation runs except while a reroute is in flight (progress repaints are event-driven, not a rAF loop).
   - `data-*` hooks for the verify suite: `data-reroute-figure`, `data-reroute-pair`, `data-reroute-draw`, `data-reroute-launch`, `data-reroute-margin`, `data-reroute-lookahead`, `data-reroute-go`, `data-reroute-status` (JSON: state, arcs, ms, flights with metrics), and `window.__slaac` (`{ runId, loaded, lastDone }`) as a verify hook.
 - [ ] **Step 7: Wire into `app/page.tsx`**: replace `<FlightFigure />` in the NASA box with `<DeferredMount><RerouteFigure /></DeferredMount>`; remove the `FlightFigure` import there.

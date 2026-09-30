@@ -195,7 +195,7 @@ with memoized loading and load generations like the other demos.
 - `lib/slaac/guidance.ts`: `sua_displacement`, `_margin_topup`, `_inside`,
   `_nearest_boundary`, the Gaussian smoothing (zero-padded conv) and the low-pass
   (replicate padding).
-- `lib/slaac/reroute.ts`: `local_reroute` (both policies, with the return fixed),
+- `lib/slaac/reroute.ts`: `local_reroute` (both policies),
   `refine_route_sua` and its helpers, the snap (KD-tree or a grid over the
   navaid table), the metrics.
 

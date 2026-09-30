@@ -1,5 +1,5 @@
 {
- "status": "draft \u2014 awaiting owner approval",
+ "status": "approved by owner, 2026-09-30",
  "context_note": "Hubs are the top lower-48 airports by FAA CY2025 enplanements (hubs.json). Pairs are chosen by great-circle chord proximity to launch-site polygons, not from any traffic data.",
  "pairs": [
   {

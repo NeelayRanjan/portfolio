@@ -92,19 +92,37 @@ test("meta validates and rejects a missing field", () => {
   assert.throws(() => D.validateMeta({ ...m, version: 2 }));
 });
 
-test("airports", (t) => {
-  if (!existsSync(pub("airports.json"))) return t.skip("airports.json not generated yet (needs scripts/slaac/pairs.json, Task 9)");
+test("airports", () => {
   const a = J("airports.json");
   assert.doesNotThrow(() => D.validateAirports(a));
   assert.throws(() => D.validateAirports(without(a, "airports")));
 });
 
-test("routes", (t) => {
-  if (!existsSync(pub("routes.json"))) return t.skip("routes.json absent until Task 9");
+test("routes", () => {
   const r = J("routes.json");
   assert.doesNotThrow(() => D.validateRoutes(r));
   assert.throws(() => D.validateRoutes(without(r, "pairs")));
   assert.throws(() => D.validateRoutes(without(r, "pairs", 0, "routes", 0, "fixes")));
+  const hav = (a, b) => {
+    const R = 3440.065, rad = Math.PI / 180;
+    const h = Math.sin(((b[1] - a[1]) * rad) / 2) ** 2 + Math.cos(a[1] * rad) * Math.cos(b[1] * rad) * Math.sin(((b[2] - a[2]) * rad) / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  };
+  const airports = J("airports.json").airports;
+  const used = new Set();
+  for (const p of r.pairs) {
+    const id = `${p.origin}-${p.dest}`;
+    used.add(p.origin); used.add(p.dest);
+    assert.ok(p.routes.length >= 5, `${id}: ${p.routes.length} routes`);
+    for (const rt of p.routes) {
+      assert.equal(rt.fixes[0][0], p.origin, `${id} first fix`);
+      assert.equal(rt.fixes.at(-1)[0], p.dest, `${id} last fix`);
+      for (let i = 1; i < rt.fixes.length; i++) assert.ok(hav(rt.fixes[i - 1], rt.fixes[i]) <= 1000, `${id} leg over 1000 nm`);
+      for (const [, la, lo] of rt.fixes)
+        assert.ok(la >= BOX.lat[0] && la <= BOX.lat[1] && lo >= BOX.lon[0] && lo <= BOX.lon[1], `${id} fix outside domain box`);
+    }
+  }
+  assert.deepEqual([...used].sort(), Object.keys(airports).sort(), "airports.json covers exactly the library's airports");
 });
 
 test("validators reject non-objects", () => {

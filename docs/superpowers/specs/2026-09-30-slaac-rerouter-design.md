@@ -260,8 +260,8 @@ noise, same polygons) within tolerance before either is shown.
   Says the routes were filed ahead of time by the LM and the reroute is live.
 - **Rail notes**:
   - SLAAC: the poster's numbers (both columns), cited to the poster.
-  - DATA: public sources where possible (FAA open-data airspace, the FAA nav
-    database), some loss of quality against the internal data; no historical
+  - DATA: public sources where possible (FAA open-data airspace in place
+    of the internal airspace file; the nav database as shipped), some loss of quality against the internal data; no historical
     route database, so the filed routes are LM-generated instead of mined.
   - The disclaimer: what differs from the internal system, stated concretely
     once measured (for example: no route database, public airspace in place of

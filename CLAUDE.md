@@ -22,7 +22,7 @@ live-sampled author photo, the paper-status stamp (IN PREPARATION; UNDER REVIEW 
 door to `/lab`, identity links) → Table 1 → Research
 (Figure 1 label-efficiency sweep, Figure 2 Dice CDF, Figure 3 flight map) →
 the live demos as Figures 4–5 (chess, then draw — swapped 2026-09-13 at the owner's call, the `n` props swapped with them) → Experience as Figure 6 (NASA and Regenstrief
-lamps green/active) → References → the footer's stargaze door. `/lab` holds S1–S3. Same-day post-launch
+lamps green/active) → References → the footer's stargaze door. `/lab` holds S1–S2 (S3 cut 2026-09-29). Same-day post-launch
 passes: Figure 2 rebuilt from a budget ladder into the paper's pannable Dice
 CDF; the flight video's dark-map treatment; the owner's STIX-N favicon set;
 headshots presented last-class-first (photo 2 is the default face). The wipe
@@ -82,8 +82,9 @@ honest limit: the main-thread ORT wasm heap never actually shrinks, only the
 chess worker's termination truly frees memory. `window.__sky` and
 `window.__offload` are verify hooks, not UI.
 
-**Verification: `scripts/verify-redesign.mjs`** — 46 named checks (45 before
-`resume-pdf`, 2026-09-22; 43 before the
+**Verification: `scripts/verify-redesign.mjs`** — 45 named checks (46 until
+the 2026-09-29 copy pass cut `draw-classify-lead-400` with the line it
+checked; 45 before `resume-pdf`, 2026-09-22; 43 before the
 2026-09-17 rounds added `chess-self-play` and `search-basics`; 30 before
 the discoverability round, 40 before the 2026-09-16 WebKit fix, which added
 **`ort-runtime-build`**: every `/ort/` request during the chess worker's load
@@ -95,7 +96,8 @@ a 400→360 width change; `analytics-queue` also asserts the same-origin Speed
 Insights script and `page_reload` at 0 on a fresh navigation and 1 after a
 reload),
 Playwright-Firefox against a real `npm run build && npm start` on :3000, never
-the dev server; pass check-name substrings as args to run subsets. Covers the
+the dev server (`VERIFY_BASE=http://localhost:3100` points it elsewhere: this
+machine's Open WebUI container holds :3000); pass check-name substrings as args to run subsets. Covers the
 night sky (turning at 1280px with a measured median frame draw around 2.54ms
 against a 5.92ms budget, flat against the pre-colour-round 2.40-2.48ms
 baseline; the discoverability round read 2.70-3.54ms across its tasks, and a
@@ -191,8 +193,7 @@ robots.txt disallowing `/api/` and naming the sitemap; the sitemap listing
 exactly `/` and `/lab`; proved to bite by deleting the sitemap, moving the
 canonical into the layout, and reinstalling an `app/icon.svg`), **`lab-box-navigates`**, **`stamp-no-link-ancestor`** (proved by re-wrapping
 the stamp in a Link), **`references-lab-link-resolves`**,
-**`draw-classify-lead-400`** (the draw demo's lead line visible, exact and in
-bounds at 400px before any stroke), **`stargaze-card-image`** (an `<img>`
+**`stargaze-card-image`** (an `<img>`
 flush above Andromeda's card, CSS-sized before load, credited and cited;
 none on Polaris; the card complete with the index held; the docked phone
 card's photograph at most 28% of the viewport and the card at most 60%),
@@ -202,13 +203,12 @@ the chess worker and the draw/headshot sessions; cancelling a run in flight
 without ever showing it as a failure or counting `demo_used`; surviving
 stargaze entered mid-download plus an immediate exit/re-entry), no horizontal
 scroll at 400px on both pages, nothing model-sized before scroll, the
-label-efficiency sweep (readouts and the computed lead/trail sentence vs the
-SERVED `label_efficiency.json` at the first and last budgets, including the
-x0-leads→x0-trails flip, cursor exactly on the budget tick, whiskers tracking
-the slider, and the strip's panels carrying the json's Dice and repainting per
-budget), the Dice-CDF slider (curves, readouts vs `cdf.json`, repaint on stop
-change), flight video play/pause, a drawn stroke producing a real auto-label (with the classifier-free lead
-line present and unchanged before and after),
+label-efficiency chart (static since 2026-09-30: no controls or strip, every
+displayed series with one point per budget and ε-diffusion off it, x0 drawn
+last at full strength with the baselines faded, x0's printed value and the
+lead bracket's number equal to what the SERVED `label_efficiency.json`
+gives at the smallest budget, and the shaded column on those points), the Dice-CDF slider (curves, readouts vs `cdf.json`, repaint on stop
+change), flight video play/pause, a drawn stroke producing a real auto-label,
 the chess hint matching vector D (`g3 p=0.236`), **`chess-self-play`** (pinned
 clock, so the seed and the game are fixed: at least one departure, every one
 a near-tie in the top three and within budget, the rule stated while it
@@ -466,6 +466,54 @@ Search Console quirk for a fresh sitemap, not a failure. If the favicon or
 snippet in results is still stale after a couple of weeks, Request indexing
 on the homepage is the lever, not code.
 
+**2026-09-29: the owner's copy pass** (content/copy.ts, sky-facts.ts, the
+chess activations' hanging-knight line). Tightened nearly every caption and
+note, and cut the claims the page can't back ("nothing here is a
+recording": the chess internals are precomputed). The ε-diffusion result
+moved out of the Figure 1 caption into the Research prose. Cut: the SCOPE
+and CREDIT margin notes, the draw demo's permanent classifier-free lead
+line, /lab's three lead-in paragraphs, and Figure S3 (sample-space) with its
+teaser entry. The DATA note now links the angiogram benchmark (Dr-SAM,
+Zohranyan et al., CVPRW 2024, github.com/vazgenzohranyan/Dr.SAM, the source
+of `external_materials/paper1/data/benchmarkDataset/`). Visitor copy is
+American spelling, and ranges use hyphens (1900-2200, 98-99%), both site-wide.
+Experience's antenna row says "led the PCB design team", the resume's words.
+
+**2026-09-30: the no-self-vouching pass** (owner-approved). Feedback the
+owner got: the site "is begging to be viewed as authentic with all the text
+saying that it is". The rule it settled: **keep every limitation, cut every
+assurance.** Stated limits (a few hundred Elo below the full engine, SAM's
+re-drawn masks scoring off their recorded runs, ε at 0.23) are what read as
+real; repeated claims of realness read as insecure. So "in your browser" is
+said twice on page 1 (the headshot caption and the Live systems intro), not
+nine times; the headshot's state-swapping lead is gone (one caption, true
+before and after a press, because it describes the press); Figure 3 no longer
+vouches that its paths are generated; the four page-1 figure captions are
+paper length (the Research prose carries the argument); the chess hint note
+is cut; the sky invite, credit tail and not-to-scale note dropped "real" and
+"accurate". Don't add assurance lines back; if a claim needs defending, show
+the measurement instead.
+Same day, the Research section's reference detail moved to the margin rail
+(owner: "cut down on any bloat text that doesn't need to be in the main
+bar"): the paper's full title (PAPER), the one-surgeon disclosure (STUDY),
+"label efficiency, not peak accuracy" (SCOPE, under DATA beside Figure 1),
+the MWSCAS citation (REFERENCE) and the SLAAC poster's numbers (SLAAC), all
+in `copy.research.notes` / `mwscas.citeTag`. The main column keeps the
+claims; the rail keeps the provenance. The research row's rail is pushed
+down 60px at desktop so PAPER starts level with the h2, not above it.
+Also 2026-09-30: **the NASA work sits in its own bordered box**
+(`[data-nasa-box]`, a `section` labelled by its `h3#nasa`, "NASA Ames"),
+holding the NASA paragraph with its SLAAC note and Figure 3, so it reads as
+separate from the paper. The owner plans to grow it into a fuller section;
+the box is that seam. It has no background of its own, on purpose: Figure
+3's video uses `mix-blend-mode: screen` against its own panel.
+And the chess lede was halved (owner: "cut it down to around half the
+size, if not less"): two short paragraphs of claims, with the training data
+and the int8/fp32 finding moved to a side column of notes inside the
+figure (`copy.systems.chess.ledeNotes`, the same `Note` and 880px split as
+the Research rows). The limit, "here it runs without search, a few hundred
+Elo weaker", stays in the main column.
+
 **Open items, roughly in order:**
 1. **Stargaze discoverability: built, not yet measured** (owner, 2026-09-14:
    "We 100% need to make that button more noticable, I have had to tell
@@ -486,7 +534,8 @@ on the homepage is the lever, not code.
    hover-only, so on a phone the footer door and the toggle are the only
    ways in. The owner reviewed and approved the round's copy on the preview
    (2026-09-16): the invite ("a real chart of the sky over NASA Ames", final
-   review m1: the chart runs 180x, so "the real sky" read as live), the footer
+   review m1: the chart runs 180x, so "the real sky" read as live; trimmed
+   to "the sky over NASA Ames" on 2026-09-30), the footer
    lead, and the credit's tail; at merge time they also cut the credit's
    speed-up clause themselves.
 2. **Stargaze on a phone: names drawn, still thinner than desktop.** Below
@@ -562,6 +611,10 @@ and the owner's SOP tell one story.
   figures; don't revert the headline framing to "diffusion".
 - Takeaway to leave: specializes in diffusion modeling, with wide range around it
   (aerospace, medical, embedded), competent and current in the field.
+- **Positioning (owner, 2026-09-29): a diffusion and energy-based modeling
+  researcher with a focus, "not just a stereotypical AI dev".** Where copy
+  explains a choice (why an EBM, why two diffusion variants), tie it back to
+  that research focus. /lab may stay loose; page 1 carries the polish.
 - **The site and the owner's SOP tell one story.** Admissions readers will see
   both. The site must never contradict the SOP's numbers, claims, or framing; when
   a fact below and older repo content disagree, this file wins.
@@ -571,7 +624,9 @@ and the owner's SOP tell one story.
 - **Multi-page, but page 1 delivers ~95% of the experience.** Other pages are
   overflow for the genuinely curious.
 - Page-1 demos: **draw-a-digit and chess**. The trajectory viewer, JEPA and
-  sample-space move to **`/lab`** (one page for all of them).
+  sample-space move to **`/lab`** (one page for all of them). Sample-space
+  (S3) was then CUT on 2026-09-29 (owner's copy pass): it was the site's one
+  hand-built illustration, and it returns only as a real trained 2D model.
 - The ssh **boot screen is cut**. The particle **swarm is tamed**, kept as the hero
   attention grab (v1 finding: visitors never discover it's draggable). This
   particle desk (`DeskField`) was itself replaced by the real night sky on
@@ -583,7 +638,7 @@ and the owner's SOP tell one story.
   seam; every word gets rewritten.
 - **Interactivity bar**: prose sections stay readable — no forced gimmicks — but
   every text section carries one real-work artifact beside it: bio → headshot
-  diffusion toy · research → the label-budget sweep and the Dice-CDF pan ·
+  diffusion toy · research → the label-efficiency chart (static since 2026-09-30) and the Dice-CDF pan ·
   experience → flight-day video · publications → figure hovers. The owner's
   rule: "at no point should the user just be staring and reading at something."
 - Fallback is the git tag `v1`, nothing more. No legacy subdomain.
@@ -598,8 +653,8 @@ and the owner's SOP tell one story.
   which nobody read as a door under a loud red stamp). Beneath it, a bordered
   box (`[data-lab-box]`, a plain `next/link`, untracked because `/lab` is
   internal) reads "Supplementary material →" over a short written teaser,
-  `copy.masthead.supplementContents` ("diffusion trajectories · MAE vs I-JEPA
-  · DDPM vs flow matching"). The teaser is written, not composed from /lab's
+  `copy.masthead.supplementContents` ("diffusion trajectories · MAE vs I-JEPA";
+  "· DDPM vs flow matching" left with S3, 2026-09-29). The teaser is written, not composed from /lab's
   section headings: those read wrong out of context ("Predicting pixels, or
   predicting representations") and ran four items long in a narrow rail.
   ⚠️ The cost is drift: if /lab's sections change, change this line by hand.
@@ -679,7 +734,9 @@ not a contradiction. The original drift list, for the record:
   "published" until the owner says the status changed. arXiv preprint from
   ~2026-09-18 (owner: still on track). The numbers: **Dice 0.882 at 16
   labels, beating all five baselines in all 25 paired runs; ~75% measured surgeon
-  correction-time speedup; the claim is label efficiency, not peak accuracy.**
+  correction-time speedup, measured with ONE vascular surgeon, the paper's
+  coauthor Dr. Andrew Gonzalez (owner, 2026-09-29; the site says so, case
+  count not given); the claim is label efficiency, not peak accuracy.**
   (v1's "80% Dice at 19 images" was an older result. Do not reuse it.)
 - **IEEE MWSCAS 2026** (co-author; led the PCB design team): delivered as an
   **oral**, August 11 2026, Cincinnati. 15 authors, Neelay 14th — cite as
@@ -700,7 +757,11 @@ not a contradiction. The original drift list, for the record:
   Stephen Clarke). **The Summer 2027 lunar digital twin is DROPPED** (owner,
   2026-09-14: no longer pursuing it); never mention it again.
 - **The flight-day transformer (Figure 3) is the owner's own work**, trained
-  from scratch (owner, 2026-09-14). Resume wording: a custom LLM with a novel
+  from scratch (owner, 2026-09-14), and **part of SLAAC** (owner,
+  2026-09-29). What broke: the waypoint system, where a continuous route that
+  obeyed every rule often stopped obeying once snapped onto the waypoint map;
+  most of the owner's time went there. The SLAAC poster's "98-99% clear the
+  25 nm buffer" is 98-99% **of reroutes**. Resume wording: a custom LLM with a novel
   token vocabulary that "speaks" filed flight plans, synthesizing ~44,000
   flights matched to historical density, for capacity and safety studies of US
   airspace failure modes; the owner adds it is being used at NASA to justify
@@ -1628,12 +1689,13 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   reduced-motion visitor's credit never implies a sky that, for them, never
   turns. (Neither credit variant states the 180x speed-up any more; the ISS
   card's `issClock` still does, and must match `SKY_SPEEDUP`.)
-- **The credit line** (2026-09-16): the owner trimmed `credit`/`creditStill`
-  to one sentence each, then trimmed `credit` again at merge time to drop its
-  speed-up clause, both kept verbatim ("The sky over NASA Ames from the moment
-  you arrived." / "The sky over NASA Ames at the moment you arrived."), followed by one honesty tail,
-  `creditTail`: " The shapes are enlarged and coloured as long exposures show
-  them, but every position is real." The old `creditColour` span and its
+- **The credit line** (2026-09-16; reworded 2026-09-29): the owner trimmed
+  `credit`/`creditStill` to one sentence each, then dropped the speed-up
+  clause, and in the 2026-09-29 copy pass rewrote them as "The sky over NASA
+  Ames from the moment you opened the page." / "The sky over NASA Ames when
+  you opened the page.", followed by one honesty tail, `creditTail`, since 2026-09-30 "
+  Objects are drawn enlarged, in long-exposure color." (Visitor copy is American spelling since that
+  pass; code identifiers like `colourNote` keep their names.) The old `creditColour` span and its
   `body[data-stargaze]` CSS gate are gone: colour shows on every page now, so
   the clause is true everywhere. The eyes-see-grey reason moved wholly onto
   each coloured card's `colourNote`, with its source. ⚠️ The trim once
@@ -1742,7 +1804,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   `data-sky-list-panel`, `data-sky-list`, `data-sky-list-item`,
   `data-sky-list-close`, `data-sky-invite`, `data-stargaze-footer`,
   `data-stargaze-footer-enter`, `data-lab-box`, `data-stamp`,
-  `data-draw-classify-lead`, and the chess panel's `data-chess-self-play`
+  and the chess panel's `data-chess-self-play`
   (JSON: plies, departures, the move played, the top move, the current
   hint), `data-chess-self-play-rule` and `data-chess-self-play-took`. The CSS variable `--stargaze-hint-h` is real
   layout, not a hook: the panel and phone names both read it.
@@ -1767,16 +1829,17 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   (measured plateau: 0.80→9/10, 0.85–0.95→10/10; low noise scores nothing),
   `guidance: 1`, `steps: 2` (module divides by steps-1). The guess is visible and
   overridable, never silent.
-- **The demo leads with classifier-free classification** (owner request,
-  2026-09-16): `copy.systems.draw.classifyLead` ("No classifier model: the
-  diffusion model guesses the label itself.") renders permanently above the
-  label picker (`[data-draw-classify-lead]`, `text-ink` so it reads as a
-  standing claim, not one more dim caption), independent of every state, and
-  the figure caption and the `classify.a` explainer both open with the same
-  claim. The wording is "no classifier MODEL", not "no classifier": the demo
-  does classify, and the claim is that no second model does it. Markup and
-  copy only: the change touched no hook, handler, `classifyingRef`,
-  `fitFreshRef`/`inkGenRef` or the `generate()` call site.
+- **The classifier-free claim lives in the `classify.a` explainer only**
+  (2026-09-29). From 2026-09-16 a permanent `classifyLead` line ("No
+  classifier model: the diffusion model guesses the label itself.") sat above
+  the label picker and the figure caption repeated it; the owner's copy pass
+  cut the line and rewrote the caption, so the explainer is now the one place
+  it's said. It says "no separate classifier", not "no classifier": the demo
+  does classify, and the claim is that no second model does it. It cites Li
+  et al. (2023) as "a cheap version": `lib/classify.ts` runs their idea at
+  one timestep with one shared noise draw, where they average denoising error
+  over many. Markup and copy only: no hook, handler, `classifyingRef`,
+  `fitFreshRef`/`inkGenRef` or the `generate()` call site was touched.
 - **The classifier and generate share one ORT session; running both at once
   corrupts it.** The mutual exclusion runs through `classifyingRef` (synchronous,
   not state). Respect it in any rebuild of this panel.
@@ -2000,12 +2063,13 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 - The wrong-class marking is data-driven, never a left/right habit, and colour is
   never its only carrier (the `✕` prefix and aria-labels stay).
 
-### Sample-space (DDPM vs flow matching) — /lab
-- **Illustrative, labeled as such** — hand-built 2D animation, no weights, and
-  the copy must keep saying so.
-- Every shape and every flow path is deterministic (`hash01`, never
-  `Math.random`): "same route every time" is the property on display. One click
-  spawns the same start in both panels; that shared origin is the comparison.
+### Sample-space (DDPM vs flow matching) — REMOVED 2026-09-29
+- Cut from /lab in the owner's copy pass, along with its copy and
+  `content/sample-space.md`; `components/SampleSpace.tsx`,
+  `SampleSpaceWriteup.tsx` and `lib/sample-space.ts` live in git history. It
+  was hand-built and illustrative (labeled as such, deterministic `hash01`
+  paths). If it returns, it returns as a real trained 2D model, not the
+  illustration.
 
 ### The research figures — real-data pipeline (`scripts/prepare-research.mjs`)
 - Hand-run only: its inputs live in the gitignored `external_materials/` (the
@@ -2051,6 +2115,18 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   mask-paint.ts`) detects by minority side; the script votes per-model with an
   inset-ring rule and records the decision in `cdf.json`. Hardcoded polarity
   painted an entire background red once already.
+- **Figure 1 is STATIC since 2026-09-30** (owner call: the slider, readouts,
+  whiskers and mask strip were hurting engagement). A server component, no
+  client JS. The one thing it argues is drawn instead: x0-diffusion heavy
+  (2.8px) and on top, the baselines faded to 0.5, the smallest budget's column
+  shaded in x0's green, x0's value printed on its point, and a bracket from the
+  next-best model up to x0 carrying the lead (+0.047 over SAM today), all
+  computed from the json at the smallest budget and not drawn if x0 stops
+  leading there. The y floor went from 0.4 to 0.6 (the 0.4 existed only for
+  the whiskers; 0.6 spreads the lines half again further apart) and a mean
+  under the floor throws. The `strip` block and `public/research/eff/` stay
+  committed and unrendered, like the wipe's assets. The history below
+  describes the interactive version.
 - **Figure 1 (label-efficiency sweep, `LabelEfficiencyFigure.tsx`)** — replaced
   the wipe 2026-09-12, owner's call. Mean±std test Dice vs label budget,
   EVERYTHING read from `label_efficiency.json` (budgets, fractions, train

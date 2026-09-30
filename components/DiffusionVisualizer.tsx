@@ -184,9 +184,6 @@ export function DiffusionVisualizer() {
 
   return (
     <div ref={rootRef}>
-      <p className="mb-6 max-w-2xl text-[15px] leading-relaxed text-mut">
-        {copy.lab.s1Intro}
-      </p>
       <InstrumentFigure
         n="S1"
         id="diffusion"

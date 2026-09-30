@@ -411,7 +411,7 @@ export function DiceCdfFigure() {
         {t.scopeNotePre}
         {cdfData.labels}
         {t.scopeNoteMid}
-        {cdfData.rowsPerModel}
+        {cdfData.rowsPerModel.toLocaleString("en-US")}
         {t.scopeNotePost}
       </p>
     </InstrumentFigure>

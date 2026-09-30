@@ -408,8 +408,8 @@ export const SKY_FACTS: readonly SkyFact[] = [
     oneLiner: "What is left of a star seen exploding in 1054",
     body: [
       "In 1054 Chinese astronomers recorded a “guest star” that stayed visible in the daytime sky for nearly a month; the nebula is the debris of that supernova.",
-      "The neutron star at its centre spins fast enough to appear to pulse 30 times per second.",
-      "Charles Messier mistook it for Halley’s Comet, and that mistake led him to start a catalogue of things that could be confused with comets.",
+      "The neutron star at its center spins fast enough to appear to pulse 30 times per second.",
+      "Charles Messier mistook it for Halley’s Comet, and that mistake led him to start a catalog of things that could be confused with comets.",
     ],
     visibility: "Telescope, a small one; best in January",
     citations: [hubbleMessier(1, "Messier 1 (The Crab Nebula)", "2026-09-15")],
@@ -443,8 +443,8 @@ export const SKY_FACTS: readonly SkyFact[] = [
     oneLiner: "The closest large star-forming region to Earth",
     body: [
       "The Maya of Mesoamerica are thought to have seen it as the cosmic fire of creation.",
-      "Four massive young stars at its centre, called the Trapezium, are carving a cavity in the cloud.",
-      "Two readings of its colour circulate: a calibrated analysis finds the Trapezium region blue-green, “best described as teal”, from oxygen and hydrogen lines, while Hubble’s familiar picture is a filter map that puts hydrogen in orange, oxygen in green and sulphur with infrared in red.",
+      "Four massive young stars at its center, called the Trapezium, are carving a cavity in the cloud.",
+      "Two readings of its color circulate: a calibrated analysis finds the Trapezium region blue-green, “best described as teal”, from oxygen and hydrogen lines, while Hubble’s familiar picture is a filter map that puts hydrogen in orange, oxygen in green and sulfur with infrared in red.",
     ],
     visibility: "Naked eye, just below Orion’s belt; best in January",
     citations: [hubbleMessier(42, "Messier 42 (The Orion Nebula)", "2026-09-15"), CLARK_M42],
@@ -501,7 +501,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     oneLiner: "The galaxy with the first black hole ever imaged",
     body: [
       "It has several trillion stars and roughly 15,000 globular clusters; the Milky Way has about 150.",
-      "In 2019 the Event Horizon Telescope released the first image of a black hole, the one at its centre, which has 6.5 billion times the mass of the Sun.",
+      "In 2019 the Event Horizon Telescope released the first image of a black hole, the one at its center, which has 6.5 billion times the mass of the Sun.",
     ],
     visibility: "Telescope, a small one; most easily in May",
     citations: [
@@ -523,7 +523,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     body: [
       "The pillars are roughly 4 to 5 light-years tall, a small feature of a nebula that spans 70 by 55 light-years.",
       "Ultraviolet light from a cluster of young stars just outside Hubble’s frame is slowly eroding them.",
-      "The colours of the famous picture are narrowband filters assigned to channels, oxygen to blue, sulphur to red, nitrogen and hydrogen together to green, which is the Hubble palette rather than the view through an eyepiece.",
+      "The colors of the famous picture are narrowband filters assigned to channels, oxygen to blue, sulfur to red, nitrogen and hydrogen together to green, which is the Hubble palette rather than the view through an eyepiece.",
     ],
     visibility: "Telescope, a small one for the star cluster; best viewed during August",
     citations: [hubbleMessier(16, "Messier 16 (The Eagle Nebula)", "2026-09-15"), AAA_HUBBLE_PALETTE],
@@ -535,7 +535,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     body: [
       "Astronomers compared a Hubble image from 2026 against one taken in 1997 and found the nebula had changed on a human time scale.",
       "Two thin jets, each roughly three-quarters of a light-year long, are being eroded by radiation from a massive star just beyond the frame.",
-      "One lobe glows with hydrogen’s own red light and another is dust scattering starlight, the same effect that makes the daytime sky blue, while the published Hubble colours are filter assignments: red for hydrogen and sulphur, green for oxygen.",
+      "One lobe glows with hydrogen’s own red light and another is dust scattering starlight, the same effect that makes the daytime sky blue, while the published Hubble colors are filter assignments: red for hydrogen and sulfur, green for oxygen.",
     ],
     visibility: "Telescope, a small one; best observed during August",
     citations: [hubbleMessier(20, "Messier 20 (The Trifid Nebula)", "2026-09-15"), ESA_TRIFID, ESO_TRIFID],
@@ -546,8 +546,8 @@ export const SKY_FACTS: readonly SkyFact[] = [
     oneLiner: "The first planetary nebula anyone found",
     body: [
       "Charles Messier spotted it in 1764, and the name planetary nebula is a misnomer that comes from the round, planet-like look through smaller telescopes.",
-      "It holds knots of gas and dust 17 billion to 56 billion kilometres across, several times the distance from the Sun to Pluto, each carrying about as much mass as three Earths.",
-      "Hubble’s picture puts oxygen in blue, hydrogen in green and sulphur with nitrogen in red, so its colours track which atoms are emitting rather than what an eye would see.",
+      "It holds knots of gas and dust 17 billion to 56 billion kilometers across, several times the distance from the Sun to Pluto, each carrying about as much mass as three Earths.",
+      "Hubble’s picture puts oxygen in blue, hydrogen in green and sulfur with nitrogen in red, so its colors track which atoms are emitting rather than what an eye would see.",
     ],
     visibility: "Telescope, a small one, most easily in September",
     citations: [hubbleMessier(27, "Messier 27 (The Dumbbell Nebula)", "2026-09-15")],
@@ -572,7 +572,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Reflection nebula · 1,600 light-years",
     oneLiner: "It reflects starlight instead of emitting its own",
     body: [
-      "Dust here reflects the light of several bright blue stars that formed recently inside it, and the same scattering that colours the daytime sky deepens the blue.",
+      "Dust here reflects the light of several bright blue stars that formed recently inside it, and the same scattering that colors the daytime sky deepens the blue.",
       "Pierre Méchain found it in 1780, and one side of it flares away like a comet’s tail, which has fooled comet hunters into believing they had a new discovery.",
     ],
     visibility: "Binoculars or a small telescope; 8 inches or larger reveals more detail, best in January",
@@ -587,8 +587,8 @@ export const SKY_FACTS: readonly SkyFact[] = [
     oneLiner: "Blue arms of young stars around an old yellow core",
     body: [
       "The arms are blue because they are made of hot stars formed in the past few million years, while the central bulge holds much older, redder ones.",
-      "A black hole of 70 million solar masses sits at the centre, about 15 times the mass of the Milky Way’s.",
-      "The widely shared pink version of this galaxy is a composite of ultraviolet, visible and infrared data, where the pink marks dust lanes seen in infrared rather than a colour anyone could see.",
+      "A black hole of 70 million solar masses sits at the center, about 15 times the mass of the Milky Way’s.",
+      "The widely shared pink version of this galaxy is a composite of ultraviolet, visible and infrared data, where the pink marks dust lanes seen in infrared rather than a color anyone could see.",
     ],
     visibility: "Binoculars show a faint patch beside M82; a small telescope resolves the core, best in April",
     citations: [
@@ -600,7 +600,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
   {
     id: "m82",
     kind: "Starburst galaxy · 12 million light-years",
-    oneLiner: "Star birth at its centre runs ten times the Milky Way’s",
+    oneLiner: "Star birth at its center runs ten times the Milky Way’s",
     body: [
       "The starburst limits itself: star formation this vigorous consumes or destroys the material needed to make more stars, so it should subside in a few tens of millions of years.",
       "Chandra sees gas heated to millions of degrees by the outflow blasting matter out of the galaxy, and Spitzer sees cool gas and dust being ejected with it.",
@@ -645,9 +645,9 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Emission nebula · 1,400 to 1,500 light-years",
     oneLiner: "Its reddish glow is hydrogen recombining",
     body: [
-      "Hydrogen atoms stripped of their electrons glow as the atoms and electrons recombine, which is where the reddish colour comes from.",
+      "Hydrogen atoms stripped of their electrons glow as the atoms and electrons recombine, which is where the reddish color comes from.",
       "A dark lane of dust stands in silhouette against that glow and hides the young massive star whose ultraviolet light does the ionizing.",
-      "X-ray and infrared data put the stars at the cluster’s centre at about 200,000 years old and those on its outskirts at about 1.5 million, the reverse of the simplest picture of how a cluster forms.",
+      "X-ray and infrared data put the stars at the cluster’s center at about 200,000 years old and those on its outskirts at about 1.5 million, the reverse of the simplest picture of how a cluster forms.",
     ],
     visibility: "Telescope; the dust lane hides the nebula’s energy source from optical telescopes",
     citations: [
@@ -674,7 +674,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     body: [
       "It sits a few hundred light-years from NGC 869, and both clusters are 13 million years young.",
       "A third, smaller cluster nearby, NGC 957, has a similar age and distance and may be related to the pair.",
-      "The picture those ages come from is a colour composite with narrowband data added to bring out the hydrogen clouds, so its red is enhanced rather than recorded straight.",
+      "The picture those ages come from is a color composite with narrowband data added to bring out the hydrogen clouds, so its red is enhanced rather than recorded straight.",
     ],
     visibility: "Naked eye from dark locations; binoculars show it beside NGC 869",
     citations: [APOD_DOUBLE_CLUSTER],
@@ -684,7 +684,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Emission nebula · 1,600 to 1,800 light-years",
     oneLiner: "Its outline resembles the North American continent",
     body: [
-      "Hydrogen dominates the gas, and sensitive cameras pick up the reddish colour that goes with it, though the shape and the colour show up only in photographs.",
+      "Hydrogen dominates the gas, and sensitive cameras pick up the reddish color that goes with it, though the shape and the color show up only in photographs.",
       "The dark notch along the “East Coast” is a cloud lying in front of the nebula, LDN 935, and not a gap in the gas.",
       "The hot 6th-magnitude binary HD 199579 is what sets it aglow; Deneb, three degrees away, was long suspected instead.",
     ],
@@ -709,7 +709,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     oneLiner: "The eastern arc of the Cygnus Loop",
     body: [
       "It is the far side of the same shell as NGC 6960, debris from one star that exploded thousands of years ago.",
-      "The published colours come from three filters, one each for hydrogen, sulphur and oxygen, so blue for oxygen and red for hydrogen is an assignment of filters to channels rather than the view.",
+      "The published colors come from three filters, one each for hydrogen, sulfur and oxygen, so blue for oxygen and red for hydrogen is an assignment of filters to channels rather than the view.",
       "Hubble photographed this nebula in 1994, 1997 and 2015, and comparing those frames tracks the motion of individual knots and filaments of gas.",
     ],
     visibility: "Telescope; the two arcs sit at opposite edges of one shell about 3 degrees across",
@@ -718,7 +718,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
   {
     id: "sgr-a-star",
     kind: "Supermassive black hole · about 27,000 light-years",
-    oneLiner: "Sagittarius A*, the black hole at the Milky Way’s centre",
+    oneLiner: "Sagittarius A*, the black hole at the Milky Way’s center",
     body: [
       "It has four million times the mass of the Sun.",
       "The Event Horizon Telescope released the first image of it on May 12, 2022; in our sky it is about the size of a doughnut on the Moon.",
@@ -928,7 +928,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Red supergiant · Orion",
     oneLiner: "A red supergiant at Orion’s shoulder",
     body: [
-      "If it sat at the centre of the Solar System, its surface would lie beyond the asteroid belt.",
+      "If it sat at the center of the Solar System, its surface would lie beyond the asteroid belt.",
       "From October 2019 to mid-February 2020 it faded by a factor of about 3; a Hubble study suggests the cause was dust formed from material its surface threw off.",
       "It is expected to explode as a supernova, most likely within 100,000 years, and life on Earth will be unharmed.",
     ],
@@ -965,7 +965,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     body: [
       "It is one of the largest stars visible to the naked eye.",
       "Its reddish hue, like that of Mars, is why the Ancient Greek name means “rival to Ares”.",
-      "Babylonian star catalogues from at least 1100 BCE call it “the Breast of the Scorpion”.",
+      "Babylonian star catalogs from at least 1100 BCE call it “the Breast of the Scorpion”.",
     ],
     visibility: "Naked eye; distinctly reddish",
     citations: [wikipedia("Antares", 1374164910, "2026", "2026-09-15")],
@@ -1045,7 +1045,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Planet · fourth from the Sun",
     oneLiner: "Named by the Romans for their god of war",
     body: [
-      "The Romans named it for their god of war because its reddish colour was reminiscent of blood; the Egyptians called it “Her Desher”, meaning “the red one”.",
+      "The Romans named it for their god of war because its reddish color was reminiscent of blood; the Egyptians called it “Her Desher”, meaning “the red one”.",
       "The red is iron minerals in the dirt that have oxidized, or rusted.",
       "Olympus Mons, the largest volcano in the solar system, stands more than 25 miles tall.",
     ],
@@ -1311,7 +1311,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     oneLiner: "One of the 48 constellations in Ptolemy’s Almagest",
     body: [
       "Aquila is the eagle of Zeus, which carried the thunderbolts he hurled at his enemies.",
-      "In one story it snatched the Trojan boy Ganymede up to Olympus to be cup-bearer of the gods; Ganymede is the neighbouring constellation Aquarius.",
+      "In one story it snatched the Trojan boy Ganymede up to Olympus to be cup-bearer of the gods; Ganymede is the neighboring constellation Aquarius.",
     ],
     visibility: "Naked eye",
     citations: [starTales("aquila", "Aquila", "2026-09-15"), IAU_TABLE, SKYWATCHING],
@@ -1585,7 +1585,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Constellation · 15th largest",
     oneLiner: "One of the 48 constellations in Ptolemy’s Almagest",
     body: [
-      "It is drawn as a centaur aiming a bow at the neighbouring scorpion; the stars of the bow and arrow form the Teapot.",
+      "It is drawn as a centaur aiming a bow at the neighboring scorpion; the stars of the bow and arrow form the Teapot.",
       "It began as PA.BIL.SAG, a Sumerian god of war and hunting, and as a result no particular Greek myths belong to it.",
     ],
     visibility: "Naked eye",
@@ -1704,7 +1704,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Constellation · 79th largest",
     oneLiner: "Introduced by Plancius, Keyser and de Houtman in 1598",
     body: [
-      "It is named after the colour-changing lizard, and lies near the south celestial pole, in close pursuit of Musca, the fly.",
+      "It is named after the color-changing lizard, and lies near the south celestial pole, in close pursuit of Musca, the fly.",
       "Chameleons are common in Madagascar, where the Dutch fleet stopped to rest and resupply in 1595.",
     ],
     visibility: "Naked eye",
@@ -1781,7 +1781,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Constellation · the smallest of the 88",
     oneLiner: "First shown in modern form by Plancius and Hondius in 1598",
     body: [
-      "The Greeks catalogued its stars as part of the hind legs of Centaurus.",
+      "The Greeks cataloged its stars as part of the hind legs of Centaurus.",
       "It holds the Coalsack, a dark cloud of dust seen in silhouette against the Milky Way.",
       "Its brightest star, Acrux, is the most southerly first-magnitude star.",
     ],
@@ -1838,7 +1838,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     oneLiner: "Introduced by Lacaille in 1756",
     body: [
       "Fornax is a chemist’s furnace for distillation, tucked into a bend of the river Eridanus.",
-      "It is sometimes said Lacaille made it to honour Antoine Lavoisier, but Lavoisier was only 13 when Lacaille’s chart was first published.",
+      "It is sometimes said Lacaille made it to honor Antoine Lavoisier, but Lavoisier was only 13 when Lacaille’s chart was first published.",
     ],
     visibility: "Naked eye",
     citations: [starTales("fornax", "Fornax", "2026-09-15"), IAU_TABLE, SKYWATCHING],
@@ -1849,7 +1849,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     oneLiner: "Introduced by Plancius, Keyser and de Houtman in 1598",
     body: [
       "Grus is a crane; the Dutch navigators possibly had in mind the sarus crane of India and southeast Asia, which stands nearly 6ft tall.",
-      "De Houtman called it the heron in his catalogue, but Bayer kept the original name, Grus.",
+      "De Houtman called it the heron in his catalog, but Bayer kept the original name, Grus.",
     ],
     visibility: "Naked eye",
     citations: [starTales("grus", "Grus", "2026-09-15"), IAU_TABLE, SKYWATCHING],
@@ -1904,7 +1904,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     oneLiner: "Introduced by Hevelius in 1690",
     body: [
       "Leo Minor is a lion cub accompanying Leo, formed from 18 faint stars, with no legends attached to it.",
-      "Through an oversight by Francis Baily, it has a Beta star but no star labelled Alpha.",
+      "Through an oversight by Francis Baily, it has a Beta star but no star labeled Alpha.",
     ],
     visibility: "Naked eye",
     citations: [starTales("leominor", "Leo Minor", "2026-09-15"), IAU_TABLE, SKYWATCHING],
@@ -1936,7 +1936,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Constellation · 46th largest",
     oneLiner: "One of the 48 constellations in Ptolemy’s Almagest",
     body: [
-      "The Greeks saw an unspecified wild animal, impaled on a long pole held by the neighbouring centaur.",
+      "The Greeks saw an unspecified wild animal, impaled on a long pole held by the neighboring centaur.",
       "The wolf seems to have become established in Renaissance times, harking back to the Babylonian UR.IDIM, meaning “wild dog” or “wolf”.",
     ],
     visibility: "Naked eye",
@@ -1958,7 +1958,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Constellation · 75th largest",
     oneLiner: "Introduced by Lacaille in 1756",
     body: [
-      "Mensa commemorates Table Mountain near Cape Town, where Lacaille catalogued the southern stars in 1751–52.",
+      "Mensa commemorates Table Mountain near Cape Town, where Lacaille cataloged the southern stars in 1751-52.",
       "Part of the Large Magellanic Cloud lies in it, capping it with a white cloud like the one sometimes seen over the real mountain.",
     ],
     visibility: "Naked eye, but faint: the dimmest of the 88",
@@ -2080,7 +2080,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     oneLiner: "Split from Argo Navis by Lacaille in 1756",
     body: [
       "Puppis is the stern, or poop, of Argo Navis, and the largest of the three sections Lacaille divided the ship into.",
-      "It has no stars labelled Alpha or Beta, because Lacaille lettered the stars of the ship as a whole.",
+      "It has no stars labeled Alpha or Beta, because Lacaille lettered the stars of the ship as a whole.",
     ],
     visibility: "Naked eye",
     citations: [starTales("puppis", "Puppis", "2026-09-15"), IAU_TABLE, SKYWATCHING],
@@ -2101,7 +2101,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     kind: "Constellation · 82nd largest",
     oneLiner: "Introduced by Lacaille in 1756",
     body: [
-      "Reticulum commemorates the reticle in the eyepiece of the small telescope Lacaille used to catalogue the southern stars from the Cape of Good Hope.",
+      "Reticulum commemorates the reticle in the eyepiece of the small telescope Lacaille used to catalog the southern stars from the Cape of Good Hope.",
       "It sits next to Horologium, the clock he used to time stars as they passed through the reticle.",
     ],
     visibility: "Naked eye",
@@ -2136,7 +2136,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     body: [
       "Hevelius named it Sobieski’s Shield, for King John III Sobieski of Poland, who helped him rebuild his observatory after a fire in 1679.",
       "It is the only constellation introduced for political reasons that is still in use.",
-      "Flamsteed and later Baily left it out of their catalogues; Benjamin Gould’s catalogue of 1879 made it permanent.",
+      "Flamsteed and later Baily left it out of their catalogs; Benjamin Gould’s catalog of 1879 made it permanent.",
     ],
     visibility: "Naked eye",
     citations: [starTales("scutum", "Scutum", "2026-09-15"), IAU_TABLE, SKYWATCHING],
@@ -2202,7 +2202,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     oneLiner: "Introduced by Plancius, Keyser and de Houtman in 1598",
     body: [
       "Plancius named it Toucan, after the South American bird with a huge bill.",
-      "De Houtman’s catalogue described an Oriental pied hornbill instead, which suggests the real inventor might have been Keyser, who had visited South America.",
+      "De Houtman’s catalog described an Oriental pied hornbill instead, which suggests the real inventor might have been Keyser, who had visited South America.",
     ],
     visibility: "Naked eye",
     citations: [starTales("tucana", "Tucana", "2026-09-15"), IAU_TABLE, SKYWATCHING],
@@ -2225,7 +2225,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
     oneLiner: "Split from Argo Navis by Lacaille in 1756",
     body: [
       "Vela is the sails of Argo Navis, one of the three sections Lacaille divided the ship into.",
-      "Because Lacaille used one set of Greek letters for all of Argo, Vela has no stars labelled Alpha or Beta.",
+      "Because Lacaille used one set of Greek letters for all of Argo, Vela has no stars labeled Alpha or Beta.",
     ],
     visibility: "Naked eye",
     citations: [starTales("vela", "Vela", "2026-09-15"), IAU_TABLE, SKYWATCHING],

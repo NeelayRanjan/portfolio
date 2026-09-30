@@ -378,9 +378,6 @@ export function JepaSection() {
 
   return (
     <>
-      <p className="mb-6 max-w-2xl text-[15px] leading-relaxed text-mut">
-        {copy.lab.s2Intro}
-      </p>
       <InstrumentFigure
         n="S2"
       id="jepa"

@@ -398,10 +398,6 @@ export function HeadshotToy({
       </p>
 
       <figcaption className="mt-2 font-mono text-[10px] leading-relaxed text-mut/60">
-        {/* True in both states: at rest the box IS the loaded file, and saying
-            otherwise before anyone has pressed anything would be the one kind
-            of claim this whole section exists to avoid making. */}
-        {painted ? t.captionLeadSampled : t.captionLeadRest}
         {/* Capability is known once the model loads, which is always before
             any cross-class press could morph — the from-noise body stays true
             right up to the swap. */}

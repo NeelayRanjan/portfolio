@@ -69,7 +69,8 @@ export async function resolve(specifier, context, nextResolve) {
 const { OBJECT_COLOURS, EMISSION_LINE_COLOURED } = await import("../lib/sky-layers.ts");
 const { PAPER_SATURATION, PAPER_COLOUR_SHARE } = await import("../lib/sky-colour.ts");
 
-const BASE = "http://localhost:3000";
+// VERIFY_BASE overrides the port when :3000 is taken; the default is unchanged.
+const BASE = process.env.VERIFY_BASE ?? "http://localhost:3000";
 
 /* ---------------------------------------------------------------------- */
 /* small harness                                                          */
@@ -1323,239 +1324,90 @@ const EFF_LABELS = {
   ediffusion: "ε-diffusion",
 };
 
+/** Figure 1 is STATIC since 2026-09-30 (owner call): no slider, readouts,
+ *  whiskers or mask strip. What it must still get right, all against the
+ *  SERVED json: every displayed series drawn with one point per budget and
+ *  ε-diffusion still off the chart; x0 drawn last at full strength with the
+ *  baselines faded; x0's printed value at the smallest budget; the lead
+ *  bracket's number equal to x0 minus the best baseline there (and no
+ *  bracket at all if x0 doesn't lead); the shaded column centred on that
+ *  budget's points. */
 async function checkLabelEfficiency(browser) {
   return withPage(browser, { viewport: { width: 1280, height: 1400 } }, async (page) => {
-    // The SERVED file is the reference, same rule as the Dice-CDF check.
     const eff = await (await fetch(`${BASE}/research/label_efficiency.json`)).json();
-    // ε-diffusion stays in the json but off the chart (owner call,
-    // 2026-09-13): its flat ~0.23 squashed the range. The figure displays
-    // every OTHER model, and this list is what the readout/series asserts
-    // run over.
     const EFF_HIDDEN = new Set(["ediffusion"]);
     const models = Object.keys(eff.models).filter((m) => !EFF_HIDDEN.has(m));
     if (models.length === Object.keys(eff.models).length) {
       throw new Error("expected ediffusion in the served json (the hidden-model contract moved?)");
     }
     const budgets = eff.models.x0diffusion.map((p) => p.labels);
-    const lastIdx = budgets.length - 1;
+    const x0Low = eff.models.x0diffusion[0].diceMean;
+    const baselines = models.filter((m) => m !== "x0diffusion");
+    const runner = baselines.reduce((a, b) =>
+      eff.models[a][0].diceMean >= eff.models[b][0].diceMean ? a : b,
+    );
+    const lead = x0Low - eff.models[runner][0].diceMean;
 
     await page.goto(BASE, { waitUntil: "networkidle" });
-    const slider = page.locator("#eff-labels");
-    await slider.waitFor({ state: "attached", timeout: 10000 });
+    const fig = page.locator("#fig-eff");
+    await fig.waitFor({ state: "attached", timeout: 10000 });
 
-    // 1. Chart structure: one polyline per model in the file, plus one whisker
-    //    group per model at the cursor.
-    const figure = page.locator("figure").filter({ has: slider });
-    const svg = figure.locator("svg").first();
-    await svg.waitFor({ state: "visible", timeout: 10000 });
-    const lines = await svg.locator("polyline").count();
-    if (lines !== models.length) {
-      throw new Error(`${lines} series polylines, want ${models.length}`);
-    }
-    const whiskers = await svg.locator("g[data-whisker]").count();
-    if (whiskers !== models.length) {
-      throw new Error(`${whiskers} whisker groups, want ${models.length}`);
-    }
-
-    const readReadouts = () =>
-      page.evaluate(() => {
-        const out = {};
-        for (const el of document.querySelectorAll("#fig-eff-readouts [data-model]")) {
-          out[el.dataset.model] = el.textContent;
-        }
-        return { models: out, gap: document.querySelector("#fig-eff-gap")?.textContent ?? "" };
-      });
-
-    // Strip helpers. The strip is data in the SERVED json, so its absence is
-    // a failure, not a skip: the deploy would be missing Figure 1's panels.
-    if (!eff.strip || !Array.isArray(eff.strip.budgets)) {
-      throw new Error("label_efficiency.json has no strip block — Figure 1's panels are gone");
-    }
-    const stripModels = eff.strip.models;
-    const readPanels = () =>
-      page.evaluate(() => {
-        return [...document.querySelectorAll("#fig-eff-strip > div")].map((panel) => ({
-          text: panel.querySelector(".font-mono")?.textContent ?? "",
-          url: panel.querySelector("canvas")?.toDataURL() ?? null,
-        }));
-      });
-    const waitPainted = () =>
-      page.waitForFunction(
-        (want) => {
-          const canvases = [...document.querySelectorAll("#fig-eff-strip canvas")];
-          if (canvases.length !== want) return false;
-          return canvases.every((c) => {
-            const g = c.getContext("2d");
-            if (!c.width || !c.height) return false;
-            const px = g.getImageData(0, 0, c.width, c.height).data;
-            for (let i = 3; i < px.length; i += 4) if (px[i] > 0) return true;
-            return false;
-          });
-        },
-        stripModels.length,
-        { timeout: 20000 },
-      );
-    const assertPanels = async (i) => {
-      const panels = await readPanels();
-      if (panels.length !== stripModels.length + 1) {
-        throw new Error(`${panels.length} strip panels, want ${stripModels.length + 1}`);
-      }
-      if (!panels[0].text.includes(String(eff.strip.image))) {
-        throw new Error(`base panel says "${panels[0].text}", want test image ${eff.strip.image}`);
-      }
-      for (const [k, m] of stripModels.entries()) {
-        const want = eff.strip.budgets[i].masks[m].dice.toFixed(3);
-        if (!panels[k + 1].text.includes(want)) {
-          throw new Error(
-            `strip panel ${m} at ${budgets[i]} labels says "${panels[k + 1].text}", want Dice ${want}`,
-          );
-        }
-      }
-      return panels;
-    };
-
-    /** The cursor must sit exactly on the selected budget's x tick (the axis
-     *  is log-spaced, so the tick text is the only honest reference). */
-    const cursorOffset = (budget) =>
-      page.evaluate((b) => {
-        const svgEl = document
-          .querySelector("#fig-eff-readouts")
-          ?.closest("figure")
-          ?.querySelector("svg");
-        const cursor = svgEl?.querySelector("line[data-cursor]");
-        const tick = [...svgEl.querySelectorAll("text")].find(
-          (n) => n.getAttribute("text-anchor") === "middle" && n.textContent.trim() === String(b),
-        );
-        if (!cursor) return "no data-cursor line in the chart";
-        if (!tick) return `no x tick labeled ${b}`;
-        return Number(cursor.getAttribute("x1")) - Number(tick.getAttribute("x"));
-      }, budget);
-
-    /** The expected lead/trail sentence, computed from the file the way the
-     *  component computes it. The sign flip across budgets is the figure's
-     *  finding, so it is asserted, not just displayed. */
-    const expectGap = (i) => {
-      const x0 = eff.models.x0diffusion[i].diceMean;
-      const best = models
-        .filter((m) => m !== "x0diffusion")
-        .reduce((a, b) => (eff.models[a][i].diceMean >= eff.models[b][i].diceMean ? a : b));
-      const delta = x0 - eff.models[best][i].diceMean;
+    const shape = await fig.evaluate((el) => {
+      const svg = el.querySelector("svg");
+      const series = [...el.querySelectorAll("g[data-series]")].map((g) => ({
+        id: g.getAttribute("data-series"),
+        opacity: Number(g.getAttribute("opacity") ?? 1),
+        points: g.querySelectorAll("circle").length,
+        firstCx: Number(g.querySelector("circle")?.getAttribute("cx")),
+      }));
+      const rect = el.querySelector("rect[data-eff-highlight]");
       return {
-        verb: delta >= 0 ? "leads" : "trails",
-        name: EFF_LABELS[best],
-        value: Math.abs(delta).toFixed(3),
+        controls: el.querySelectorAll("input, button, canvas").length,
+        strip: !!el.querySelector("#fig-eff-strip"),
+        series,
+        value: el.querySelector("[data-eff-x0-value]")?.textContent?.trim() ?? null,
+        lead: el.querySelector("g[data-eff-lead] text")?.textContent?.trim() ?? null,
+        rectCenter: rect ? Number(rect.getAttribute("x")) + Number(rect.getAttribute("width")) / 2 : null,
+        legend: [...(svg?.querySelectorAll("text") ?? [])].map((n) => n.textContent),
       };
-    };
+    });
 
-    const assertStop = async (i) => {
-      const { models: rows, gap } = await readReadouts();
-      for (const m of models) {
-        const p = eff.models[m][i];
-        const want = `${p.diceMean.toFixed(3)} ±${p.diceStd.toFixed(3)}`;
-        if (!rows[m]?.includes(want)) {
-          throw new Error(`readout for ${m} at ${budgets[i]} labels is "${rows[m]}", want "${want}"`);
-        }
-        if (!rows[m].includes(EFF_LABELS[m])) {
-          throw new Error(`readout for ${m} does not carry the label "${EFF_LABELS[m]}"`);
-        }
-      }
-      const g = expectGap(i);
-      if (!gap.includes(g.verb) || !gap.includes(g.name) || !gap.includes(g.value)) {
-        throw new Error(
-          `gap sentence at ${budgets[i]} labels is "${gap}", want ${g.verb} / ${g.name} / ${g.value}`,
-        );
-      }
-      const off = await cursorOffset(budgets[i]);
-      if (typeof off === "string") throw new Error(off);
-      if (Math.abs(off) > 0.01) {
-        throw new Error(`cursor is ${off} user units off the ${budgets[i]}-label tick`);
-      }
-      return g;
-    };
+    if (shape.controls !== 0 || shape.strip) {
+      throw new Error(`Figure 1 should be static; found ${shape.controls} controls/canvases, strip ${shape.strip}`);
+    }
+    const ids = shape.series.map((s) => s.id);
+    if (ids.length !== models.length || !models.every((m) => ids.includes(m))) {
+      throw new Error(`drawn series ${JSON.stringify(ids)} != displayed models ${JSON.stringify(models)}`);
+    }
+    if (ids.includes("ediffusion")) throw new Error("ε-diffusion is drawn; it must stay off the chart");
+    for (const s of shape.series) {
+      if (s.points !== budgets.length) throw new Error(`${s.id} draws ${s.points} points, expected ${budgets.length}`);
+    }
+    if (ids[ids.length - 1] !== "x0diffusion") throw new Error(`x0 must be drawn last (on top); order ${JSON.stringify(ids)}`);
+    const x0 = shape.series.find((s) => s.id === "x0diffusion");
+    if (x0.opacity !== 1) throw new Error(`x0 series opacity ${x0.opacity}, expected 1`);
+    const unfaded = shape.series.filter((s) => s.id !== "x0diffusion" && !(s.opacity < 1));
+    if (unfaded.length) throw new Error(`baselines not faded: ${unfaded.map((s) => s.id).join(", ")}`);
 
-    // 2. Default stop: the smallest budget, where the claim lives. x0 must
-    //    LEAD here — if the file ever says otherwise the site's headline is
-    //    in trouble, and this is where that surfaces.
-    const g0 = await assertStop(0);
-    if (g0.verb !== "leads") {
-      throw new Error(`x0 does not lead at ${budgets[0]} labels — the headline claim broke`);
+    const wantValue = `${EFF_LABELS.x0diffusion} ${x0Low.toFixed(3)}`;
+    if (shape.value !== wantValue) throw new Error(`x0 value label ${JSON.stringify(shape.value)}, expected ${JSON.stringify(wantValue)}`);
+    if (lead > 0) {
+      const wantLead = `+${lead.toFixed(3)}`;
+      if (shape.lead !== wantLead) throw new Error(`lead label ${JSON.stringify(shape.lead)}, expected ${JSON.stringify(wantLead)} over ${runner}`);
+    } else if (shape.lead !== null) {
+      throw new Error(`x0 does not lead at ${budgets[0]} labels, but a lead label ${JSON.stringify(shape.lead)} is drawn`);
     }
-    await waitPainted();
-    const panelsBefore = await assertPanels(0);
-
-    // 3. Pan to the largest budget: every readout, the whiskers and the
-    //    sentence must follow, and the sentence must FLIP to trails (the
-    //    crossover in the committed data).
-    const whiskerXBefore = await svg
-      .locator("g[data-whisker] line")
-      .first()
-      .getAttribute("x1");
-    await setRange(slider, lastIdx);
-    await page.waitForFunction(
-      (want) => document.querySelector("#eff-labels")?.value === String(want),
-      lastIdx,
-      { timeout: 5000 },
-    );
-    const gLast = await assertStop(lastIdx);
-    if (gLast.verb !== "trails") {
-      throw new Error(
-        `expected the trail flip at ${budgets[lastIdx]} labels (data says the baselines pass x0 there)`,
-      );
+    if (shape.rectCenter === null || Math.abs(shape.rectCenter - x0.firstCx) > 0.5) {
+      throw new Error(`highlight column centre ${shape.rectCenter} is not on the ${budgets[0]}-label points (${x0.firstCx})`);
     }
-    const whiskerXAfter = await svg
-      .locator("g[data-whisker] line")
-      .first()
-      .getAttribute("x1");
-    if (whiskerXBefore === whiskerXAfter) {
-      throw new Error("whiskers did not move with the slider");
-    }
-
-    // 4. The strip must follow the budget: every mask canvas whose FILE
-    //    changes repaints, and every printed Dice becomes the last budget's.
-    //    SAM's mask is the same deduped file at every budget (zero-shot; the
-    //    pipeline's content dedupe makes "same file" mean "same pixels"), so
-    //    its canvas must NOT change — asserted both ways. The crossover is
-    //    pixel-visible here (ResNet noise at 16, caught up at 80) — asserted
-    //    via the numbers, which are computed from those pixels.
-    const sameFile = stripModels.map(
-      (m) => eff.strip.budgets[0].masks[m].file === eff.strip.budgets[lastIdx].masks[m].file,
-    );
-    if (!sameFile.some(Boolean) || sameFile.every(Boolean)) {
-      throw new Error(
-        `expected a mix of per-budget and deduped strip masks, got sameFile=[${sameFile.join(",")}]`,
-      );
-    }
-    await page.waitForFunction(
-      ({ want, same }) =>
-        [...document.querySelectorAll("#fig-eff-strip canvas")].every(
-          (c, i) => (same[i] ? true : c.toDataURL() !== want[i]),
-        ),
-      { want: panelsBefore.slice(1).map((p) => p.url), same: sameFile },
-      { timeout: 20000 },
-    );
-    const panelsAfter = await assertPanels(lastIdx);
-    for (const [k, m] of stripModels.entries()) {
-      const changed = panelsAfter[k + 1].url !== panelsBefore[k + 1].url;
-      if (sameFile[k] && changed) {
-        throw new Error(`strip panel ${m} repainted although its mask file never changed`);
-      }
-      if (!sameFile[k] && !changed) {
-        throw new Error(`strip panel ${m} did not repaint at ${budgets[lastIdx]} labels`);
-      }
+    for (const m of models) {
+      if (!shape.legend.includes(EFF_LABELS[m])) throw new Error(`legend has no entry ${JSON.stringify(EFF_LABELS[m])}`);
     }
 
     return (
-      `${models.length} series; at ${budgets[0]} labels x0 ${g0.verb} ${g0.name} by ${g0.value}; ` +
-      `at ${budgets[lastIdx]} x0 ${gLast.verb} ${gLast.name} by ${gLast.value}; ` +
-      `readouts match label_efficiency.json at both stops; cursor exact; whiskers track the slider; ` +
-      `strip image ${eff.strip.image}: ` +
-      stripModels
-        .map(
-          (m) =>
-            `${m} ${eff.strip.budgets[0].masks[m].dice.toFixed(3)} -> ${eff.strip.budgets[lastIdx].masks[m].dice.toFixed(3)}`,
-        )
-        .join(", ") +
-      `, panels repainted`
+      `static: ${models.length} series x ${budgets.length} budgets, no controls, ε-diffusion off the chart; ` +
+      `x0 on top, baselines faded; "${shape.value}"; lead ${shape.lead} over ${runner} at ${budgets[0]} labels; ` +
+      `highlight column on the ${budgets[0]}-label points`
     );
   });
 }
@@ -1608,20 +1460,6 @@ async function checkDrawAutoLabel(browser) {
     // air. Center it first.
     await canvas.scrollIntoViewIfNeeded();
 
-    // The classifyLead note (task 8, 2026-09-16) must stand on its own,
-    // before any stroke, unreplaced by the guessing/auto/yours states this
-    // sits above.
-    const leadLocator = page.locator("#fig-draw [data-draw-classify-lead]");
-    const leadBefore = await leadLocator.textContent();
-    if (!(await leadLocator.isVisible())) {
-      throw new Error("classifyLead note not visible at 1280px before any stroke");
-    }
-    if (leadBefore?.trim() !== copy.systems.draw.classifyLead) {
-      throw new Error(
-        `classifyLead note text is ${JSON.stringify(leadBefore)}, expected ${JSON.stringify(copy.systems.draw.classifyLead)}`,
-      );
-    }
-
     const box = await canvas.boundingBox();
     if (!box) throw new Error("drawing canvas has no bounding box");
     const cx = box.x + box.width * 0.35;
@@ -1640,50 +1478,7 @@ async function checkDrawAutoLabel(browser) {
       { timeout: 120000 },
     );
 
-    // Same note, same text, still standing after a stroke produced an auto
-    // label — it is not one of the guessing/auto/yours states it sits above.
-    const leadAfter = await leadLocator.textContent();
-    if (!(await leadLocator.isVisible())) {
-      throw new Error("classifyLead note not visible at 1280px after an auto-labeled stroke");
-    }
-    if (leadAfter?.trim() !== copy.systems.draw.classifyLead) {
-      throw new Error(
-        `classifyLead note text changed after classify: ${JSON.stringify(leadAfter)}`,
-      );
-    }
-
-    return "digit picker shows fit scores after one stroke (classifier ran); classifyLead note present, unchanged, before and after";
-  });
-}
-
-/* ---------------------------------------------------------------------- */
-/* 6b. classifyLead note present and visible at 400px, before any stroke  */
-/* (components/DrawDigit.tsx, content/copy.ts systems.draw.classifyLead)  */
-/* ---------------------------------------------------------------------- */
-
-async function checkDrawClassifyLead400(browser) {
-  return withPage(browser, { viewport: { width: 400, height: 800 } }, async (page) => {
-    await page.goto(BASE, { waitUntil: "networkidle" });
-    await scrollUntilAttached(page, "#fig-draw");
-
-    const leadLocator = page.locator("#fig-draw [data-draw-classify-lead]");
-    await leadLocator.scrollIntoViewIfNeeded();
-    if (!(await leadLocator.isVisible())) {
-      throw new Error("classifyLead note not visible at 400px before any stroke");
-    }
-    const text = (await leadLocator.textContent())?.trim();
-    if (text !== copy.systems.draw.classifyLead) {
-      throw new Error(
-        `classifyLead note text at 400px is ${JSON.stringify(text)}, expected ${JSON.stringify(copy.systems.draw.classifyLead)}`,
-      );
-    }
-    const box = await leadLocator.boundingBox();
-    if (!box) throw new Error("classifyLead note has no bounding box at 400px");
-    if (box.x < 0 || box.x + box.width > 400) {
-      throw new Error(`classifyLead note at 400px sits outside the viewport: ${JSON.stringify(box)}`);
-    }
-
-    return "classifyLead note present, visible and in-bounds at 400px before any stroke";
+    return "digit picker shows fit scores after one stroke (classifier ran)";
   });
 }
 
@@ -5297,7 +5092,6 @@ const CHECKS = [
   ["dice-cdf", checkDiceCdf],
   ["flight-video-play-pause", checkFlightVideoPlayPause],
   ["draw-stroke-auto-label", checkDrawAutoLabel],
-  ["draw-classify-lead-400", checkDrawClassifyLead400],
   ["chess-hint-g3", checkChessHint],
   ["chess-self-play", checkChessSelfPlay],
   ["ort-runtime-build", checkOrtRuntimeBuild],

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chess, type Square } from "chess.js";
 import { trackDemoOnce } from "@/lib/track";
 import { InstrumentFigure } from "./manuscript/InstrumentFigure";
+import { Note } from "./manuscript/Row";
 import { ChessBoard } from "./ChessBoard";
 import { ChessActivations } from "./ChessActivations";
 import {
@@ -589,12 +590,25 @@ export function ChessPanel() {
       <h3 className="mt-1 mb-2 pr-40 text-[17px] font-semibold text-ink">
         {copy.systems.chess.heading}
       </h3>
-      <p className="mb-4 max-w-2xl text-[15px] leading-relaxed text-mut">
-        {copy.systems.chess.lede.a}
-      </p>
-      <p className="mb-5 max-w-2xl text-[15px] leading-relaxed text-mut">
-        {copy.systems.chess.lede.b}
-      </p>
+      {/* Main column + side notes, the Research rows' pattern (Row.tsx) at
+          the same 880px split: claims on the left, provenance in the notes. */}
+      <div className="mb-5 min-[880px]:grid min-[880px]:grid-cols-[minmax(0,1fr)_240px] min-[880px]:gap-x-10">
+        <div>
+          <p className="mb-4 max-w-2xl text-[15px] leading-relaxed text-mut">
+            {copy.systems.chess.lede.a}
+          </p>
+          <p className="max-w-2xl text-[15px] leading-relaxed text-mut">
+            {copy.systems.chess.lede.b}
+          </p>
+        </div>
+        <aside className="mt-4 space-y-4 border-t border-hair pt-3 min-[880px]:mt-0 min-[880px]:border-t-0 min-[880px]:border-l min-[880px]:pt-0 min-[880px]:pl-6">
+          {copy.systems.chess.ledeNotes.map((n) => (
+            <Note key={n.tag} tag={n.tag}>
+              {n.body}
+            </Note>
+          ))}
+        </aside>
+      </div>
 
       {err ? (
         <p className="mb-4 font-mono text-[11px] leading-relaxed text-mut/60">
@@ -945,12 +959,6 @@ export function ChessPanel() {
             ) : null}
 
             <p className="mt-4 max-w-sm font-mono text-[11px] leading-relaxed text-mut/60">
-              <span className="text-link">{copy.systems.chess.hintNote.word}</span>
-              {copy.systems.chess.hintNote.post}
-            </p>
-
-            <p className="mt-6 max-w-sm font-mono text-[11px] leading-relaxed text-mut/60">
-              {copy.systems.chess.searchNote.pre}
               <span className="text-ok">{copy.systems.chess.searchNote.letItThink}</span>
               {copy.systems.chess.searchNote.post}
             </p>

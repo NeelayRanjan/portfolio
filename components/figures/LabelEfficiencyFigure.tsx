@@ -1,55 +1,42 @@
-"use client";
-
-import { useEffect, useRef, useState } from "react";
 import { InstrumentFigure } from "@/components/manuscript/InstrumentFigure";
-import { paintMaskCanvas, readToken, type MaskToken } from "@/components/figures/mask-paint";
 import { copy } from "@/content/copy";
 import effData from "@/public/research/label_efficiency.json";
 
 /**
- * Figure 1 — the label-efficiency sweep (2026-09-12, replacing the wipe):
- * mean test Dice vs label budget from
+ * Figure 1 — the label-efficiency chart: mean test Dice vs label budget from
  * `public/research/label_efficiency.json`, which `scripts/prepare-research.mjs`
  * pools from the paper's own metrics CSV (2,500 per-image predictions per
- * point: all seeds, all folds, all 100 test images). Six of the json's seven
- * models are drawn — see the ε-diffusion note on MODELS below. This is the
- * graph the site's headline number lives in: 0.882 is the x0-diffusion point
- * at 16 labels.
+ * point: all seeds, all folds, all 100 test images). This is the graph the
+ * site's headline number lives in: 0.882 is the x0-diffusion point at 16
+ * labels.
  *
- * One control, the same pattern as Figure 2: a slider that snaps between the
- * three budgets the paper ran (16 / 32 / 80 labels). The cursor line, the
- * one-standard-deviation whiskers, the per-model readouts and the lead/trail
- * sentence all follow it. The curves themselves never change — they are the
- * data, all of it, at every stop.
+ * STATIC since 2026-09-30 (owner call: the slider, readouts, whiskers and
+ * mask strip were hurting engagement more than helping). It is a server
+ * component now, no client JS. What replaced the interaction is emphasis on
+ * the one thing the figure argues: x0-diffusion drawn heavy and the
+ * baselines faded, the smallest budget's column shaded in x0's green, x0's
+ * value printed on its point, and a bracket from the next-best model up to
+ * x0 labelled with the lead. The `strip` block and its `eff/` masks stay in
+ * the json and in public/research/, unrendered (same as the wipe's assets);
+ * git history has the interactive version.
  *
- * ⚠️ EVERYTHING IS READ FROM THE FILE. Budgets, fractions, train size, means,
- * stds: a regenerated export changes the figure with no code edit, and the
- * lead/trail sentence is computed per stop (x0 leads at 16, TRAILS DeepLabV3
- * at 32 and ResNet-UNet at 80 — that flip is the claim, so don't "fix" it).
+ * ⚠️ EVERYTHING IS READ FROM THE FILE, including the annotation: the value,
+ * the next-best model and the lead are computed at the smallest budget, so a
+ * regenerated export moves them with no code edit. If x0 ever stops leading
+ * there, the bracket and lead label are not drawn (the figure never asserts
+ * a win the data doesn't show).
  *
  * ⚠️ SAM'S LINE IS FLAT BECAUSE THE DATA IS. SAM is zero-shot and never
  * trains on the labels; the CSV replicates its 2,500 per-image scores at
- * every fraction (verified: identical mean/std at 0.05/0.1/0.25). Don't
- * de-duplicate it out of the chart — the flat line IS its story.
+ * every fraction. Don't de-duplicate it out of the chart.
  *
  * ⚠️ THE X AXIS IS LOG-SPACED (a mono note under the chart says so). Budgets
  * 16→32→80 are multiplicative steps; linear spacing shoves 16 and 32
  * together and makes the crossover look later than it is.
  *
  * ⚠️ COLOR IS NEVER THE ONLY CARRIER (house rule): every series has its own
- * dash pattern and a named legend entry, and the three hues Figure 2 already
- * assigned (green x0, dashed red SAM, dotted amber ResNet-UNet) are kept
- * identical here so the two figures read as one system.
- *
- * THE STRIP (added 2026-09-13, from the test_predictions re-export): one real
- * test angiogram with x0-diffusion's and ResNet-UNet's masks at the SELECTED
- * budget, so the crossover is visible in pixels while the slider moves. Data
- * and rules come from `strip` in the json (image pick rule and per-panel
- * audit in provenance.json): polarity is the RECORDED `vesselIsWhite`, the
- * Dice is computed from the exact shipped bytes, tints are each model's
- * series hue, and the whole strip is gated on the block's presence, so an
- * older json without it renders the chart alone. Painted canvases are cached
- * per file, same as Figure 2's panels.
+ * dash pattern and a named legend entry, and Figure 2's three hues (green
+ * x0, dashed red SAM, dotted amber ResNet-UNet) are kept identical here.
  */
 
 type Point = { fraction: number; labels: number; diceMean: number; diceStd: number; n: number };
@@ -62,9 +49,8 @@ const t = copy.research.figLabelEff;
  *
  *  ⚠️ ε-DIFFUSION IS DELIBERATELY NOT DISPLAYED (owner call, 2026-09-13): its
  *  flat ~0.23 line pinned the y axis to zero and squashed the 0.65-0.95 band
- *  where every difference lives. It stays in the json (the data record) and
- *  the caption discloses the omission with its number, so nothing is hidden,
- *  just not drawn. Y_MIN below exists because of this call. */
+ *  where every difference lives. It stays in the json and the caption
+ *  discloses the omission with its number. Y_MIN below exists because of it. */
 const MODELS: ModelKey[] = [
   "x0diffusion",
   "sam",
@@ -73,6 +59,7 @@ const MODELS: ModelKey[] = [
   "resnet",
   "deeplabv3",
 ];
+const BASELINES = MODELS.filter((m) => m !== "x0diffusion");
 
 /** The budgets, off the file. Every model must carry the same ones — a
  *  malformed export throws (an export bug that swallowing would hide). */
@@ -87,11 +74,10 @@ const SERIES_POINTS: Record<ModelKey, Point[]> = Object.fromEntries(
   }),
 ) as Record<ModelKey, Point[]>;
 
-/** Line style per model. Figure 2's three series keep exactly its styles.
- *  (ε-diffusion's entry is unused while it stays off the chart; it is kept so
- *  the Record stays total over the json's keys.) */
+/** Line style per model. Figure 2's three series keep exactly its hues and
+ *  dashes; x0 is drawn heavier here because it is the figure's subject. */
 const SERIES: Record<ModelKey, { color: string; dash?: string; width: number }> = {
-  x0diffusion: { color: "var(--color-ok)", width: 2 },
+  x0diffusion: { color: "var(--color-ok)", width: 2.8 },
   sam: { color: "var(--color-red-ink)", dash: "7 4", width: 1.6 },
   resnet: { color: "var(--color-warm)", dash: "1.6 3.2", width: 1.6 },
   vit_base_patch16: { color: "var(--color-link)", dash: "10 3", width: 1.4 },
@@ -99,30 +85,17 @@ const SERIES: Record<ModelKey, { color: string; dash?: string; width: number }> 
   deeplabv3: { color: "var(--color-mut)", width: 1.2 },
   ediffusion: { color: "var(--color-mut)", dash: "1.6 3.2", width: 1.2 },
 };
+/** How far the baselines fade behind x0. Still legible (their crossover at
+ *  32 and 80 labels is part of the story), just not competing. */
+const BASELINE_OPACITY = 0.5;
 
-/** The strip block, gated on presence and shape (an older json has none). */
-type StripMask = { file: string; dice: number; vesselIsWhite: boolean; width: number; height: number };
-type Strip = {
-  image: number;
-  angio: string;
-  models: string[];
-  budgets: { fraction: number; labels: number; masks: Record<string, StripMask> }[];
-};
-const STRIP: Strip | null = (() => {
-  const s = (effData as { strip?: Strip }).strip;
-  if (!s || !Array.isArray(s.budgets)) return null;
-  if (s.budgets.length !== BUDGETS.length || s.budgets.some((b, i) => b.labels !== BUDGETS[i])) {
-    throw new Error("label_efficiency.json: strip budgets disagree with the chart's budgets");
-  }
-  return s;
-})();
-/** Mask tint per strip model: the model's own series hue (Figure 2's trio,
- *  Figure 2's exact tints). */
-const STRIP_TINTS: Record<string, MaskToken> = {
-  x0diffusion: "--color-ok",
-  sam: "--color-red-ink",
-  resnet: "--color-warm",
-};
+/** The annotation, computed at the smallest budget. */
+const X0_LOW = SERIES_POINTS.x0diffusion[0];
+const RUNNER_UP = BASELINES.reduce((a, b) =>
+  SERIES_POINTS[a][0].diceMean >= SERIES_POINTS[b][0].diceMean ? a : b,
+);
+const RUNNER_LOW = SERIES_POINTS[RUNNER_UP][0];
+const LEAD = X0_LOW.diceMean - RUNNER_LOW.diceMean;
 
 const WIDTH = 680;
 const HEIGHT = 320;
@@ -130,130 +103,57 @@ const MARGIN = { top: 12, right: 18, bottom: 44, left: 48 };
 const PLOT_W = WIDTH - MARGIN.left - MARGIN.right;
 const PLOT_H = HEIGHT - MARGIN.top - MARGIN.bottom;
 
-/** Inner padding on the x range: the end budgets otherwise land exactly on
- *  the y axis and the right edge, which hides the cursor at the default stop
- *  and clips the whiskers (seen in the first screenshot pass). Sized for the
- *  whisker dodge below plus its caps. */
+/** Inner padding on the x range, so the end budgets don't sit on the y axis
+ *  and the right edge, and the shaded column has room either side. */
 const X_PAD = 26;
 const LOG_MIN = Math.log(BUDGETS[0]);
 const LOG_SPAN = Math.log(BUDGETS[BUDGETS.length - 1]) - LOG_MIN;
 const xScale = (labels: number) =>
   MARGIN.left + X_PAD + ((Math.log(labels) - LOG_MIN) / LOG_SPAN) * (PLOT_W - 2 * X_PAD);
-/** The axis floor. 0.4 clears every displayed mean AND every one-σ whisker
- *  (the lowest is DeepLabV3's 0.657 − 0.202 = 0.455 at 16 labels), so nothing
- *  on screen is clipped; only the never-drawn ε-diffusion lives below it. */
-const Y_MIN = 0.4;
+/** The axis floor. 0.6 clears every displayed mean (the lowest is
+ *  DeepLabV3's 0.657 at 16 labels); it was 0.4 while the one-σ whiskers
+ *  needed the room, and raising it spreads the lines half again further
+ *  apart, which is what makes x0's lead visible. Only the never-drawn
+ *  ε-diffusion lives below it. A regenerated export with a mean under 0.6
+ *  throws below rather than drawing off the axis. */
+const Y_MIN = 0.6;
 const yScale = (dice: number) => MARGIN.top + ((1 - dice) / (1 - Y_MIN)) * PLOT_H;
 const bottomEdge = MARGIN.top + PLOT_H;
 
-const Y_TICKS = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1];
-
-/**
- * One strip column: the angiogram, optionally one model's mask over it at the
- * selected budget, and the Dice computed for those exact pixels. The painted
- * canvas is cached per mask file, so sliding back is a `drawImage`, not a
- * fresh decode (Figure 2's pattern).
- */
-function StripPanel({ budgetIdx, model }: { budgetIdx: number; model: string | null }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const cache = useRef(new Map<string, HTMLCanvasElement>());
-  const strip = STRIP as Strip;
-  const mask = model ? strip.budgets[budgetIdx].masks[model] : null;
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !mask || !model) return;
-    let live = true;
-
-    const blit = (painted: HTMLCanvasElement) => {
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      canvas.width = painted.width;
-      canvas.height = painted.height;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(painted, 0, 0);
-    };
-
-    const cached = cache.current.get(mask.file);
-    if (cached) {
-      blit(cached);
-      return;
+const Y_TICKS = [0.6, 0.7, 0.8, 0.9, 1];
+for (const m of MODELS) {
+  for (const p of SERIES_POINTS[m]) {
+    if (p.diceMean < Y_MIN) {
+      throw new Error(`label_efficiency.json: ${m} at ${p.labels} labels is ${p.diceMean}, under the axis floor ${Y_MIN}`);
     }
-
-    // Clear first: the previous budget's mask must not linger under this
-    // budget's number while the new PNG decodes.
-    const ctx = canvas.getContext("2d");
-    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    paintMaskCanvas(`/research/${mask.file}`, readToken(STRIP_TINTS[model]), mask.vesselIsWhite)
-      .then((painted) => {
-        cache.current.set(mask.file, painted);
-        if (live) blit(painted);
-      })
-      .catch(() => {
-        /* The panel stays the plain angiogram: an absent mask shows nothing
-           rather than something invented. */
-      });
-
-    return () => {
-      live = false;
-    };
-  }, [mask, model]);
-
-  const name = model ? t.modelLabels[model as ModelKey] : t.angioLabel;
-
-  return (
-    <div>
-      <div className="relative aspect-square w-full overflow-hidden border border-rule bg-panel">
-        {/* Stretched, not cropped: the masks are registered to the squashed
-            frame, same ruling as Figure 2's panels. */}
-        <img
-          src={`/research/${strip.angio}`}
-          alt={model ? "" : `${t.angioAltPre}${strip.image}`}
-          aria-hidden={model ? true : undefined}
-          className="absolute inset-0 h-full w-full"
-        />
-        {mask && model ? (
-          <canvas
-            ref={canvasRef}
-            role="img"
-            aria-label={`${t.maskAriaPre}${t.modelLabels[model as ModelKey]}${t.maskAriaMid}${strip.budgets[budgetIdx].labels}${t.maskAriaPost}${mask.dice.toFixed(3)}`}
-            className="absolute inset-0 h-full w-full"
-          />
-        ) : null}
-      </div>
-      <div className="mt-2 font-mono text-[11px] leading-tight text-mut">
-        <span style={model ? { color: SERIES[model as ModelKey].color } : undefined}>{name}</span>
-        <br />
-        {mask ? `${t.diceLabel} ${mask.dice.toFixed(3)}` : `${t.imagePre}${strip.image}`}
-      </div>
-    </div>
-  );
+  }
 }
 
+/** Series draw order: baselines first, x0 last, so it sits on top. */
+const DRAW_ORDER: ModelKey[] = [...BASELINES, "x0diffusion"];
+
 export function LabelEfficiencyFigure() {
-  // Default to the smallest budget: the paper's claim lives at 16 labels.
-  const [idx, setIdx] = useState(0);
-  const labels = BUDGETS[idx];
-  const cursorX = xScale(labels);
-
-  const at = (m: ModelKey) => SERIES_POINTS[m][idx];
-
-  // The honest sentence: computed per stop, sign and all. `best` is the top
-  // NON-x0 model at this budget; x0 leads at 16 and trails from 32 on.
-  const best = MODELS.filter((m) => m !== "x0diffusion").reduce((a, b) =>
-    at(a).diceMean >= at(b).diceMean ? a : b,
-  );
-  const gap = at("x0diffusion").diceMean - at(best).diceMean;
+  const lowX = xScale(BUDGETS[0]);
+  const x0Y = yScale(X0_LOW.diceMean);
+  const runnerY = yScale(RUNNER_LOW.diceMean);
+  const bracketX = lowX + 9;
 
   return (
-    <InstrumentFigure
-      n="1"
-      caption={t.caption}
-      readout={`${t.readoutLabel} ${labels}`}
-    >
+    <InstrumentFigure n="1" id="fig-eff" caption={t.caption}>
       <div className="text-mut font-mono text-[10.5px]">
         <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full" role="img" aria-label={t.chartAria}>
+          {/* The smallest budget's column, where the claim lives, shaded in
+              x0's own green. */}
+          <rect
+            data-eff-highlight
+            x={lowX - 22}
+            y={MARGIN.top}
+            width={44}
+            height={PLOT_H}
+            fill="var(--color-ok)"
+            fillOpacity={0.08}
+          />
+
           {/* axes */}
           <line
             x1={MARGIN.left}
@@ -317,75 +217,71 @@ export function LabelEfficiencyFigure() {
             {t.yAxisLabel}
           </text>
 
-          {/* The slider's budget, marked across the plot. `data-cursor` is for
-              the verify script: ViT's series is also link-blue and dashed, so
-              stroke alone no longer identifies the cursor. */}
-          <line
-            data-cursor
-            x1={cursorX}
-            x2={cursorX}
-            y1={MARGIN.top}
-            y2={bottomEdge}
-            stroke="var(--color-link)"
-            strokeWidth={1.4}
-            strokeDasharray="3 3"
-          />
-
-          {/* series lines + points */}
-          {MODELS.map((m) => (
-            <g key={m}>
-              <polyline
-                points={SERIES_POINTS[m]
-                  .map((p) => `${xScale(p.labels)},${yScale(p.diceMean)}`)
-                  .join(" ")}
-                fill="none"
-                stroke={SERIES[m].color}
-                strokeWidth={SERIES[m].width}
-                strokeDasharray={SERIES[m].dash}
-                strokeLinecap="butt"
-              />
-              {SERIES_POINTS[m].map((p, i) => (
-                <circle
-                  key={p.labels}
-                  cx={xScale(p.labels)}
-                  cy={yScale(p.diceMean)}
-                  r={i === idx ? 3.4 : 2.2}
-                  fill={SERIES[m].color}
-                />
-              ))}
-            </g>
-          ))}
-
-          {/* one-standard-deviation whiskers, at the selected budget only —
-              seven at every budget is fog. Dodged horizontally in legend
-              order (all seven share one x otherwise and smear into a single
-              vertical line, seen in the first screenshot pass) and clamped to
-              the plot: DeepLabV3's ±0.20 at 16 labels stays inside the axes.
-              FAINT on purpose (owner call, 2026-09-13: at full strength they
-              competed with the lines); the exact ±σ numbers live in the
-              readout row, so the whiskers only have to gesture at spread. */}
-          {MODELS.map((m, i) => {
-            const p = at(m);
-            const x = cursorX + (i - (MODELS.length - 1) / 2) * 6;
-            const yTop = yScale(Math.min(1, p.diceMean + p.diceStd));
-            const yBot = yScale(Math.max(Y_MIN, p.diceMean - p.diceStd));
+          {/* series lines + points, x0 on top and at full strength */}
+          {DRAW_ORDER.map((m) => {
+            const isX0 = m === "x0diffusion";
             return (
-              <g key={m} data-whisker={m} stroke={SERIES[m].color} strokeOpacity={0.28}>
-                <line x1={x} x2={x} y1={yTop} y2={yBot} strokeWidth={1.1} />
-                <line x1={x - 3.5} x2={x + 3.5} y1={yTop} y2={yTop} strokeWidth={1.1} />
-                <line x1={x - 3.5} x2={x + 3.5} y1={yBot} y2={yBot} strokeWidth={1.1} />
+              <g key={m} data-series={m} opacity={isX0 ? 1 : BASELINE_OPACITY}>
+                <polyline
+                  points={SERIES_POINTS[m]
+                    .map((p) => `${xScale(p.labels)},${yScale(p.diceMean)}`)
+                    .join(" ")}
+                  fill="none"
+                  stroke={SERIES[m].color}
+                  strokeWidth={SERIES[m].width}
+                  strokeDasharray={SERIES[m].dash}
+                  strokeLinecap="butt"
+                />
+                {SERIES_POINTS[m].map((p, i) => (
+                  <circle
+                    key={p.labels}
+                    cx={xScale(p.labels)}
+                    cy={yScale(p.diceMean)}
+                    r={isX0 ? (i === 0 ? 4.6 : 3.4) : 2.2}
+                    fill={SERIES[m].color}
+                  />
+                ))}
               </g>
             );
           })}
 
-          {/* Legend, line sample + name. Sits in the lower-right band the
-              data leaves empty: past 32 labels every displayed series is
-              above 0.8, and nothing else reaches down here. */}
+          {/* x0's value on its smallest-budget point, and (only while it
+              actually leads there) a bracket down to the next-best model
+              carrying the lead. */}
+          <text
+            data-eff-x0-value
+            x={lowX - 10}
+            y={x0Y - 11}
+            fill="var(--color-ok)"
+            fontSize={13}
+            fontWeight={600}
+          >
+            {t.modelLabels.x0diffusion} {X0_LOW.diceMean.toFixed(3)}
+          </text>
+          {LEAD > 0 ? (
+            <g data-eff-lead stroke="var(--color-ok)" strokeWidth={1.2}>
+              <line x1={bracketX} x2={bracketX} y1={x0Y + 5} y2={runnerY} />
+              <line x1={bracketX - 3} x2={bracketX + 3} y1={runnerY} y2={runnerY} />
+              <text
+                x={bracketX + 6}
+                y={(x0Y + runnerY) / 2 + 4}
+                fill="var(--color-ok)"
+                stroke="none"
+                fontSize={12}
+                fontWeight={600}
+              >
+                +{LEAD.toFixed(3)}
+              </text>
+            </g>
+          ) : null}
+
+          {/* Legend, line sample + name, in the lower-right band the data
+              leaves empty (right of 32 labels every series is above 0.83). */}
           {MODELS.map((m, i) => {
             const x = MARGIN.left + PLOT_W * 0.56;
-            const y = yScale(0.7) + i * 14;
+            const y = yScale(0.79) + i * 14;
             return (
-              <g key={m}>
+              <g key={m} opacity={m === "x0diffusion" ? 1 : 0.75}>
                 <line
                   x1={x}
                   x2={x + 30}
@@ -414,76 +310,6 @@ export function LabelEfficiencyFigure() {
         {effData.trainSize}
         {t.logNoteEnd}
       </p>
-
-      {/* The exact numbers at the cursor, mean ± one standard deviation. */}
-      <div
-        id="fig-eff-readouts"
-        role="status"
-        className="mt-4 flex flex-wrap items-baseline gap-x-4 gap-y-1 font-mono text-[11px] text-mut tabular-nums"
-      >
-        <span>
-          {t.meanPre}
-          {labels}
-          {t.meanPost}
-        </span>
-        {MODELS.map((m) => (
-          <span key={m} data-model={m}>
-            <span style={{ color: SERIES[m].color }}>{t.modelLabels[m]}</span>{" "}
-            <span className="text-ink">{at(m).diceMean.toFixed(3)}</span>
-            {" ±"}
-            {at(m).diceStd.toFixed(3)}
-          </span>
-        ))}
-      </div>
-
-      {/* Lead or trail, computed, never hand-set: the flip at 32 labels is
-          the figure's finding. */}
-      <p id="fig-eff-gap" className="mt-2 font-mono text-[11px] text-mut tabular-nums">
-        {gap >= 0 ? t.gapLeadPre : t.gapTrailPre}
-        {t.modelLabels[best]}
-        {t.gapMid}
-        {Math.abs(gap).toFixed(3)}
-        {t.gapPost}
-      </p>
-
-      <label
-        htmlFor="eff-labels"
-        className="mt-4 flex items-center gap-3 font-mono text-[11px] text-mut"
-      >
-        <span>{t.sliderLabel}</span>
-        <input
-          id="eff-labels"
-          type="range"
-          min={0}
-          max={BUDGETS.length - 1}
-          step={1}
-          value={idx}
-          onChange={(e) => setIdx(Number(e.target.value))}
-          aria-label={`${t.sliderAriaPre}${labels}${t.sliderAriaPost}`}
-          className="h-1 flex-1 accent-link"
-        />
-      </label>
-
-      {/* The strip: one real angiogram, then each model's mask at the
-          selected budget — the crossover in pixels. SAM's mask is genuinely
-          the same file at every budget (zero-shot; the pipeline deduped it),
-          so that panel not changing under the slider is the data, not a bug.
-          Gated on the json block. */}
-      {STRIP ? (
-        <>
-          <div id="fig-eff-strip" className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <StripPanel budgetIdx={idx} model={null} />
-            {STRIP.models.map((m) => (
-              <StripPanel key={m} budgetIdx={idx} model={m} />
-            ))}
-          </div>
-          <p className="mt-3 font-mono text-[10.5px] leading-relaxed text-mut">
-            {t.stripNotePre}
-            {labels}
-            {t.stripNotePost}
-          </p>
-        </>
-      ) : null}
     </InstrumentFigure>
   );
 }

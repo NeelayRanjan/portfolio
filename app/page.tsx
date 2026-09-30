@@ -7,6 +7,7 @@ import { StatBand } from "@/components/manuscript/StatBand";
 import { MissionRows } from "@/components/manuscript/MissionRows";
 import { References } from "@/components/manuscript/References";
 import { StargazeFooterEntry } from "@/components/manuscript/StargazeFooterEntry";
+import { TrackedLink } from "@/components/manuscript/TrackedLink";
 import { LabelEfficiencyFigure } from "@/components/figures/LabelEfficiencyFigure";
 import { DiceCdfFigure } from "@/components/figures/DiceCdfFigure";
 import { FlightFigure } from "@/components/figures/FlightFigure";
@@ -32,8 +33,8 @@ export const metadata: Metadata = { alternates: { canonical: "/" } };
 // viewport margin. `body` stays background-transparent (see app/layout.tsx),
 // which `NightSky`'s stacking depends on.
 export default function Home() {
-  const noteData = copy.research.noteBars[0];
-  const noteCredit = copy.research.noteBars[1];
+  const dataNote = copy.research.dataNote;
+  const notes = copy.research.notes;
 
   return (
     <main className="flex-1 px-4 pb-24">
@@ -46,8 +47,15 @@ export default function Home() {
         />
 
         <Row
-          rail={<Note tag="scope">{copy.research.scopeNote}</Note>}
-          railAlign="end"
+          rail={
+            // Desktop only: the rail starts at the row's top, but the h2 carries
+            // a 60px top margin, so without this the PAPER note sits above
+            // the heading.
+            <div className="space-y-6 min-[880px]:pt-[60px]">
+              <Note tag={notes.paper.tag}>{notes.paper.body}</Note>
+              <Note tag={notes.study.tag}>{notes.study.body}</Note>
+            </div>
+          }
         >
           <h2
             id="research"
@@ -62,26 +70,61 @@ export default function Home() {
           ))}
         </Row>
 
-        <Row rail={<Note tag={noteData.tag}>{noteData.body}</Note>}>
+        <Row
+          rail={
+            <div className="space-y-6">
+              <Note tag={dataNote.tag}>
+                {dataNote.pre}
+                <TrackedLink
+                  label="Angiogram benchmark"
+                  href={dataNote.href}
+                  className="text-link hover:underline hover:underline-offset-[3px]"
+                >
+                  {dataNote.link}
+                </TrackedLink>
+                {dataNote.post}
+              </Note>
+              <Note tag={notes.scope.tag}>{notes.scope.body}</Note>
+            </div>
+          }
+        >
           <LabelEfficiencyFigure />
         </Row>
 
-        <Row rail={<Note tag={noteCredit.tag}>{noteCredit.body}</Note>}>
+        <Row>
           <DiceCdfFigure />
+        </Row>
+
+        <Row
+          rail={
+            <Note tag={copy.research.mwscas.citeTag}>{copy.research.mwscas.citation}</Note>
+          }
+        >
           <p className="mt-4 text-[15px] leading-relaxed text-mut">
             {copy.research.mwscas.prose}
           </p>
-          <p className="mt-2 text-[13px] leading-relaxed text-mut">
-            {copy.research.mwscas.citation}
-          </p>
         </Row>
 
-        <Row>
-          <p className="mt-8 text-[15px] leading-relaxed text-mut">
-            {copy.research.nasaProse}
-          </p>
-        </Row>
-        <FlightFigure />
+        {/* The NASA work in its own box (owner call, 2026-09-30), separate from
+            the paper above; it is the seam a fuller NASA section grows from
+            later. The box has no background of its own: Figure 3's video
+            blends against its own panel, which this must not change. The
+            bottom padding is the figure's own my-8. */}
+        <section
+          data-nasa-box
+          aria-labelledby="nasa"
+          className="mt-12 border border-rule px-3 pt-5 min-[880px]:px-6 min-[880px]:pt-6"
+        >
+          <h3 id="nasa" className="mb-4 text-[18px] font-semibold text-ink">
+            {copy.research.nasaHeading}
+          </h3>
+          <Row rail={<Note tag={notes.slaac.tag}>{notes.slaac.body}</Note>}>
+            <p className="text-[15px] leading-relaxed text-mut">
+              {copy.research.nasaProse}
+            </p>
+          </Row>
+          <FlightFigure />
+        </section>
 
         <Row>
           <h2

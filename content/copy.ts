@@ -73,8 +73,8 @@ export const copy = {
       "I build generative models for domains where labels are scarce and mistakes " +
       "are expensive: vessel segmentation from 16 labeled angiograms, a chess " +
       "engine that fits in 553 KB, a transformer that synthesizes a day of FAA " +
-      "flight traffic. The chess engine runs live on this page, in your browser, " +
-      "next to a separate live diffusion demo where you draw a digit and watch it denoise.",
+      "flight traffic. You can play the chess engine on the page, and draw a " +
+      "digit for a diffusion model to clean up.",
     ogImageAlt: "Neelay Ranjan, generative-modeling researcher",
   },
 
@@ -119,30 +119,23 @@ export const copy = {
       ],
       /** Fallback if a retrained export ships more classes than there are alts. */
       photoAltGeneric: "Neelay Ranjan.",
-      /**
-       * ⚠️ THE FIRST SENTENCE SWAPS WITH THE STATE, and that is a correctness
-       * fix, not a flourish. At rest the box really is the loaded file, so
-       * "this photo is sampled, not loaded" was false for every visitor who
-       * never pressed anything. The body is shared, so the two states can't
-       * drift apart.
-       */
-      captionLeadRest: "Right now that's the photo file itself. ",
-      captionLeadSampled: "This photo is sampled, not loaded. ",
+      /** One sentence, true before and after a press (2026-09-30: the old
+       *  state-swapping lead, "Right now that's the photo file itself" /
+       *  "This photo is sampled, not loaded", was cut as self-vouching). It
+       *  describes what a press does, so it never claims the at-rest file
+       *  is a sample. */
       captionBody:
-        "I overfit a 1.3M-parameter diffusion model on three photos of me " +
-        "until it memorized them, and pressing a face runs it here in your " +
-        "browser: 25 steps from fresh noise back to that photo. New noise " +
-        "every press, so the route changes and the face doesn't.",
+        "Press a face and a 1.3M-parameter diffusion model, overfit on three " +
+        "photos of me, samples it in your browser in 25 steps from fresh noise.",
       /** The v2-module variant (rendered only when the vendored sampler
        *  supports transitions): presses after the first morph the on-screen
        *  picture instead of restarting from noise, so the body has to say
        *  that or the old "new noise every press" line goes false. */
       captionBodyMorph:
-        "I overfit a 1.3M-parameter diffusion model on three photos of me " +
-        "until it memorized them. A press runs it here in your browser: the " +
-        "first sample climbs out of fresh noise, and after that pressing a " +
-        "different face partially re-noises the picture on screen and pulls " +
-        "the new photo out of it. resample starts over from noise.",
+        "Press a face and a 1.3M-parameter diffusion model, overfit on three " +
+        "photos of me, samples it in your browser in 25 steps from fresh noise. " +
+        "After that, pressing a different face re-noises the picture on screen " +
+        "partway and pulls the new photo out of it; resample starts over from noise.",
       /** The canvas's accessible name: this, " 1 of 3", then the photo's own
        *  alt text. The alt has to ride along or a screen-reader user loses the
        *  description of what the author looks like the moment the canvas
@@ -176,14 +169,14 @@ export const copy = {
     stamp: "IN PREPARATION",
     /** The /lab box under the stamp. Two lines:
      *    "Supplementary material →"   (the arrow is the box's decoration)
-     *    "diffusion trajectories · MAE vs I-JEPA · DDPM vs flow matching"
+     *    "diffusion trajectories · MAE vs I-JEPA"
      *  The contents line is a teaser, deliberately NOT composed from the /lab
      *  section headings: those are written for their own context
      *  ("Predicting pixels, or predicting representations") and run four
      *  items long in a narrow rail (controller ruling, 2026-09-16). If a /lab
      *  section is added, removed or renamed, update this line with it. */
     supplementLabel: "Supplementary material",
-    supplementContents: "diffusion trajectories · MAE vs I-JEPA · DDPM vs flow matching",
+    supplementContents: "diffusion trajectories · MAE vs I-JEPA",
     date: "September 2026",
     links: [
       {
@@ -204,16 +197,16 @@ export const copy = {
 
   /** Table 1: the full-span stat band under the masthead. */
   table1: {
-    caption: "The headline numbers from the paper below, and the chess engine running in your browser.",
+    caption: "Headline numbers from the paper and the chess engine.",
     cells: [
       {
         value: "0.882",
         label: "Dice at 16 labeled angiograms, from my paper in preparation",
         hot: true,
       },
-      { value: "25/25", label: "paired runs ahead of every baseline" },
-      { value: "~75%", label: "faster surgeon corrections, measured" },
-      { value: "553 KB", label: "chess engine, roughly 1900–2200 Elo, in your browser" },
+      { value: "25/25", label: "paired runs ahead of every baseline at 16 labels" },
+      { value: "~75%", label: "faster surgeon corrections" },
+      { value: "553 KB", label: "chess engine, roughly 1900-2200 Elo" },
     ],
   },
 
@@ -225,36 +218,48 @@ export const copy = {
     /** Two paragraphs. Every number matches CLAUDE.md's content facts and
      *  `masthead.abstract` exactly. */
     prose: [
-      "My first-author paper, “Bootstrapping surgeon labeling campaigns with " +
-        "x0-diffusion: label-efficient vessel segmentation of catheter-based " +
-        "angiograms,” is in preparation (with Shantanu Dev and Andrew " +
-        "Gonzalez at Regenstrief Institute). I trained a diffusion model to predict " +
-        "the clean segmentation mask directly instead of predicting the noise, so " +
-        "it reaches 0.882 Dice from 16 labels, ahead of five baselines in 25 " +
-        "of 25 paired runs.",
-      "The same model made a surgeon ~75% faster at correcting its output, " +
-        "measured rather than estimated. The claim is label " +
-        "efficiency, not peak accuracy: a few baselines eventually reach comparable " +
-        "Dice too, once they see far more than 16 labels.",
+      "In my first-author paper, in preparation with Shantanu Dev and Andrew " +
+        "Gonzalez at Regenstrief Institute, I trained a diffusion model to " +
+        "predict the clean segmentation mask directly instead of the noise. It " +
+        "reaches 0.882 Dice from 16 labels, ahead of five baselines in 25 of 25 " +
+        "paired runs. Trained the usual way, predicting noise, the same " +
+        "architecture stays near 0.23 Dice at every budget.",
+      "The same model made a surgeon ~75% faster at correcting its output.",
     ],
-    /** Rail note beside the prose. */
-    scopeNote:
-      "The claim lives at 16 labels. Hand the baselines 80 and some of them catch up.",
+    /** Margin notes (2026-09-30): the reference detail that used to sit in
+     *  the prose column, moved to the rail so the main column reads fast.
+     *  `paper` and `study` sit beside the prose, `scope` under DATA beside
+     *  Figure 1, `slaac` beside the NASA paragraph. */
+    notes: {
+      paper: {
+        tag: "paper",
+        body: "Ranjan, Dev, Gonzalez. “Bootstrapping surgeon labeling campaigns with x0-diffusion: label-efficient vessel segmentation of catheter-based angiograms.” In preparation.",
+      },
+      study: {
+        tag: "study",
+        body: "Measured with one vascular surgeon, my coauthor Dr. Andrew Gonzalez.",
+      },
+      scope: {
+        tag: "scope",
+        body: "The claim is label efficiency, not peak accuracy: given far more than 16 labels, some baselines match it.",
+      },
+      slaac: {
+        tag: "slaac",
+        body: "From the SLAAC poster: 98-99% of reroutes clear the 25 nm buffer, with a +1.1% median added distance at infinite lookahead, within 1.2% of the geometric optimum.",
+      },
+    },
     /**
-     * Figure 1 — the label-efficiency sweep (2026-09-12, replacing the wipe;
-     * the owner's call, built on Figure 2's slider-and-readout pattern). All
-     * numbers live in `public/research/label_efficiency.json` and the
-     * component reads every one from the file; the caption quotes only the
-     * standing content facts (0.882 at 16) plus values the figure itself
-     * displays. The lead/trail sentence under the readouts is COMPUTED per
-     * budget: x0 leads at 16 and trails from 32 on, and that flip is the
-     * finding, so the trail wording below is as load-bearing as the lead.
-     * "Same architecture on the noise objective" for ε-diffusion comes from
-     * the retired ladder figure's caption, which the owner approved.
+     * Figure 1 — the label-efficiency chart. Static since 2026-09-30 (owner
+     * call: the slider, readouts and mask strip hurt engagement). The chart's
+     * own annotation (x0's value, the lead over the next best) is computed
+     * from `public/research/label_efficiency.json`; the caption quotes the
+     * standing content fact (0.882 at 16) and values the chart displays, so
+     * if the export is regenerated, re-read the json and re-check the 0.047
+     * and the two models named here.
      */
     figLabelEff: {
       caption:
-        "The graph behind the headline number. Each point is one model’s mean test Dice at one label budget, pooled over every seed and fold, 2,500 predictions per point; whiskers mark one standard deviation at the budget the slider selects. At 16 labeled angiograms x0-diffusion sits at 0.882 and the nearest baseline is SAM at 0.835, which is zero-shot and never trains on labels, so its line is flat. Slide right and the trained baselines climb: DeepLabV3 catches up at 32 labels, and by 80 it and ResNet-UNet edge ahead. That crossover is the claim, label efficiency rather than peak accuracy. One baseline is left off the axes: ε-diffusion, the same architecture trained to predict the noise instead of the clean mask, sits near 0.23 Dice at every budget, and keeping its line squashed the range where the differences live. Under the chart, one real test angiogram with each model’s mask at the selected budget: at 16 labels ResNet-UNet returns noise on it and by 80 it has caught up, SAM’s single zero-shot mask never changes, and x0-diffusion barely moves. Each panel prints the Dice computed from the exact pixels it paints.",
+        "Mean test Dice at each label budget, pooled over every seed and fold (2,500 predictions per point). At 16 labels x0-diffusion leads the next best model, zero-shot SAM, by 0.047; by 32 labels DeepLabV3 and ResNet-UNet have caught up. ε-diffusion (~0.23) is left off the axes.",
       /** Screen-reader name for the chart itself. The caption is the long form. */
       chartAria:
         "Mean test Dice against label budget for x0-diffusion and five baselines",
@@ -266,30 +271,6 @@ export const copy = {
       logNoteAnd: " and ",
       logNotePost: " labels of the ",
       logNoteEnd: " training images.",
-      /** The readout row above the slider, wrapped around the cursor value. */
-      meanPre: "mean dice at ",
-      meanPost: " labels, ±1 std dev",
-      /** The computed lead/trail sentence. */
-      gapLeadPre: "x0-diffusion leads the closest baseline, ",
-      gapTrailPre: "x0-diffusion trails the best baseline, ",
-      gapMid: ", by ",
-      gapPost: " dice.",
-      /** Slider: the panel's top-right readout, its label, its aria text. */
-      readoutLabel: "labels",
-      sliderLabel: "labels",
-      sliderAriaPre: "Label budget for the whiskers, readouts and mask panels: ",
-      sliderAriaPost: " labeled angiograms",
-      /** The strip: the bare angiogram column, then one column per model. */
-      angioLabel: "angiogram",
-      angioAltPre: "Pelvic-iliac angiogram from the segmentation benchmark, test image ",
-      imagePre: "test image ",
-      diceLabel: "Dice",
-      maskAriaPre: "Predicted vessel mask from ",
-      maskAriaMid: " trained on ",
-      maskAriaPost: " labels, Dice ",
-      /** Mono note under the strip, wrapped around the live budget. */
-      stripNotePre: "masks: the seed-1, fold-1 run at ",
-      stripNotePost: " labels. dice computed from the shown pixels.",
       modelLabels: {
         x0diffusion: "x0-diffusion",
         sam: "SAM (zero-shot)",
@@ -312,7 +293,7 @@ export const copy = {
      */
     figCdf: {
       caption:
-        "The distribution behind the mean. Every per-image test Dice at the 16-label budget, pooled over all seeds and folds, so each line is 2,500 predictions: read up from a Dice value and you get the share of predictions that scored below it. The y axis is clipped at 30% because the failure tail is the part worth seeing. At the thin reference line, 0.5 Dice, x0-diffusion (solid green) has put 0.32% of its predictions, SAM (dashed red) 5.4%, and ResNet-UNet (dotted amber) 13.5%. x0-diffusion’s mean is a few points ahead of the baselines; what it almost never does is fail outright. Move the slider to pan the cursor along the Dice axis and the readouts give each model’s exact share below it. Under the chart, one real test image per stop with all three models’ masks over it, drawn from a re-run of the paper’s seed-1 runs that covers all 100 test images, so each stop lands on an image whose SAM Dice sits near the cursor, real failures included. Every panel prints the Dice computed from the pixels it paints, against the benchmark’s ground truth for that image. The trained models reproduce their recorded runs from those pixels, ResNet-UNet to the fourth decimal; SAM’s inference is stochastic, so its masks here are a fresh draw that can score off its recorded row, and the number shown is the one the shown pixels earn.",
+        "Every per-image test Dice at 16 labels, pooled over all seeds and folds (2,500 per line). At 0.5 Dice, 0.32% of x0-diffusion’s predictions fall below, against 5.4% for SAM and 13.5% for ResNet-UNet. x0-diffusion’s mean is only a few points ahead of the baselines, but it almost never fails outright. The images come from a seed-1 re-run, one per slider stop, chosen by SAM Dice near the cursor; SAM is stochastic, so its mask can score differently from its recorded run.",
       /** Screen-reader name for the chart itself. The caption is the long form. */
       chartAria:
         "Cumulative share of per-image test Dice at 16 labels, for x0-diffusion, SAM and ResNet-UNet",
@@ -336,11 +317,12 @@ export const copy = {
       maskAriaPre: "Predicted vessel mask from ",
       maskAriaMid: " on test image ",
       maskAriaPost: ", Dice ",
-      /** The two data scopes, said once in mono under the panels. */
+      /** The two data scopes, said once in mono under the panels. The row
+     *  count between Mid and Post is read from cdf.json and printed with a
+     *  thousands separator ("2,500"). */
       scopeNotePre: "curve: every test prediction at ",
       scopeNoteMid: " labels, ",
-      scopeNotePost:
-        " rows per model. panels: the seed-1, fold-1 re-run of that same budget, dice computed from the shown pixels.",
+      scopeNotePost: " per model. panels: seed-1, fold-1 re-run at the same budget.",
       modelLabels: {
         x0diffusion: "x0-diffusion",
         sam: "SAM (zero-shot)",
@@ -350,35 +332,39 @@ export const copy = {
     /** MWSCAS credit line: prose sentence plus the formal citation, kept
      *  separate so the citation can stay a literal, checkable string. */
     mwscas: {
+      /** The rail tag over the citation, which sits beside the prose. */
+      citeTag: "reference",
       prose:
         "I also led the PCB design team for a helical antenna for electromagnetic field stimulation in Alzheimer’s disease therapy; we presented it as an oral at IEEE MWSCAS 2026 in Cincinnati on August 11.",
       citation:
         "F. Perez, J. Morisaki, H. Kanakri, M. Rizkalla, et al. (incl. N. Ranjan), “Helical Antenna for Electromagnetic Field Stimulation in Alzheimer’s Disease Therapy,” IEEE MWSCAS 2026 (oral).",
     },
     /** NASA block: the three-engagement arc, presented as one, plus the
-     *  SLAAC poster's real numbers. */
+     *  SLAAC poster's numbers, which sit in the rail (notes.slaac). */
+    /** The NASA box's heading (2026-09-30). */
+    nasaHeading: "NASA Ames",
     nasaProse:
-      "My NASA Ames work is two engagements: SLAAC, space-launch and airspace coordination, with Dr. Kapil Sheth in summer 2026, and a synthetic text-to-speech-to-database pipeline for air traffic control speech with Stephen Clarke this fall. The SLAAC poster's numbers: 98–99% clear the 25 nm buffer, +1.1% median added distance at infinite lookahead, and within 1.2% of geometric optimum.",
+      "My NASA Ames work is two engagements: SLAAC, space-launch and airspace coordination, with Dr. Kapil Sheth in summer 2026, and a synthetic text-to-speech-to-database pipeline for air traffic control speech with Stephen Clarke this fall.",
     /** Figure 3 — the flight-plan synthesis video. Carried over unchanged,
      *  renamed from `flight`. */
     figFlight: {
       caption:
-        "A transformer I trained from scratch on its own flight-plan vocabulary, writing a full day of FAA flight plans: roughly 44,000 flights, matched to the density of a real day of traffic. Its output feeds NASA capacity and safety studies of US airspace failure modes. Every path in this clip is synthetic; none of it is recorded ATC data.",
+        "A transformer I trained from scratch for SLAAC, on its own flight-plan vocabulary, writing a full day of FAA flight plans: roughly 44,000 flights, matched to the density of a real day of traffic. Its output feeds NASA capacity and safety studies of US airspace failure modes. Most of my time went into the waypoint system: a continuous route that obeyed every rule would often stop obeying them once it was snapped onto the waypoint map.",
       videoAria:
         "A day of FAA flight plans synthesized by a transformer I trained, looping video",
     },
-    /** Short margin notes (rail `Note`s) beside the research figures: data
-     *  provenance and a claims caveat, distinct from `scopeNote` above. */
-    noteBars: [
-      {
-        tag: "data",
-        body: "Figure 1 pools the paper's own metrics export: 2,500 per-image predictions behind every point. The angiograms in Figures 1 and 2 come from the public pelvic-iliac benchmark, so publishing them is clean.",
-      },
-      {
-        tag: "credit",
-        body: "IEEE Xplore indexing for the MWSCAS paper isn't confirmed yet, so I'm not claiming it here.",
-      },
-    ],
+    /** The margin note beside Figure 1: where the angiograms come from,
+     *  linked to the benchmark's own repo (Zohranyan et al., Dr-SAM, CVPRW
+     *  2024; its README is the one in external_materials/paper1/data/
+     *  benchmarkDataset/). Rendered pre + link + post. The SCOPE note and the
+     *  CREDIT note (IEEE Xplore) were cut 2026-09-29, owner's edit pass. */
+    dataNote: {
+      tag: "data",
+      pre: "The angiograms in Figures 1 and 2 are from the ",
+      link: "public pelvic-iliac benchmark",
+      href: "https://github.com/vazgenzohranyan/Dr.SAM",
+      post: ".",
+    },
   },
 
   /** §2 Live systems: the two demos that stay on page 1. */
@@ -386,7 +372,7 @@ export const copy = {
     /** The section's `<h2>`, added for Task 8's page assembly. */
     heading: "Live systems",
     intro:
-      "Both demos below run their real trained weights in your browser. Nothing here is a recording or a mockup.",
+      "Both demos below run the trained models in your browser.",
 
     /** Figure 5 (was 4 until the 2026-09-13 order swap) — live SDEdit draw-a-digit. Carried over wholesale from v1's
      *  `sdedit` namespace (`copy.sdedit.*` → `copy.systems.draw.*`); every
@@ -395,16 +381,16 @@ export const copy = {
       /** New for the manuscript chrome: v1's panel had no caption, so this one
        *  is drafted rather than carried over. */
       figureCaption:
-        "A diffusion model dissolving your handwriting into static and pulling a cleaner digit back out, running its real 26MB weights on your device. The same model also guesses which digit you drew, with no separate classifier: it rebuilds your drawing under all ten labels from identical noise and keeps the best fit. Draw in the first box; the second shows the sample as it computes, and the third is the model’s running guess at the finished digit.",
+        "SDEdit on a 26 MB x0-prediction MNIST model. Draw in the first box; the second shows the sample denoising, and the third the model’s prediction of the finished digit at each step.",
       statusFetching: "fetching weights…",
       statusReady: "ready",
       statusDraw: "draw to load",
       loadFailed: "model failed to load",
       heading: "SDEdit",
       lede: {
-        pre: "Draw a digit, pick its label, and watch it dissolve into static and re-form. This is ",
+        pre: "Draw a digit and watch it dissolve into static and re-form. This is ",
         tech: "SDEdit",
-        post: ": your drawing is noised partway to static and then denoised back, so its coarse structure is never fully destroyed. Your slant and your strokes survive into the result: it's your digit cleaned up, not a lookalike drawn from scratch. Everything runs on your device; nothing is sent anywhere.",
+        post: " (Meng et al., 2022): the drawing is noised partway to static and then denoised, so its coarse structure survives and the result keeps your slant and strokes.",
       },
       canvasAria: "Drawing canvas for digit",
       canvasCaption:
@@ -412,7 +398,7 @@ export const copy = {
       resultFetching: "fetching weights…",
       resultReady: "hit generate",
       resultDraw: "draw to load the model",
-      resultCaptionIdle: "the result · your strokes survive the noise",
+      resultCaptionIdle: "the result",
       resultForward: " · forward process, no model calls",
       resultRunning: " · the model running",
       x0Placeholder: "the model’s guess appears here",
@@ -421,10 +407,6 @@ export const copy = {
       x0Held: " · held still, nothing has run yet",
       x0Repredicted: " · re-predicted every step",
       x0CaptionIdle: "x̂₀ · its guess, updated at every step",
-      /** Sits permanently beside the label picker, so it has to stand alone
-       *  (owner request, 2026-09-16: the classifier-free guess must be
-       *  noticeable). Keep it under ~70 characters. */
-      classifyLead: "No classifier model: the diffusion model guesses the label itself.",
       label_: "label",
       labelGuessing: "· guessing…",
       labelAuto: "· auto",
@@ -439,9 +421,12 @@ export const copy = {
       predictingHint: "wait for the label guess to finish",
       hint: "edit any number",
       classify: {
-        /** The claim leads (owner request, 2026-09-16); it used to close
-         *  the paragraph as "No second classifier model required." */
-        a: "There’s no classifier model in this demo. The label guess comes from the same diffusion model that draws: it predicts the finished digit under all ten labels from identical noise, and whichever best matches your strokes wins. It needs a guess because the demo steers each generation toward a chosen digit. ",
+        /** The claim leads (owner request, 2026-09-16). Since 2026-09-29 this
+         *  paragraph is the only place it's made: the permanent classifyLead
+         *  line was cut as the third repeat. "A cheap version" is exact:
+         *  lib/classify.ts runs Li et al.'s idea at ONE timestep with ONE
+         *  shared noise draw, where they average denoising error over many. */
+        a: "The label guess comes from the same diffusion model, with no separate classifier: it predicts the finished digit under all ten labels from identical noise and picks the one closest to your strokes. It’s a cheap version of the diffusion-classifier idea from Li et al. (2023). ",
         bPre: "The ",
         /** ⚠️ The key name is v1's (leaf names were carried over wholesale), the
          *  VALUE is not: the fit tint moved from teal to the manuscript's warm
@@ -453,9 +438,9 @@ export const copy = {
         nearThing: "a bit unsure",
         notClose: "a landslide",
         cMid: ". ",
-        cPre: "It’s a suggestion, so override it if it’s wrong. Worth trying anyway: draw a 5 and ask for an ",
+        cPre: "Override the guess if it’s wrong, or on purpose: draw a 5, ask for an ",
         four: "8",
-        cPost: ". If you get lucky, the model will hallucinate and close the bottom loop.",
+        cPost: ", and sometimes the model closes the bottom loop.",
       },
     },
 
@@ -468,7 +453,7 @@ export const copy = {
       /** New for the manuscript chrome: v1's panel had no caption, so this one
        *  is drafted rather than carried over. */
       figureCaption:
-        "A 553 KB energy-based model running its real int8 weights on your device, roughly 1900–2200 Elo against Stockfish’s limited modes. You are white; click a piece, then a square. The tint on the board is the engine’s own ranking of every legal reply, and “what it saw” swaps the game for the model’s internals laid back onto the squares.",
+        "The 553 KB int8 engine. You play white: click a piece, then a square. The tint ranks every legal reply, and “what it saw” shows the model’s internals on eight preset positions.",
       statusLoading: "loading 553 KB…",
       statusSearchingPre: "searching · ",
       statusThinking: "thinking…",
@@ -480,12 +465,23 @@ export const copy = {
       engineError: "engine error",
       viewSaw: "what it saw",
       heading: "Energy-based modeling over board states",
+      /** Cut to the claims (2026-09-30, owner: "cut it down to around half");
+       *  the provenance lives in `ledeNotes`, a side column beside it. The
+       *  limit (no search here, a few hundred Elo weaker) stays in the main
+       *  column on purpose: a stated limit is what reads as real. */
       lede: {
-        a: "A 469K-parameter convolutional energy-based model. It scores resulting positions rather than proposing moves: every legal move is played out, the batch ranked in one forward pass, and the lowest-energy position wins. Trained on about 30M positions from Lichess games where both sides were rated 1800+, then run under AlphaZero-style MCTS on a Raspberry Pi Zero 2 W for real-time play, roughly 1900–2200 Elo against Stockfish’s limited modes.",
-        b: "Two findings from the on-device work: int8 quantization cost close to nothing (-14 ±59 Elo), and on the Pi’s ARM cores fp32 runs faster than int8, so the deployed engine ships fp32. This page runs the 553 KB int8 file in your browser, by default as the bare network with no search. MCTS runs ~500 sequential forward passes a move, too slow to be the default here, so out of the box you’re a few hundred Elo below the full engine.",
+        a: "A 469K-parameter energy-based model: it scores the position each legal move leads to and plays the lowest-energy one. Energy models and diffusion are what I research, so I wanted to see how well a model that only scores positions could choose moves.",
+        b: "With MCTS on a Raspberry Pi Zero 2 W it plays at roughly 1900-2200 Elo against Stockfish’s limited modes. Here it runs without search, a few hundred Elo weaker.",
       },
+      ledeNotes: [
+        { tag: "training", body: "About 30M positions from Lichess games between players rated 1800+." },
+        {
+          tag: "on-device",
+          body: "int8 quantization cost -14 ±59 Elo, but fp32 runs faster on the Pi’s ARM cores, so the Pi ships fp32 and this page the 553 KB int8 file.",
+        },
+      ],
       activationsLede:
-        "The model’s evaluation, laid back onto the board: eight curated positions, precomputed from the real weights. This works here and not on the diffusion models for a structural reason: the chess backbone never downsamples below the initial 8x8, so every layer stays cleanly correlated to the squares and can be read as a position. A UNet’s pooled middle layers have no such luxury.",
+        "The model’s internals on eight positions I picked, precomputed from the same weights. This works for the chess model and not the diffusion models because the backbone never downsamples below 8x8, so every layer stays aligned with the squares. A UNet’s pooled middle layers don’t.",
       checkmatePre: "checkmate · ",
       checkmateWinsBlack: "black wins",
       checkmateWinsWhite: "white wins",
@@ -513,7 +509,7 @@ export const copy = {
       mapNoteMcts:
         "Where the search actually spent its simulations, summed onto the square each move lands on.",
       mapNoteArgmin:
-        "Its ranking of every legal reply, summed onto the square each one lands on. Free: it comes from the same pass that picked its move.",
+        "Its ranking of every legal reply, summed onto the square each one lands on. It comes from the same forward pass that picked the move, so it costs nothing extra.",
       promoteTo: "promote to",
       promoteAria: "promote to",
       top3: "the engine’s top 3",
@@ -537,14 +533,9 @@ export const copy = {
       takeBack: "take back",
       thinking: "thinking…",
       hintButton: "hint",
-      hintNote: {
-        word: "hint",
-        post: " asks what it would play from where you are sitting. It is the same call it makes for itself, at whatever the search is set to: the encoder always builds from the side to move, so your move and its move are one computation.",
-      },
       searchNote: {
-        pre: "At 1 ply it ranks every legal reply and plays the best, in one forward pass. ",
         letItThink: "let it think",
-        post: " runs the Pi’s actual search on top of those same numbers, in a worker, so the page keeps moving while it does. It is slower here than it has any right to be: the model is 469K parameters, and scoring one position costs ~6.6ms in WASM no matter how many threads you give it. The Pi gets through its 500 sims in about 2 seconds.",
+        post: " runs the same MCTS the Pi runs, in a worker so the page stays responsive. It’s slow here: scoring one position costs ~6.6ms in WASM no matter how many threads you give it. The Pi gets through its 500 sims in about 2 seconds.",
       },
       hint: "how long it thinks",
       simsEchoWhenThink: " · applies when you let it think",
@@ -565,13 +556,13 @@ export const copy = {
         hottest: "hottest:",
         depthPrefix: "depth · ",
         shallowToDeep:
-          "shallow to deep. Early layers are local and edge-like; deep layers concentrate onto the squares that decide the eval, and it all stays board-aligned the whole way.",
+          "shallow to deep. Early layers are local and edge-like; deep layers concentrate onto the squares that decide the eval.",
         topChannels: "top channels",
         mean: "mean",
         channelCaveat:
-          "Explore at your own risk: not every channel is human-interpretable. Plenty light up on nothing nameable. The mean map and the attribution view are the trustworthy ones.",
+          "Most single channels don’t light up on anything nameable. The mean map and the attribution view are the ones to trust.",
         saliencyBody:
-          "The model outputs a single scalar energy. The gradient of that energy with respect to the board says which squares most move its evaluation: the hanging piece, the key defender, the passed pawn, your blunder...",
+          "The model outputs a single scalar energy. The gradient of that energy with respect to the board shows which squares move the evaluation most, like a hanging piece or a passed pawn.",
         valueHeadPre: "value head: ",
         valueHeadPost: " for white",
         valueHeadLevel: " · about level",
@@ -586,7 +577,7 @@ export const copy = {
     heading: "Experience",
     /** Figure 6's caption: the one instrument figure that wraps `MissionRows`. */
     figureCaption:
-      "Five roles since 2024 and my degree, current work first. The lamp is real state, not decoration: green means active now, and amber means paused until January.",
+      "Green is active now; amber is paused until January.",
     rows: [
       {
         when: "2026",
@@ -612,7 +603,7 @@ export const copy = {
       {
         when: "2026",
         who: "Alzheimer’s stimulation antenna",
-        what: "Led the embedded and PCB team on a helical antenna for electromagnetic field stimulation; presented as an oral at IEEE MWSCAS 2026.",
+        what: "Led the PCB design team on a helical antenna for electromagnetic field stimulation; presented as an oral at IEEE MWSCAS 2026.",
         status: "complete",
       },
       {
@@ -622,7 +613,7 @@ export const copy = {
         status: "complete",
       },
       {
-        when: "2024–2025",
+        when: "2024-2025",
         who: "V2X aircraft-maintenance LLM",
         what: "Led the two-stage RAG design; cut hallucinations from about 40% to about 5%.",
         status: "complete",
@@ -661,13 +652,7 @@ export const copy = {
     backLink: "← back to the paper",
     heading: "Supplementary material",
     intro:
-      "Three panels that used to sit on page one. Two replay real trained models’ output; the third is a hand-built illustration of a different sampling method, labeled as such.",
-    s1Intro:
-      "Figure S1 plays two trained diffusion models denoising the same ten digits: one in continuous pixel space, one in a discrete, absorbing-state token space.",
-    s2Intro:
-      "Figure S2 compares two vision encoders trained identically except for one thing: whether they predict pixels or representations.",
-    s3Intro:
-      "Figure S3 is illustrative, not a trained model: hand-built stochastic and deterministic paths to the same 2D target. The stochastic walk takes 40 steps; the deterministic route takes 9.",
+      "Both panels replay output from trained models.",
 
     /** Figure S1 — the diffusion trajectory viewer. Carried over wholesale
      *  from v1's `diffusion` namespace (`copy.diffusion.*` →
@@ -676,10 +661,10 @@ export const copy = {
       statusLoading: "loading",
       /** New for the manuscript chrome (Task 11): v1's panel had no caption. */
       figureCaption:
-        "Two trained diffusion models on the same ten digits: a 6.47M-parameter pixel model that denoises from static, and a 1.28M-parameter model that unmasks ascii cells one at a time and never revises one once committed. Only the digit is a live control here; the step count and schedule are properties of the export.",
+        "Two trained diffusion models on the same ten digits, built to compare continuous and discrete diffusion side by side: a 6.47M-parameter pixel model that denoises from static, and a 1.28M-parameter model that unmasks ascii cells one at a time and never revises a cell once it’s committed.",
       /** Sits next to the frozen steps/schedule, which render as plain text
        *  rather than a control. See the ⚠️ comment above BOOT_CMD. */
-      frozenNote: "Baked into the export: only the digit is live.",
+      frozenNote: "Replayed from an export; only the digit is selectable.",
       notice: {
         tag: "placeholder data",
         body: "These frames are synthetic, not output from a trained model: a bitmap digit run through a hand-rolled noising schedule, played backwards. Real trajectories drop into ",
@@ -689,7 +674,7 @@ export const copy = {
       headingContinuous: "Continuous diffusion",
       headingDiscrete: "Discrete diffusion",
       ledePixel:
-        "Noise sharpens into a digit, one step at a time. On the left, the noisy state x_t resolving. On the right, the model’s prediction of the finished digit from that step. This model predicts the clean image directly rather than the noise, which is why you get both at every step. The ascii look is a filter applied on top; the model itself works in pixels.",
+        "On the left, the noisy state x_t. On the right, the model’s prediction of the finished digit at that step. This model is trained to predict the clean image instead of the noise, so that prediction is its raw output. In pixel mode the ascii look is only a filter.",
       ledeAscii:
         "A different model, and a different kind of corruption: masked cells resolve into ascii characters. It starts with every cell masked and commits them one at a time, most-confident first. Once a cell commits it’s frozen and never re-predicted, so the grid can only ever fill in, never flicker. On the left, what’s committed so far, mask holes and all. On the right, the model’s current guess for every cell, including the ones it hasn’t decided yet.",
       modelLabel: "model",
@@ -719,20 +704,19 @@ export const copy = {
       statusLoading: "loading atlas…",
       heading: "Predicting pixels, or predicting representations",
       lede: {
-        a: "Two encoders, same architecture, masking, optimiser, schedule and seed, trained for 65 epochs on the same 100,000 unlabeled STL-10 images. One thing differs. MAE predicts the hidden patches’ pixels; I-JEPA predicts their representations, from an EMA copy of the encoder. A pixel loss has to account for everything in the image, including what can’t be predicted: texture, clutter, the exact colour of the sky. A latent target discards that first and predicts structure instead.",
+        a: "I trained two encoders with the same architecture, masking, optimizer, schedule and seed for 65 epochs on the same 100,000 unlabeled STL-10 images. One thing differs. MAE predicts the hidden patches’ pixels; I-JEPA predicts their representations, from an EMA copy of the encoder. A pixel loss has to account for everything in the image, including what can’t be predicted: texture, clutter, the exact color of the sky. A latent target discards that first and predicts structure instead.",
         b: "Neither saw a label during pretraining. ",
         cPre: "Frozen features, linear probe: MAE ",
         cMid1: ", I-JEPA ",
         cMid2: ". kNN at k=20: ",
         cMid3: " and ",
         cPost:
-          ". The kNN gap is the wider one, and kNN is retrieval. MAE’s neighbours often match the background rather than the subject. ",
+          ". The kNN gap is the wider one, and kNN is retrieval. MAE’s neighbors often match the background rather than the subject. ",
       },
       scope:
         "This is a claim about representation quality, not about dense pixel-precise output like segmentation, where a UNet’s skip connections carry exactly the detail a latent target throws away.",
-      neighborNotePre: "Neighbours are top-",
-      neighborNotePost:
-        " by cosine similarity in the encoder’s full embedding space, not in any reduction of it.",
+      neighborNotePre: "Neighbors are the top ",
+      neighborNotePost: " by cosine similarity in the full embedding space.",
       queryLabel: "query",
       queryCaption: "click any thumbnail to make it the query",
       presetsLabel: "presets",
@@ -746,7 +730,7 @@ export const copy = {
       meanPurityPre: "across all ",
       meanPurityMid: " images · mae ",
       meanPurityMid2: " · i-jepa ",
-      meanPurityPost: " of neighbours share the query’s class",
+      meanPurityPost: " of neighbors share the query’s class",
       ariaSame: ", same class as the query",
       ariaDiffers: ", different class from the query",
       ariaSetQuery: ". Set as query.",
@@ -754,50 +738,9 @@ export const copy = {
       errorPrefix: "could not load the representation bundle: ",
       /** New for the manuscript chrome (Task 11): v1's panel had no caption. */
       figureCaption:
-        "Two vision encoders’ answers to the same query image, drawn straight from the export: no model runs in your browser here. Click any thumbnail, including a result, to make it the new query.",
+        "Each encoder’s nearest neighbors for the same query, precomputed. Click any thumbnail, including a result, to make it the query.",
     },
 
-    /** Figure S3 — sample-space DDPM vs flow matching (illustrative).
-     *  Carried over wholesale from v1's `sampleSpace` namespace
-     *  (`copy.sampleSpace.*` → `copy.lab.sampleSpace.*`); every leaf key
-     *  name is unchanged, including the `targets` block `lib/sample-space.ts`
-     *  reads. */
-    sampleSpace: {
-      statusIllustrative: "illustrative",
-      noticeTag: "illustrative",
-      noticeBody:
-        "Hand-drawn fields on a 2D toy distribution. No model weights are loaded or run here.",
-      heading: "Stochastic vs deterministic",
-      /** New for the manuscript chrome (Task 11): v1's panel had no caption. */
-      figureCaption:
-        "A hand-built illustration, not a trained model: the same start and target run through a stochastic 40-step path and a deterministic 9-step path. Switch the target shape or click a panel to launch a new trajectory.",
-      /** Label over the target segmented control, replacing the boot
-       *  command's `--target` select. */
-      targetLabel: "target",
-      lede: {
-        pre: "The same target, the same starting point, two ways of getting there. Click either panel to launch a trajectory; it runs in both panels from the same start, so the routes are directly comparable. Switch ",
-        target: "target",
-        post: " above to run the same comparison over a different shape: the spiral makes the step-count gap easiest to see, because the routes are long enough to watch.",
-      },
-      ddpmLabel: "DDPM",
-      ddpmCaptionPre: " · stochastic (SDE), ",
-      ddpmCaptionPost: " steps. Jagged; a different route every run.",
-      flowLabel: "Flow matching",
-      flowCaptionPre: " · deterministic (ODE), ",
-      flowCaptionPost: " steps. Smooth; the same route every time.",
-      targetCaptionPre: "target · ",
-      hint: "try another shape",
-      targets: {
-        twoMoonsLabel: "two-moons",
-        twoMoonsBlurb: "two interleaving half-moons",
-        spiralLabel: "spiral",
-        spiralBlurb: "two galactic arms winding out from the centre",
-        ringLabel: "ring",
-        ringBlurb: "a single closed circle",
-        gaussiansLabel: "8-gaussians",
-        gaussiansBlurb: "eight modes on a circle",
-      },
-    },
   },
 
   /** Stargaze mode + the night-sky credit (components/manuscript/
@@ -839,12 +782,12 @@ export const copy = {
     listPanelClose: "close the list",
     /** Once per session, near the pointer, the first time it enters the sky
      *  in paper mode (spec §5). Short: it's gone in a few seconds. */
-    invite: "a real chart of the sky over NASA Ames",
+    invite: "the sky over NASA Ames",
     /** The second way in, at the foot of `/` and `/lab`: this lead line,
      *  then a button labelled with `enter` itself ("stargaze for a bit?"). A
      *  second door to the same feature carries the same name, or visitors
      *  don't connect the two (controller ruling, 2026-09-16). */
-    footerLead: "The sky behind this page is a real chart of the sky over NASA Ames.",
+    footerLead: "The background is the sky over NASA Ames.",
     /** The owner's own sentences (trimmed twice on 2026-09-16, the second
      *  time dropping the speed-up clause): keep both word for word. Each is a
      *  complete sentence ending in its own full stop, and `creditTail`
@@ -858,12 +801,12 @@ export const copy = {
      *  No longer stargaze-gated: the sky shows colour on every page since the
      *  discoverability round (spec §3, §7). */
     credit:
-      "The sky over NASA Ames from the moment you arrived.",
+      "The sky over NASA Ames from the moment you opened the page.",
     creditStill:
-      "The sky over NASA Ames at the moment you arrived.",
+      "The sky over NASA Ames when you opened the page.",
     /** The eyes-see-grey reason lives on each coloured card's `colourNote`,
      *  with its source; the credit only says where the colour comes from. */
-    creditTail: " The shapes are enlarged and coloured as long exposures show them, but every position is real.",
+    creditTail: " Objects are drawn enlarged, in long-exposure color.",
     /** The stargaze card (components/manuscript/SkyCard.tsx). Numbers and
      *  dates between these fragments come from the data files; the facts
      *  themselves live in content/sky-facts.ts. */
@@ -897,7 +840,7 @@ export const copy = {
       /** Shown only on galaxy/nebula/cluster cards and the Milky Way's own
        *  card ("clutter" follow-up, 2026-09-15): their glyphs are drawn far
        *  bigger than life; the position is not. */
-      notToScale: "This symbol is drawn far bigger than the object actually looks from Earth; its position is real.",
+      notToScale: "Drawn far bigger than it looks from Earth.",
       /** Shown only on cards whose object is actually drawn in sourced
        *  colour (colour round task 7: an id in lib/sky-layers.ts's
        *  OBJECT_COLOURS, plus the Milky Way's band). M82 has no palette, so
@@ -911,13 +854,13 @@ export const copy = {
        *  photograph above it; the photograph's own colour honesty is a
        *  separate per-pick `note` (see scripts/sky-image-picks.json). */
       colourNote:
-        "The symbol's colours follow long-exposure photographs; your own eyes would see it grey, because at that brightness vision runs on rod cells, which register no colour.",
+        "The symbol's colors follow long-exposure photographs; your own eyes would see it gray, because at that brightness vision runs on rod cells, which register no color.",
       /** Appended to the note on the nebulae and remnants whose palette
        *  rests on an emission line's own wavelength (EMISSION_LINE_COLOURED),
        *  and the reason those cards also list Lodriguss under Sources. Star
        *  colour is temperature, so the clusters and the galaxies get neither. */
       colourNoteLines:
-        "The symbol's colour is what this object's own emission lines emit, not a narrowband palette that maps those lines onto other colours.",
+        "The symbol's color is what this object's own emission lines emit, not a narrowband palette that maps those lines onto other colors.",
       /** "Active Jul 17 to Aug 24, peak Aug 13. Zenithal hourly rate (ZHR) at peak: 100." */
       showerActive: "Active ",
       showerTo: " to ",
@@ -941,7 +884,7 @@ export const copy = {
       issEpoch: "Orbit data (TLE) from ",
       issEpochPost: " UTC.",
       issClock: "This sky runs 180 times faster than the real one, so the station crosses it in seconds.",
-      issClockStill: "This sky holds still at the moment you arrived, so the station does too.",
+      issClockStill: "This sky holds still at the moment you opened the page, so the station does too.",
     },
   },
 

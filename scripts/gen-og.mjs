@@ -35,7 +35,8 @@ const page = await browser.newPage({
   deviceScaleFactor: 2,
   reducedMotion: "reduce",
 });
-await page.goto("http://localhost:3000", { waitUntil: "networkidle" });
+// OG_BASE overrides the port when :3000 is taken (same as VERIFY_BASE).
+await page.goto(process.env.OG_BASE ?? "http://localhost:3000", { waitUntil: "networkidle" });
 // The dev overlay is not part of the site. Hide it if present, or it ships in
 // the card (kept from v1's script; harmless no-op against a prod server).
 await page.addStyleTag({

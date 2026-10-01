@@ -9,7 +9,8 @@
  * Latitude/longitude pairs are [lat, lon] everywhere except the outline file,
  * which is [lon, lat] (us-outline.json's own order).
  */
-import { albers, inverseAlbers } from "../../lib/slaac/albers.ts";
+import { albers, inverseAlbers, NM } from "../../lib/slaac/albers.ts";
+import { loadSua, segPolyDist, type Pt } from "../../lib/slaac/geometry.ts";
 import type { Fix, Role } from "../../lib/slaac/reroute.ts";
 
 export type LL = [lat: number, lon: number];
@@ -54,28 +55,107 @@ export type MapColours = { rule: string; ink: string; mut: string; red: string; 
 const PAD = 8;
 const BBOX = { latMin: 24, latMax: 50, lonMin: -125, lonMax: -66 };
 
-/** Fit the Albers image of lat 24-50, lon -125..-66 into w x h with 8px padding.
- *  The projected box's edges are curves, so each edge is sampled, not just the corners. */
-export function fitLower48(w: number, h: number, dpr: number): MapView {
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  const take = (lat: number, lon: number) => {
-    const [x, y] = albers(lat, lon);
-    if (x < minX) minX = x;
-    if (x > maxX) maxX = x;
-    if (y < minY) minY = y;
-    if (y > maxY) maxY = y;
-  };
+/** An axis-aligned box in Albers metres. */
+export type Box = { minX: number; maxX: number; minY: number; maxY: number };
+export type FitOpts = {
+  /** Extra room on each side, as a fraction of the box's own size. */
+  padFrac: number;
+  /** Then this many CSS px on each side of the canvas. */
+  padPx: number;
+  /** The view's shorter side never spans less than this, so a short route
+   *  isn't zoomed into a few pixels of detail. */
+  minExtentM: number;
+};
+/** The focus view's defaults (task 12b): 8% + 8px, at least 400 nm across. */
+export const FOCUS_FIT: FitOpts = { padFrac: 0.08, padPx: 8, minExtentM: 400 * NM };
+/** How near a route's legs a launch polygon must come to join the focus box. */
+export const FOCUS_LAUNCH_NM = 150;
+
+/**
+ * Fit a box into w x h, north up, one scale on both axes (the box is
+ * letterboxed into the canvas's aspect), centred.
+ */
+export function fitBox(w: number, h: number, dpr: number, box: Box, opts: FitOpts): MapView {
+  const bw = (box.maxX - box.minX) * (1 + 2 * opts.padFrac);
+  const bh = (box.maxY - box.minY) * (1 + 2 * opts.padFrac);
+  const aw = Math.max(1, w - 2 * opts.padPx), ah = Math.max(1, h - 2 * opts.padPx);
+  let scale = Math.min(bw > 0 ? aw / bw : Infinity, bh > 0 ? ah / bh : Infinity);
+  if (opts.minExtentM > 0) scale = Math.min(scale, Math.min(w, h) / opts.minExtentM);
+  if (!Number.isFinite(scale) || scale <= 0) scale = 1e-9;
+  const cx = (box.minX + box.maxX) / 2, cy = (box.minY + box.maxY) / 2;
+  return { w, h, dpr, scale, ox: w / 2 - scale * cx, oy: h / 2 + scale * cy };
+}
+
+let lower48: Box | null = null;
+/** The Albers image of lat 24-50, lon -125..-66. Its edges are curves, so
+ *  each edge is sampled, not just the corners. */
+function lower48Box(): Box {
+  if (lower48) return lower48;
+  const b: Box = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
   for (let i = 0; i <= 32; i++) {
     const lon = BBOX.lonMin + ((BBOX.lonMax - BBOX.lonMin) * i) / 32;
     const lat = BBOX.latMin + ((BBOX.latMax - BBOX.latMin) * i) / 32;
-    take(BBOX.latMin, lon); take(BBOX.latMax, lon);
-    take(lat, BBOX.lonMin); take(lat, BBOX.lonMax);
+    for (const [la, lo] of [[BBOX.latMin, lon], [BBOX.latMax, lon], [lat, BBOX.lonMin], [lat, BBOX.lonMax]]) grow(b, albers(la, lo));
   }
-  const bw = maxX - minX, bh = maxY - minY;
-  const scale = Math.max(1e-9, Math.min((w - 2 * PAD) / bw, (h - 2 * PAD) / bh));
-  const ox = (w - scale * bw) / 2 - scale * minX;
-  const oy = (h - scale * bh) / 2 + scale * maxY;
-  return { w, h, dpr, scale, ox, oy };
+  return (lower48 = b);
+}
+
+function grow(b: Box, [x, y]: [number, number]) {
+  if (x < b.minX) b.minX = x;
+  if (x > b.maxX) b.maxX = x;
+  if (y < b.minY) b.minY = y;
+  if (y > b.maxY) b.maxY = y;
+}
+
+/** The whole-US view: the lower-48 box with 8px padding. */
+export function fitLower48(w: number, h: number, dpr: number): MapView {
+  return fitBox(w, h, dpr, lower48Box(), { padFrac: 0, padPx: PAD, minExtentM: 0 });
+}
+
+/**
+ * The focus box: every route point; every launch polygon whose nearest point
+ * comes within `launchWithinNm` of a route leg; every drawn ring and open-ring
+ * vertex; every outcome point. Null when there is nothing to focus on.
+ */
+export function focusBox(routes: LL[][], launchPolys: LL[][], rings: LL[][], outcomePoints: LL[],
+  opts: { launchWithinNm: number }): Box | null {
+  const b: Box = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+  const legs: [Pt, Pt][] = [];
+  for (const r of routes) {
+    const xy = r.map(([la, lo]) => albers(la, lo));
+    xy.forEach((p, i) => {
+      grow(b, p);
+      if (i > 0) legs.push([xy[i - 1], p]);
+    });
+  }
+  const lim = opts.launchWithinNm * NM;
+  for (const poly of loadSua(launchPolys)) {
+    if (legs.some(([p, q]) => segPolyDist(p, q, poly) <= lim)) for (const p of poly) grow(b, p);
+  }
+  for (const r of rings) for (const [la, lo] of r) grow(b, albers(la, lo));
+  for (const [la, lo] of outcomePoints) grow(b, albers(la, lo));
+  return Number.isFinite(b.minX) ? b : null;
+}
+
+/**
+ * Between two views: the centre (in metres) moves linearly and the scale
+ * geometrically, so a zoom reads as one smooth move instead of a swoop.
+ * t <= 0 and t >= 1 return copies of the ends exactly.
+ */
+export function lerpView(a: MapView, b: MapView, t: number): MapView {
+  if (t <= 0) return { ...a };
+  if (t >= 1) return { ...b };
+  const ca = [(a.w / 2 - a.ox) / a.scale, (a.oy - a.h / 2) / a.scale];
+  const cb = [(b.w / 2 - b.ox) / b.scale, (b.oy - b.h / 2) / b.scale];
+  const scale = a.scale * Math.pow(b.scale / a.scale, t);
+  const cx = ca[0] + (cb[0] - ca[0]) * t, cy = ca[1] + (cb[1] - ca[1]) * t;
+  return { w: b.w, h: b.h, dpr: b.dpr, scale, ox: b.w / 2 - scale * cx, oy: b.h / 2 + scale * cy };
+}
+
+/** Two views close enough to call the same (no ease needed). */
+export function sameView(a: MapView, b: MapView): boolean {
+  return a.w === b.w && a.h === b.h && a.dpr === b.dpr &&
+    Math.abs(a.scale / b.scale - 1) < 1e-9 && Math.abs(a.ox - b.ox) < 0.01 && Math.abs(a.oy - b.oy) < 0.01;
 }
 
 export function toScreen(v: MapView, lat: number, lon: number): [number, number] {
@@ -89,7 +169,7 @@ export function fromScreen(v: MapView, x: number, y: number): [number, number] {
 }
 
 type XY = [number, number];
-type Box = { x: number; y: number; w: number; h: number };
+type LabelBox = { x: number; y: number; w: number; h: number };
 
 function insideXY(p: XY, poly: XY[]): boolean {
   let ins = false;
@@ -331,7 +411,7 @@ export function drawMap(ctx: CanvasRenderingContext2D, v: MapView, s: MapState, 
   // all six; the airspace itself still draws).
   ctx.font = font;
   ctx.textBaseline = "middle";
-  const placed: Box[] = [];
+  const placed: LabelBox[] = [];
   const put = (text: string, x: number, y: number, colour: string) => {
     const tw = ctx.measureText(text).width;
     ctx.fillStyle = rgba(c.panel, 0.8);

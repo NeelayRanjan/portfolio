@@ -385,6 +385,10 @@ export const copy = {
         hug: "1 waypoint",
         wide: "infinite",
         go: "reroute",
+        /** The map's view (task 12b): fit the pair, or the whole lower 48. */
+        view: "map",
+        viewFocus: "focus",
+        viewUs: "whole US",
       },
       table: {
         flight: "route",

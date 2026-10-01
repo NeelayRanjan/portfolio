@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { InstrumentFigure } from "@/components/manuscript/InstrumentFigure";
 import { copy } from "@/content/copy";
 import { loadSlaacData, type SlaacData } from "@/lib/slaac/data";
@@ -17,7 +17,23 @@ import type { ProgressArc, Res } from "@/lib/slaac-protocol";
 import { isStargazing, subscribeStargaze } from "@/lib/stargaze";
 import { trackDemoOnce } from "@/lib/track";
 import { checkRing } from "./ring";
-import { drawMap, fitLower48, fromScreen, siteAnchor, toScreen, type LL, type MapColours, type MapState, type MapView } from "./reroute-map";
+import {
+  drawMap,
+  fitBox,
+  fitLower48,
+  focusBox,
+  fromScreen,
+  lerpView,
+  sameView,
+  siteAnchor,
+  toScreen,
+  FOCUS_FIT,
+  FOCUS_LAUNCH_NM,
+  type LL,
+  type MapColours,
+  type MapState,
+  type MapView,
+} from "./reroute-map";
 
 /**
  * Figure 3: the SLAAC rerouter, run on the visitor's device.
@@ -45,7 +61,10 @@ import { drawMap, fitLower48, fromScreen, siteAnchor, toScreen, type LL, type Ma
  *
  * No animation loop: the map repaints on state changes only (progress events
  * included, coalesced into one rAF), so nothing runs off-screen or in a hidden
- * tab except a reroute the visitor started.
+ * tab except a reroute the visitor started, and a 350 ms ease when the view
+ * changes (task 12b: "focus" fits the pair's routes, nearby launch airspace,
+ * drawn rings and the run's plans; "whole US" is the lower 48). Reduced
+ * motion snaps instead.
  */
 
 type Done = Extract<Res, { kind: "done" }>;
@@ -67,6 +86,8 @@ const RING_MSG_MS = 3000;
 const TAP_SLOP_PX = 8;
 /** A click this close to the last vertex is a double click, not a new corner. */
 const DUP_VERTEX_PX = 4;
+/** How long a change of view eases, on real elapsed ms (cubic ease-out). */
+const VIEW_EASE_MS = 350;
 
 const FALLBACK_COLOURS: MapColours = {
   rule: "42, 40, 35",
@@ -122,7 +143,12 @@ export function RerouteFigure() {
   const [arcs, setArcs] = useState<ProgressArc[]>([]);
   const [outcome, setOutcome] = useState<Outcome>(null);
   const [hover, setHover] = useState<string | null>(null);
-  const [view, setView] = useState<MapView | null>(null);
+  /** The canvas's CSS size and DPR; the view itself lives in viewRef. */
+  const [size, setSize] = useState<{ w: number; h: number; dpr: number } | null>(null);
+  /** "focus" fits the pair's routes and nearby airspace; "us" the lower 48. */
+  const [viewMode, setViewMode] = useState<"focus" | "us">("focus");
+  /** Bumped when a view change settles, so the status JSON re-renders with it. */
+  const [viewTick, setViewTick] = useState(0);
   /** Launch sites whose name fit on the map at this width, comma-joined. */
   const [labelled, setLabelled] = useState("");
 
@@ -131,6 +157,11 @@ export function RerouteFigure() {
   const coloursRef = useRef<MapColours>(FALLBACK_COLOURS);
   const fontRef = useRef("10px monospace");
   const rafRef = useRef(0);
+  /** The CURRENT view, mid-ease included. Drawing, hit-testing, the ring
+   *  tool and the status centroids all read this, never the target. */
+  const viewRef = useRef<MapView | null>(null);
+  const easeRafRef = useRef(0);
+  const lastTargetRef = useRef<{ view: MapView; mode: "focus" | "us" } | null>(null);
   const drawRef = useRef<() => void>(() => {});
   const downRef = useRef<{ x: number; y: number; id: number } | null>(null);
   const ringTimerRef = useRef(0);
@@ -152,6 +183,7 @@ export function RerouteFigure() {
       runId: runIdRef.current,
       loaded: engineRef.current !== null,
       lastDone: lastDoneRef.current,
+      view: viewRef.current ? { scale: viewRef.current.scale, ox: viewRef.current.ox, oy: viewRef.current.oy } : null,
     };
   }, []);
 
@@ -244,7 +276,7 @@ export function RerouteFigure() {
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
       canvas.style.height = `${h}px`;
-      setView(fitLower48(w, h, dpr));
+      setSize({ w, h, dpr });
     });
     ro.observe(wrap);
     return () => ro.disconnect();
@@ -274,10 +306,77 @@ export function RerouteFigure() {
     };
   };
 
+  // ---- the view (task 12b) ----------------------------------------------------
+  // The focus box: the pair's routes, launch airspace near them, the drawn
+  // rings, and the shown outcome's plans. Arcs in flight are not in it, so a
+  // run re-zooms once, when it is done, not on every progress message.
+  const shownKey = shown?.kind === "done" ? shown : null;
+  const targetView = useMemo((): MapView | null => {
+    if (!size || !data || !pair) return null;
+    if (viewMode === "us") return fitLower48(size.w, size.h, size.dpr);
+    const outcomePts: LL[] = shownKey
+      ? shownKey.done.flights.flatMap((f) => [...f.plan.map((q): LL => [q[1], q[2]]), ...f.dense])
+      : [];
+    const box = focusBox(
+      pair.routes.map((r) => r.fixes.map((q): LL => [q[1], q[2]])),
+      launchOn ? data.launch.sites.flatMap((st) => st.polys.map((p) => p.ring)) : [],
+      drawn,
+      outcomePts,
+      { launchWithinNm: FOCUS_LAUNCH_NM },
+    );
+    return box ? fitBox(size.w, size.h, size.dpr, box, FOCUS_FIT) : fitLower48(size.w, size.h, size.dpr);
+  }, [size, data, pair, viewMode, launchOn, drawn, shownKey]);
+
+  useEffect(() => {
+    if (!targetView) return;
+    const last = lastTargetRef.current;
+    if (last && sameView(last.view, targetView)) return;
+    // An open ring holds the view still, so its vertices don't move under the
+    // pointer; it eases once the ring closes (or is cleared). The visitor's
+    // own focus/whole-US press still goes through.
+    if (pending.length > 0 && last && last.mode === viewMode) return;
+    lastTargetRef.current = { view: targetView, mode: viewMode };
+    cancelAnimationFrame(easeRafRef.current);
+    easeRafRef.current = 0;
+    const from = viewRef.current;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!from || reduce || from.w !== targetView.w || from.h !== targetView.h || from.dpr !== targetView.dpr) {
+      viewRef.current = targetView;
+      drawRef.current();
+      publishHook();
+      setViewTick((n) => n + 1);
+      return;
+    }
+    const t0 = performance.now();
+    const step = (now: number) => {
+      const p = Math.min(1, (now - t0) / VIEW_EASE_MS);
+      viewRef.current = lerpView(from, targetView, 1 - (1 - p) ** 3);
+      drawRef.current();
+      publishHook();
+      if (p < 1) {
+        easeRafRef.current = requestAnimationFrame(step);
+      } else {
+        easeRafRef.current = 0;
+        viewRef.current = targetView;
+        publishHook();
+        setViewTick((n) => n + 1);
+      }
+    };
+    easeRafRef.current = requestAnimationFrame(step);
+  }, [targetView, viewMode, pending.length, publishHook]);
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(easeRafRef.current);
+      easeRafRef.current = 0;
+    },
+    [],
+  );
+
   drawRef.current = () => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     const s = mapState();
+    const view = viewRef.current;
     if (!ctx || !view || !s) return;
     const out = drawMap(ctx, view, s, coloursRef.current, fontRef.current).labelled.join(",");
     setLabelled((prev) => (prev === out ? prev : out));
@@ -341,6 +440,7 @@ export function RerouteFigure() {
   const onPointerUp = (e: PointerEvent<HTMLCanvasElement>) => {
     const d = downRef.current;
     downRef.current = null;
+    const view = viewRef.current; // the current view, mid-ease included
     if (!d || d.id !== e.pointerId || !drawMode || busy || !view) return;
     const r = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - r.left, y = e.clientY - r.top;
@@ -476,6 +576,8 @@ export function RerouteFigure() {
               ? "no-conflict"
               : "idle";
 
+  const cur = viewRef.current;
+  void viewTick; // the status re-renders when a view change settles
   const status = JSON.stringify({
     state: stateName,
     step: progress?.step ?? null,
@@ -486,13 +588,19 @@ export function RerouteFigure() {
     flights: done ? done.flights.map((f) => ({ id: f.id, status: f.status, metrics: f.metrics })) : [],
     launchOn,
     launchSites:
-      data && view
-        ? data.launch.sites.map((s) => ({
-            id: s.id,
-            centroid: siteAnchor(view, { id: s.id, name: s.name, rings: s.polys.map((p) => p.ring) }),
-            labelled: launchOn && labelled.split(",").includes(s.id),
-          }))
+      data && cur
+        ? data.launch.sites.map((s) => {
+            const centroid = siteAnchor(cur, { id: s.id, name: s.name, rings: s.polys.map((p) => p.ring) });
+            return {
+              id: s.id,
+              centroid,
+              /** The centroid lies on the canvas at the current view. */
+              inView: centroid !== null && centroid[0] >= 0 && centroid[0] <= cur.w && centroid[1] >= 0 && centroid[1] <= cur.h,
+              labelled: launchOn && labelled.split(",").includes(s.id),
+            };
+          })
         : [],
+    view: cur ? { mode: viewMode, scale: cur.scale } : null,
   });
 
   const readout =
@@ -565,6 +673,28 @@ export function RerouteFigure() {
             />
             <span title={launchTitle}>{c.launch}</span>
           </label>
+
+          <div className="flex items-center gap-2">
+            <span aria-hidden="true">{c.view}</span>
+            <div className="flex" role="group" aria-label={c.view} data-reroute-view>
+              {([
+                ["focus", c.viewFocus],
+                ["us", c.viewUs],
+              ] as const).map(([m, label], i) => (
+                <button
+                  key={m}
+                  type="button"
+                  aria-pressed={viewMode === m}
+                  onClick={() => setViewMode(m)}
+                  className={`${btn} ${i > 0 ? "-ml-px" : ""} ${
+                    viewMode === m ? "relative border-ink text-ink" : idleBtn
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <div className="flex items-center gap-2">
             <button

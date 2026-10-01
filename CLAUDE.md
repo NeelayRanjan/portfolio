@@ -16,13 +16,19 @@ contracts below.
 
 **In production at neelayranjan.dev since 2026-09-12** (fast-forward of the
 15-task `redesign` build into `main` after a full verification run; the branch
-is deleted; v1 lives at the tag). Page 1: masthead (title, abstract, the
+is deleted; v1 lives at the tag). **2026-10-01: the `slaac-demo` round
+(the live SLAAC rerouter as Figure 3, the flight video to `/lab`, the
+colophon, the secret stargaze door, the mag-6 coloured sky, the myth
+artworks) fast-forwarded into `main` and deployed, after the owner's NASA
+mentor and NASA legal approved its preview.** Page 1: masthead (title, abstract, the
 live-sampled author photo, the paper-status stamp (IN PREPARATION; UNDER REVIEW until 2026-09-14), status only since
 2026-09-16, with the bordered "Supplementary material" box beneath it as the
 door to `/lab`, identity links) → Table 1 → Research
-(Figure 1 label-efficiency sweep, Figure 2 Dice CDF, Figure 3 flight map) →
-the live demos as Figures 4–5 (chess, then draw — swapped 2026-09-13 at the owner's call, the `n` props swapped with them) → Experience as Figure 6 (NASA and Regenstrief
-lamps green/active) → References → the footer's stargaze door → the colophon (`© 2026 Neelay Ranjan · email · Resume`, `Colophon.tsx`, the sheet's last child on `/` and `/lab`; its Resume link carries `data-track-label="Resume"`). `/lab` holds S1–S2 (S3 cut 2026-09-29). Same-day post-launch
+(Figure 1 label-efficiency sweep, Figure 2 Dice CDF, then the bordered NASA
+box holding Figure 3, the live SLAAC rerouter, since 2026-10-01; Figure 3
+was the flight-day video until then) →
+the live demos as Figures 4–5 (chess, then draw — swapped 2026-09-13 at the owner's call, the `n` props swapped with them) → Experience as Figure 6 (Regenstrief's lamp green/active; NASA as two rows
+since 2026-10-01, SLAAC complete and SHIFT active) → References → the footer's stargaze door → the colophon (`© 2026 Neelay Ranjan · email · Resume`, `Colophon.tsx`, the sheet's last child on `/` and `/lab`; its Resume link carries `data-track-label="Resume"`). `/lab` holds S1–S3: the trajectory viewer, JEPA, and since 2026-10-01 the flight-day video as Figure S3 (the sample-space S3 was cut 2026-09-29). Same-day post-launch
 passes: Figure 2 rebuilt from a budget ladder into the paper's pannable Dice
 CDF; the flight video's dark-map treatment; the owner's STIX-N favicon set;
 headshots presented last-class-first (photo 2 is the default face). The wipe
@@ -84,8 +90,8 @@ honest limit: the main-thread ORT wasm heap never actually shrinks, only the
 chess worker's termination truly frees memory. `window.__sky` and
 `window.__offload` are verify hooks, not UI.
 
-**Verification: `scripts/verify-redesign.mjs`** — 53 named checks on the
-`slaac-demo` branch (52 before Task 17, 2026-10-01, added
+**Verification: `scripts/verify-redesign.mjs`** — 53 named checks (on `main`
+since the 2026-10-01 merge of the `slaac-demo` round; 52 before Task 17, 2026-10-01, added
 `stargaze-secret-door`; the count read 51 here though `colophon` made it 52;
 50 before Task 12c, 2026-10-01, added
 `slaac-all-flights`; 45 before the SLAAC round, 2026-09-30, added the five
@@ -302,8 +308,7 @@ scripts/test-sky-iss.mjs scripts/test-sky-images.mjs
 scripts/test-chess-selfplay.mjs scripts/test-resume.mjs
 scripts/test-sky-secret.mjs scripts/test-sky-stars.mjs`** (`test-sky-secret`,
 Task 17's door rule, 4 cases; `test-sky-stars`, Task 18's star paint and
-star colour, 9) plus, on the
-`slaac-demo` branch, the rerouter's ten (`test-slaac-arcs` 16,
+star colour, 9) plus the rerouter's ten (`test-slaac-arcs` 16,
 `test-slaac-data` 8, `test-slaac-dpm` 3, `test-slaac-geometry` 2,
 `test-slaac-guidance` 4, `test-slaac-reroute` 37, `test-slaac-ring` 7,
 `test-slaac-sampler` 5, `test-slaac-summary` 5, `test-slaac-view` 8;
@@ -582,7 +587,10 @@ Also 2026-09-30: **the NASA work sits in its own bordered box**
 holding the NASA paragraph with its SLAAC note and Figure 3, so it reads as
 separate from the paper. The owner plans to grow it into a fuller section;
 the box is that seam. It has no background of its own, on purpose: Figure
-3's video uses `mix-blend-mode: screen` against its own panel.
+3's video used `mix-blend-mode: screen` against its own panel. (Since the
+2026-10-01 merge the box is headed "NASA Ames Research Center" and holds the
+SLAAC and SHIFT paragraphs and Figure 3, the live rerouter; the video, and
+its blend, went to `/lab` as Figure S3.)
 And the chess lede was halved (owner: "cut it down to around half the
 size, if not less"): two short paragraphs of claims, with the training data
 and the int8/fp32 finding moved to a side column of notes inside the
@@ -590,12 +598,14 @@ figure (`copy.systems.chess.ledeNotes`, the same `Note` and 880px split as
 the Research rows). The limit, "here it runs without search, a few hundred
 Elo weaker", stays in the main column.
 
-**2026-09-30/10-01: the SLAAC rerouter, branch `slaac-demo`, PREVIEW ONLY**
-(worktree `../portfolio-slaac`, 16-task SDD build from `1e9b4f8`). ⚠️ Nothing
-here is on `main` or neelayranjan.dev: it merges only when the owner says
-their NASA mentor approved the preview link, and the first push (which builds
-that preview) is the owner's call. NASA cleared the Summer 2026 codebase for
-sharing (owner, 2026-09-30), so **Figure 3 became the live rerouter**: pick
+**2026-09-30/10-01: the SLAAC rerouter, LIVE since 2026-10-01** (built on
+branch `slaac-demo` in worktree `../portfolio-slaac`, a 16-task SDD build from
+`1e9b4f8` plus Tasks 17-19: the secret stargaze door, the denser sky
+below, the myth artworks; it was held as a preview-only branch until
+the owner's NASA mentor and NASA legal approved the preview, then
+fast-forwarded into `main` and deployed the same day, 2026-10-01). NASA
+cleared the Summer 2026 codebase for sharing (owner, 2026-09-30), so
+**Figure 3 became the live rerouter**: pick
 one of 48 hub pairs, its flight-plan-LM routes draw, draw an airspace or turn
 on all six US launch sites, and the owner's 5.78M-param diffusion model
 reroutes every flight in a worker and snaps each arc to named fixes, with
@@ -618,8 +628,8 @@ laptop, longer with more airspace or every flight at once" and nothing about
 phones. The numbers behind each phrase are in content/copy.ts's comments.
 Contracts, rulings and numbers: "SLAAC rerouter (Figure 3)" under the demos.
 
-**2026-10-01, Task 18 (branch `slaac-demo`): a denser, more colourful sky,
-every addition real.** Owner: "more randomly added stars around so that it's
+**2026-10-01, Task 18 (built on `slaac-demo`, LIVE with it the same day): a
+denser, more colourful sky, every addition real.** Owner: "more randomly added stars around so that it's
 decently dense, but the constellations still pop out", then colour and pop
 for stargazing. Ruling R23 made it REAL stars, never random ones: the same
 pinned stars.6.json to mag 6.0 (5,044 stars against 1,627), the fainter
@@ -639,11 +649,11 @@ star colour, and the band's gradient".
 
 **Open items, roughly in order:**
 
-The SLAAC round's own, ahead of the list (branch `slaac-demo`):
-- a. **Mentor approval of the preview is the merge gate.** Before the first
-  push, ask the owner; check Vercel's Deployment Protection so the mentor can
-  open the preview (a shareable link or a bypass, the owner's choice).
-- b. **Chrome proper and the owner's iPhone, timed on the preview link.** The
+The SLAAC round's own, ahead of the list (LIVE on `main` since 2026-10-01):
+- a. ~~Mentor approval of the preview is the merge gate.~~ **DONE
+  2026-10-01**: the owner's NASA mentor and NASA legal approved the preview,
+  and the branch was fast-forwarded into `main` and deployed.
+- b. **Chrome proper and the owner's iPhone, timed on production.** The
   laptop numbers are in the SLAAC section; no phone has run the rerouter.
   The phone batch cap (4) is unmeasured on a phone: if the iPhone stalls
   between progress updates, 2 is the lever, and on this laptop it costs
@@ -789,9 +799,9 @@ and the owner's SOP tell one story.
 - **Interactivity bar**: prose sections stay readable — no forced gimmicks — but
   every text section carries one real-work artifact beside it: bio → headshot
   diffusion toy · research → the label-efficiency chart (static since 2026-09-30) and the Dice-CDF pan ·
-  experience → flight-day video (production; on the `slaac-demo` branch the
-  NASA box's artifact is the live rerouter, Figure 3, and the video is Figure
-  S3 on `/lab`) · publications → figure hovers. The owner's
+  experience → the live SLAAC rerouter, Figure 3 in the NASA box (since
+  2026-10-01; the flight-day video held that slot until then and is now
+  Figure S3 on `/lab`) · publications → figure hovers. The owner's
   rule: "at no point should the user just be staring and reading at something."
 - Fallback is the git tag `v1`, nothing more. No legacy subdomain.
 - **Figure colour conventions (owner calls, 2026-09-12): green = x0-diffusion**
@@ -847,7 +857,8 @@ is gone.** The resume now reads 88.2% Dice at 16 labels, the 75%
 correction-time speedup, Regenstrief from Feb 2024, and both first-author
 manuscripts by name, all matching this file. **The NASA gap is RESOLVED
 (2026-09-30)**: the resume now lists NASA as two roles, SLAAC and SHIFT, and
-the `slaac-demo` branch's copy follows it (see the NASA bullet below). **One
+the site's copy follows it since the 2026-10-01 merge (see the NASA bullet
+below). **One
 gap is still open and is the owner's call**: the resume lists TWO first-author manuscripts in preparation (the second,
 "Modular SAM-prior diffusion refinement for real-world angiogram and
 seven-shot moyamoya MRA vessel segmentation"), while the site names one.
@@ -904,9 +915,9 @@ not a contradiction. The original drift list, for the record:
   wording); returns January 2027; graduates May 2027.** Rendered as its own
   Experience row on an amber "gap semester" lamp (owner call, 2026-09-14).
 - **NASA Ames is two roles** (per the resume since 2026-09-30; NASA Ames,
-  Aeronautics Directorate, Code AF, May 2026 to present; the `slaac-demo`
-  branch's NASA box and Experience rows follow it, production still shows the
-  older two-engagement arc until that branch merges):
+  Aeronautics Directorate, Code AF, May 2026 to present; the NASA box and Experience rows follow it since the
+  2026-10-01 merge, before which the site showed the older two-engagement
+  arc):
   **GenAI Applied Research Intern, SLAAC, May-Aug 2026** (space launch and
   air/airspace coordination, the owner's wording since 2026-10-01; mentors on
   the poster Dr. Kapil Sheth and Prachi Panda, never named in visitor copy):
@@ -927,8 +938,8 @@ not a contradiction. The original drift list, for the record:
   comments, not on the page. **The Summer
   2027 lunar digital twin is DROPPED** (owner, 2026-09-14: no longer
   pursuing it); never mention it again.
-- **The flight-day transformer (Figure 3 on production; Figure S3 on `/lab`
-  on the `slaac-demo` branch) is the owner's own work**, trained
+- **The flight-day transformer (Figure S3 on `/lab` since 2026-10-01;
+  page 1's Figure 3 before that) is the owner's own work**, trained
   from scratch (owner, 2026-09-14), and **part of SLAAC** (owner,
   2026-09-29). What broke: the waypoint system, where a continuous route that
   obeyed every rule often stopped obeying once snapped onto the waypoint map;
@@ -1162,7 +1173,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   bundle.
 - Loading discipline (v1 behavior worth keeping in any design): nothing heavy in
   flight at first paint; each demo's payload loads when its section is reached;
-  the 26MB draw model loads on first interaction (and, on `slaac-demo`, the
+  the 26MB draw model loads on first interaction (and the
   rerouter's 23.4MB model on the first reroute press that has an arc to
   sample, never in the warm window); ORT+chess (24.4MB) may warm on
   desktop idle, gated by `saveData` / bad `effectiveType` / `deviceMemory < 4` /
@@ -2382,7 +2393,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   for this model because the backbone never downsamples below 8x8; don't attempt
   it on the diffusion UNets.
 
-### SLAAC rerouter (Figure 3) — page 1's NASA box (PREVIEW ONLY, branch `slaac-demo`)
+### SLAAC rerouter (Figure 3) — page 1's NASA box (LIVE since 2026-10-01)
 - What it is: the owner's SLAAC hazard-aware rerouter, live. The figure
   opens on all 373 library routes at once (Task 12c), or a visitor picks
   one of 48 hub pairs; the LM-filed routes draw, they draw an airspace and/or
@@ -2632,6 +2643,36 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   `arcsTotal`, `picked`), `data-reroute-go-state`, `data-reroute-planned`,
   `data-reroute-summary` / `data-summary` and `data-reroute-detail` are
   verify hooks, not UI.
+- **The model's own arc, dotted under each snapped plan** (`drawPlan` in
+  `reroute-map.ts`; each result's `dense` comes from `denseOf` in
+  `lib/slaac/run.ts`: the plan's filed and rejoin fixes as they stand, with
+  each sampled arc's interior points standing in for that run's snapped
+  deviation fixes, i.e. the path as the model drew it before the snap). In
+  snapped display, for any flight whose plan has a non-filed role, the dense
+  arc strokes FIRST, 1px, dash `[1, 3]`, in the plan's green eased toward
+  the panel at `DENSE_UNDER = 0.4`, taking the same stale (x0.35) and
+  cannot-clear (x0.5) fades as the plan, and the subordinate grey under a
+  pick; the plan then draws over it. So the sampled path and the plan snapped
+  from it both show, which is the snapping the owner's poster is about. The
+  caption names it ("the faint dotted line is the arc before snapping").
+  In continuous display (the gate's fallback rung; `meta.json` ships
+  `snapped`) the dense arc IS the plan, drawn at full width, dashed `[5, 3]`.
+  `slaac-all-flights` treats the dense arc as an obstacle when it samples a
+  pick's red filed legs.
+- **The `failed` run state** (`RunState`, readout `copy.research.figReroute.runFailed`,
+  "The reroute stopped with an error. Try again."; `data-reroute-status`
+  state `failed`): a press throws something other than `SlaacCancelled` /
+  `SlaacUnloaded` AFTER the planner chunk is in hand (`phase === "run"`:
+  the airspace load and arc plan, or the worker's run once the model
+  loaded). A throw
+  while the planner or the model is still loading is `unavailable` instead,
+  and nothing can run. The error goes to `console.error`; no done, no
+  `demo_used`; the button stays amber (`idle-stale`). `failed` PERSISTS
+  across margin, lookahead and ring changes: those only make the shown
+  result stale and never touch `runState`, so the error line stays until the
+  next press (which sets `planning`) or a change of route pair (the one
+  control that resets `failed` to `idle`, since the error was the old pair's
+  run). Stop, stargaze and a superseding press are never `failed`.
 - **Measured** (Task 15, 2026-09-30, this laptop, production build, headed;
   first press, cold cache; median of 3 [range]): stock Firefox 152 (driven
   over WebDriver BiDi): KJFK-KMIA past all six launch sites, 3 arcs, 2.77 s
@@ -2646,7 +2687,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   (JavaScriptCore): 8.3 s, ~330 ms per forward, idle afterwards flat at
   ~600-850 MB and ~97% CPU (the sky's render floor), no runaway. Playwright's
   Firefox: 15.8 s, see the trap. **Owed**: Chrome proper and the owner's
-  iPhone on the preview link; no phone number exists, and the copy says only
+  iPhone on production; no phone number exists, and the copy says only
   "seconds on my laptop, longer with more airspace or every flight at once"
   (no numerals since 2026-10-01; behind it: medians 2.07-6.54 s across the
   cases, one 7.89 s Chromium run under load; each extra drawn airspace can
@@ -2809,8 +2850,13 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   the cursor is still a threshold, and the copy keeps saying so. Panel Dice =
   computed from the shown pixels (SAM's are a fresh stochastic draw; see the
   drift bullet above).
-- **Figure 3 (flight video, `FlightFigure.tsx`)**, Figure S3 on `/lab` on the
-  `slaac-demo` branch, where the live rerouter took Figure 3's slot: the committed mp4 is
+- **Figure S3 on `/lab` (flight video, `FlightFigure.tsx`)**, page 1's
+  Figure 3 until the live rerouter took that slot (2026-10-01): the component
+  takes an `n` prop, and `app/lab/page.tsx` mounts it as `n="S3"`
+  (`id="flight"`, behind `DeferredMount`) with its own heading and lede,
+  `copy.lab.flight` ("A language model that writes flight plans", pointing
+  back at Figure 3's filed routes as this model's output); `lab-flight-video`
+  pins play in view, pause out of it and the S3 caption. The committed mp4 is
   untouched; the dark-map look is pure CSS — `invert(1) hue-rotate(33deg)
   saturate(2.1) brightness(1.05)` lands the blips on the warm token,
   `mix-blend-mode: screen` makes the inverted-black ground contribute nothing
@@ -2843,7 +2889,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 | `public/headshot/v2/photos/{0,1,2}_thumb.webp` | ~2 KB each | 96² derivatives for the 44px face buttons (first paint) |
 | `public/research/*` | ~1.7 MB | prepare-research outputs: `label_efficiency.json` + `eff/` strip (Figure 1), `cdf/` stops + `cdf.json` (Figure 2), flight mp4 + poster, wipe assets (unrendered), `provenance.json` |
 | `public/sky/images/*` | ~3.7 MB | 35 card photographs and (task 19) 37 myth-constellation artworks (640px WebP, metadata stripped) plus `index.json` with author, license, Commons source and pinned sha1; built by `scripts/prepare-sky-images.mjs` from `scripts/sky-image-picks.json` |
-| `public/models/flightdiff-b3463317.onnx` | 23.4 MB | the SLAAC rerouter's diffusion UNet (5.78M params, fp32, opset 17, dynamic batch; ONNX vs torch max abs 3.8e-6), branch `slaac-demo`; the hash in the name is its sha256's head, and `meta.json` names it |
+| `public/models/flightdiff-b3463317.onnx` | 23.4 MB | the SLAAC rerouter's diffusion UNet (5.78M params, fp32, opset 17, dynamic batch; ONNX vs torch max abs 3.8e-6); the hash in the name is its sha256's head, and `meta.json` names it |
 | `public/slaac/meta.json` | 1.5 KB | normalization stats, channels, the scheduler config, the sampler (20 steps, from the gate) and reroute settings, the model's name and sha256, `display: "snapped"`, `policies: ["wide", "hug"]` |
 | `public/slaac/routes.json` | 143 KB | the LM route library: 48 pairs, 373 routes, each with its tokens, fixes and seed (`scripts/slaac/route_library.py`) |
 | `public/slaac/navaids.json` | 57 KB | the snap table: 3-letter navaids from the nav DB, clipped to the lower-48 box |
@@ -2861,10 +2907,12 @@ repo generates it. `public/headshot/v2/` is copied verbatim out of
 to the `headshot256*` / `headshot128*` scheme; the photos re-encoded from the new
 `photos/{i}.png` with `ffmpeg -map_metadata -1 -c:v libwebp -quality 80`, 512²
 plus 96² thumbs); the bundle's `vectors/` and `*_{128,256}.png` training inputs
-stay out of `public/`. Git LFS: settled, not needed (~51 MB tracked binaries after task 19's ~2 MB of artworks;
-up from ~47 MB since the card photographs; final-review fix #9, 2026-09-17;
-~73 MB on the `slaac-demo` branch with the rerouter's 23.4 MB ONNX, still
-under GitHub's 100 MB per-file limit). `public/models/flightdiff-*.onnx` and
+stay out of `public/`. Git LFS: settled, not needed (~73.5 MB tracked binaries on `main` since
+the 2026-10-01 merge, measured over the tracked onnx/webp/png/mp4/ico/pdf
+files: the rerouter's 23.4 MB ONNX and task 19's ~2 MB of artworks on top
+of the ~48 MB `main` held before it; ~47 MB until the card photographs,
+final-review fix #9, 2026-09-17; every file still under GitHub's 100 MB
+per-file limit). `public/models/flightdiff-*.onnx` and
 `public/slaac/*` come from `scripts/slaac/` (hand-run, a local venv with
 torch 2.13 and diffusers 0.38.0, reading the NASA directory by path).
 

@@ -40,6 +40,9 @@ import { EMISSION_LINE_COLOUR, SKY_FACTS } from "../content/sky-facts.ts";
 import { EDGE_DEC_DEG, moonEquatorial, planetEquatorial } from "../lib/sky-math.ts";
 import { copy } from "../content/copy.ts";
 import { SITE } from "../lib/site.ts";
+import { fitLower48, fromScreen, toScreen } from "../components/figures/reroute-map.ts";
+import { albers } from "../lib/slaac/albers.ts";
+import { loadSua, segCrossesPoly } from "../lib/slaac/geometry.ts";
 
 /**
  * The colour round's `sky-colour` and the card checks read the palette table
@@ -795,7 +798,16 @@ function checkNoHorizontalScroll(route) {
 /* 3. Nothing model-sized before scroll, at 400px                         */
 /* ---------------------------------------------------------------------- */
 
-const HEAVY_RE = /\.(onnx|wasm)(\?|$)|traj\.json(\?|$)|manifest\.json(\?|$)|sprites\.webp(\?|$)/i;
+// `/ort/` (any file, the runtime's .mjs glue included) and the rerouter's
+// model by name joined this list in the SLAAC round: Figure 3's worker loads
+// the plain ORT runtime and a 23 MB model, both only on a reroute press that
+// has an arc to sample (components/figures/RerouteFigure.tsx).
+const HEAVY_RE = /\.(onnx|wasm)(\?|$)|\/ort\/|\/models\/flightdiff-|traj\.json(\?|$)|manifest\.json(\?|$)|sprites\.webp(\?|$)/i;
+/** Figure 3's small JSON (~230 KB): loaded when the figure scrolls in, never
+ *  at first paint. Proved to bite (2026-09-30): unwrapping RerouteFigure from
+ *  its DeferredMount in app/page.tsx failed with "Figure 3's data loaded
+ *  before it was scrolled to: .../slaac/meta.json, ...". */
+const SLAAC_DATA_RE = /\/slaac\/[^/?#]+\.json/;
 
 async function checkNoEarlyHeavyPayload(browser) {
   return withPage(browser, { viewport: { width: 400, height: 800 } }, async (page) => {
@@ -808,7 +820,9 @@ async function checkNoEarlyHeavyPayload(browser) {
     await page.waitForTimeout(1500); // catch anything an idle callback might still fire
     const heavy = urls.filter((u) => HEAVY_RE.test(u));
     if (heavy.length) throw new Error(`heavy request(s) before scroll: ${heavy.join(", ")}`);
-    return `${urls.length} requests total, none model/trajectory-sized`;
+    const slaac = urls.filter((u) => SLAAC_DATA_RE.test(u));
+    if (slaac.length) throw new Error(`Figure 3's data loaded before it was scrolled to: ${slaac.join(", ")}`);
+    return `${urls.length} requests total, none model/trajectory-sized, no /ort/, no rerouter model or data`;
   });
 }
 
@@ -824,10 +838,16 @@ async function checkNoEarlyHeavyPayload(browser) {
 /* grew from 5.3 to 11.5 GB in a minute of idle; on iOS that is a jetsam  */
 /* kill and Safari's "a problem repeatedly occurred". The plain build     */
 /* measured flat at ~800 MB (scripts/probe-webkit-draw.py). Asserted on  */
-/* the network, not the source: the chess worker's load and the main     */
-/* thread's draw load must both fetch the plain runtime, and nothing may  */
-/* fetch an asyncify, jsep or jspi build. Proved to bite by pointing one  */
-/* import back at `/webgpu`.                                              */
+/* the network, not the source: the chess worker's load, the main        */
+/* thread's draw load and (SLAAC round, 2026-09-30) the rerouter worker's */
+/* load (lib/slaac-worker.ts) must each fetch the plain runtime, and      */
+/* nothing may fetch an asyncify, jsep or jspi build. Proved to bite by   */
+/* pointing one import back at `/webgpu`. The rerouter's leg was proved   */
+/* the same way (lib/slaac-worker.ts at `/webgpu`), and failed with "the  */
+/* rerouter's worker did not fetch the plain runtime; its /ort/ requests: */
+/* []": in headless Firefox that entry throws inside the worker before it */
+/* fetches any runtime (no WebGPU adapter), so the plain-build assertion, */
+/* not the asyncify one, is what catches it here.                         */
 /* ---------------------------------------------------------------------- */
 
 const ORT_PATH_RE = /\/ort\/[^?#]+/;
@@ -860,10 +880,32 @@ async function checkOrtRuntimeBuild(browser) {
     await drawStroke(page);
     await waitDrawFits(page);
 
+    const afterMain = urls.length;
+
+    // The rerouter's worker (SLAAC round): last, so the chess worker and the
+    // draw session have finished every runtime fetch of their own and
+    // whatever /ort/ request follows is the rerouter's. A press on the default
+    // pair (KJFK-KMIA past the Cape) has arcs to sample, so it loads the
+    // model and the runtime; `window.__slaac.loaded` turns true once the
+    // worker's session exists. The run itself is left to finish unobserved.
+    await openReroute(page);
+    await page.locator("[data-reroute-go]").click();
+    // Loaded, or failed to load: a wrong runtime build 404s (sync-ort ships
+    // only the plain pair) and the figure goes unavailable, and the URL
+    // assertions below are what name the build.
+    await page.waitForFunction(
+      () =>
+        window.__slaac?.loaded === true ||
+        JSON.parse(document.querySelector("[data-reroute-status]").dataset.rerouteStatus).state === "unavailable",
+      null,
+      { timeout: 120000 },
+    );
+
     const ortOf = (list) => list.map((u) => (u.match(ORT_PATH_RE) || [])[0]).filter(Boolean);
     const workerOrt = ortOf(urls.slice(0, afterWorker));
-    const mainOrt = ortOf(urls.slice(afterWorker));
-    const all = [...workerOrt, ...mainOrt];
+    const mainOrt = ortOf(urls.slice(afterWorker, afterMain));
+    const slaacOrt = ortOf(urls.slice(afterMain));
+    const all = [...workerOrt, ...mainOrt, ...slaacOrt];
     const bad = all.filter((u) => ORT_BAD_BUILD_RE.test(u));
     if (bad.length) {
       throw new Error(`an asyncify/jsep/jspi runtime was fetched: ${[...new Set(bad)].join(", ")}`);
@@ -875,7 +917,10 @@ async function checkOrtRuntimeBuild(browser) {
     if (plainWasm(mainOrt) < 1) {
       throw new Error(`the draw demo did not fetch the plain runtime; its /ort/ requests: ${JSON.stringify(mainOrt)}`);
     }
-    return `plain runtime fetched by the worker (${plainWasm(workerOrt)}x) and the main thread (${plainWasm(mainOrt)}x); no asyncify/jsep/jspi build; files: ${[...new Set(all)].join(", ")}`;
+    if (plainWasm(slaacOrt) < 1) {
+      throw new Error(`the rerouter's worker did not fetch the plain runtime; its /ort/ requests: ${JSON.stringify(slaacOrt)}`);
+    }
+    return `plain runtime fetched by the chess worker (${plainWasm(workerOrt)}x), the main thread (${plainWasm(mainOrt)}x) and the rerouter's worker (${plainWasm(slaacOrt)}x); no asyncify/jsep/jspi build; files: ${[...new Set(all)].join(", ")}`;
   });
 }
 
@@ -1414,15 +1459,17 @@ async function checkLabelEfficiency(browser) {
 
 /* ---------------------------------------------------------------------- */
 /* 5. Flight video plays in view, pauses out of view                      */
-/* (Figure 3, components/figures/FlightFigure.tsx — the only <video> on   */
-/* the page)                                                              */
+/* (Figure S3 on /lab since the SLAAC round, 2026-09-30:                  */
+/* components/figures/FlightFigure.tsx, the only <video> on that page;    */
+/* page 1's Figure 3 is now the live rerouter, section 5b below)          */
 /* ---------------------------------------------------------------------- */
 
-async function checkFlightVideoPlayPause(browser) {
+async function checkLabFlightVideo(browser) {
   return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
-    await page.goto(BASE, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/lab`, { waitUntil: "networkidle" });
+    // Behind DeferredMount on /lab, so it has to be scrolled to before it exists.
+    await scrollUntilAttached(page, "video");
     const video = page.locator("video").first();
-    await video.waitFor({ state: "attached", timeout: 10000 });
     await video.scrollIntoViewIfNeeded();
 
     await page.waitForFunction(
@@ -1437,7 +1484,521 @@ async function checkFlightVideoPlayPause(browser) {
       null,
       { timeout: 10000 },
     );
-    return "playing() while >=40% in view, paused() after scrolling back to top";
+    // Proved to bite (2026-09-30): `n="3"` on /lab failed with "the video's
+    // caption doesn't read Figure S3: "Figure 3. A full day of FAA ..."".
+    const caption = await video.evaluate((v) => v.closest("figure")?.querySelector("figcaption")?.textContent ?? "");
+    if (!caption.includes("Figure S3")) throw new Error(`the video's caption doesn't read Figure S3: ${JSON.stringify(caption.slice(0, 60))}`);
+    return "on /lab as Figure S3: playing() while >=40% in view, paused() after scrolling back to top";
+  });
+}
+
+/* ---------------------------------------------------------------------- */
+/* 5b. Figure 3: the SLAAC rerouter (components/figures/RerouteFigure.tsx,*/
+/* lib/slaac-engine.ts, lib/slaac-worker.ts; SLAAC round, 2026-09-30).    */
+/* The figure sits behind DeferredMount inside the NASA box, so every     */
+/* check scrolls it in first. One reroute of KJFK-KMIA past the Cape     */
+/* measured ~14 s of worker time in headless Firefox here (~16 s from the  */
+/* press, 3 arcs at 20 steps); the timeouts below are sized for that,     */
+/* not for a real browser, and each check keeps its full runs few.        */
+/* ---------------------------------------------------------------------- */
+
+const SLAAC_ROUTES = JSON.parse(readFileSync(new URL("../public/slaac/routes.json", import.meta.url), "utf8"));
+const SLAAC_LAUNCH = JSON.parse(readFileSync(new URL("../public/slaac/launch-sua.json", import.meta.url), "utf8"));
+const SLAAC_COPY = copy.research.figReroute;
+/** Florida's hubs in the route library. Hand-kept: airports.json carries no state. */
+const FLORIDA = new Set(["KMIA", "KFLL", "KMCO", "KTPA"]);
+/** Every slaac check runs at this instant: the press seeds its noise from
+ *  Date.now(), so a pinned clock makes a run's arcs the same on every run. */
+const SLAAC_DATE = new Date("2026-09-30T18:00:00.000Z");
+
+function rerouteStatus(page) {
+  return page.evaluate(() => JSON.parse(document.querySelector("[data-reroute-status]").dataset.rerouteStatus));
+}
+
+async function waitRerouteState(page, states, timeout = 30000) {
+  await page
+    .waitForFunction(
+      (states) => {
+        const el = document.querySelector("[data-reroute-status]");
+        return !!el && states.includes(JSON.parse(el.dataset.rerouteStatus).state);
+      },
+      states,
+      { timeout },
+    )
+    .catch(async (err) => {
+      const now = await page
+        .evaluate(() => document.querySelector("[data-reroute-status]")?.dataset.rerouteStatus ?? null)
+        .catch(() => null);
+      throw new Error(`Figure 3 never reached ${states.join("/")}: ${now ? JSON.parse(now).state : "not mounted"} (${err.message.split("\n")[0]})`);
+    });
+}
+
+/** Scroll the NASA box's figure in (DeferredMount), wait for its data, and
+ *  centre the map. The notes sit right after the figure's slot, so bringing
+ *  them into view brings the slot within DeferredMount's 200px margin. */
+async function openReroute(page) {
+  await page.locator("[data-nasa-notes]").scrollIntoViewIfNeeded();
+  await scrollUntilAttached(page, "[data-reroute-pair]", { maxScrolls: 6, step: 300 });
+  await waitRerouteState(page, ["idle"]);
+  await page.evaluate(() => document.querySelector("[data-reroute-figure] canvas").scrollIntoView({ block: "center" }));
+}
+
+/** The map's current view as reroute-map.ts's MapView, from the page's hook. */
+async function rerouteView(page) {
+  const { box, view, dpr } = await page.evaluate(() => {
+    const c = document.querySelector("[data-reroute-figure] canvas");
+    const r = c.getBoundingClientRect();
+    return { box: { x: r.x, y: r.y, w: r.width, h: r.height }, view: window.__slaac.view, dpr: c.width / r.width };
+  });
+  return { box, view: { w: box.w, h: box.h, dpr, ...view } };
+}
+
+/** Switch to the whole-US view and wait until the ease has SETTLED on
+ *  exactly the lower-48 fit (the status re-renders only when it settles). */
+async function rerouteWholeUs(page) {
+  await page.locator("[data-reroute-view]").getByRole("button", { name: SLAAC_COPY.controls.viewUs, exact: true }).click();
+  const { box, view } = await rerouteView(page);
+  const want = fitLower48(Math.round(box.w), Math.round(box.h), view.dpr).scale;
+  await page.waitForFunction(
+    (want) => {
+      const v = JSON.parse(document.querySelector("[data-reroute-status]").dataset.rerouteStatus).view;
+      return v?.mode === "us" && Math.abs(v.scale - want) < 1e-12;
+    },
+    want,
+    { timeout: 5000 },
+  );
+}
+
+/** Click (or tap) at a [lat, lon] through the map's current view. */
+async function rerouteAt(page, lat, lon, { touch = false } = {}) {
+  const { box, view } = await rerouteView(page);
+  const [x, y] = toScreen(view, lat, lon);
+  if (touch) await page.touchscreen.tap(box.x + x, box.y + y);
+  else await page.mouse.click(box.x + x, box.y + y);
+}
+
+/** Like workerSpy, plus each Worker's traffic: what it was sent and what it
+ *  posted back, as {kind, runId}. The rerouter's worker is the one sent a
+ *  `load` carrying navaids (the chess worker's load carries none). */
+function slaacWorkerSpy() {
+  const Real = window.Worker;
+  window.__workers = [];
+  window.Worker = class extends Real {
+    constructor(...args) {
+      super(...args);
+      this.__terminated = false;
+      this.__slaac = false;
+      this.__sent = [];
+      this.__got = [];
+      this.addEventListener("message", (e) => {
+        const d = e.data;
+        if (d && typeof d === "object") this.__got.push({ kind: d.kind, runId: d.runId ?? null });
+      });
+      window.__workers.push(this);
+    }
+    postMessage(msg, ...rest) {
+      if (msg?.kind === "load" && msg.navaids) this.__slaac = true;
+      if (msg?.kind === "reroute") window.__lastRerouteReq = msg;
+      this.__sent.push({ kind: msg?.kind, runId: msg?.runId ?? null });
+      return super.postMessage(msg, ...rest);
+    }
+    terminate() {
+      this.__terminated = true;
+      super.terminate();
+    }
+  };
+}
+
+const slaacWorkers = (page) =>
+  page.evaluate(() =>
+    window.__workers
+      .filter((w) => w.__slaac)
+      .map((w) => ({ terminated: w.__terminated, sent: w.__sent, got: w.__got })),
+  );
+
+/**
+ * Nothing at rest: scrolling Figure 3 in and leaving it alone fetches its
+ * small JSON and nothing else: no model, and no rerouter worker, so none of
+ * the ORT runtime on its account. Then a press with nothing to reroute
+ * (launch sites off, a box drawn over central Nevada, the default KJFK-KMIA
+ * pair a continent away) answers "no conflict" from the main thread's
+ * planner and still loads nothing.
+ *
+ * The runtime is asserted through the worker, not the URL: scrolling the NASA
+ * box in also brings Figure 4's DeferredMount within its 200px margin, and the
+ * chess worker legitimately fetches the same `/ort/ort-wasm-simd-threaded.wasm`
+ * (measured: it does, ~140 ms after the rerouter's JSON). The spy marks the
+ * rerouter's worker by its `load` message, so "no such worker" is "no /ort/
+ * fetch of the rerouter's own".
+ *
+ * Proved to bite (2026-09-30): calling `loadSlaacEngine()` in the figure's
+ * data effect (on mount) failed with "the rerouter loaded at rest: model
+ * requests [HEAD .../models/flightdiff-b3463317.onnx, GET ...], rerouter
+ * workers 1, __slaac.loaded false".
+ */
+async function checkSlaacNothingAtRest(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.addInitScript(slaacWorkerSpy);
+    const urls = [];
+    page.on("request", (req) => urls.push(`${req.method()} ${req.url()}`));
+    const loaded = async () => {
+      const model = urls.filter((u) => /\/models\/flightdiff-/.test(u));
+      const workers = (await slaacWorkers(page)).length;
+      const hook = await page.evaluate(() => window.__slaac?.loaded ?? null);
+      return model.length || workers || hook ? `model requests ${JSON.stringify(model)}, rerouter workers ${workers}, __slaac.loaded ${hook}` : null;
+    };
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await openReroute(page);
+    await page.waitForTimeout(2000); // anything a mount effect or an idle callback might start has started
+    const data = urls.filter((u) => SLAAC_DATA_RE.test(u)).length;
+    if (data < 6) throw new Error(`Figure 3 mounted but fetched ${data} of its 6 JSON files`);
+    let bad = await loaded();
+    if (bad) throw new Error(`the rerouter loaded at rest: ${bad}`);
+
+    await page.locator("[data-reroute-launch]").uncheck();
+    await rerouteWholeUs(page);
+    await page.locator("[data-reroute-draw]").click();
+    const ring = [[39.5, -117.5], [39.5, -115.5], [37.5, -115.5], [37.5, -117.5]];
+    for (const [lat, lon] of ring) await rerouteAt(page, lat, lon);
+    await rerouteAt(page, ...ring[0]); // the first corner again closes it
+    const pressed = await page.locator("[data-reroute-draw]").getAttribute("aria-pressed");
+    if (pressed !== "false") throw new Error("the Nevada box didn't close (draw mode still on)");
+
+    await page.locator("[data-reroute-go]").click();
+    await waitRerouteState(page, ["no-conflict", "done", "unavailable"], 30000);
+    const st = await rerouteStatus(page);
+    if (st.state !== "no-conflict") throw new Error(`a box far from every route ran as ${st.state}, not no-conflict`);
+    const readout = await page.locator("[data-reroute-figure] [role=status]").textContent();
+    if (readout !== SLAAC_COPY.noConflict) throw new Error(`readout ${JSON.stringify(readout)}, not the no-conflict line`);
+    await page.waitForTimeout(1000);
+    bad = await loaded();
+    if (bad) throw new Error(`a no-conflict press loaded the rerouter: ${bad}`);
+    return `scrolled in: ${data} JSON files, no model, no rerouter worker; a Nevada box with launch sites off read "no conflict" and still loaded nothing`;
+  });
+}
+
+/**
+ * One full reroute, KJFK-KMIA (the route library's first Florida pair) with
+ * every launch site on, at a pinned instant. Crossings are recomputed here,
+ * in node, from each plan the page received and the served launch rings
+ * (lib/slaac/geometry.ts's own leg test), rather than read off the status
+ * label the same numbers produced. Then the stale-run rule, at the two layers
+ * that can actually see a stale run:
+ *
+ *  - the figure: three presses in ONE task, before React re-renders (so the
+ *    disabled attribute can't be what stops the second and third; the
+ *    figure's busy guard has to), start exactly one run and land one `done`;
+ *  - the engine (lib/slaac-engine.ts's runId filter): the figure's own
+ *    request is replayed straight into the live worker as run 1001, and the
+ *    figure is pressed while the worker is still busy with it. 1001's
+ *    progress and `done` reach the engine while it awaits its own run, and
+ *    must be dropped: the figure's `done` is its own run's, and the worker
+ *    is seen answering 1001 first, so the case really happened.
+ *
+ * ⚠️ Not asserted, because it can't fire: the worker's own filter
+ * (lib/slaac-worker.ts's `post`). A run never yields to the worker's message
+ * queue (ORT's wasm session.run resolves without a macrotask), so a newer
+ * request is only read once the older run has finished and posted all of its
+ * messages while still current. Measured: two requests posted back to back
+ * came back as ten progress messages and a `done` for the first, THEN the
+ * second; the brief's bite (dropping that filter) can't change anything.
+ * The engine filter carries the rule; see the Task 14 report.
+ *
+ * Proved to bite (2026-09-30), two ways: dropping the engine's runId test
+ * (`if (!a) return;`) failed with "the figure took run 1001's done while
+ * awaiting run 3"; dropping `busyRef.current` from the press's guard failed
+ * with "three presses in one task started 3 runs, expected 1".
+ */
+async function checkSlaacReroute(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.clock.setFixedTime(SLAAC_DATE);
+    await page.addInitScript(slaacWorkerSpy);
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await openReroute(page);
+
+    const pairIdx = SLAAC_ROUTES.pairs.findIndex((p) => FLORIDA.has(p.origin) || FLORIDA.has(p.dest));
+    const pair = SLAAC_ROUTES.pairs[pairIdx];
+    await page.selectOption("[data-reroute-pair]", String(pairIdx));
+    await page.locator("[data-reroute-launch]").check();
+    await page.locator("[data-reroute-go]").click();
+    await waitRerouteState(page, ["done", "no-conflict", "unavailable"], 120000);
+    const st = await rerouteStatus(page);
+    if (st.state !== "done") throw new Error(`${pair.origin}-${pair.dest} with the launch sites on ended ${st.state}, not done`);
+    if (st.flights.length !== pair.routes.length) throw new Error(`${st.flights.length} flights in the status, ${pair.routes.length} routes in the pair`);
+
+    const done = await page.evaluate(() => window.__slaac.lastDone);
+    const polys = loadSua(SLAAC_LAUNCH.sites.flatMap((s) => s.polys.map((p) => p.ring)));
+    const crossingsOf = (plan) => {
+      const xy = plan.map((q) => albers(q[1], q[2]));
+      let n = 0;
+      for (let i = 0; i + 1 < xy.length; i++) if (polys.some((P) => segCrossesPoly(xy[i], xy[i + 1], P))) n++;
+      return n;
+    };
+    let rerouted = 0;
+    for (const f of done.flights) {
+      const s = st.flights.find((x) => x.id === f.id);
+      if (s.status === "untouched") continue;
+      const legs = crossingsOf(f.plan);
+      if (s.status === "cannot-clear") {
+        if (legs === 0) throw new Error(`flight ${f.id} marked cannot-clear but its plan crosses no airspace`);
+        continue;
+      }
+      if (s.metrics.legCrossings !== 0 || legs !== 0) {
+        throw new Error(`flight ${f.id} (${s.status}) crosses airspace: status says ${s.metrics.legCrossings}, recomputed ${legs}`);
+      }
+      rerouted++;
+    }
+    if (rerouted < 1) throw new Error(`no flight was rerouted: ${JSON.stringify(st.flights.map((f) => f.status))}`);
+    const used = () => demoEvents(page, "slaac");
+    if ((await used()) !== 1) throw new Error(`demo_used{slaac} queued ${await used()}x after one run, expected 1`);
+
+    // Every state the status takes from here, so a "done" left over from the
+    // previous run can't satisfy a wait for the next one.
+    await page.evaluate(() => {
+      window.__rerouteStates = [];
+      const el = document.querySelector("[data-reroute-status]");
+      new MutationObserver(() => window.__rerouteStates.push(JSON.parse(el.dataset.rerouteStatus).state)).observe(el, {
+        attributes: true,
+        attributeFilter: ["data-reroute-status"],
+      });
+    });
+    const nextDone = async () => {
+      await page.waitForFunction(() => window.__rerouteStates.some((s) => s === "done" || s === "unavailable"), null, {
+        timeout: 180000,
+      });
+      const states = await page.evaluate(() => window.__rerouteStates.splice(0));
+      const dones = states.filter((s, i) => s === "done" && states[i - 1] !== "done").length;
+      if (states.includes("unavailable")) throw new Error(`a run ended unavailable: ${states.join(" > ")}`);
+      return { states, dones };
+    };
+
+    // The figure: three presses in one task. React 19 renders a click's
+    // state on a microtask, so between these synchronous clicks the button is
+    // never re-rendered disabled and every click reaches the handler; only
+    // the figure's busy guard can turn the second and third away. (A
+    // Playwright click first and two more after it would hit a button React
+    // had already disabled, and prove nothing: measured, the busy-guard bite
+    // passed that way.)
+    await page.evaluate(() => {
+      const go = document.querySelector("[data-reroute-go]");
+      go.click();
+      go.click();
+      go.click();
+    });
+    const burst = await nextDone();
+    const runId = await page.evaluate(() => window.__slaac.runId);
+    if (runId !== 2) throw new Error(`three presses in one task started ${runId - 1} runs, expected 1`);
+    if (burst.dones !== 1) throw new Error(`${burst.dones} done states landed for one accepted press: ${burst.states.join(" > ")}`);
+    let [w] = await slaacWorkers(page);
+    const sentRuns = w.sent.filter((m) => m.kind === "reroute").map((m) => m.runId);
+    if (JSON.stringify(sentRuns) !== "[1,2]") throw new Error(`the worker was sent reroute runs ${JSON.stringify(sentRuns)}, expected [1,2]`);
+    if ((await page.evaluate(() => window.__slaac.lastDone?.runId)) !== 2) throw new Error("the figure doesn't hold run 2's done");
+    if ((await used()) !== 1) throw new Error(`demo_used{slaac} queued ${await used()}x after two runs, expected 1`);
+
+    // The engine: a run it never asked for, busy in the worker, while it
+    // awaits its own.
+    await page.evaluate(() => {
+      const worker = window.__workers.find((x) => x.__slaac && !x.__terminated);
+      worker.postMessage({ ...window.__lastRerouteReq, runId: 1001 });
+    });
+    await page.locator("[data-reroute-go]").click();
+    const replay = await nextDone();
+    // The figure may have settled early on a reply it shouldn't have taken;
+    // wait for the worker's own answer to run 3 either way.
+    await page.waitForFunction(
+      () => window.__workers.find((x) => x.__slaac && !x.__terminated).__got.some((m) => m.kind === "done" && m.runId === 3),
+      null,
+      { timeout: 180000 },
+    );
+    const held = await page.evaluate(() => window.__slaac.lastDone?.runId);
+    if (held !== 3) throw new Error(`the figure took run ${held}'s done while awaiting run 3`);
+    [w] = await slaacWorkers(page);
+    const doneOrder = w.got.filter((m) => m.kind === "done").map((m) => m.runId);
+    if (JSON.stringify(doneOrder) !== "[1,2,1001,3]") {
+      throw new Error(`the worker answered done for runs ${JSON.stringify(doneOrder)}, expected [1,2,1001,3]: the overlap this tests didn't happen`);
+    }
+    if (replay.dones !== 1) throw new Error(`${replay.dones} done states landed for one press: ${replay.states.join(" > ")}`);
+    if ((await used()) !== 1) throw new Error(`demo_used{slaac} queued ${await used()}x after three runs, expected 1`);
+    return `${pair.origin}-${pair.dest}, all six launch sites: ${rerouted} of ${st.flights.length} flights rerouted, 0 recomputed crossings, ${st.arcs} arcs in ${(st.ms / 1000).toFixed(1)} s; three presses in one task ran one run; run 1001 injected ahead of the figure's run 3 answered first and was dropped by the engine; demo_used{slaac} once`;
+  });
+}
+
+/**
+ * The launch preset draws: in the whole-US view at 1280, all six sites are in
+ * view and labelled, and the canvas pixel at each site's own centroid (the
+ * status's `launchSites[].centroid`, CSS px, ruling R4) is the map's red,
+ * --color-red-ink, at the airspace fill's alpha or the outline's. Turning the
+ * sites off clears every one of those pixels and every label: the red came
+ * from the launch layer, not a route crossing the same spot.
+ *
+ * Proved to bite (2026-09-30): removing the launch sites' `fillRing` loop
+ * from drawMap (components/figures/reroute-map.ts) failed with "ksc:
+ * centroid pixel (611, 375) reads 0,0,0,0, not the airspace red".
+ */
+async function checkSlaacLaunchPreset(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await openReroute(page);
+    await page.locator("[data-reroute-launch]").check();
+    await rerouteWholeUs(page);
+    const pixelAt = ([x, y]) =>
+      page.evaluate(([x, y]) => {
+        const c = document.querySelector("[data-reroute-figure] canvas");
+        const s = c.width / c.getBoundingClientRect().width;
+        return [...c.getContext("2d").getImageData(Math.round(x * s), Math.round(y * s), 1, 1).data];
+      }, [x, y]);
+    // The airspace fill is --color-red-ink (229, 53, 43) at 0.18 alpha
+    // (~46/255), its outline the same red at full; getImageData returns it
+    // un-premultiplied, so the hue survives the low alpha.
+    const isRed = ([r, g, b, a]) => a >= 30 && r >= 180 && g <= 90 && b <= 90;
+
+    let st = await rerouteStatus(page);
+    const ids = SLAAC_LAUNCH.sites.map((s) => s.id);
+    if (JSON.stringify(st.launchSites.map((s) => s.id)) !== JSON.stringify(ids)) {
+      throw new Error(`status lists ${st.launchSites.map((s) => s.id).join(", ")}, launch-sua.json ${ids.join(", ")}`);
+    }
+    const reads = [];
+    for (const s of st.launchSites) {
+      if (!s.inView) throw new Error(`${s.id} is out of view in the whole-US view (centroid ${JSON.stringify(s.centroid)})`);
+      if (!s.labelled) throw new Error(`${s.id}'s name isn't drawn at 1280 in the whole-US view`);
+      const px = await pixelAt(s.centroid);
+      if (!isRed(px)) throw new Error(`${s.id}: centroid pixel (${s.centroid.map(Math.round).join(", ")}) reads ${px.join(",")}, not the airspace red`);
+      reads.push(`${s.id} ${px.join(",")}`);
+    }
+
+    await page.locator("[data-reroute-launch]").uncheck();
+    await rerouteWholeUs(page); // the view doesn't move in "us" mode; this waits out the repaint
+    await page.waitForFunction(() => !JSON.parse(document.querySelector("[data-reroute-status]").dataset.rerouteStatus).launchOn);
+    await page.waitForTimeout(200); // the repaint is one coalesced rAF
+    st = await rerouteStatus(page);
+    for (const s of st.launchSites) {
+      if (s.labelled) throw new Error(`${s.id} still labelled with the launch sites off`);
+      const px = await pixelAt(s.centroid);
+      if (isRed(px)) throw new Error(`${s.id}: centroid still red (${px.join(",")}) with the launch sites off`);
+    }
+    return `whole US at 1280: six sites in view and labelled, each centroid red (${reads.join("; ")}); all clear with the sites off`;
+  });
+}
+
+/**
+ * Stargaze mid-run (the chess rule, RerouteFigure's subscriber): a reroute
+ * in progress, then stargaze. The worker is terminated (the spy sees it),
+ * `__offload.slaac` counts exactly one, the run ends in idle with no `done`,
+ * no error line and no `demo_used`. On the way back the engine reloads (it
+ * had been loaded), into a NEW worker, and still nothing lands.
+ *
+ * Proved to bite (2026-09-30): skipping `unloadSlaacEngine()` in the
+ * stargaze handler failed with "window.__offload.slaac never reached 1 after
+ * entering stargaze mid-run".
+ */
+async function checkSlaacStargazeCancel(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.clock.setFixedTime(SLAAC_DATE);
+    await page.addInitScript(slaacWorkerSpy);
+    const errors = [];
+    page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await waitStargazeReady(page);
+    await openReroute(page);
+    await page.locator("[data-reroute-launch]").check();
+    await page.locator("[data-reroute-go]").click();
+    await page.waitForFunction(
+      () => {
+        const st = JSON.parse(document.querySelector("[data-reroute-status]").dataset.rerouteStatus);
+        return st.state === "running" && (st.step ?? 0) >= 1;
+      },
+      null,
+      { timeout: 120000 },
+    );
+    const step = (await rerouteStatus(page)).step;
+
+    await stargazeToggle(page).click();
+    await page
+      .waitForFunction(() => (window.__offload?.slaac ?? 0) >= 1, null, { timeout: 15000 })
+      .catch(() => {
+        throw new Error("window.__offload.slaac never reached 1 after entering stargaze mid-run");
+      });
+    let workers = await slaacWorkers(page);
+    if (workers.length !== 1 || !workers[0].terminated) {
+      throw new Error(`the rerouter's worker was not terminated: ${JSON.stringify(workers.map((w) => w.terminated))}`);
+    }
+    if (await page.evaluate(() => window.__slaac.loaded)) throw new Error("window.__slaac.loaded still true while stargazing");
+    await page.waitForTimeout(1500); // a reply that was going to land has had time to
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+
+    // Restore rule: it was loaded, so it reloads, into a new worker.
+    await page.waitForFunction(() => window.__slaac?.loaded === true, null, { timeout: 120000 });
+    await page.waitForTimeout(1000);
+    workers = await slaacWorkers(page);
+    const st = await rerouteStatus(page);
+    const readout = await page.locator("[data-reroute-figure] [role=status]").textContent();
+    const offload = await page.evaluate(() => window.__offload.slaac);
+    const lastDone = await page.evaluate(() => window.__slaac.lastDone);
+    if (st.state !== "idle") throw new Error(`after stargaze the figure reads ${st.state}, not idle`);
+    if (lastDone) throw new Error("a done landed for the run stargaze cancelled");
+    if (workers.some((w) => w.got.some((m) => m.kind === "done"))) throw new Error("a worker posted done for the cancelled run");
+    if (readout === SLAAC_COPY.unavailable) throw new Error("the cancelled run was reported as unavailable");
+    if (readout) throw new Error(`the readout still says ${JSON.stringify(readout)} after the cancel`);
+    if ((await demoEvents(page, "slaac")) !== 0) throw new Error("a cancelled reroute queued demo_used{slaac}");
+    if (offload !== 1) throw new Error(`window.__offload.slaac is ${offload}, expected exactly 1`);
+    if (workers.length !== 2 || workers[1].terminated) {
+      throw new Error(`expected the old worker terminated and one live new one: ${JSON.stringify(workers.map((w) => w.terminated))}`);
+    }
+    if (errors.length) throw new Error(`console errors: ${errors.join(" | ")}`);
+    return `stargaze at step ${step}: worker terminated, __offload.slaac 1, idle, no done, no error line, no demo_used{slaac}; reloaded into a new worker on return`;
+  });
+}
+
+/**
+ * Phone width with touch: no horizontal scroll with the figure mounted; "draw
+ * airspace", three taps and a tap on the first corner close a shape (draw mode
+ * ends, "clear" enables); two taps and a tap on the first corner say a shape
+ * needs three corners.
+ *
+ * Proved to bite (2026-09-30): making the canvas's pointerup ignore touch
+ * (`if (e.pointerType === "touch") return;`) failed with "three taps and a
+ * tap on the first corner didn't close the shape: {"draw":"true",
+ * "clear":false,"pending":false}".
+ */
+async function checkSlaac400(browser) {
+  return withPage(browser, { viewport: { width: 400, height: 800 }, hasTouch: true }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await openReroute(page);
+    const overflow = () =>
+      page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    if ((await overflow()) > 1) throw new Error(`horizontal scroll at 400px with Figure 3 mounted: ${await overflow()}px`);
+
+    const { view } = await rerouteView(page);
+    const at = (fx, fy) => fromScreen(view, fx * view.w, fy * view.h);
+    const tri = [at(0.3, 0.3), at(0.7, 0.35), at(0.5, 0.7)];
+    await page.locator("[data-reroute-draw]").tap();
+    for (const p of tri) await rerouteAt(page, ...p, { touch: true });
+    await rerouteAt(page, ...tri[0], { touch: true });
+    const closed = await page.evaluate(() => ({
+      draw: document.querySelector("[data-reroute-draw]").getAttribute("aria-pressed"),
+      clear: !document.querySelector("[data-reroute-clear]").disabled,
+      pending: !!document.querySelector("[data-reroute-close]"),
+    }));
+    if (closed.draw !== "false" || !closed.clear || closed.pending) {
+      throw new Error(`three taps and a tap on the first corner didn't close the shape: ${JSON.stringify(closed)}`);
+    }
+
+    await page.waitForTimeout(500); // the view eases to fit the new shape (350 ms); re-read it after
+    const v2 = (await rerouteView(page)).view;
+    const two = [fromScreen(v2, 0.25 * v2.w, 0.75 * v2.h), fromScreen(v2, 0.45 * v2.w, 0.8 * v2.h)];
+    await page.locator("[data-reroute-draw]").tap();
+    for (const p of two) await rerouteAt(page, ...p, { touch: true });
+    await rerouteAt(page, ...two[0], { touch: true });
+    const alert = page.locator("[data-reroute-figure] [role=alert]");
+    await alert.waitFor({ state: "visible", timeout: 2000 }).catch(() => {
+      throw new Error("two taps and a close showed no message");
+    });
+    const msg = await alert.textContent();
+    if (msg !== SLAAC_COPY.ringTooFew) throw new Error(`two-corner close says ${JSON.stringify(msg)}`);
+    if ((await overflow()) > 1) throw new Error(`horizontal scroll at 400px after drawing: ${await overflow()}px`);
+    return `no horizontal scroll at 400; a 3-tap triangle closed on a tap at its first corner; a 2-tap close said "${msg}"`;
   });
 }
 
@@ -5090,7 +5651,12 @@ const CHECKS = [
   ["references-lab-link-resolves", checkReferencesLabLinkResolves],
   ["label-efficiency", checkLabelEfficiency],
   ["dice-cdf", checkDiceCdf],
-  ["flight-video-play-pause", checkFlightVideoPlayPause],
+  ["lab-flight-video", checkLabFlightVideo],
+  ["slaac-nothing-at-rest", checkSlaacNothingAtRest],
+  ["slaac-reroute", checkSlaacReroute],
+  ["slaac-launch-preset", checkSlaacLaunchPreset],
+  ["slaac-stargaze-cancel", checkSlaacStargazeCancel],
+  ["slaac-400", checkSlaac400],
   ["draw-stroke-auto-label", checkDrawAutoLabel],
   ["chess-hint-g3", checkChessHint],
   ["chess-self-play", checkChessSelfPlay],

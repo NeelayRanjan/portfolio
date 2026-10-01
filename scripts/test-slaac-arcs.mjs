@@ -206,6 +206,23 @@ test("runReroute: a polygon far from every route leaves every flight untouched, 
   }
 });
 
+test("runReroute: a crossing the walk can't touch reads cannot-clear, never untouched", async () => {
+  // Wide berth pins both airports (affWp[0] = affWp[n-1] = false), so a 2-fix
+  // route whose one leg crosses a box gets no arc at all: the plan is the
+  // filed route, and only the status says it still crosses.
+  const counter = { calls: 0 };
+  const nominal = [["KAAA", 35, -100], ["KBBB", 35, -90]];
+  const ring = [[34, -96], [36, -96], [36, -94], [34, -94]];
+  const got = await runReroute({ flights: [{ id: "f", nominal }], rings: [ring], marginNm: 25, hug: false, seed: 1, steps: 20, batchCap: 4, display: "snapped" },
+    { model: fakeModel(counter), meta, wpdb });
+  assert.equal(counter.calls, 0);
+  assert.equal(got.arcs, 0);
+  const [f] = got.flights;
+  assert.deepEqual(f.roles, ["filed", "filed"]);
+  assert.ok(f.metrics.legCrossings > 0);
+  assert.equal(f.status, "cannot-clear");
+});
+
 test("runReroute chunks under batchCap: same plans, one forward per step per chunk", async () => {
   const cases = V.local_reroute.filter((c) => c.hug && c.margin === 40);
   const nArcs = cases.reduce((s, c) => s + c.calls.length, 0);

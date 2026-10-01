@@ -54,8 +54,9 @@ export type FlightOut = {
   plan: Fix[];
   roles: Role[];
   metrics: ReturnType<typeof metrics>;
-  /** untouched: no leg came near a polygon, no arc sampled. cannot-clear: a
-   *  leg of the emitted plan still crosses a polygon. */
+  /** cannot-clear: a leg of the emitted plan still crosses a polygon (checked
+   *  first, so it wins over untouched). untouched: no arc sampled and no leg
+   *  crosses. */
   status: "ok" | "untouched" | "cannot-clear";
 };
 
@@ -222,7 +223,9 @@ export async function runReroute(req: RunReq, deps: RunDeps): Promise<RunResult>
     const touched = roles.some((r) => r !== "filed");
     flights.push({
       id: f.id, plan, roles, metrics: m, dense: denseOf(plan, roles, arcs, N),
-      status: !touched ? "untouched" : m.legCrossings > 0 ? "cannot-clear" : "ok",
+      // A crossing decides first: a wide-berth walk never touches a route whose
+      // only affected fixes are its airports, so "untouched" must not hide one.
+      status: m.legCrossings > 0 ? "cannot-clear" : !touched ? "untouched" : "ok",
     });
   }
   return { flights, arcs: arcs.size, fallbackArcs };

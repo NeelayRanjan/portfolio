@@ -10,7 +10,7 @@ import { StargazeFooterEntry } from "@/components/manuscript/StargazeFooterEntry
 import { TrackedLink } from "@/components/manuscript/TrackedLink";
 import { LabelEfficiencyFigure } from "@/components/figures/LabelEfficiencyFigure";
 import { DiceCdfFigure } from "@/components/figures/DiceCdfFigure";
-import { FlightFigure } from "@/components/figures/FlightFigure";
+import { RerouteFigure } from "@/components/figures/RerouteFigure";
 import { DrawDigit } from "@/components/DrawDigit";
 import { ChessPanel } from "@/components/ChessPanel";
 import { WarmKick } from "@/components/WarmKick";
@@ -107,9 +107,10 @@ export default function Home() {
 
         {/* The NASA work in its own box (owner call, 2026-09-30), separate from
             the paper above; it is the seam a fuller NASA section grows from
-            later. The box has no background of its own: Figure 3's video
-            blends against its own panel, which this must not change. The
-            bottom padding is the figure's own my-8. */}
+            later. The box has no background of its own; the figure brings
+            its panel. Figure 3 is the SLAAC rerouter (the flight video moves
+            to /lab), mounted on scroll-in so its JSON stays out of first
+            paint. The bottom padding is the figure's own my-8. */}
         <section
           data-nasa-box
           aria-labelledby="nasa"
@@ -123,7 +124,9 @@ export default function Home() {
               {copy.research.nasaProse}
             </p>
           </Row>
-          <FlightFigure />
+          <DeferredMount>
+            <RerouteFigure />
+          </DeferredMount>
         </section>
 
         <Row>

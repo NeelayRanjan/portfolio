@@ -57,7 +57,8 @@ function ccw(a: Pt, b: Pt, c: Pt): boolean {
   return (c[1] - a[1]) * (b[0] - a[0]) > (b[1] - a[1]) * (c[0] - a[0]);
 }
 
-function segInt(a: Pt, b: Pt, c: Pt, d: Pt): boolean {
+/** True when segments ab and cd properly cross (the owner's ccw test). */
+export function segInt(a: Pt, b: Pt, c: Pt, d: Pt): boolean {
   return ccw(a, c, d) !== ccw(b, c, d) && ccw(a, b, c) !== ccw(a, b, d);
 }
 

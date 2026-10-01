@@ -353,6 +353,49 @@ export const copy = {
       videoAria:
         "A day of FAA flight plans synthesized by a transformer I trained, looping video",
     },
+    /** Figure 3 since the SLAAC round (2026-09-30): the rerouter. Draft
+     *  wording; Task 13 rewrites it. Runtime line is pre + arcs + mid +
+     *  seconds + post. */
+    figReroute: {
+      caption:
+        "My flight-plan language model wrote these routes ahead of time. The reroute runs on your device: my diffusion model draws an arc around each conflict, then the arc is snapped onto named fixes. Filled dots are the new fixes; hollow ones are bends with no named fix close enough.",
+      unavailable: "The rerouter isn't available right now.",
+      ringTooFew: "A shape needs at least three points.",
+      ringSelfCrossing: "That shape crosses itself. Draw it again.",
+      cannotClear: "no clear plan",
+      untouched: "unchanged",
+      noConflict: "No route comes within the margin of any airspace, so there is nothing to reroute.",
+      stale: "The settings changed since this run. Press reroute to run it again.",
+      loading: "loading model",
+      running: "rerouting",
+      runtimePre: "",
+      runtimeMid: " arcs in ",
+      runtimePost: " s",
+      drawHint: "Click to add points. Click the first point to close the shape.",
+      controls: {
+        pair: "route",
+        draw: "draw airspace",
+        close: "close shape",
+        clear: "clear",
+        launch: "all launch sites",
+        margin: "margin",
+        marginUnit: "nm",
+        lookahead: "lookahead",
+        hug: "1 waypoint",
+        wide: "infinite",
+        go: "reroute",
+      },
+      table: {
+        flight: "route",
+        added: "added",
+        addedPct: "added %",
+        clearance: "min clearance",
+        crossings: "legs crossing",
+      },
+      launchNote:
+        "Red areas are launch airspace: charted restricted and warning areas, and TFRs from past launches.",
+      canvasAria: "Map of the lower 48 with the filed routes, the airspace and any rerouted plans",
+    },
     /** The margin note beside Figure 1: where the angiograms come from,
      *  linked to the benchmark's own repo (Zohranyan et al., Dr-SAM, CVPRW
      *  2024; its README is the one in external_materials/paper1/data/

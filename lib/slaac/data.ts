@@ -14,6 +14,7 @@ import type { Fix } from "./reroute.ts";
 
 export type SlaacMeta = Meta & {
   display?: "snapped" | "continuous";
+  policies?: ("wide" | "hug")[];
   version?: number;
   model?: string;
   sha256?: string;
@@ -94,6 +95,11 @@ export function validateMeta(v: unknown): SlaacMeta {
   for (const k of ["sua_snap_tol_nm", "sua_rdp_tol_nm", "sua_spacing_nm", "reroute_dist_nm", "route_radius_nm", "route_min_spacing_nm"])
     if (!isNum(r[k])) fail(url, `reroute.${k}`);
   if (m.display !== undefined && m.display !== "snapped" && m.display !== "continuous") fail(url, "display");
+  if (m.policies !== undefined) {
+    const ps = m.policies;
+    if (!Array.isArray(ps) || ps.length === 0 || !ps.every((p) => p === "wide" || p === "hug") || new Set(ps).size !== ps.length)
+      fail(url, "policies");
+  }
   return m as unknown as SlaacMeta;
 }
 

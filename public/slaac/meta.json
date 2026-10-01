@@ -39,7 +39,7 @@
   "final_sigmas_type": "zero"
  },
  "sampler": {
-  "steps": 40,
+  "steps": 20,
   "guidance": 2.0,
   "lowpass_sigma": 2.0,
   "sua_strength": 1.0,
@@ -65,5 +65,10 @@
   "output": "v",
   "opset": 17,
   "parity_max_abs": 3.814697265625e-06
- }
+ },
+ "display": "snapped",
+ "policies": [
+  "wide",
+  "hug"
+ ]
 }

@@ -29,6 +29,16 @@ same box as public/slaac/navaids.json, asserted identical to that file.
 run, recorded with a traceback summary, never allowed to abort the sweep. They count
 as NOT clear in the rates.
 
+Owner rulings (2026-09-30), superseding the plan's decision rule where they differ:
+  R7  launch-sua.json unions each site's touching rings (prepare_launch_sua.py).
+  R8  "shorter after reroute" = a replaced stretch whose plan is shorter than the
+      straight line between its entry and rejoin anchors (impossible geometry). Plans
+      shorter than the LM filed route are counted as shorter_than_filed, information only.
+  R9  steps by the plan's rule; display "snapped" with policies [wide, hug] if hug >= 98%
+      and wide >= 99% leg-clear with 0 exceptions and 0 anchor-chord violations, else
+      [wide] if wide alone passes, else "continuous" (owner checkpoint, meta untouched).
+A snapped result writes sampler.steps, display and policies into public/slaac/meta.json.
+
 Outputs: scripts/slaac-gate/report.json, scripts/slaac-gate/report.md, and the per-run
 rows at scripts/slaac-gate/rows.jsonl (resumable: rows already present are skipped).
 
@@ -251,9 +261,31 @@ def run_one(model, sched, stats, sg, pc, wpdb, case, policy, steps, device):
                n_bend=sum(1 for f, r in zip(plan, roles) if r == "deviation" and f[0] == "BEND"),
                t_gen_s=smp.gen_time, t_total_s=t_total,
                plan=[[n, round(a, 5), round(b, 5), r] for (n, a, b), r in zip(plan, roles)])
+    row["anchor_chord_violations"] = chord_violations(plan, roles, pc)
     if xing:
         row["diagnosis"] = diagnose(sg, plan, roles, smp.arcs, polys_m)
     return row
+
+
+CHORD_TOL_NM = 1e-6
+
+
+def chord_violations(plan, roles, pc):
+    """Ruling R8: for each replaced stretch, the plan between the entry and rejoin anchors
+    must not be SHORTER than the straight line between those two anchors (impossible
+    geometry, so a real bug). Returns the offending stretches."""
+    out = []
+    for k, r in enumerate(roles):
+        if r != "rejoin":
+            continue
+        e = k - 1
+        while e > 0 and roles[e] == "deviation":
+            e -= 1
+        L = pc.path_len_nm(pc.fixes_to_m(plan[e:k + 1]))
+        C = pc.path_len_nm(pc.fixes_to_m([plan[e], plan[k]]))
+        if L < C - CHORD_TOL_NM:
+            out.append(dict(entry=plan[e][0], rejoin=plan[k][0], plan_nm=L, chord_nm=C))
+    return out
 
 
 def stretches(row, nominal, pc):
@@ -306,7 +338,8 @@ def summarize(rows):
         added_nm_median=med([r["added_nm"] for r in ok]),
         added_pct_median=med([r["added_pct"] for r in ok]),
         min_clearance_nm_median=med([r["min_clearance_nm"] for r in ok]),
-        shorter_after_reroute=sum(r["plan_nm"] < r["nominal_nm"] for r in ok),
+        anchor_chord_violations=sum(bool(r["anchor_chord_violations"]) for r in ok),
+        shorter_than_filed=sum(r["plan_nm"] < r["nominal_nm"] for r in ok),   # information only (R8)
         exceptions=n - len(ok),
         t_gen_s_median=med([r["t_gen_s"] for r in ok]),
         t_total_s_median=med([r["t_total_s"] for r in ok]),
@@ -315,7 +348,10 @@ def summarize(rows):
 
 
 def decide(table, steps_list, policies):
-    """The decision rule, verbatim from the plan (Task 10 Step 2)."""
+    """Steps: the plan's rule, verbatim (Task 10 Step 2). Display: the owner's ruling R9,
+    which supersedes the plan's: both policies -> snapped [wide, hug]; else wide alone ->
+    snapped [wide]; else continuous. The shorter-than-filed check is replaced by the
+    anchor-chord check (R8)."""
     log, accept = [], {}
     for s in sorted(steps_list):
         ok_all = True
@@ -337,18 +373,27 @@ def decide(table, steps_list, policies):
     chosen = min(s for s in accept if accept[s])
     log.append(f"chosen_steps = smallest acceptable = {chosen}")
     th = {"wide": 99.0, "hug": 98.0}
-    snapped = True
+    passes = {}
     for p in policies:
         c = table[p][str(chosen)]
         conds = [(f"leg-clear {c['leg_clear_rate_pct']:.2f}% >= {th[p]}%", c["leg_clear_rate_pct"] >= th[p]),
                  (f"exceptions {c['exceptions']} == 0", c["exceptions"] == 0),
-                 (f"shorter_after_reroute {c['shorter_after_reroute']} == 0", c["shorter_after_reroute"] == 0)]
+                 (f"anchor-chord violations {c['anchor_chord_violations']} == 0", c["anchor_chord_violations"] == 0)]
         for txt, v in conds:
             log.append(f"{p} @ {chosen}: {txt}: {'yes' if v else 'NO'}")
-            snapped &= v
-    display = "snapped" if snapped else "continuous"
+        passes[p] = all(v for _, v in conds)
+        log.append(f"{p} @ {chosen}: {'PASSES' if passes[p] else 'fails'}")
+    if passes.get("hug") and passes.get("wide"):
+        display, chosen_pol = "snapped", ["wide", "hug"]
+        log.append("hug and wide both pass -> display snapped, policies [wide, hug]")
+    elif passes.get("wide"):
+        display, chosen_pol = "snapped", ["wide"]
+        log.append("wide alone passes -> display snapped, policies [wide] (infinite lookahead only)")
+    else:
+        display, chosen_pol = "continuous", []
+        log.append("wide does not pass -> display continuous (owner checkpoint)")
     log.append(f"display = {display}")
-    return chosen, display, accept, log
+    return chosen, display, chosen_pol, accept, log
 
 
 def main():
@@ -430,7 +475,7 @@ def main():
             sel = [r for r in rows if r["policy"] == p and r["steps"] == s]
             table[p][str(s)] = summarize(sel)
             by_kind[p][str(s)] = {k: summarize([r for r in sel if r["kind"] == k]) for k in ("launch", "random")}
-    chosen, display, accept, log = decide(table, steps_list, policies)
+    chosen, display, chosen_pol, accept, log = decide(table, steps_list, policies)
     failing = [dict(policy=r["policy"], steps=r["steps"], kind=r["kind"], pair=r["pair"], route=r["route"],
                     poly_id=r["poly_id"], legs_crossing=r.get("legs_crossing"),
                     exception=r["exception"], diagnosis=r.get("diagnosis"), where=r.get("where"))
@@ -445,13 +490,31 @@ def main():
                snap_table=f"nasa.snap_table (vor3) clipped to {BOX}, == public/slaac/navaids.json ({len(wpdb.names)} fixes)",
                rates_note="exceptions count as not clear; medians over runs without exceptions",
                table=table, by_kind=by_kind, acceptable={str(k): v for k, v in accept.items()},
-               chosen_steps=chosen, display=display, decision_log=log,
+               chosen_steps=chosen, display=display, policies=chosen_pol, decision_log=log,
+               anchor_chord_cases=[dict(policy=r["policy"], steps=r["steps"], pair=r["pair"], route=r["route"],
+                                        poly_id=r["poly_id"], stretches=r["anchor_chord_violations"])
+                                   for r in rows if r["exception"] is None and r["anchor_chord_violations"]],
                failing_cases=failing, shorter_cases=shorter,
                wall_time_s_this_invocation=round(wall, 1))
     with open(os.path.join(OUT, "report.json"), "w") as f:
         json.dump(rep, f, indent=1, default=float)
     write_md(rep, policies, steps_list)
     print("\n".join(log))
+    if display == "snapped" and not a.limit:
+        write_meta(chosen, display, chosen_pol)
+
+
+def write_meta(steps, display, policies):
+    """Step 5: only reached when the gate says snapped (a continuous result is an owner
+    checkpoint and leaves meta.json alone). Same formatting as export_model.py."""
+    p = os.path.join(PUB, "meta.json")
+    m = json.load(open(p))
+    m["sampler"]["steps"] = int(steps)
+    m["display"] = display
+    m["policies"] = list(policies)
+    with open(p, "w") as fh:
+        json.dump(m, fh, indent=1)
+    print(f"wrote {p}: sampler.steps={steps}, display={display}, policies={policies}")
 
 
 def write_md(rep, policies, steps_list):
@@ -467,8 +530,8 @@ def write_md(rep, policies, steps_list):
           f"{c['random_skipped']} skipped.",
           "- Policies hug (1-waypoint) and wide (infinite lookahead), margin 25 nm, clear_margin 25 nm.",
           f"- {rep['rates_note']}.", "", "## All cases", "",
-          "| policy | steps | n | leg-clear % | clear at margin % | added nm (med) | added % (med) | min clearance nm (med) | shorter | exceptions | t_gen s (med) |",
-          "|---|---|---|---|---|---|---|---|---|---|---|"]
+          "| policy | steps | n | leg-clear % | clear at margin % | added nm (med) | added % (med) | min clearance nm (med) | chord viol. | shorter than filed | exceptions | t_gen s (med) |",
+          "|---|---|---|---|---|---|---|---|---|---|---|---|"]
 
     def f(v, d=2):
         return "-" if v is None else f"{v:.{d}f}"
@@ -477,19 +540,20 @@ def write_md(rep, policies, steps_list):
             t = rep["table"][p][str(s)]
             L.append(f"| {p} | {s} | {t['n_reroutes']} | {f(t['leg_clear_rate_pct'])} | {f(t['clear_at_margin_pct'])} | "
                      f"{f(t['added_nm_median'], 1)} | {f(t['added_pct_median'])} | {f(t['min_clearance_nm_median'], 1)} | "
-                     f"{t['shorter_after_reroute']} | {t['exceptions']} | {f(t['t_gen_s_median'], 3)} |")
+                     f"{t['anchor_chord_violations']} | {t['shorter_than_filed']} | {t['exceptions']} | {f(t['t_gen_s_median'], 3)} |")
     for kind in ("launch", "random"):
         L += ["", f"## {kind} cases only", "",
-              "| policy | steps | n | leg-clear % | clear at margin % | added nm (med) | min clearance nm (med) | shorter | exceptions |",
-              "|---|---|---|---|---|---|---|---|---|"]
+              "| policy | steps | n | leg-clear % | clear at margin % | added nm (med) | min clearance nm (med) | chord viol. | shorter than filed | exceptions |",
+              "|---|---|---|---|---|---|---|---|---|---|"]
         for p in policies:
             for s in steps_list:
                 t = rep["by_kind"][p][str(s)][kind]
                 L.append(f"| {p} | {s} | {t['n_reroutes']} | {f(t['leg_clear_rate_pct'])} | {f(t['clear_at_margin_pct'])} | "
                          f"{f(t['added_nm_median'], 1)} | {f(t['min_clearance_nm_median'], 1)} | "
-                         f"{t['shorter_after_reroute']} | {t['exceptions']} |")
+                         f"{t['anchor_chord_violations']} | {t['shorter_than_filed']} | {t['exceptions']} |")
     L += ["", "## Decision", ""] + [f"- {x}" for x in rep["decision_log"]]
-    L += ["", f"**chosen_steps = {rep['chosen_steps']}, display = {rep['display']}**", ""]
+    L += ["", f"**chosen_steps = {rep['chosen_steps']}, display = {rep['display']}, "
+          f"policies = {rep['policies']}**", ""]
     if rep["failing_cases"]:
         L += ["## Failing runs (legs crossing > 0 or exception)", "",
               "| policy | steps | kind | pair | route | polygon | legs crossing | stage / exception |", "|---|---|---|---|---|---|---|---|"]
@@ -498,7 +562,7 @@ def write_md(rep, policies, steps_list):
             L.append(f"| {x['policy']} | {x['steps']} | {x['kind']} | {x['pair']} | {x['route']} | {x['poly_id']} | "
                      f"{x['legs_crossing']} | {st} |")
     if rep["shorter_cases"]:
-        L += ["", "## Plans shorter than the filed route", "",
+        L += ["", "## Plans shorter than the filed route (information only, ruling R8)", "",
               "Each replaced stretch: filed length between the anchors / plan length / straight chord (nm).", "",
               "| policy | steps | pair | route | polygon | added nm | stretches |", "|---|---|---|---|---|---|---|"]
         for x in rep["shorter_cases"]:

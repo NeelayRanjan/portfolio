@@ -102,6 +102,17 @@ test("meta validates and rejects a missing field", () => {
   assert.doesNotThrow(() => D.validateMeta(m));
   assert.throws(() => D.validateMeta(without(m, "xy_scale")));
   assert.throws(() => D.validateMeta(without(m, "sampler", "steps")));
+  // the gate's outputs (Task 10, rulings R8/R9): optional, but well-formed when present
+  if (m.display !== undefined) assert.ok(["snapped", "continuous"].includes(m.display));
+  if (m.policies !== undefined) {
+    assert.equal(m.display, "snapped");
+    assert.ok(m.policies.includes("wide"), "wide is always among the shown policies");
+  }
+  assert.throws(() => D.validateMeta({ ...m, display: "maybe" }));
+  assert.throws(() => D.validateMeta({ ...m, policies: ["sideways"] }));
+  assert.throws(() => D.validateMeta({ ...m, policies: [] }));
+  assert.throws(() => D.validateMeta({ ...m, policies: ["wide", "wide"] }));
+  assert.doesNotThrow(() => D.validateMeta({ ...m, display: "snapped", policies: ["wide", "hug"] }));
   assert.throws(() => D.validateMeta(without(m, "scheduler")));
   assert.throws(() => D.validateMeta({ ...m, version: 2 }));
 });

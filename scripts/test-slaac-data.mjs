@@ -62,8 +62,16 @@ test("launch-sua: approved sites, sourced polygons, sources file agrees", () => 
     for (const p of s.polys) {
       assert.ok(p.ring.length >= 3, `${s.id} ${p.designator}`);
       assert.match(p.source, /^https:\/\//);
-      assert.ok(listed.get(s.id).has(p.designator), `${p.designator} not in sources file`);
-      assert.ok(!excludedDesig.has(p.designator), `${p.designator} was excluded`);
+      // merged polygons (ruling R7): every constituent designator is approved and not excluded
+      assert.ok(Array.isArray(p.merged_from) && p.merged_from.length >= 1, `${s.id} ${p.designator}: merged_from`);
+      assert.equal(p.designator, p.merged_from.join("+"));
+      for (const d of p.merged_from) {
+        assert.ok(listed.get(s.id).has(d), `${d} not in sources file`);
+        assert.ok(!excludedDesig.has(d), `${d} was excluded`);
+      }
+      assert.ok(Array.isArray(p.sources) && p.sources.length >= 1);
+      assert.equal(p.sources[0], p.source);
+      for (const u of p.sources) assert.match(u, /^https:\/\//);
       assert.equal(typeof p.clipped, "boolean");
       for (const [la, lo] of p.ring) {
         assert.ok(la >= BOX.lat[0] && la <= BOX.lat[1] && lo >= BOX.lon[0] && lo <= BOX.lon[1], `${p.designator} outside domain box`);
@@ -74,6 +82,12 @@ test("launch-sua: approved sites, sourced polygons, sources file agrees", () => 
   assert.throws(() => D.validateLaunch(without(l, "cycle")));
   assert.throws(() => D.validateLaunch(without(l, "sites", 0, "polys", 0, "source")));
   assert.throws(() => D.validateLaunch(without(l, "sites", 0, "basis")));
+  const bad = structuredClone(l);
+  bad.sites[0].polys[0].merged_from = ["R-9999"];
+  assert.throws(() => D.validateLaunch(bad), "merged_from must join to the designator");
+  const bad2 = structuredClone(l);
+  bad2.sites[0].polys[0].sources = ["http://example.com"];
+  assert.throws(() => D.validateLaunch(bad2), "sources must be https and start with source");
 });
 
 test("sources file records why excluded items are out", () => {

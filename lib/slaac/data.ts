@@ -31,7 +31,12 @@ export type RoutesFile = {
 export type NavaidsFile = { version: 1; source: string; filter: string; names: string[]; lat: number[]; lon: number[] };
 export type AirportsFile = { version: 1; airports: Record<string, { name: string; lat: number; lon: number }> };
 export type OutlineFile = { version: 1; lonlat: ([number, number] | null)[] };
-export type LaunchPoly = { designator: string; ring: [number, number][]; source: string; clipped: boolean };
+// designator is merged_from joined by "+": touching or overlapping rings of one site are
+// unioned by prepare_launch_sua.py (owner ruling R7). source is sources[0].
+export type LaunchPoly = {
+  designator: string; ring: [number, number][]; source: string; clipped: boolean;
+  merged_from?: string[]; sources?: string[];
+};
 export type LaunchSite = {
   id: string; name: string; kind: "charted" | "past-tfr"; label?: string;
   polys: LaunchPoly[]; basis: string;
@@ -143,6 +148,16 @@ export function validateLaunch(v: unknown): LaunchFile {
       if (!isStr(poly.designator)) fail(url, `${site.id}: designator`);
       if (!isStr(poly.source) || !poly.source.startsWith("https://")) fail(url, `${site.id} ${poly.designator}: source`);
       if (typeof poly.clipped !== "boolean") fail(url, `${site.id} ${poly.designator}: clipped`);
+      if (poly.merged_from !== undefined) {
+        const mf = poly.merged_from;
+        if (!Array.isArray(mf) || mf.length === 0 || !mf.every(isStr) || mf.join("+") !== poly.designator)
+          fail(url, `${site.id} ${poly.designator}: merged_from`);
+      }
+      if (poly.sources !== undefined) {
+        const ss = poly.sources;
+        if (!Array.isArray(ss) || ss.length === 0 || !ss.every((u) => isStr(u) && u.startsWith("https://")) || ss[0] !== poly.source)
+          fail(url, `${site.id} ${poly.designator}: sources`);
+      }
       if (!Array.isArray(poly.ring) || poly.ring.length < 3 || !poly.ring.every((q) => numArr(q, 2)))
         fail(url, `${site.id} ${poly.designator}: ring`);
     }

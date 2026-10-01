@@ -1,4 +1,5 @@
-"""Hand-run. python3 scripts/slaac/prepare_launch_sua.py   (stdlib only)
+"""Hand-run. ~/.venvs/slaac/bin/python scripts/slaac/prepare_launch_sua.py
+(stdlib plus shapely, a generator-only dependency: it never ships)
 
 Writes public/slaac/launch-sua.json from PUBLIC FAA sources only (never SUA_all):
   - the FAA AIS Special_Use_Airspace ArcGIS layer, fetched ONCE (paginated) and cached
@@ -6,10 +7,19 @@ Writes public/slaac/launch-sua.json from PUBLIC FAA sources only (never SUA_all)
     rate-limits (HTTP 429), so delete the cache deliberately to refetch.
   - two past launch TFRs from tfr.faa.gov (XML cached beside it).
 Designators and sites come from scripts/slaac/launch-sua-sources.json. A designator
-can be several layer rows (altitude bands, exclusions); each row's outer ring is kept
-as its own polygon (the pipeline treats polygons independently, no union is computed).
-Rings are clipped to the model domain box (lat 24-50, lon -126..-66) by
-Sutherland-Hodgman and marked clipped:true when that changed them.
+can be several layer rows (altitude bands, exclusions). Rings are clipped to the model
+domain box (lat 24-50, lon -126..-66) by Sutherland-Hodgman and marked clipped:true when
+that changed them.
+
+Merge (owner ruling R7, 2026-09-30): within a site, exact-duplicate rings of one
+designator are dropped, and every set of rings that touch or overlap is unioned
+(shapely unary_union, exterior ring only, holes dropped; a union that comes out as a
+MultiPolygon stays separate polygons). The pipeline's guidance field treats polygons
+independently, and abutting rings (KSC's R-2932..R-2935 and W-497A/B) made it push a
+path out of one ring into the next (Task 10 gate). Each output polygon carries
+designator = its sources' designators joined by "+", merged_from = that list, sources =
+every source URL, source = the first. Cached inputs only: the cache is never refetched
+unless deleted.
 """
 import hashlib, json, os, sys, time, urllib.parse, urllib.request
 import xml.etree.ElementTree as ET
@@ -105,6 +115,38 @@ def tfr_ring(xml_bytes):
     return [(val(a.find("geoLat").text, 0), val(a.find("geoLong").text, 0)) for a in abds[0].iter("Avx")]
 
 
+def merge(polys):
+    """Union touching/overlapping rings of one site. Returns (polys, n_dupes_dropped)."""
+    from shapely.geometry import Polygon
+    from shapely.ops import unary_union
+    seen, uniq = set(), []
+    for p in polys:
+        k = (p["designator"], tuple(map(tuple, p["ring"])))
+        if k in seen:
+            continue
+        seen.add(k)
+        uniq.append(p)
+    geoms = []
+    for p in uniq:
+        g = Polygon([(lo, la) for la, lo in p["ring"]])
+        if not g.is_valid:
+            g = g.buffer(0)
+        geoms.append(g)
+    u = unary_union(geoms)
+    parts = list(u.geoms) if u.geom_type == "MultiPolygon" else [u]
+    out = []
+    for part in parts:
+        members = [p for p, g in zip(uniq, geoms) if g.intersects(part)]
+        desig = list(dict.fromkeys(p["designator"] for p in members))
+        srcs = list(dict.fromkeys(p["source"] for p in members))
+        ring = [(round(la, 5), round(lo, 5)) for lo, la in part.exterior.coords]
+        if ring[0] == ring[-1]:
+            ring = ring[:-1]
+        out.append({"designator": "+".join(desig), "merged_from": desig, "ring": [list(q) for q in ring],
+                    "source": srcs[0], "sources": srcs, "clipped": any(p["clipped"] for p in members)})
+    return out, len(polys) - len(uniq)
+
+
 def main():
     feats = faa_layer()["features"]
     by = {}
@@ -129,6 +171,10 @@ def main():
             xml = cached(os.path.basename(s["xml"]), s["xml"])
             ring, clipped = finish(tfr_ring(xml))
             polys.append({"designator": s["designators"][0], "ring": ring, "source": s["xml"], "clipped": clipped})
+        n_before = len(polys)
+        polys, n_dupes = merge(polys)
+        print(f"{s['id']:18s} rings {n_before:2d} -> polygons {len(polys):2d} ({n_dupes} exact duplicates dropped):",
+              [p["designator"] for p in polys])
         site = {"id": s["id"], "name": s["name"], "kind": s["kind"], "polys": polys, "basis": s["basis"]}
         if "label" in s:
             site["label"] = s["label"]

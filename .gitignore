@@ -54,3 +54,4 @@ next-env.d.ts
 
 scripts/slaac/__pycache__/
 scripts/slaac/.cache/
+scripts/slaac-gate/rows.jsonl

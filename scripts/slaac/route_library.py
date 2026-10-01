@@ -23,6 +23,29 @@ CTX_LONG = {"actype": "B738", "fl": 350, "month": 9, "dow": 2, "hour": 14}
 CTX_SHORT = {"actype": "E75L", "fl": 300, "month": 9, "dow": 2, "hour": 14}
 
 
+def frd_rewrite(items):
+    """Rewrite each adjacent ("fix", NAV), ("rd", (brg, dist)) into ("rdp", (NAV, brg, dist)).
+
+    gen_trx_sua's LM-token path (parse_route_tokens + geocode_items) keeps NAV as a waypoint
+    AND appends the FRD point NAV+brg+dist, so a route flies over NAV and then up to ~100 nm
+    back to the FRD point (the doubling-back the owner noticed). The owner's FP_ROUTE path
+    (`rdp`) emits only the FRD point, which is what an FRD in a filed route means. An `rd` not
+    preceded by a fix is left as is. The owner's file is not edited; this runs before it."""
+    out = []
+    for it in items:
+        if it[0] == "rd" and out and out[-1][0] == "fix":
+            out[-1] = ("rdp", (out[-1][1], it[1][0], it[1][1]))
+        else:
+            out.append(it)
+    return out
+
+
+GEOCODE_NOTE = ("Fixes come from gen_trx_sua.geocode_items after rewriting each 'NAV <Rbbb> <Dddd>' token "
+                "triple into a single FRD point (rdp). The owner's LM-token path would also keep NAV as a "
+                "waypoint, sending the route over NAV and then back to the FRD point; filed-route (FP_ROUTE) "
+                "semantics emit only the FRD point. Tokens are unchanged; only the geocoding differs.")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--nasa-dir", default=nasa.DEFAULT)
@@ -48,7 +71,12 @@ def main():
                                  airports=os.path.join(gen, "airports.txt"))
     index = gts.build_coord_index(args)
 
+    old = {}
+    if os.path.exists(a.out):
+        for op in json.load(open(a.out))["pairs"]:
+            old[(op["origin"], op["dest"])] = op["routes"]
     pairs = json.load(open(os.path.join(os.path.dirname(__file__), "pairs.json")))["pairs"]
+    token_diffs = []
     out_pairs, dropped_pairs = [], []
     drops = {"geocode": 0, "max_leg": 0, "endpoint": 0}
     for pi, p in enumerate(pairs):
@@ -61,9 +89,13 @@ def main():
             with torch.no_grad():
                 toks_all = route_lm.generate_batch(model, vocab, rows, temperature=TEMP, top_k=TOPK,
                                                    max_new=MAX_NEW, device=dev, progress=False)
+            prev = [r for r in old.get((o, d), []) if r["seed"] == seed]
+            gen_set = {tuple(t) for t in toks_all}
+            if prev and not all(tuple(r["tokens"]) in gen_set for r in prev):
+                token_diffs.append(f"{o}-{d}")
             ok, dd = [], {"geocode": 0, "max_leg": 0, "endpoint": 0}
             for toks in toks_all:
-                fixes, head, tail = gts.geocode_tokens(toks, index)
+                fixes, head, tail = gts.geocode_items(frd_rewrite(gts.parse_route_tokens(toks)), index)
                 if fixes is None:
                     dd["geocode"] += 1; continue
                 good = True
@@ -99,7 +131,11 @@ def main():
     doc = {"version": 1,
            "lm": {"file": "route_lm_best.pt", "params": params, "temperature": TEMP, "top_k": TOPK, "max_new": MAX_NEW},
            "context": CTX_LONG | {"short_pair_override": CTX_SHORT},
+           "geocode_note": GEOCODE_NOTE,
            "pairs": out_pairs, "dropped": drops | {"pairs": dropped_pairs}}
+    print("pairs whose LM tokens differ from the previous file (same seed):", token_diffs or "none")
+    if token_diffs:
+        sys.exit("LM tokens changed; refusing to overwrite " + a.out)
     with open(a.out, "w") as f:
         json.dump(doc, f, allow_nan=False, separators=(",", ":"))
     print(f"wrote {a.out}: {len(out_pairs)} pairs, {os.path.getsize(a.out)/1024:.0f} KB, drops {drops}, dropped pairs {dropped_pairs}, {time.time()-t0:.0f}s")

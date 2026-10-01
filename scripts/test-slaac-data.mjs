@@ -148,6 +148,29 @@ test("routes", () => {
     }
   }
   assert.deepEqual([...used].sort(), Object.keys(airports).sort(), "airports.json covers exactly the library's airports");
+
+  // An FRD point (NAV + 3-digit radial + 3-digit distance) must not follow its own parent navaid:
+  // that is the fly-over-then-double-back the owner's LM-token geocoding produces.
+  let back = 0, total = 0;
+  for (const p of r.pairs) {
+    for (const rt of p.routes) {
+      total++;
+      for (let i = 1; i < rt.fixes.length; i++) {
+        const prev = rt.fixes[i - 1][0], cur = rt.fixes[i][0];
+        assert.ok(!(cur.length === prev.length + 6 && cur.startsWith(prev) && /^\d{6}$/.test(cur.slice(prev.length))),
+          `${p.origin}-${p.dest}: ${cur} directly follows its own navaid ${prev}`);
+      }
+      // coarse doubling-back: along-chord progress (origin to destination) that ever falls >10 nm below its running max
+      const [, la0, lo0] = rt.fixes[0], cl = Math.cos((la0 * Math.PI) / 180);
+      const xy = rt.fixes.map(([, la, lo]) => [(lo - lo0) * cl * 60, (la - la0) * 60]);
+      const e = xy[xy.length - 1], len = Math.hypot(e[0], e[1]);
+      let mx = -Infinity, worst = 0;
+      for (const q of xy) { const pr = (q[0] * e[0] + q[1] * e[1]) / len; mx = Math.max(mx, pr); worst = Math.max(worst, mx - pr); }
+      if (worst > 10) back++;
+    }
+  }
+  console.log(`routes doubling back >10 nm along the chord: ${back} of ${total}`);
+  assert.ok(back <= 40, `${back} routes double back`);
 });
 
 test("validators reject non-objects", () => {

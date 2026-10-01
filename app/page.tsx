@@ -24,9 +24,9 @@ export const metadata: Metadata = { alternates: { canonical: "/" } };
 // chess engine) and 5 (the draw demo) both mount here behind `DeferredMount`.
 // Each owns its own `InstrumentFigure`, and with it its `id` (`fig-draw`,
 // `fig-chess`), so there are no placeholders here to fill. Figure numbering,
-// ruled: 1 (the label-efficiency sweep), 2 (the Dice CDF), 3 (the flight
-// day) sit in Research; 4-5 are the live demos; 6 is the Experience
-// mission-row figure.
+// ruled: 1 (the label-efficiency sweep), 2 (the Dice CDF), 3 (the SLAAC
+// rerouter, in the NASA box) sit in Research; 4-5 are the live demos; 6 is the
+// Experience mission-row figure. The flight-day video is /lab's S3.
 //
 // The 16px page gutter is owned here (`px-4` on `main`), not by `Sheet` —
 // `Sheet` only clamps its own inline padding once already inside the
@@ -110,7 +110,7 @@ export default function Home() {
             later. The box has no background of its own; the figure brings
             its panel. Figure 3 is the SLAAC rerouter (the flight video moves
             to /lab), mounted on scroll-in so its JSON stays out of first
-            paint. The bottom padding is the figure's own my-8. */}
+            paint. The figure's notes close the box (their own pb-6). */}
         <section
           data-nasa-box
           aria-labelledby="nasa"
@@ -119,14 +119,32 @@ export default function Home() {
           <h3 id="nasa" className="mb-4 text-[18px] font-semibold text-ink">
             {copy.research.nasaHeading}
           </h3>
+          {/* The box's provenance (2026-09-30, SLAAC round), split around the
+              figure. Stacked all three in the rail beside the prose, the rail
+              measured 725px against the prose's ~290px at 1280: ~430px of
+              empty column between the prose and the figure. As a rail under
+              the figure it left ~500px of empty main column instead. So the
+              poster's numbers stay in the rail beside the prose, and the two
+              notes about the figure itself (where its data came from, how it
+              differs from the system NASA runs) sit under it as a footnote
+              band, two columns from 880px, stacked on a phone. */}
           <Row rail={<Note tag={notes.slaac.tag}>{notes.slaac.body}</Note>}>
-            <p className="text-[15px] leading-relaxed text-mut">
-              {copy.research.nasaProse}
-            </p>
+            {copy.research.nasaProse.map((paragraph, i) => (
+              <p key={i} className="mb-4 text-[15px] leading-relaxed text-mut">
+                {paragraph}
+              </p>
+            ))}
           </Row>
           <DeferredMount>
             <RerouteFigure />
           </DeferredMount>
+          <div
+            data-nasa-notes
+            className="grid gap-6 border-t border-hair pt-3 pb-6 text-[13.5px] min-[880px]:grid-cols-2 min-[880px]:gap-x-12"
+          >
+            <Note tag={notes.data.tag}>{notes.data.body}</Note>
+            <Note tag={notes.disclaimer.tag}>{notes.disclaimer.body}</Note>
+          </div>
         </section>
 
         <Row>

@@ -169,14 +169,15 @@ export const copy = {
     stamp: "IN PREPARATION",
     /** The /lab box under the stamp. Two lines:
      *    "Supplementary material →"   (the arrow is the box's decoration)
-     *    "diffusion trajectories · MAE vs I-JEPA"
+     *    "diffusion trajectories · MAE vs I-JEPA · a day of synthesized flight plans"
      *  The contents line is a teaser, deliberately NOT composed from the /lab
      *  section headings: those are written for their own context
      *  ("Predicting pixels, or predicting representations") and run four
      *  items long in a narrow rail (controller ruling, 2026-09-16). If a /lab
      *  section is added, removed or renamed, update this line with it. */
     supplementLabel: "Supplementary material",
-    supplementContents: "diffusion trajectories · MAE vs I-JEPA",
+    supplementContents:
+      "diffusion trajectories · MAE vs I-JEPA · a day of synthesized flight plans",
     date: "September 2026",
     links: [
       {
@@ -211,7 +212,7 @@ export const copy = {
   },
 
   /** §1 Research: the first-author paper, the two computed figures, the MWSCAS
-   *  credit, and the NASA arc + flight-day figure. */
+   *  credit, and the NASA box (SLAAC first, the rerouter as Figure 3). */
   research: {
     /** The section's `<h2>`, added for Task 8's page assembly. */
     heading: "Research",
@@ -229,7 +230,9 @@ export const copy = {
     /** Margin notes (2026-09-30): the reference detail that used to sit in
      *  the prose column, moved to the rail so the main column reads fast.
      *  `paper` and `study` sit beside the prose, `scope` under DATA beside
-     *  Figure 1, `slaac` beside the NASA paragraph. */
+     *  Figure 1; `slaac`, `data` and `disclaimer` stack beside the NASA
+     *  paragraphs (2026-09-30, SLAAC round). Main column keeps the claims,
+     *  the rail keeps the provenance. */
     notes: {
       paper: {
         tag: "paper",
@@ -243,9 +246,29 @@ export const copy = {
         tag: "scope",
         body: "The claim is label efficiency, not peak accuracy: given far more than 16 labels, some baselines match it.",
       },
+      /** The poster's two columns, both policies named as the poster names
+       *  them. These are the owner's longer experiments, never the figure's
+       *  own numbers; the "From the SLAAC poster" lead is what says so. */
       slaac: {
         tag: "slaac",
-        body: "From the SLAAC poster: 98-99% of reroutes clear the 25 nm buffer, with a +1.1% median added distance at infinite lookahead, within 1.2% of the geometric optimum.",
+        body: "From the SLAAC poster, 1-waypoint / infinite lookahead: 98% / 99% of reroutes clear the 25 nm buffer; median added distance +23 nm (3.4%) / +10 nm (1.1%); median waypoints added 0 / -1; within 2.3% / 1.2% of the geometric optimum.",
+      },
+      /** Owner's intent: data re-sourced from public data where possible,
+       *  with some loss of quality. The cycle is launch-sua.json's own. The
+       *  nav database is the owner's internal one (cleared for publication),
+       *  which is why this says "where I could", not "all public". */
+      data: {
+        tag: "data",
+        body: "Public where I could, at some loss of quality: the airspace is the FAA’s Special Use Airspace layer (September 3 to October 29, 2026) plus two past launch TFRs, since NASA’s airspace file isn’t public. With no historical route database, the filed routes are my flight-plan model’s.",
+      },
+      /** The owner's disclaimer, made concrete (the word "approximation" is
+       *  out by ruling; the owner rewords later). Task 15 adds the measured
+       *  device facts. The 85-95% / ~65% rates are the Task 10 gate's, at
+       *  20 steps and the 25 nm margin, on snapped plans; R10 rules the copy
+       *  must not imply the full buffer is always held. */
+      disclaimer: {
+        tag: "differences",
+        body: "My SLAAC models are integrated into the simulation software NASA and the FAA use to evaluate future air traffic management strategies. Here the diffusion model has the same weights, sampled in 20 steps where my pipeline uses 40, on public airspace and routes written ahead of time. On my test cases, 85-95% of plans kept every leg the full 25 nm away (about 65% near launch sites).",
       },
     },
     /**
@@ -339,40 +362,55 @@ export const copy = {
       citation:
         "F. Perez, J. Morisaki, H. Kanakri, M. Rizkalla, et al. (incl. N. Ranjan), “Helical Antenna for Electromagnetic Field Stimulation in Alzheimer’s Disease Therapy,” IEEE MWSCAS 2026 (oral).",
     },
-    /** NASA block: the three-engagement arc, presented as one, plus the
-     *  SLAAC poster's numbers, which sit in the rail (notes.slaac). */
     /** The NASA box's heading (2026-09-30). */
     nasaHeading: "NASA Ames",
-    nasaProse:
-      "My NASA Ames work is two engagements: SLAAC, space-launch and airspace coordination, with Dr. Kapil Sheth in summer 2026, and a synthetic text-to-speech-to-database pipeline for air traffic control speech with Stephen Clarke this fall.",
-    /** Figure 3 — the flight-plan synthesis video. Carried over unchanged,
-     *  renamed from `flight`. */
+    /** The NASA box's prose, one paragraph per role, SLAAC first (the
+     *  figure under it is SLAAC's). Framing paraphrases the SLAAC poster
+     *  ("hazards are applied online, no retraining"; "a reroute must come
+     *  back as an ordered list of named fixes a controller will accept";
+     *  "the policy is the operator's dial"). Roles, dates and the WER are
+     *  the 2026-09-30 resume's; Sheth and Panda are the poster's mentors,
+     *  Clarke is CLAUDE.md's content fact for the fall engagement. */
+    nasaProse: [
+      "In summer 2026 I worked on SLAAC, space launch and airspace coordination, with Dr. Kapil Sheth and Prachi Panda. I trained a diffusion model on FAA radar tracks to reroute flights around closed airspace. It learns what routes look like offline, and the airspace is applied while it samples, so a new closure needs no retraining. A reroute has to come back as an ordered list of named fixes a controller will accept. The lookahead policy, one waypoint or unlimited, is left to the operator; Figure 3 has both.",
+      "Since August I’ve been on SHIFT with Stephen Clarke: speech-to-text for air traffic control (17% word error rate, against 20% for the Whisper system in use) and a typed parser that turns the transcripts into a maneuver database.",
+    ],
+    /** Figure S3 on /lab since the SLAAC round (2026-09-30): the flight-plan
+     *  LM's synthesized day. Was Figure 3 on page 1; the key stays under
+     *  `research` so FlightFigure's import didn't move. "Matched to historical
+     *  traffic density" and the ATM-software use are the 2026-09-30 resume's
+     *  words; the waypoint sentence is the owner's (2026-09-29). */
     figFlight: {
       caption:
-        "A transformer I trained from scratch for SLAAC, on its own flight-plan vocabulary, writing a full day of FAA flight plans: roughly 44,000 flights, matched to the density of a real day of traffic. Its output feeds NASA capacity and safety studies of US airspace failure modes. Most of my time went into the waypoint system: a continuous route that obeyed every rule would often stop obeying them once it was snapped onto the waypoint map.",
+        "A full day of FAA flight plans, about 44,000 flights matched to historical traffic density, written by the flight-plan language model I trained from scratch for SLAAC on its own token vocabulary. Days like this one feed the simulation software NASA and the FAA use to evaluate future air traffic management strategies, and the same model wrote the filed routes in Figure 3 on the main page. Most of my time went into the waypoint system: a continuous route that obeyed every rule would often stop obeying them once it was snapped onto the waypoint map.",
       videoAria:
         "A day of FAA flight plans synthesized by a transformer I trained, looping video",
     },
-    /** Figure 3 since the SLAAC round (2026-09-30): the rerouter. Draft
-     *  wording; Task 13 rewrites it. Runtime line is pre + arcs + mid +
-     *  seconds + post. */
+    /** Figure 3 since the SLAAC round (2026-09-30): the rerouter. The
+     *  caption's three table caveats are measured behaviour (task-13
+     *  facts): clearance under the margin happens (the gate's 85-95%),
+     *  added distance can be negative where a reroute straightens an LM
+     *  bend, and a flight with an airport or filed fix inside the airspace
+     *  can't clear and draws dashed. Colours: filed routes are ink at 0.45
+     *  (grey), plans green, hollow dots BENDs (reroute-map.ts). Runtime
+     *  line is pre + arcs + mid + seconds + post. */
     figReroute: {
       caption:
-        "My flight-plan language model wrote these routes ahead of time. The reroute runs on your device: my diffusion model draws an arc around each conflict, then the arc is snapped onto named fixes. Filled dots are the new fixes; hollow ones are bends with no named fix close enough.",
-      unavailable: "The rerouter isn't available right now.",
-      ringTooFew: "A shape needs at least three points.",
+        "Pick a route, draw an airspace or turn on the launch sites, and press reroute. My flight-plan model wrote the filed routes (grey) ahead of time; on your device, my diffusion model samples an arc around each conflict and snaps it onto named fixes (green; a hollow dot is a bend with no fix close enough). In the table, clearance turns red under the margin, added distance goes negative where a reroute straightens a bend in the filed route, and a flight with an airport or filed fix inside the airspace can’t clear and draws dashed.",
+      unavailable: "The rerouter’s data or model didn’t load, so there’s nothing to run.",
+      ringTooFew: "A shape needs at least three corners.",
       ringSelfCrossing: "That shape crosses itself. Draw it again.",
       ringDegenerate: "That shape has no area. Draw it again.",
-      cannotClear: "no clear plan",
+      cannotClear: "can’t clear",
       untouched: "unchanged",
-      noConflict: "No route comes within the margin of any airspace, so there is nothing to reroute.",
+      noConflict: "No filed route comes within the margin of the airspace, so there’s nothing to reroute.",
       stale: "The settings changed since this run. Press reroute to run it again.",
-      loading: "loading model",
+      loading: "fetching the weights",
       running: "rerouting",
       runtimePre: "",
       runtimeMid: " arcs in ",
       runtimePost: " s",
-      drawHint: "Click to add points. Click the first point to close the shape.",
+      drawHint: "Click or tap to add corners, then the first corner again to close the shape.",
       controls: {
         pair: "route",
         draw: "draw airspace",
@@ -397,8 +435,10 @@ export const copy = {
         clearance: "min clearance",
         crossings: "legs crossing",
       },
+      /** Starbase and Van Horn have no charted SUA (launch-sua-sources.md),
+       *  so each is one past launch TFR, labelled as such per the spec. */
       launchNote:
-        "Red areas are launch airspace: charted restricted and warning areas, and TFRs from past launches.",
+        "Red areas are launch airspace: each site’s charted restricted and warning areas, merged into one outline. Starbase and Van Horn have none charted, so each is drawn from a past launch TFR.",
       canvasAria: "Map of the lower 48 with the filed routes, the airspace and any rerouted plans",
     },
     /** The margin note beside Figure 1: where the angiograms come from,
@@ -627,11 +667,20 @@ export const copy = {
     figureCaption:
       "Green is active now; amber is paused until January.",
     rows: [
+      /** Two NASA roles, per the 2026-09-30 resume (reverse chronological,
+       *  as the resume lists them). SLAAC ended in August, so its lamp is
+       *  "complete"; SHIFT keeps NASA's old "active". */
       {
-        when: "2026",
-        who: "NASA Ames Research Center",
-        what: "SLAAC airspace coordination and a synthetic ATC speech pipeline.",
+        when: "since Aug 2026",
+        who: "NASA Ames · SHIFT",
+        what: "Speech-to-text for air traffic control, a typed parser from transcripts to maneuvers, and a synthetic speech corpus about 20x the size of the recorded one.",
         status: "active",
+      },
+      {
+        when: "May-Aug 2026",
+        who: "NASA Ames · SLAAC",
+        what: "Diffusion rerouting around closed airspace, and a flight-plan language model that writes a day of about 44,000 flights.",
+        status: "complete",
       },
       {
         when: "2024 to present",
@@ -700,7 +749,7 @@ export const copy = {
     backLink: "← back to the paper",
     heading: "Supplementary material",
     intro:
-      "Both panels replay output from trained models.",
+      "All three panels replay output from trained models.",
 
     /** Figure S1 — the diffusion trajectory viewer. Carried over wholesale
      *  from v1's `diffusion` namespace (`copy.diffusion.*` →

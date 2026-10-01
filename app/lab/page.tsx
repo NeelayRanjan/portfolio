@@ -4,17 +4,21 @@ import { Sheet } from "@/components/manuscript/Sheet";
 import { DeferredMount } from "@/components/manuscript/DeferredMount";
 import { DiffusionVisualizer } from "@/components/DiffusionVisualizer";
 import { JepaSection } from "@/components/JepaPanel";
+import { FlightFigure } from "@/components/figures/FlightFigure";
 import { copy } from "@/content/copy";
 import type { Metadata } from "next";
 
 /** The canonical address of this page, on the one host (lib/site.ts). */
 export const metadata: Metadata = { alternates: { canonical: "/lab" } };
 
-// /lab — "Supplementary material": two demos that left page 1, re-chromed
-// with logic intact. Figures S1 (trajectory viewer) and S2 (JEPA retrieval),
-// each mounting on scroll-in. S3 (the hand-built DDPM vs flow-matching
-// illustration) was cut 2026-09-29 at the owner's call; it lives in git
-// history, and comes back only as a real trained 2D model.
+// /lab — "Supplementary material": figures that left page 1, re-chromed with
+// logic intact. Figures S1 (trajectory viewer), S2 (JEPA retrieval) and S3
+// (the SLAAC flight-plan LM's synthesized day, Figure 3 on page 1 until the
+// rerouter took that slot, 2026-09-30), each mounting on scroll-in. The old
+// S3 (the hand-built DDPM vs flow-matching illustration) was cut 2026-09-29
+// at the owner's call; it lives in git history, and comes back only as a real
+// trained 2D model. Adding or removing a figure here means updating
+// copy.masthead.supplementContents by hand.
 //
 // Every figure owns its own heading, lede and honesty notes (see each
 // component); this page contributes only the back link, the page heading, and
@@ -54,6 +58,10 @@ export default function LabPage() {
 
         <DeferredMount>
           <JepaSection />
+        </DeferredMount>
+
+        <DeferredMount>
+          <FlightFigure n="S3" />
         </DeferredMount>
 
         <StargazeFooterEntry />

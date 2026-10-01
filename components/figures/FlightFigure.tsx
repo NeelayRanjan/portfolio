@@ -6,8 +6,10 @@ import { copy } from "@/content/copy";
 import { useStargazing } from "@/lib/stargaze";
 
 /**
- * Figure 3 — the flight day: `flight_lm_day.mp4`, a trained transformer's
- * synthesis of a full day of FAA flight plans. Muted, looping, lazy
+ * The flight day: `flight_lm_day.mp4`, a trained transformer's synthesis of
+ * a full day of FAA flight plans. Figure 3 on page 1 until the SLAAC round
+ * (2026-09-30); now Figure S3 on /lab. The number is the caller's (`n`,
+ * required), so the figure can't carry a stale one into a new home. Muted, looping, lazy
  * (`preload="none"` + a poster frame so nothing downloads at first paint),
  * playing only while at least 40% of it is on screen.
  *
@@ -22,7 +24,7 @@ import { useStargazing } from "@/lib/stargaze";
  * mismatch, just a state update after commit, same pattern any client-only
  * media query needs.
  */
-export function FlightFigure() {
+export function FlightFigure({ n }: { n: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
   const stargazing = useStargazing();
@@ -62,7 +64,7 @@ export function FlightFigure() {
   }, [reducedMotion, stargazing]);
 
   return (
-    <InstrumentFigure n="3" caption={copy.research.figFlight.caption}>
+    <InstrumentFigure n={n} caption={copy.research.figFlight.caption}>
       {/* The source video is a light-background matplotlib map — the one
           light-mode object on a dark page. Treatment (owner call: seamless
           against the panel): full invert + hue-rotate flips the ground to

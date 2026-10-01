@@ -258,12 +258,13 @@ export const copy = {
        *  poster's (task-13-facts.md): 98% / 99% of final reroutes held the
        *  25 nm buffer ("nearly every"); +23 nm (3.4%) / +10 nm (1.1%) median
        *  added ("small detours"); within 2.3% / 1.2% of the geometric optimum
-       *  ("close to"); median waypoints added 0 / -1 ("added no waypoints").
-       *  "Kept every leg the full buffer from the airspace" is the same
+       *  ("close to"); median waypoints added 0 / -1 ("added no waypoints, and
+       *  under infinite lookahead removed one"). "Kept every leg the full
+       *  buffer distance from the airspace" is the same
        *  measure, in the same words, as the DIFFERENCES note's. */
       slaac: {
         tag: "slaac",
-        body: "From the SLAAC poster: under both lookahead policies, nearly every final reroute kept every leg the full buffer from the airspace, with small detours close to the geometric optimum. The median reroute added no waypoints.",
+        body: "From the SLAAC poster: under both lookahead policies, nearly every final reroute kept every leg the full buffer distance from the airspace, with small detours close to the geometric optimum. The median reroute added no waypoints, and under infinite lookahead removed one.",
       },
       /** Owner's intent: data re-sourced from public data where possible,
        *  with some loss of quality. The airspace is the FAA's Special Use
@@ -294,7 +295,7 @@ export const copy = {
        *  count that app/page.tsx used to inject left with the numbers. */
       disclaimer: {
         tag: "differences",
-        body: "My SLAAC models are integrated into the simulation software NASA and the FAA use to evaluate future air traffic management strategies. This demo keeps the diffusion model’s weights but samples in fewer steps than my pipeline does, on public airspace and routes written ahead of time. A reroute takes seconds on my laptop, longer with more airspace or every flight at once. On this demo’s test cases, fewer final reroutes keep every leg the full buffer from the airspace than the poster reports, though almost none cross it.",
+        body: "My SLAAC models are integrated into the simulation software NASA and the FAA use to evaluate future air traffic management strategies. This demo keeps the diffusion model’s weights but samples in fewer steps than my pipeline does, on public airspace and routes written ahead of time. A reroute takes seconds on my laptop, longer with more airspace or every flight at once. On this demo’s test cases, fewer final reroutes keep every leg the full buffer distance from the airspace than the poster reports, though almost none cross it.",
       },
     },
     /**
@@ -403,7 +404,7 @@ export const copy = {
      *  the resume's 17% WER against 20%. No names: mentors and colleagues
      *  are omitted by the owner's call (2026-10-01, "no name dropping"). */
     nasaProse: [
-      "On SLAAC, space launch and air/airspace coordination, I trained a diffusion model on FAA radar tracks to reroute flights around closed airspace. It learns what routes look like offline and applies the airspace while it samples, so a new closure needs no retraining. A reroute comes back as an ordered list of named fixes a controller will accept, and the operator chooses how far ahead it may look; the figure below has both settings.",
+      "On SLAAC, space launch and air/airspace coordination, I trained a diffusion model on FAA radar tracks to reroute flights around closed airspace. It learns what routes look like offline and applies the airspace while it samples, so a new closure needs no retraining. A reroute has to come back as an ordered list of named fixes a controller would accept, and the operator chooses how far ahead it may look; the figure below has both settings.",
       "Since August I’ve been on SHIFT: speech-to-text for air traffic control that makes fewer errors than the Whisper system in use, and a typed parser that turns the transcripts into a maneuver database.",
     ],
     /** Figure S3 on /lab since the SLAAC round (2026-09-30): the flight-plan

@@ -26,9 +26,10 @@ import { createSkyState } from "./night-sky/state";
  * - ~20 fps at >=880px, ~10 fps below; frames skipped while document.hidden;
  *   DPR capped at 2 so stars stay crisp without a 3x backing store.
  * - Reduced motion: the real sky at the load instant, painted on change only.
- * - The catalog (~55 KB) is fetched after first paint; until it lands, or if
+ * - The catalog (~134 KB, ~46 KB gzipped) is fetched after first paint; until it lands, or if
  *   it never does, the desk is plain dark. Nothing stands in for it.
- * - Phones get it too (owner call, 2026-09-14) with a mag 4.5 cut.
+ * - Phones get it too (owner call, 2026-09-14) with a mag 5.5 cut (4.5 until
+ *   task 18 took the catalog to 6.0 on desktop).
  * - Drag to pan (spec 2026-09-15 §3): mouse or pen on the desk in normal
  *   mode, any pointer anywhere while stargazing; a critically damped spring
  *   (lib/sky-pan.ts) brings the chart home on release, and the frame gate is

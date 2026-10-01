@@ -179,12 +179,14 @@ export function createPainter(
       width,
       height,
       chart,
-      magLimit: s.narrowQ.matches ? 4.5 : 5.0,
+      // Task 18: the catalog runs to 6.0 (R23). Phones stop half a magnitude
+      // short, as they always have, so a 400px chart stays legible.
+      magLimit: s.narrowQ.matches ? 5.5 : 6.0,
       bodies,
       fontFamily: s.fontFamily,
       highlight: s.highlight,
       avoid,
-      starFills: s.starFills,
+      starPaint: s.starPaint,
       milkyWay: s.milkyWay,
       objects: objectsData?.objects ?? [],
       objectRings: s.objectRings,

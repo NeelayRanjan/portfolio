@@ -19,15 +19,26 @@ test("header", () => {
 });
 
 test("stars: count, order, ranges", () => {
-  assert.ok(sky.stars.length >= 1500 && sky.stars.length <= 1750, `count ${sky.stars.length}`);
+  // Task 18 (ruling R23): every star of the pinned stars.6.json to mag 6.0,
+  // 5,044 of them (1,627 at the old 5.0 cut).
+  assert.ok(sky.stars.length >= 4900 && sky.stars.length <= 5200, `count ${sky.stars.length}`);
+  let noBv = 0;
   for (let i = 0; i < sky.stars.length; i++) {
     const [ra, dec, mag, bv] = sky.stars[i];
     assert.ok(ra >= 0 && ra < 360, `ra ${ra}`);
     assert.ok(dec >= -90 && dec <= 90, `dec ${dec}`);
-    assert.ok(mag <= 5.0, `mag ${mag}`);
-    assert.ok(Number.isFinite(bv), `bv ${bv}`);
+    assert.ok(mag <= 6.0, `mag ${mag}`);
+    // A missing B-V is null, never a stand-in number (it now drives a colour).
+    if (bv === null) noBv++;
+    else assert.ok(Number.isFinite(bv) && bv >= -0.5 && bv <= 3.5, `bv ${bv}`); // real range here: -0.3 to 3.3 (carbon stars)
     if (i > 0) assert.ok(sky.stars[i - 1][2] <= mag, "not sorted brightest first");
   }
+  assert.equal(noBv, 2, "the catalog has exactly two stars with no B-V (HIP 26220, 32609)");
+  // The old 5.0 cut is an exact prefix (prepare-sky.mjs's tiebreak): 1,627
+  // stars of stored mag <= 5.0 come first, then 77 that round to 5.0 from
+  // 5.01-5.04, then the rest. The renderer's per-star loop relies on it.
+  assert.equal(sky.stars.filter(([, , mag]) => mag <= 5.0).length, 1704);
+  assert.ok(sky.stars[1703][2] === 5.0 && sky.stars[1704][2] > 5.0);
 });
 
 test("landmarks: Polaris and Sirius", () => {
@@ -57,6 +68,7 @@ test("constellations: 88, merged Serpens, bilingual names", () => {
 });
 
 test("size", async () => {
+  // ~134 KB (~46 KB gzipped) at 5,044 stars; it was ~57 KB at 1,627.
   const { size } = await stat(PATH);
-  assert.ok(size < 70_000, `sky.json is ${size} bytes`);
+  assert.ok(size < 160_000, `sky.json is ${size} bytes`);
 });

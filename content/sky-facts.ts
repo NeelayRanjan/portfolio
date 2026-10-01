@@ -388,6 +388,49 @@ const ROD_VISION: Citation = {
   accessed: "2026-09-16",
 };
 
+/** Task 18 (2026-10-01): the catalog stars' colour, two published steps,
+ *  both read at the source (lib/star-colour.ts quotes them). Cited only on
+ *  the cards that already talk about a star's colour (Betelgeuse, Antares:
+ *  "distinctly reddish"), as Sources: their bodies are at the three-sentence
+ *  cap, and the reddish line is already the visitor-facing half of the claim. */
+const STAR_COLOUR_TEMPERATURE: Citation = {
+  author: "Ballesteros, F. J.",
+  year: "2012",
+  title: "New insights into black bodies",
+  site: "EPL (Europhysics Letters) 97, 34008, via arXiv",
+  url: "https://arxiv.org/abs/1201.1809",
+  accessed: "2026-10-01",
+};
+const STAR_COLOUR_BLACKBODY: Citation = {
+  author: "Charity, M.",
+  year: "n.d.",
+  title: "What color is a blackbody? Some pixel rgb values",
+  site: "vendian.org",
+  url: "https://www.vendian.org/mncharity/dir3/blackbody/",
+  accessed: "2026-10-01",
+};
+/** The band's colour along its length (task 18, ruling R24): the bulge's
+ *  yellow, “filled mainly with old, cooler stars, giving it its
+ *  characteristic yellow colour”, from a visible-light Euclid image... */
+const EUCLID_BULGE: Citation = {
+  author: "European Space Agency",
+  year: "2026",
+  title: "ESA’s Euclid captures the Milky Way’s crowded heart",
+  site: "ESA",
+  url: "https://www.esa.int/ESA_Multimedia/Videos/2026/06/ESA_s_Euclid_captures_the_Milky_Way_s_crowded_heart",
+  accessed: "2026-10-01",
+};
+/** ...and the disk's blue: “The disk of our galaxy appears blue because it
+ *  has a large proportion of young, hot O and B main sequence stars.” */
+const LCO_MILKY_WAY: Citation = {
+  author: "Las Cumbres Observatory",
+  year: "n.d.",
+  title: "The Milky Way Galaxy",
+  site: "Las Cumbres Observatory Spacebook",
+  url: "https://lco.global/spacebook/galaxies/the-milky-way-galaxy/",
+  accessed: "2026-10-01",
+};
+
 export const SKY_FACTS: readonly SkyFact[] = [
   /* ---- deep-sky objects and landmarks ---- */
   {
@@ -933,7 +976,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
       "It is expected to explode as a supernova, most likely within 100,000 years, and life on Earth will be unharmed.",
     ],
     visibility: "Naked eye; distinctly reddish",
-    citations: [wikipedia("Betelgeuse", 1375003089, "2026", "2026-09-15")],
+    citations: [wikipedia("Betelgeuse", 1375003089, "2026", "2026-09-15"), STAR_COLOUR_TEMPERATURE, STAR_COLOUR_BLACKBODY],
   },
   {
     id: "altair",
@@ -968,7 +1011,7 @@ export const SKY_FACTS: readonly SkyFact[] = [
       "Babylonian star catalogs from at least 1100 BCE call it “the Breast of the Scorpion”.",
     ],
     visibility: "Naked eye; distinctly reddish",
-    citations: [wikipedia("Antares", 1374164910, "2026", "2026-09-15")],
+    citations: [wikipedia("Antares", 1374164910, "2026", "2026-09-15"), STAR_COLOUR_TEMPERATURE, STAR_COLOUR_BLACKBODY],
   },
   {
     id: "spica",
@@ -1126,14 +1169,17 @@ export const SKY_FACTS: readonly SkyFact[] = [
       "The Sun lies near a small, partial arm called the Orion Arm, or Orion Spur.",
     ],
     visibility: "Naked eye, as a band of faint light, away from bright city lights",
-    // The last two carry the band's own colour note (2026-09-16): a 40-minute
-    // exposure records dust lanes and red and blue nebulae in it, and the
-    // reason your eyes do not is that rod vision sees grey.
+    // The APOD and Loh carry the band's own colour note (2026-09-16): a
+    // 40-minute exposure records dust lanes and red and blue nebulae in it,
+    // and the reason your eyes do not is that rod vision sees grey. Euclid and
+    // Las Cumbres (task 18) source the gradient: a yellow bulge, a bluer disk.
     citations: [
       nasaScience("resource/the-milky-way-galaxy/", "The Milky Way Galaxy", "2026-09-15"),
       SKYWATCHING,
       APOD_MILKY_WAY,
       ROD_VISION,
+      EUCLID_BULGE,
+      LCO_MILKY_WAY,
     ],
   },
 

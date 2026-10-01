@@ -43,7 +43,7 @@ await page.addStyleTag({
   content: "nextjs-portal, [data-nextjs-toast], #__next-build-watcher { display: none !important; }",
 });
 // NightSky's reduced-motion path draws a static frame of the real sky, but
-// only once its ~55 KB catalog (fetched after first paint, never bundled)
+// only once its ~134 KB catalog (fetched after first paint, never bundled)
 // has landed — until then the desk is plain dark. Wait on the site's own
 // `window.__sky.drawn` flag rather than a fixed timeout, so the shot is
 // never taken mid-fetch; a short settle afterward covers web fonts too.

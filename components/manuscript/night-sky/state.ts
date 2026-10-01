@@ -5,7 +5,7 @@ import type { IssLook, IssTracker } from "@/lib/sky-iss";
 import type { ObjectGlyph, PreparedMilkyWay, SkyObjectsData } from "@/lib/sky-objects";
 import { PAPER_SATURATION } from "@/lib/sky-colour";
 import type { Vec } from "@/lib/sky-pan";
-import type { Highlight, Projected } from "@/lib/sky-render";
+import { emptyStarPaint, type Highlight, type Projected, type StarPaint } from "@/lib/sky-render";
 
 /**
  * The mutable state NightSky's effect shares between its modules (the
@@ -32,7 +32,7 @@ export type SkyState = {
   readonly loadMs: number;
   alive: boolean;
   sky: SkyData | null;
-  starFills: string[];
+  starPaint: StarPaint;
   objectsData: SkyObjectsData | null;
   objectRings: Map<string, [number, number][]>;
   objectGlyphs: ReadonlyMap<string, ObjectGlyph>;
@@ -87,7 +87,7 @@ export function createSkyState(): SkyState {
     loadMs: Date.now(),
     alive: true,
     sky: null,
-    starFills: [],
+    starPaint: emptyStarPaint(),
     objectsData: null,
     objectRings: new Map(),
     objectGlyphs: new Map(),

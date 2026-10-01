@@ -336,6 +336,73 @@ const MILKY_WAY_STARGAZE_ALPHA_GAIN = 2.6;
  *  source's own brightness relationship to the rest. */
 const MILKY_WAY_LEVEL_RGB_STARGAZE = ["150,120,84", "168,134,92", "188,152,104", "208,172,120", "226,196,146"];
 
+/**
+ * The band's gradient along its own length (task 18, controller ruling R24,
+ * 2026-10-01): above saturation 0 each level's wash fills with a radial
+ * gradient centred on the galactic core (the grain keeps the flat tan), gold at the core, the tan
+ * above through the middle distances, and a whiter, faintly blue tone out
+ * along the disc. Every hue is sourced, and both sources are on the Milky
+ * Way's card (content/sky-facts.ts):
+ *
+ *   - the GOLD core: ESA, "ESA's Euclid captures the Milky Way's crowded
+ *     heart" (2026; a visible-light image of the bulge; accessed 2026-10-01):
+ *     "The galactic bulge – the central region of our galaxy – is a vast,
+ *     tightly packed structure filled mainly with old, cooler stars, giving
+ *     it its characteristic yellow colour."
+ *   - the BLUE-WHITE disc: Las Cumbres Observatory, "The Milky Way Galaxy"
+ *     (accessed 2026-10-01): "The disk of our galaxy appears blue because it
+ *     has a large proportion of young, hot O and B main sequence stars ...
+ *     The central bulge of our galaxy appears yellow or reddish because it
+ *     contains many red giants and red super giants." The Euclid page says the
+ *     same of the arms in front of the bulge: "newly formed, massive blue
+ *     stars".
+ *   - the TAN between them is the colour round's own sourced wash
+ *     (MILKY_WAY_LEVEL_RGB_STARGAZE above, the APOD 40-minute exposure).
+ *
+ * Kept faint on purpose ("whiter, faintly blue"): a long exposure from
+ * inside the disc records dust and reddening along the whole band, so the
+ * disc's blue is a lean, not a colour. No pink H II regions are drawn: the
+ * band has no positions for them, and the coloured nebulae already are them.
+ *
+ * The core is Sgr A*'s J2000 position, the same as objects.json's
+ * `sgr-a-star`; the gradient's radius is the screen distance from it to
+ * galactic longitude 70°, latitude 0 (in Cygnus), converted with the
+ * standard J2000 galactic rotation matrix as published with the Hipparcos
+ * catalogue (ESA 1997); test-sky-objects.mjs checks that l = 0 lands on the
+ * defined J2000 centre (RA 266.405°, Dec −28.936°) and l = 180 opposite. Being
+ * a screen-space radial gradient, the fall-off is approximate, which is all
+ * a "warms toward the core" gradient claims; positions stay exact.
+ */
+const MILKY_WAY_CORE_RGB = ["172,128,62", "190,142,70", "210,160,80", "230,180,92", "248,200,110"];
+const MILKY_WAY_DISC_RGB = ["140,148,168", "156,165,186", "176,186,208", "198,208,228", "220,228,248"];
+/** Gradient stops as a fraction of the core-to-l=70° radius: gold out to
+ *  ~10° of the core, the tan by ~28°, the disc tone from 70° on (the
+ *  gradient pads its last colour beyond the radius). */
+const MILKY_WAY_STOPS: readonly (readonly [number, "core" | "mid" | "disc"])[] = [
+  [0, "core"],
+  [0.15, "core"],
+  [0.4, "mid"],
+  [1, "disc"],
+];
+/** Sgr A*, J2000 (objects.json `sgr-a-star`; test-sky-objects.mjs pins the match). */
+export const GALACTIC_CORE: Equatorial = { raDeg: 266.41683, decDeg: -29.00781 };
+/** Galactic (l, b = 0) to J2000 equatorial, through the matrix's transpose
+ *  (its rows are the galactic axes in equatorial coordinates). */
+export function galacticToEquatorial(lDeg: number): Equatorial {
+  const l = lDeg * D2R;
+  const g = [Math.cos(l), Math.sin(l), 0];
+  const A = [
+    [-0.0548755604, -0.8734370902, -0.4838350155],
+    [0.4941094279, -0.444829630, 0.7469822445],
+    [-0.867666149, -0.1980763734, 0.4559837762],
+  ];
+  const x = A[0][0] * g[0] + A[1][0] * g[1] + A[2][0] * g[2];
+  const y = A[0][1] * g[0] + A[1][1] * g[1] + A[2][1] * g[2];
+  const z = A[0][2] * g[0] + A[1][2] * g[1] + A[2][2] * g[2];
+  return { raDeg: (((Math.atan2(y, x) / D2R) % 360) + 360) % 360, decDeg: Math.asin(z) / D2R };
+}
+const GRADIENT_EDGE = galacticToEquatorial(70);
+
 /** What every layer needs to know about the frame. `suppressName` is the id
  *  (a hit id, or "milky-way") whose always-on name must be skipped because
  *  the hover/selection label is about to draw the same name over it (fix
@@ -418,6 +485,8 @@ let memoS = Number.NaN;
 let memoPalettes = new Map<string, ObjectPalette>();
 let memoBandRgb: string[] = [];
 let memoBandGain = 1;
+/** Per level, the gradient's stops at this saturation: [offset, "r,g,b"]. */
+let memoBandStops: [number, string][][] = [];
 function colourMemo(s: number): void {
   if (s === memoS) return;
   memoS = s;
@@ -439,6 +508,19 @@ function colourMemo(s: number): void {
   const b = bandMix(s);
   memoBandRgb = MILKY_WAY_LEVEL_RGB_STARGAZE.map((rgb) => lerpRgb(INK, rgb, b));
   memoBandGain = lerpNum(1, MILKY_WAY_STARGAZE_ALPHA_GAIN, b);
+  // The gradient's stops ride the same band curve. The warm ones (gold, tan)
+  // lerp from INK exactly as the flat band always did, so the tan stop at
+  // any saturation IS the old band colour; the blue disc tone can't come from
+  // a cream without passing through grey (its chroma would dip and rise), so
+  // it mixes toward its own grey instead, the way every object palette does
+  // (saturateRgb). Either way chroma only grows with saturation.
+  memoBandStops = MILKY_WAY_LEVEL_RGB_STARGAZE.map((mid, li) =>
+    MILKY_WAY_STOPS.map(([at, which]) => {
+      const rgb =
+        which === "disc" ? saturateRgb(MILKY_WAY_DISC_RGB[li], b) : lerpRgb(INK, which === "core" ? MILKY_WAY_CORE_RGB[li] : mid, b);
+      return [at, rgb] as [number, string];
+    }),
+  );
 }
 /** The palette an object draws with at this view's saturation, or null for
  *  the plain grey glyph (saturation 0, or no sourced palette: M82). */
@@ -535,8 +617,23 @@ export function drawMilkyWay(
   colourMemo(v.saturation);
   const bandRgb = (li: number) => memoBandRgb[li] ?? memoBandRgb[memoBandRgb.length - 1];
   const bandGain = memoBandGain;
+  // Saturation 0 fills each level's wash with one flat colour, exactly as
+  // before task 18; above it, the core-to-disc gradient (MILKY_WAY_CORE_RGB
+  // above). One gradient per level per frame: the core's screen point moves
+  // as the sky turns. Measured cost, headless Firefox at 1280px: ~0.4 ms.
+  let bandFill: (li: number, alpha: number) => string | CanvasGradient = (li, alpha) => `rgba(${bandRgb(li)},${alpha})`;
+  if (v.saturation > 0) {
+    const core = project(c, GALACTIC_CORE.raDeg, GALACTIC_CORE.decDeg);
+    const edge = project(c, GRADIENT_EDGE.raDeg, GRADIENT_EDGE.decDeg);
+    const radius = Math.max(1, Math.hypot(edge.x - core.x, edge.y - core.y));
+    bandFill = (li, alpha) => {
+      const g = ctx.createRadialGradient(core.x, core.y, 0, core.x, core.y, radius);
+      for (const [at, rgb] of memoBandStops[li] ?? memoBandStops[memoBandStops.length - 1]) g.addColorStop(at, `rgba(${rgb},${alpha})`);
+      return g;
+    };
+  }
   mw.levels.forEach((rings, li) => {
-    ctx.fillStyle = `rgba(${bandRgb(li)},${(MILKY_WAY_LEVEL_ALPHA[li] ?? 0.03) * bandGain})`;
+    ctx.fillStyle = bandFill(li, (MILKY_WAY_LEVEL_ALPHA[li] ?? 0.03) * bandGain);
     ctx.beginPath();
     for (const ring of rings) {
       for (let i = 0; i < ring.length; i += 2) {
@@ -557,6 +654,10 @@ export function drawMilkyWay(
   mw.grain.forEach((pts, li) => {
     // The grain takes the same gain as the wash, so the stipple keeps its
     // relation to what it sits on instead of flattening into it.
+    // It keeps the flat tan at every saturation, as before task 18: the
+    // gradient on ~500 one-pixel points cost 0.3 ms a frame in headless
+    // Firefox (measured A/B, 4.4 vs 4.1 ms) for a change no one could see
+    // under the wash's own.
     ctx.fillStyle = `rgba(${bandRgb(li)},${Math.min(0.5, (MILKY_WAY_GRAIN_ALPHA[li] ?? 0.08) * bandGain)})`;
     for (let i = 0; i < pts.length; i += 2) {
       const { x, y } = toScreen(pts[i], pts[i + 1]);

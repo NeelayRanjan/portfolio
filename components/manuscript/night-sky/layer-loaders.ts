@@ -3,7 +3,7 @@ import { loadImages } from "@/lib/sky-images";
 import { loadIss, MOFFETT_HEIGHT_KM } from "@/lib/sky-iss";
 import { MOFFETT } from "@/lib/sky-math";
 import { loadMilkyWay, loadObjects, prepareMilkyWay, prepareObjectGlyphs, smallCircle } from "@/lib/sky-objects";
-import { precomputeStarFills } from "@/lib/sky-render";
+import { prepareStarPaint } from "@/lib/sky-render";
 import type { SkyState } from "./state";
 
 /**
@@ -21,9 +21,10 @@ export function loadSkyLayers(s: SkyState, deps: { paint: () => void; resolveFon
     .then((sky) => {
       if (!s.alive) return;
       s.sky = sky;
-      // Once per catalog load, not once per frame: a star's fill colour
-      // depends only on its catalog mag/bv, never on time or hover state.
-      s.starFills = sky ? precomputeStarFills(sky.stars) : [];
+      // Once per catalog load, not once per frame: a star's radius, alpha
+      // and colours depend only on its catalog mag/bv (the saturation picks
+      // between colours inside drawSky, memoised on the saturation).
+      s.starPaint = prepareStarPaint(sky ? sky.stars : []);
       paint();
     })
     .catch((err) => {

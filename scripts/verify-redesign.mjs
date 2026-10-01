@@ -3512,6 +3512,10 @@ async function openHitCard(browser, { W, H, date, hitId }) {
  * two objects.
  */
 const SKY_COLOUR_INSTANT = new Date("2026-10-01T06:00:00.000Z");
+/** Task 18: an instant with the galactic core and the band's warm end on a
+ *  1600x1000 canvas (Sagittarius setting, Scutum and Aquila up), where the
+ *  band's warmth gain is measured; SKY_COLOUR_INSTANT shows the disc. */
+const SKY_CORE_INSTANT = new Date("2026-07-14T23:00:00.000Z");
 /** Catalog ids that draw in sourced colour, and the deep-sky ids overall. */
 const COLOURED_IDS = Object.keys(OBJECT_COLOURS);
 const DEEP_SKY_IDS = OBJECTS_DATA.objects.filter((o) => ["galaxy", "nebula", "cluster"].includes(o.symbol)).map((o) => o.id);
@@ -3560,6 +3564,63 @@ const BAND_CLEAR_PX = 25;
  * so the check can compare several saturation states pixel for pixel without
  * shipping megabytes of RGBA through the protocol.
  */
+/**
+ * The band's pixels in `window.__colourFrames` (grey, paper, stargaze), clear
+ * of every drawn hit, in two sets (task 18, ruling R24): WARM, whose warmth
+ * (r-b) rises by 3 or more from saturation 0 to stargaze (the core side of
+ * the core-to-disc gradient, and the whole band before it), and COOL, whose
+ * coolness (b-r) rises by 3 or more (the faintly blue disc). Per set: the
+ * count, and the median and mean of its own direction's measure in each
+ * state, plus luminance. Installed in the page as `window.__bandStats`.
+ */
+function installBandStats(page) {
+  return page.evaluate(() => {
+    window.__bandStats = (hits, bandClear) => {
+      const f = window.__colourFrames;
+      const c = document.querySelector("body > canvas");
+      const s = c.width / window.innerWidth;
+      const Wd = c.width;
+      const warm = (d, i) => d[i] - d[i + 2];
+      const lum = (d, i) => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+      const pts = hits.map((h) => [h.x * s, h.y * s]);
+      const clear = bandClear * s;
+      const fresh = () => ({ grey: [], paper: [], stargaze: [], lumGrey: [], lumPaper: [], lumStargaze: [] });
+      const sets = { band: fresh(), cool: fresh() };
+      for (let yy = 0; yy < c.height; yy += 2) {
+        for (let xx = 0; xx < c.width; xx += 2) {
+          const i = (yy * Wd + xx) * 4;
+          const dw = warm(f.stargaze, i) - warm(f.grey, i);
+          if (dw > -3 && dw < 3) continue;
+          if (pts.some(([px, py]) => Math.abs(px - xx) < clear && Math.abs(py - yy) < clear)) continue;
+          const set = dw >= 3 ? sets.band : sets.cool;
+          const sign = dw >= 3 ? 1 : -1;
+          set.grey.push(sign * warm(f.grey, i));
+          set.paper.push(sign * warm(f.paper, i));
+          set.stargaze.push(sign * warm(f.stargaze, i));
+          set.lumGrey.push(lum(f.grey, i));
+          set.lumPaper.push(lum(f.paper, i));
+          set.lumStargaze.push(lum(f.stargaze, i));
+        }
+      }
+      const median = (a) => {
+        const b = [...a].sort((x, y) => x - y);
+        return b.length ? b[b.length >> 1] : null;
+      };
+      const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
+      const out = {};
+      for (const [name, set] of Object.entries(sets)) {
+        const st = { n: set.grey.length };
+        for (const [k, v] of Object.entries(set)) {
+          st[k] = median(v);
+          st[`${k}Mean`] = mean(v);
+        }
+        out[name] = st;
+      }
+      return out;
+    };
+  });
+}
+
 function snapSky(page, name) {
   return page.evaluate(
     ([sel, name]) => {
@@ -3590,6 +3651,64 @@ function snapSky(page, name) {
  * between reads and every state change snaps, so each frame is final. A
  * second, motion-on page then asserts the ease itself.
  */
+/** The paper -> stargaze gain thresholds, for one direction of the band. */
+function assertBandGain(where, measure, b) {
+  if (!(b.paperMean - b.greyMean >= BAND_MIN_WARMTH_GAIN)) {
+    throw new Error(`the band's ${where}: mean ${measure} over ${b.n} pixels is ${b.greyMean.toFixed(2)} at saturation 0 and ${b.paperMean.toFixed(2)} in paper mode (stargaze ${b.stargazeMean.toFixed(2)}); paper must add at least ${BAND_MIN_WARMTH_GAIN}`);
+  }
+  if (!(b.stargazeMean - b.paperMean >= BAND_MIN_STARGAZE_OVER_PAPER)) {
+    throw new Error(`the band's ${where}: mean ${measure} over ${b.n} pixels is ${b.paperMean.toFixed(2)} in paper mode and ${b.stargazeMean.toFixed(2)} in stargaze; stargaze must add at least ${BAND_MIN_STARGAZE_OVER_PAPER}`);
+  }
+}
+
+/**
+ * The band with the galactic core on screen (task 18): grey (through the
+ * override hook), paper and stargaze frames at SKY_CORE_INSTANT, same steps
+ * as the main frame, read back as warming and cooling sets.
+ */
+async function bandAtCore(browser) {
+  return pinnedSkyPage(browser, { W: 1600, H: 1000, date: SKY_CORE_INSTANT }, async (page) => {
+    await waitStargazeReady(page);
+    const core = await page.evaluate(() => window.__sky.hits.find((h) => h.id === "sgr-a-star") ?? null);
+    if (!core) throw new Error(`the galactic core is not on screen at ${SKY_CORE_INSTANT.toISOString()}; pick another SKY_CORE_INSTANT`);
+    const sheet = await page.evaluate(() => {
+      const r = document.querySelector("[data-sheet]").getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: Math.max(r.top, 0) + 240 };
+    });
+    const sat = (v) => page.waitForFunction((v) => window.__sky.saturation === v, v, { timeout: 5000 });
+    // A bare-sky point in the left margin, highlighting nothing.
+    let skyPt = null;
+    for (const y of [220, 420, 620, 820]) {
+      await page.mouse.move(sheet.x, sheet.y);
+      await page.mouse.move(60, y);
+      const st = await page.evaluate(([x, y, sel]) => ({ h: window.__sky.highlight, blocked: !!document.elementFromPoint(x, y)?.closest(sel) }), [60, y, NOT_SKY_SELECTOR]);
+      if (st.h === null && !st.blocked) {
+        skyPt = { x: 60, y };
+        break;
+      }
+    }
+    if (!skyPt) throw new Error("no bare-sky point in the left margin at SKY_CORE_INSTANT");
+    await page.mouse.move(sheet.x, sheet.y);
+    await sat(PAPER_SATURATION);
+    await snapSky(page, "paper");
+    await page.evaluate(() => (window.__skySaturationOverride = 0));
+    await page.mouse.move(skyPt.x, skyPt.y);
+    await sat(0);
+    await snapSky(page, "grey");
+    await page.evaluate(() => delete window.__skySaturationOverride);
+    await page.mouse.move(sheet.x, sheet.y);
+    await sat(PAPER_SATURATION);
+    await stargazeToggle(page).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    await page.mouse.move(skyPt.x, skyPt.y);
+    await sat(1);
+    if ((await page.evaluate(() => window.__sky.highlight)) !== null) throw new Error("the stargaze pointer highlights something at SKY_CORE_INSTANT");
+    await snapSky(page, "stargaze");
+    await installBandStats(page);
+    return page.evaluate((clear) => window.__bandStats(window.__sky.hits, clear), BAND_CLEAR_PX);
+  });
+}
+
 async function checkSkyColour(browser) {
   const W = 1600;
   const H = 1000;
@@ -3681,6 +3800,7 @@ async function checkSkyColour(browser) {
     await page.waitForFunction(() => !document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
     await toSheet(0);
     await expectSat(PAPER_SATURATION, "after leaving stargaze with the pointer on the sheet");
+    await installBandStats(page);
 
     return page.evaluate(
       ([ids, r, bandClear]) => {
@@ -3734,36 +3854,7 @@ async function checkSkyColour(browser) {
             rgb: Object.fromEntries(["grey", "paper", "hover", "lowered", "stargaze"].map((k) => [k, [...f[k].slice(at, at + 3)]])),
           };
         }
-        // The band: pixels whose warmth moves between saturation 0 and 1, clear of every object.
-        const warm = (d, i) => d[i] - d[i + 2];
-        const lum = (d, i) => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
-        const pts = hits.map((h) => [h.x * s, h.y * s]);
-        const clear = bandClear * s;
-        const band = { grey: [], paper: [], stargaze: [], lumGrey: [], lumPaper: [], lumStargaze: [] };
-        for (let yy = 0; yy < c.height; yy += 2) {
-          for (let xx = 0; xx < c.width; xx += 2) {
-            const i = (yy * Wd + xx) * 4;
-            if (warm(f.stargaze, i) - warm(f.grey, i) < 3) continue;
-            if (pts.some(([px, py]) => Math.abs(px - xx) < clear && Math.abs(py - yy) < clear)) continue;
-            band.grey.push(warm(f.grey, i));
-            band.paper.push(warm(f.paper, i));
-            band.stargaze.push(warm(f.stargaze, i));
-            band.lumGrey.push(lum(f.grey, i));
-            band.lumPaper.push(lum(f.paper, i));
-            band.lumStargaze.push(lum(f.stargaze, i));
-          }
-        }
-        const median = (a) => {
-          const b = [...a].sort((x, y) => x - y);
-          return b.length ? b[b.length >> 1] : null;
-        };
-        const bandStats = { n: band.grey.length };
-        const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
-        for (const [k, v] of Object.entries(band)) {
-          bandStats[k] = median(v);
-          bandStats[`${k}Mean`] = mean(v);
-        }
-        return { objects, band: bandStats };
+        return { objects, ...window.__bandStats(window.__sky.hits, bandClear) };
       },
       [COLOURED_IDS, COLOUR_DISC_R, BAND_CLEAR_PX],
     );
@@ -3822,17 +3913,28 @@ async function checkSkyColour(browser) {
   }
   const m82Spread = Math.max(...Object.values(m82.worst)) - Math.min(...Object.values(m82.worst));
   if (m82Spread > M82_MAX_STATE_SPREAD) throw new Error(`M82 has no palette but its centre's channel spread changes with saturation: ${JSON.stringify(m82.worst)}, spread ${m82Spread} over ${M82_MAX_STATE_SPREAD}`);
-  const b = pixels.band;
-  if (b.n < 5000) throw new Error(`only ${b.n} band pixels found (warmth moving between saturation 0 and 1, ${BAND_CLEAR_PX}px clear of objects)`);
-  // The band (fix round 1): its own curve must give paper mode a real warmth
-  // gain over saturation 0, not only the brightness its alpha gain adds, and
-  // stargaze must still be warmer than paper.
-  if (!(b.paperMean - b.greyMean >= BAND_MIN_WARMTH_GAIN)) {
-    throw new Error(`the band's mean warmth (r-b) over ${b.n} pixels is ${b.greyMean.toFixed(2)} at saturation 0 and ${b.paperMean.toFixed(2)} in paper mode (stargaze ${b.stargazeMean.toFixed(2)}); paper must add at least ${BAND_MIN_WARMTH_GAIN}`);
-  }
-  if (!(b.stargazeMean - b.paperMean >= BAND_MIN_STARGAZE_OVER_PAPER)) {
-    throw new Error(`the band's mean warmth over ${b.n} pixels is ${b.paperMean.toFixed(2)} in paper mode and ${b.stargazeMean.toFixed(2)} in stargaze; stargaze must add at least ${BAND_MIN_STARGAZE_OVER_PAPER}`);
-  }
+  // The band (fix round 1, extended for task 18's core-to-disc gradient,
+  // ruling R24). Its own curve must give paper mode a real colour gain over
+  // saturation 0, not only the brightness its alpha gain adds, and stargaze
+  // must add more on top. Since task 18 the band WARMS toward the galactic
+  // core and COOLS along the disc, so the same two thresholds apply to each
+  // direction on a frame where that direction is what shows:
+  //   - this frame (SKY_COLOUR_INSTANT, the autumn sky: Cassiopeia, Perseus,
+  //     Auriga, far from the core) is the disc, measured as coolness (b-r);
+  //   - SKY_CORE_INSTANT, below, is the core, measured as warmth (r-b), the
+  //     original assertion with its original numbers.
+  // Before task 18 this frame's band only warmed; with the gradient 287 of
+  // its pixels still warm (measured), so the warmth half moved to a frame
+  // where the band is warm, with its numbers unchanged, rather than being
+  // loosened here.
+  const d = pixels.cool;
+  if (pixels.band.n + d.n < 5000) throw new Error(`only ${pixels.band.n + d.n} band pixels found (colour moving between saturation 0 and 1, ${BAND_CLEAR_PX}px clear of objects)`);
+  if (d.n < 5000) throw new Error(`only ${d.n} disc pixels found cooling between saturation 0 and 1 (${pixels.band.n} warming); this frame is the disc, it should mostly cool`);
+  assertBandGain("disc", "coolness (b-r)", d);
+  const core = await bandAtCore(browser);
+  if (core.band.n < 5000) throw new Error(`only ${core.band.n} band pixels found warming between saturation 0 and 1 at ${SKY_CORE_INSTANT.toISOString()} (${core.cool.n} cooling), ${BAND_CLEAR_PX}px clear of objects`);
+  assertBandGain("core", "warmth (r-b)", core.band);
+  const b = core.band;
 
   // --- the ease, motion on ---
   const ease = await withPage(browser, { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 }, async (page) => {
@@ -3885,7 +3987,7 @@ async function checkSkyColour(browser) {
     if (e.settleMs > EASE_MAX_SETTLE_MS) throw new Error(`easing ${dir} took ${e.settleMs}ms, over ${EASE_MAX_SETTLE_MS}: ${s}`);
   }
 
-  return `${ids.length} coloured objects across ${[...families].sort().join("/")}, paper's displayed colour share (constant ${PAPER_COLOUR_SHARE}, median ${medianShare.toFixed(2)}) and stargaze chroma shift at each object's most-moved pixel: ${notes.join(", ")}; hovered sky = stargaze, back on the sheet = paper exactly; M82 centre worst ${JSON.stringify(m82.worst)}; band mean warmth over ${b.n} px ${b.greyMean.toFixed(2)}/${b.paperMean.toFixed(2)}/${b.stargazeMean.toFixed(2)}, mean luminance ${b.lumGreyMean.toFixed(2)}/${b.lumPaperMean.toFixed(2)}/${b.lumStargazeMean.toFixed(2)}; ease up ${ease.up.settleMs}ms over ${ease.up.between} painted steps, down ${ease.down.settleMs}ms over ${ease.down.between}`;
+  return `${ids.length} coloured objects across ${[...families].sort().join("/")}, paper's displayed colour share (constant ${PAPER_COLOUR_SHARE}, median ${medianShare.toFixed(2)}) and stargaze chroma shift at each object's most-moved pixel: ${notes.join(", ")}; hovered sky = stargaze, back on the sheet = paper exactly; M82 centre worst ${JSON.stringify(m82.worst)}; band toward the core (${SKY_CORE_INSTANT.toISOString()}) mean warmth over ${b.n} px ${b.greyMean.toFixed(2)}/${b.paperMean.toFixed(2)}/${b.stargazeMean.toFixed(2)}, mean luminance ${b.lumGreyMean.toFixed(2)}/${b.lumPaperMean.toFixed(2)}/${b.lumStargazeMean.toFixed(2)}; along the disc mean coolness over ${d.n} px ${d.greyMean.toFixed(2)}/${d.paperMean.toFixed(2)}/${d.stargazeMean.toFixed(2)}; ease up ${ease.up.settleMs}ms over ${ease.up.between} painted steps, down ${ease.down.settleMs}ms over ${ease.down.between}`;
 }
 
 async function checkStargazeCard(browser) {

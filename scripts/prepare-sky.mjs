@@ -33,7 +33,12 @@ const RAW = `https://raw.githubusercontent.com/ofrohn/d3-celestial/${COMMIT}/dat
  *  https://raw.githubusercontent.com/ofrohn/d3-celestial/7e720a3de062059d4c5400a379146a601d9010e0/LICENSE
  *  (fetched by hand, not at build time — the same pin as the data files above). */
 const D3_CELESTIAL_COPYRIGHT = "Copyright (c) 2015, Olaf Frohn";
-const MAG_LIMIT = 5.0;
+/** Roughly the naked-eye limit under a dark sky (controller ruling R23,
+ *  2026-10-01: the denser sky is REAL stars from this same pinned catalog,
+ *  never random ones). Was 5.0 (1,627 stars); 6.0 is every star the pinned
+ *  stars.6.json carries (5,044). The renderer draws mag > 5 smaller and
+ *  dimmer so the constellations still lead (lib/sky-render.ts). */
+const MAG_LIMIT = 6.0;
 const OUT_DIR = new URL("../public/sky/", import.meta.url);
 const OUT = new URL("sky.json", OUT_DIR);
 
@@ -82,20 +87,35 @@ const [starsGeo, consGeo, linesGeo] = await Promise.all([
   getJson("constellations.lines.json"),
 ]);
 
-// Stars: mag cut, brightest first. A missing B-V (one star at this cut) gets
-// 0.6, a neutral white: the tint is decoration, never a claim.
+// Stars: mag cut, brightest first. A missing B-V (two stars at this cut, HIP
+// 26220 and 32609) is stored as null, never a stand-in number: since task 18
+// the B-V drives a real photometric colour at saturation above 0, so a made-up
+// index would be a made-up colour. The renderer gives a null the old neutral
+// 0.6 tint at saturation 0 (byte-identical to before) and no colour above it.
+//
+// Order: brightest first by the STORED (0.1-rounded) magnitude, so the
+// renderer's magnitude cut is a break. Ties go to the stars inside the old
+// 5.0 cut first: 77 stars of catalog mag 5.01-5.04 round to 5.0, and without
+// the tiebreak they would interleave with the old 5.0 stars. With it, the
+// first 1,627 entries are exactly the old file's stars in the old order (the
+// one change among them is HIP 26220's B-V, 0.6 -> null), which is what lets
+// the task-18 trace proof show the denser sky only ADDS draw calls
+// (scripts/test-sky-stars.mjs pins the result).
+const OLD_CUT = 5.0;
 const stars = starsGeo.features
   .filter((f) => f.properties.mag <= MAG_LIMIT)
   .map((f) => {
     const bv = Number.parseFloat(f.properties.bv);
-    return [
+    const star = [
       r2(ra360(f.geometry.coordinates[0])),
       r2(f.geometry.coordinates[1]),
       r1(f.properties.mag),
-      r1(Number.isFinite(bv) ? bv : 0.6),
+      Number.isFinite(bv) ? r1(bv) : null,
     ];
+    return { star, beyondOldCut: f.properties.mag > OLD_CUT ? 1 : 0 };
   })
-  .sort((a, b) => a[2] - b[2]);
+  .sort((a, b) => a.star[2] - b.star[2] || a.beyondOldCut - b.beyondOldCut)
+  .map(({ star }) => star);
 
 // Lines: Serpens arrives as two features with the same id; concatenating the
 // polylines under one key IS the merge.
@@ -154,14 +174,16 @@ if (constellations.UMa.latin !== "Ursa Major" || constellations.UMa.english !== 
   fail("UMa names wrong");
 if (!sky.source.copyright?.includes("Olaf Frohn")) fail("source.copyright is missing or wrong");
 if (constellations.Ser.labels.length !== 2) fail("Serpens did not merge to two anchors");
-if (stars.length < 1500 || stars.length > 1750) fail(`${stars.length} stars at mag <= ${MAG_LIMIT}`);
+if (stars.length < 4900 || stars.length > 5200) fail(`${stars.length} stars at mag <= ${MAG_LIMIT}`);
+const noBv = stars.filter((s) => s[3] === null).length;
+if (noBv > 5) fail(`${noBv} stars have no B-V; expected 2`);
 const polaris = stars.find(([, dec]) => dec > 89);
 if (!polaris || Math.abs(polaris[1] - 89.26) > 0.1) fail("Polaris missing or misplaced");
 const sirius = stars[0];
 if (Math.abs(sirius[0] - 101.29) > 0.1 || Math.abs(sirius[1] + 16.72) > 0.1 || sirius[2] > -1.3)
   fail(`brightest star is not Sirius: ${JSON.stringify(sirius)}`);
 const body = JSON.stringify(sky);
-if (body.length >= 70_000) fail(`sky.json would be ${body.length} bytes`);
+if (body.length >= 160_000) fail(`sky.json would be ${body.length} bytes`);
 
 await mkdir(OUT_DIR, { recursive: true });
 await writeFile(OUT, body);

@@ -752,8 +752,23 @@ test("every coloured object's card cites the source its colour rests on", async 
 // what the grey chart drew, saturation 1 with stargaze's chrome exactly what
 // stargaze drew. A changed digest means the ends moved, not that a fixture
 // needs refreshing.
+//
+// ⚠️ TRACE_STARGAZE was RE-RECORDED once, for task 18 (2026-10-01), and only
+// after a proof. The Milky Way's flat stargaze fill became the core-to-disc
+// gradient (ruling R24), which changes the saturation-1 trace on purpose; the
+// colour-off digest did NOT change and is the 209247f recording still. The
+// proof (.superpowers/sdd/2026-09-30-slaac-rerouter/task-18-trace-proof.mjs,
+// run against the pre-task-18 modules, which also covers drawSky's own star
+// loop that these layer traces never reach): with the new faint stars'
+// calls removed, saturation 0 is byte-identical to the old full-frame trace;
+// at saturation 1 (and at paper) the only differences are 25 band fillStyle
+// lines (the wash's flat rgba -> the gradient, 5 levels x 5 scenes; the grain
+// stays flat), the 25 createRadialGradient + 100 addColorStop calls those
+// gradients add, and, in the full frame only, the old stars' fill colours
+// (B-V colour). That is the +125 calls here: 17,059 -> 17,184. The old value was
+// { n: 17059, sha: "9703c058a9f7c3ba9f202c6a35ec48178a9ecfb8bcc53c226d4c1bc401736ad6" }.
 const TRACE_COLOUR_OFF = { n: 16577, sha: "f0ea2cc4199c4c1ba44549465a52ff6172ad6dfdc8cf8ae0ccd943a8555a34a4" };
-const TRACE_STARGAZE = { n: 17059, sha: "9703c058a9f7c3ba9f202c6a35ec48178a9ecfb8bcc53c226d4c1bc401736ad6" };
+const TRACE_STARGAZE = { n: 17184, sha: "ee49b94c45e79fa358b59b3e6f7882e41f933af379bf70f13c6af8d5fed8ce4b" };
 const TRACE_SCENES = [[1600, 1000, 0, true], [1600, 1000, 90, true], [1600, 1000, 180, true], [1600, 1000, 270, true], [400, 800, 45, false]];
 
 const L = await import("../lib/sky-layers.ts");
@@ -766,7 +781,17 @@ const traceRings = new Map(data.objects.filter((o) => o.symbol === "field").map(
 /** Every call and style set the layers make, as text lines. */
 function traceLayers(viewExtra, objects = data.objects, { milkyWay = true } = {}) {
   const log = [];
-  const target = { measureText: (t) => ({ width: t.length * 5.4 }) };
+  const target = {
+    measureText: (t) => ({ width: t.length * 5.4 }),
+    // Task 18: above saturation 0 the Milky Way fills with a radial gradient.
+    // Its creation and every stop are logged; the fillStyle line then reads
+    // "radialGradient". Saturation 0 never builds one, so the colour-off
+    // recording below is untouched by this (asserted, unchanged).
+    createRadialGradient: (...a) => {
+      log.push(`createRadialGradient(${a.join(",")})`);
+      return { addColorStop: (o, c) => void log.push(`addColorStop(${o},${c})`), toString: () => "radialGradient" };
+    },
+  };
   const ctx = new Proxy(target, {
     get(t, k) {
       if (k in t) return t[k];
@@ -827,38 +852,97 @@ test("chroma grows with saturation, call for call, and paper mode sits strictly 
 });
 
 test("the Milky Way band's hue and alpha both follow saturation", () => {
-  const bandStyles = (s) =>
-    traceLayers({ saturation: s, stargazeChrome: false }, [], { milkyWay: true })
-      .filter((l) => l.startsWith("fillStyle=rgba("))
-      .map((l) => l.match(/rgba\((\d+),(\d+),(\d+),([\d.e-]+)\)/).slice(1).map(Number));
-  const at0 = bandStyles(0);
-  const at25 = bandStyles(SC.PAPER_SATURATION); // paper
-  const at1 = bandStyles(1);
+  // Saturation 0 fills each band level (wash, then grain) with one flat rgba,
+  // exactly as before task 18. Above 0 each WASH fill is a radial gradient
+  // from the galactic core (task 18, ruling R24): gold at offset 0 and 0.15,
+  // the colour round's tan at 0.4, the faintly blue disc at 1. The grain
+  // keeps its flat tan at every saturation and is held to the original
+  // assertions. A band fill is read back as its list of [offset, r, g, b, a]
+  // stops; a flat fill is one stop.
+  const RGBA = /rgba\((\d+),(\d+),(\d+),([\d.e-]+)\)/;
+  const bandFills = (s) => {
+    const fills = [];
+    let stops = [];
+    for (const l of traceLayers({ saturation: s, stargazeChrome: false }, [], { milkyWay: true })) {
+      if (l.startsWith("createRadialGradient(")) stops = [];
+      else if (l.startsWith("addColorStop(")) {
+        const at = Number(l.slice("addColorStop(".length, l.indexOf(",")));
+        stops.push([at, ...l.match(RGBA).slice(1).map(Number)]);
+      } else if (l === "fillStyle=radialGradient") fills.push(stops);
+      else if (l.startsWith("fillStyle=rgba(")) {
+        const c = l.match(RGBA).slice(1).map(Number);
+        if (c[0] !== 154) fills.push([[null, ...c]]); // every fill but the MUT label
+      }
+    }
+    return fills;
+  };
+  const at0 = bandFills(0);
+  const atP = bandFills(SC.PAPER_SATURATION); // paper
+  const at1 = bandFills(1);
+  assert.equal(at0.length, atP.length);
   assert.equal(at0.length, at1.length);
-  // Only the band's own fills (every one but the MUT label) take part.
+  const warmth = ([, r, , b]) => r - b;
+  const stop = (fill, at) => fill.find((x) => x[0] === at);
   let checked = 0;
+  let gradients = 0;
   for (let i = 0; i < at0.length; i++) {
-    const [r0, , b0, a0] = at0[i];
-    if (r0 === 154) continue; // MUT label
-    const [r1, , b1, a1] = at25[i];
-    const [r2, , b2, a2] = at1[i];
-    assert.ok(r0 - b0 < r1 - b1 && r1 - b1 < r2 - b2, `band style ${i}: warmth ${r0 - b0} / ${r1 - b1} / ${r2 - b2} should increase`);
-    assert.ok(a0 < a1 && a1 <= a2, `band style ${i}: alpha ${a0} / ${a1} / ${a2} should increase`);
+    const flat = at0[i][0];
+    assert.equal(at0[i].length, 1, `band fill ${i}: saturation 0 is one flat colour`);
+    if (at1[i].length === 1) {
+      // A flat fill above 0 (the grain): the pre-task-18 assertions, as they were.
+      const [[, r1, , b1, a1]] = atP[i];
+      const [[, r2, , b2, a2]] = at1[i];
+      const [, r0, , b0, a0] = flat;
+      assert.equal(atP[i].length, 1, `band fill ${i}: flat in stargaze but not at paper`);
+      assert.ok(r0 - b0 < r1 - b1 && r1 - b1 < r2 - b2, `band style ${i}: warmth ${r0 - b0} / ${r1 - b1} / ${r2 - b2} should increase`);
+      assert.ok(a0 < a1 && a1 <= a2, `band style ${i}: alpha ${a0} / ${a1} / ${a2} should increase`);
+      assert.ok(r1 - b1 - (r0 - b0) >= 0.5 * (r2 - b2 - (r0 - b0)), `band style ${i}: paper warmth ${r1 - b1} is under half way from ${r0 - b0} to ${r2 - b2}`);
+      checked++;
+      continue;
+    }
+    gradients++;
+    assert.deepEqual(atP[i].map((x) => x[0]), [0, 0.15, 0.4, 1], `band fill ${i}: paper stops`);
+    assert.deepEqual(at1[i].map((x) => x[0]), [0, 0.15, 0.4, 1], `band fill ${i}: stargaze stops`);
+    // One alpha per fill, rising with saturation (the stargaze gain).
+    for (const f of [atP[i], at1[i]]) assert.ok(f.every((x) => x[4] === f[0][4]), `band fill ${i}: stops disagree on alpha`);
+    const [a0, aP, a1] = [flat[4], atP[i][0][4], at1[i][0][4]];
+    assert.ok(a0 < aP && aP <= a1, `band fill ${i}: alpha ${a0} / ${aP} / ${a1} should increase`);
+    // The tan middle and the gold core both warm with saturation, as the
+    // whole band did before the gradient, and the core is the warmer of the two.
+    for (const at of [0.4, 0]) {
+      const [w0, wP, w1] = [warmth(flat), warmth(stop(atP[i], at)), warmth(stop(at1[i], at))];
+      assert.ok(w0 < wP && wP < w1, `band fill ${i}, stop ${at}: warmth ${w0} / ${wP} / ${w1} should increase`);
+      // The band's own curve: at paper it is past half way in hue, where a
+      // linear lerp left it (measured) exactly as warm as the grey chart.
+      assert.ok(wP - w0 >= 0.5 * (w1 - w0), `band fill ${i}, stop ${at}: paper warmth ${wP} is under half way from ${w0} to ${w1}`);
+    }
+    assert.ok(warmth(stop(at1[i], 0)) > warmth(stop(at1[i], 0.4)), `band fill ${i}: the core is not warmer than the middle`);
+    // The disc cools: blue over red in stargaze, more so than at paper, and
+    // cooler than the tan.
+    const [, rP, , bP] = stop(atP[i], 1);
+    const [, r1, , b1] = stop(at1[i], 1);
+    assert.ok(b1 > r1, `band fill ${i}: the disc stop ${stop(at1[i], 1)} is not bluish in stargaze`);
+    assert.ok(b1 - r1 > bP - rP, `band fill ${i}: the disc's blue ${bP - rP} at paper should grow by stargaze, got ${b1 - r1}`);
+    assert.ok(warmth(stop(at1[i], 1)) < warmth(stop(at1[i], 0.4)), `band fill ${i}: the disc is not cooler than the middle`);
     checked++;
   }
-  assert.ok(checked >= 10, `only ${checked} band styles checked`);
-  // The band's own curve: at paper it is past half way in hue, where a linear
-  // lerp left it (measured) exactly as warm as the grey chart.
+  assert.ok(checked >= 10, `only ${checked} band fills checked`);
+  assert.ok(gradients >= 5, `only ${gradients} band fills are the core-to-disc gradient`);
   assert.equal(SC.bandMix(0), 0);
   assert.equal(SC.bandMix(1), 1);
   assert.ok(SC.bandMix(SC.PAPER_SATURATION) > SC.PAPER_SATURATION, "the band curve must lead the object mix at paper");
-  for (let i = 0; i < at0.length; i++) {
-    if (at0[i][0] === 154) continue;
-    const w0 = at0[i][0] - at0[i][2];
-    const w1 = at1[i][0] - at1[i][2];
-    const wp = at25[i][0] - at25[i][2];
-    assert.ok(wp - w0 >= 0.5 * (w1 - w0), `band style ${i}: paper warmth ${wp} is under half way from ${w0} to ${w1}`);
-  }
+});
+
+test("the band's gradient centres on the real galactic core", () => {
+  const sgr = byId.get("sgr-a-star");
+  assert.equal(L.GALACTIC_CORE.raDeg, sgr.raDeg, "the gradient's centre is not objects.json's Sgr A*");
+  assert.equal(L.GALACTIC_CORE.decDeg, sgr.decDeg);
+  // The matrix behind the gradient's radius: l = 0 is the defined J2000
+  // galactic centre (17h45m37.2s, -28d56m10s), l = 180 its antipode.
+  const c = L.galacticToEquatorial(0);
+  assert.ok(near(c.raDeg, 266.405, 0.001) && near(c.decDeg, -28.936, 0.001), JSON.stringify(c));
+  const anti = L.galacticToEquatorial(180);
+  assert.ok(near(anti.raDeg, 86.405, 0.001) && near(anti.decDeg, 28.936, 0.001), JSON.stringify(anti));
 });
 
 test("M82 draws identically at every saturation", () => {

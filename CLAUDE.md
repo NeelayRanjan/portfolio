@@ -44,8 +44,10 @@ wired (see Stack), and the headline framing became "generative modeling"
 
 **2026-09-15: the desk's particle swarm (`DeskField`) was replaced by a real
 star chart of the sky over NASA Ames**, same on `/`, `/lab` and the 404.
-`scripts/prepare-sky.mjs` builds `public/sky/sky.json` (~57 KB: 1,627 stars to
-magnitude 5, 88 constellations with thin lines, English meanings transcribed
+`scripts/prepare-sky.mjs` builds `public/sky/sky.json` (~134 KB, ~46 KB
+gzipped, since Task 18 on 2026-10-01: 5,044 stars to magnitude 6, the
+naked-eye limit under a dark sky; it was ~57 KB and 1,627 stars to magnitude 5
+until then; 88 constellations with thin lines, English meanings transcribed
 from Wikipedia's Meaning column rather than d3-celestial's own `en` field
 which calls Ursa Major "Big Dipper", Serpens' two halves merged into one
 constellation) from a commit-pinned d3-celestial. `lib/sky-math.ts` computes
@@ -108,7 +110,9 @@ night sky (turning at 1280px with a measured median frame draw around 2.54ms
 against a 5.92ms budget, flat against the pre-colour-round 2.40-2.48ms
 baseline; the discoverability round read 2.70-3.54ms across its tasks, and a
 same-session stash rebuild of the pre-task tree read the same, so the machine
-drifted, not the sky; a headless
+drifted, not the sky; Task 18's 5,044 stars and band gradient read
+3.96-4.18ms against 2.82-2.92ms for a stash rebuild of the pre-task tree in
+the same session; a headless
 Firefox number, not a device number; static under reduced motion; present in
 the 400px margins, with the credit equal to the composed copy in both motion
 variants and no doubled punctuation ("..", ".,", ",." or ",,": the owner's
@@ -152,7 +156,12 @@ pointer over the sky, back on the sheet, stargaze; each object's DISPLAYED
 chroma share at paper must sit within ±0.15 of `PAPER_COLOUR_SHARE` and the
 median within ±0.08, hovered must equal stargaze within 2, back-on-sheet must
 equal paper exactly, M82's centre stays neutral in every state, the band's
-warmth must rise at paper and again in stargaze, and a motion-on half records
+colour must move at paper and again in stargaze in its own direction (Task
+18: WARMTH, r-b, over 5,000+ band pixels on a second frame with the galactic
+core up, `SKY_CORE_INSTANT`, the original thresholds unchanged; COOLNESS, b-r,
+over 5,000+ disc pixels on the original frame, which shows the anticentre
+side; proved to bite by drawing the disc in the tan, 219 cooling pixels, and
+by drawing the whole wash in the disc tone, 322 warming), and a motion-on half records
 the ease every rAF and requires it monotone and settled inside 500ms; proved
 to bite with `PAPER_COLOUR_SHARE = 0.1`, which fails on M45 at a measured
 share of 0.28. The colour round's version was proved the same way, by
@@ -281,18 +290,21 @@ scripts/test-sky-data.mjs scripts/test-sky-math.mjs scripts/test-sky-pan.mjs
 scripts/test-sky-objects.mjs scripts/test-sky-facts.mjs
 scripts/test-sky-iss.mjs scripts/test-sky-images.mjs
 scripts/test-chess-selfplay.mjs scripts/test-resume.mjs
-scripts/test-sky-secret.mjs`** (the last, Task 17's door rule, 4 cases) plus, on the
+scripts/test-sky-secret.mjs scripts/test-sky-stars.mjs`** (`test-sky-secret`,
+Task 17's door rule, 4 cases; `test-sky-stars`, Task 18's star paint and
+star colour, 8) plus, on the
 `slaac-demo` branch, the rerouter's ten (`test-slaac-arcs` 16,
 `test-slaac-data` 8, `test-slaac-dpm` 3, `test-slaac-geometry` 2,
 `test-slaac-guidance` 4, `test-slaac-reroute` 37, `test-slaac-ring` 7,
 `test-slaac-sampler` 5, `test-slaac-summary` 5, `test-slaac-view` 8;
 `node --test scripts/test-*.mjs` runs them all, ~16 s) runs outside
-Playwright, in plain node (192 cases total, 188 before Task 17; 95 of them the rerouter's, which
+Playwright, in plain node (201 cases total, 192 before Task 18, 188 before Task 17; 95 of them the rerouter's, which
 the SLAAC section describes; 180 before Task 12c; 93 before those, 3 of them the served resume's and
 10 the self-play rule's; 80 before those, 73 before the card
 photographs, 62 before the discoverability round and 47 before the colour
 round): `test-sky-data` pins the committed `sky.json`'s shape (star
-count/order/ranges, Polaris and Sirius by position and magnitude, all 88
+count/order/ranges: 4,900-5,200 stars to mag 6.0 since Task 18, exactly two
+with a null B-V, the old 5.0 cut an exact prefix; Polaris and Sirius by position and magnitude, all 88
 constellations with Serpens merged and bilingual names) against hand edits
 and bad regenerations; `test-sky-math` pins `lib/sky-math.ts`'s projection
 math (GMST 1.13 s worst error, Saturn 0.088°, Moon 0.043°, all against
@@ -590,6 +602,22 @@ and the DIFFERENCES note says only that a reroute "takes seconds on my
 laptop, longer with more airspace or every flight at once" and nothing about
 phones. The numbers behind each phrase are in content/copy.ts's comments.
 Contracts, rulings and numbers: "SLAAC rerouter (Figure 3)" under the demos.
+
+**2026-10-01, Task 18 (branch `slaac-demo`): a denser, more colourful sky,
+every addition real.** Owner: "more randomly added stars around so that it's
+decently dense, but the constellations still pop out", then colour and pop
+for stargazing. Ruling R23 made it REAL stars, never random ones: the same
+pinned stars.6.json to mag 6.0 (5,044 stars against 1,627), the fainter
+ones drawn smaller and dimmer than the old faintest so the lines and bright
+stars still lead. Ruling R24: stars take their colour from their own B-V
+(Ballesteros 2012 to a temperature, Mitchell Charity's blackbody table to a
+colour) and the Milky Way grew a gradient, gold toward the galactic core and
+whiter, faintly blue along the disc, each hue cited on its card; both ride
+the existing saturation (paper share on the page, full over the sky and in
+stargaze, the grey chart at 0 byte-identical). Frame draw 3.96-4.18 ms
+against 2.82-2.92 ms for the pre-task tree measured in the same session
+(A/B), budget 5.92. Contracts under "Night sky + stargaze": "A denser sky,
+star colour, and the band's gradient".
 
 **Open items, roughly in order:**
 
@@ -1288,6 +1316,13 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   9.72-12.18ms, worse than the tree under suspicion, so the machine was the
   variable. Do that before touching a draw path; the same shape of answer
   applies to any timing check here.
+- **A sub-pixel dot smears its light across four pixels** (Task 18). The
+  first faint-star pass drew 3,400 new stars at their exact sub-pixel points
+  and the lit-pixel count of a 1440px screenshot moved under 2%: each dot's
+  light was split four ways below visibility. Snapping each square inside
+  one pixel (`Math.floor(x) + inset`) made them read as pinpricks at LESS
+  total light than the old faintest star. Count lit pixels before and after
+  before judging a dim layer by eye.
 - **Hue cannot survive low alpha, and a screenshot review can't catch that it
   didn't.** Stargaze's first pass at warming the Milky Way band (colour
   round, 2026-09-15) changed only its hue, and a screenshot review passed it
@@ -1529,6 +1564,79 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   (`OBJECT_COLOURS[id]` is absent) and its draw calls are identical at every
   saturation, verified in-browser rather than only in the table, which is the
   proof the gate is real and not blanket.
+- **A denser sky, star colour, and the band's gradient** (Task 18,
+  2026-10-01, controller rulings R23 and R24; the trace proof and the
+  screenshots are in the gitignored `.superpowers/sdd/2026-09-30-slaac-rerouter/`,
+  `task-18-*`):
+  - **Real stars only.** `prepare-sky.mjs`'s `MAG_LIMIT` went 5.0 → 6.0 on
+    the same pinned commit: every star stars.6.json has, 5,044. Nothing is
+    random or invented. Sorting is by the stored (0.1-rounded) magnitude
+    with a tiebreak that keeps the old cut first, so the first 1,627 entries
+    are the old file exactly (77 stars of catalog mag 5.01-5.04 round to 5.0
+    and follow them). A missing B-V (two stars, HIP 26220 and 32609) is now
+    `null`, never the old 0.6 stand-in, because B-V now drives a colour.
+  - **Faint stars lead less** (`lib/sky-render.ts`, `FAINT_STAR_MAG` = 5.0):
+    every star at or brighter than 5.0 draws exactly as before (one arc, the
+    old radius and fill); the fainter 3,340 draw as 0.88px squares SNAPPED
+    inside one CSS pixel, alpha 0.22 at 5.1 down to 0.12 at 6.0, so each
+    one's light (alpha x area) is under the old faintest dot's 0.2. They are
+    BATCHED: 216 buckets of equal magnitude and colour, one path and one fill
+    each, their RA and tan-half-colatitude prepared once. Phones cut at 5.5
+    (was 4.5), desktop at 6.0. Catalog stars are not hit targets, so hover
+    and picking are unchanged.
+  - **Star colour** (`lib/star-colour.ts`, no imports): B-V → temperature by
+    Ballesteros (2012, EPL 97 34008, eq. 14, read off the arXiv PDF), →
+    sRGB by Mitchell Charity's "What color is a blackbody?" table (CIE 1964
+    10° CMFs, sRGB, D65; transcribed by script, 1000-29800 K in 200 K steps,
+    accessed 2026-10-01). One display choice on top, stated in the file:
+    `STAR_CHROMA_GAIN` 1.8 (1.2 at mag 6) pushes each colour away from its
+    own grey, hue unchanged, scaling down instead of clipping a channel,
+    because Charity's 5,300 K is a peach too pale to read on a 2px dot.
+    Rigel and Vega come out blue-white, Betelgeuse, Antares and Aldebaran
+    orange, Capella and Arcturus a warm yellow-orange. Through the
+    saturation: the old faint tint at 0 (so the grey chart is unchanged),
+    the star's colour at 1, a lerp between (`starFillsAt`, memoised on
+    saturation). Betelgeuse's and Antares's cards, the two that already say
+    "distinctly reddish", cite both sources (Sources only: their bodies are
+    at the three-sentence cap).
+  - **The band's gradient** (`lib/sky-layers.ts`, `MILKY_WAY_CORE_RGB` /
+    `MILKY_WAY_DISC_RGB`): above saturation 0 each level's WASH fills with a
+    radial gradient centred on Sgr A* (objects.json's own position): gold to
+    ~10° of the core, the colour round's tan by ~28°, a whiter, faintly blue
+    tone from 70° (galactic longitude 70, through the standard J2000
+    galactic matrix, pinned against the defined centre). Sources, both on
+    the Milky Way card: ESA's Euclid bulge image ("filled mainly with old,
+    cooler stars, giving it its characteristic yellow colour") and Las
+    Cumbres Observatory ("The disk of our galaxy appears blue because it has
+    a large proportion of young, hot O and B main sequence stars"). The warm
+    stops lerp from INK on `bandMix` exactly as the flat band did (the tan
+    stop IS the old band colour at every saturation); the blue one mixes
+    toward its own grey (`saturateRgb`), since a lerp from a cream to a blue
+    dips through grey and its chroma would fall. The grain stays flat tan:
+    a gradient on ~500 one-pixel points cost 0.3 ms for nothing visible. No
+    pink H II regions: the band has no positions for them.
+  - **What the tests pin.** `test-sky-stars.mjs`: eq. 14 and the table
+    verbatim, hue kept and warmth monotone in B-V, the owner's named stars,
+    faint stars less chroma, every bright star's fill and radius equal to the
+    pre-task code (re-implemented verbatim in the test), every faint star in
+    one bucket and dimmer than the old faintest, and a full drawSky star-frame
+    digest at 0 and 1. `test-sky-objects.mjs`: the band test reads gradients
+    stop by stop (the tan and the gold warm with saturation and past half way
+    at paper, the core warmer than the tan, the disc bluish and cooler; the
+    grain keeps the original assertions), the core is objects.json's Sgr A*,
+    and `TRACE_STARGAZE` was RE-RECORDED once, 17,059 → 17,184, after the
+    proof (`task-18-trace-proof.mjs`, run against the pre-task modules): with
+    the new stars' calls removed, the saturation-0 FULL frame is
+    byte-identical; at paper and in stargaze the only differences are 25
+    wash fills (flat → gradient), their 125 gradient calls and the old
+    stars' fill colours. `TRACE_COLOUR_OFF` did not change. The browser
+    `sky-colour` check measures the band in both directions (see
+    Verification).
+  - **Cost**, headless Firefox at 1280px, A/B in one session: pre-task
+    2.82-2.92 ms (`sky-animates-1280`), after 3.96-4.18 ms against the 5.92
+    budget; the stars about +0.7 ms batched (+1.5 unbatched, measured), the
+    wash gradient about +0.4. The margin is ~1.8 ms now, not ~3: under load,
+    run the A/B before blaming the sky.
 - **The false-colour rule, ruling R-COLOUR-1**
   (`.superpowers/sdd/sky-colour/progress.md`): colour may follow an emission
   line's OWN wavelength, since a plain RGB camera really does record O III at
@@ -2640,7 +2748,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 | `public/diffusion_traj.json` | 3.0 MB | pixel trajectories, 10 digits x 32 frames |
 | `public/ascii_traj.json` | 586 KB | discrete/mask trajectories, same shape |
 | `public/chess_activations.json` | 43 KB | precomputed saliency, 8 curated positions |
-| `public/sky/sky.json` | ~57 KB | star catalog behind every page: 1,627 stars, 88 constellations, built by `scripts/prepare-sky.mjs` from a pinned d3-celestial commit |
+| `public/sky/sky.json` | ~134 KB (~46 KB gz) | star catalog behind every page: 5,044 stars to mag 6.0 (1,627 to mag 5 until Task 18), 88 constellations, built by `scripts/prepare-sky.mjs` from a pinned d3-celestial commit |
 | `public/sky/objects.json` | ~17 KB | 45 deep-sky picks (colour round, 2026-09-15, added 15: eight more Messier objects plus the Horsehead, the Flame, and the Double Cluster and the Veil as paired objects), Sgr A*, the Kepler field, the Hubble Deep Field, the 15 named stars, both Voyagers, the 12 meteor showers, the constellation origin table; built by `scripts/prepare-sky-objects.mjs` |
 | `public/sky/milkyway.json` | ~30 KB | the Milky Way band, 5 nested levels, 2,267 vertices after simplification (budget 1,500-4,000); same generator |
 | `content/sky-facts.ts` | 153 facts, 969 string literals (voice-scanned) | every card's and one-liner's facts and citations; single source, typed, no runtime imports |

@@ -17,6 +17,8 @@ import type { SkyData } from "./sky-data";
 import { addUnderline, drawIss, drawMilkyWay, drawObjects, drawRadiants, nameBox, nameClearsPhoneChrome, strokeUnderlines, type Hit, type View } from "./sky-layers";
 import type { ObjectGlyph, PreparedMilkyWay, SkyObject, SkyShower } from "./sky-objects";
 import { eclipticToEquatorial, project, type Chart, type Equatorial, type Planet, type Point } from "./sky-math";
+import { lerpRgb } from "./sky-colour";
+import { starColourRgb } from "./star-colour";
 
 export type { Hit };
 export type Bodies = {
@@ -57,12 +59,12 @@ export type FrameInput = {
   fontFamily: string;
   highlight: Highlight | null;
   avoid: Avoid | null;
-  /** One rgba fill style per `sky.stars` entry, same order, from
-   *  `precomputeStarFills`. A star's colour and brightness never change
-   *  frame to frame (both come only from its catalog mag/bv), so building
-   *  these 1,627 template strings is wasted work at ~20 fps; compute once
-   *  per catalog load instead. */
-  starFills: string[];
+  /** Every `sky.stars` entry's radius, alpha and colours, same order, from
+   *  `prepareStarPaint`, once per catalog load. The fill strings depend only
+   *  on catalog mag/bv and the saturation, so `drawSky` rebuilds them only
+   *  when the saturation changes (task 18: stars take their B-V colour
+   *  through the same saturation as everything else). */
+  starPaint: StarPaint;
   /** Prepared once per load (lib/sky-objects.ts); null until it lands or if absent. */
   milkyWay: PreparedMilkyWay | null;
   /** objects.json's objects; empty until it lands or if absent. */
@@ -114,7 +116,9 @@ const D2R = Math.PI / 180;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-/** Faint B-V tint: blue-white through the ink tone to amber. Never saturated. */
+/** Faint B-V tint: blue-white through the ink tone to amber. Never saturated.
+ *  Since task 18 this is the SATURATION-0 colour only; above 0 a star lerps
+ *  toward its photometric colour (prepareStarPaint, lib/star-colour.ts). */
 function starRgb(bv: number): string {
   const t = clamp((bv + 0.3) / 2.0, 0, 1);
   const mix = (a: number, b: number, u: number) => Math.round(a + (b - a) * u);
@@ -127,14 +131,136 @@ function starRgb(bv: number): string {
 }
 
 /**
- * One rgba fill style per `sky.stars` entry, same order. A star's mag/bv
- * never change after the catalog loads, so its fill string doesn't either:
- * call this once when `loadSky()` resolves (NightSky does) and hand the
- * result back into every `drawSky` call as `starFills`, rather than building
- * ~1,627 template strings inside the ~20 fps paint loop.
+ * The faint-star cut (task 18, controller ruling R23): sky.json now runs to
+ * mag 6.0, about the naked-eye limit under a dark sky, three times the stars
+ * it had at 5.0 (5,044 against 1,627). Every star at or brighter than this
+ * draws exactly as it always did, one arc each. Everything fainter draws
+ * smaller and dimmer than the old faintest star (a radius-0.5 dot at alpha
+ * 0.25, about 0.2 of a pixel's light), on a steeper curve, so the
+ * constellation lines and the bright stars still lead. Tuned by eye against
+ * 1440px screenshots at paper saturation and in stargaze.
+ *
+ * The faint ones are BATCHED: ~3,400 stars, so instead of an arc and a fill
+ * each they go down as tiny squares, one path and one fill per bucket of
+ * stars that share a colour and alpha (a few hundred buckets, prepared once
+ * per catalog load). Each square is SNAPPED inside one CSS pixel: the first
+ * try drew them at their exact sub-pixel points, and antialiasing smeared each
+ * one across four pixels at a quarter of its light, so 3,400 new stars moved
+ * the count of lit pixels in a 1440px screenshot by under 2% (measured). A
+ * snapped 0.88px square keeps its light in one pixel, which is what a
+ * pinprick of a star looks like. Its total light (alpha x area: 0.17 just
+ * past the cut, 0.09 at mag 6) stays under the old faintest dot's 0.2, and
+ * on screen it is one pixel where that dot smears across two to four, so
+ * every new star is both smaller and dimmer than the faintest old one.
  */
-export function precomputeStarFills(stars: SkyData["stars"]): string[] {
-  return stars.map(([, , mag, bv]) => `rgba(${starRgb(bv)},${clamp(1 - (mag + 1.5) * 0.12, 0.25, 1)})`);
+export const FAINT_STAR_MAG = 5.0;
+/** Square side in CSS px (area 0.77 px², under the old 0.5px disc's 0.785). */
+const FAINT_SIDE = 0.88;
+/** Alpha just past the cut, and at mag 6. */
+const FAINT_ALPHA = [0.22, 0.12] as const;
+/** Centres the square inside the pixel it falls in. */
+const FAINT_INSET = (1 - FAINT_SIDE) / 2;
+
+/** Stars past FAINT_STAR_MAG sharing a size, an alpha and colours. */
+export type FaintBucket = {
+  /** Catalog magnitude (0.1 steps), so a lower magLimit can skip the bucket. */
+  mag: number;
+  alpha: number;
+  tint: string;
+  full: string | null;
+  base: string;
+  /** Indices into sky.stars. */
+  stars: number[];
+  /** Per star, prepared once: RA in radians and tan((90° − dec) / 2), the
+   *  two halves of `project` that never change, so the ~3,400-star loop does
+   *  one sin and one cos each and allocates nothing. */
+  raRad: Float64Array;
+  tanHalfColat: Float64Array;
+};
+
+/**
+ * Per-star paint, prepared once per catalog load. For the stars at or
+ * brighter than FAINT_STAR_MAG (the first `brightCount` entries, since the
+ * catalog is sorted brightest first), `base` is each star's fill at
+ * saturation 0, byte-identical to what the pre-task-18 `precomputeStarFills`
+ * built, and `radius` the same arc radius the old loop computed, so that loop
+ * draws exactly the calls it always did (proved by trace, see
+ * scripts/test-sky-stars.mjs). `tint` is that faint B-V tint as "r,g,b";
+ * `full` the star's own photometric colour (lib/star-colour.ts), or null for
+ * a star with no B-V, which then never leaves its tint. The fainter stars
+ * live in `faint`, bucketed.
+ */
+export type StarPaint = {
+  brightCount: number;
+  radius: number[];
+  alpha: number[];
+  tint: string[];
+  full: (string | null)[];
+  base: string[];
+  faint: FaintBucket[];
+};
+
+export function emptyStarPaint(): StarPaint {
+  return { brightCount: 0, radius: [], alpha: [], tint: [], full: [], base: [], faint: [] };
+}
+
+export function prepareStarPaint(stars: SkyData["stars"]): StarPaint {
+  const p = emptyStarPaint();
+  const buckets = new Map<string, FaintBucket>();
+  stars.forEach(([, , mag, bv], i) => {
+    // A missing B-V (two stars) keeps the old neutral 0.6 tint, exactly as the
+    // catalog's old stand-in value drew, and gets no colour above saturation 0.
+    const tint = starRgb(bv ?? 0.6);
+    const full = starColourRgb(bv, mag);
+    if (mag <= FAINT_STAR_MAG) {
+      const alpha = clamp(1 - (mag + 1.5) * 0.12, 0.25, 1);
+      p.brightCount = i + 1;
+      p.radius.push(clamp(2.1 - 0.32 * mag, 0.5, 2.6));
+      p.alpha.push(alpha);
+      p.tint.push(tint);
+      p.full.push(full);
+      p.base.push(`rgba(${tint},${alpha})`);
+      return;
+    }
+    const t = clamp(mag - FAINT_STAR_MAG, 0, 1);
+    const alpha = Math.round((FAINT_ALPHA[0] + (FAINT_ALPHA[1] - FAINT_ALPHA[0]) * t) * 1000) / 1000;
+    const key = `${mag}|${tint}|${full}`;
+    let b = buckets.get(key);
+    if (!b) {
+      b = { mag, alpha, tint, full, base: `rgba(${tint},${alpha})`, stars: [], raRad: new Float64Array(0), tanHalfColat: new Float64Array(0) };
+      buckets.set(key, b);
+    }
+    b.stars.push(i);
+  });
+  p.faint = [...buckets.values()].sort((a, b) => a.mag - b.mag || (a.stars[0] - b.stars[0]));
+  for (const b of p.faint) {
+    b.raRad = Float64Array.from(b.stars, (i) => stars[i][0] * D2R);
+    b.tanHalfColat = Float64Array.from(b.stars, (i) => Math.tan(((90 - stars[i][1]) / 2) * D2R));
+  }
+  return p;
+}
+
+/**
+ * The fill strings at saturation `s`, bright stars then faint buckets: `base`
+ * at 0, each tint lerped toward its own colour by `s` above it (the same
+ * share every other sky colour takes: PAPER_COLOUR_SHARE on the page, full
+ * over the sky and in stargaze). Rebuilt only when `s` or the catalog
+ * changes, which at rest is never.
+ */
+let memoStarPaint: StarPaint | null = null;
+let memoStarS = Number.NaN;
+let memoStarFills: { bright: string[]; faint: string[] } = { bright: [], faint: [] };
+export function starFillsAt(p: StarPaint, s: number): { bright: string[]; faint: string[] } {
+  if (p === memoStarPaint && s === memoStarS) return memoStarFills;
+  memoStarPaint = p;
+  memoStarS = s;
+  const at = (base: string, tint: string, full: string | null, alpha: number) =>
+    !(s > 0) || full === null ? base : `rgba(${lerpRgb(tint, full, s)},${alpha})`;
+  memoStarFills = {
+    bright: p.base.map((b, i) => at(b, p.tint[i], p.full[i], p.alpha[i])),
+    faint: p.faint.map((b) => at(b.base, b.tint, b.full, b.alpha)),
+  };
+  return memoStarFills;
 }
 
 export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInput): Projected {
@@ -230,15 +356,40 @@ export function drawSky(ctx: CanvasRenderingContext2D, sky: SkyData, f: FrameInp
   ctx.strokeStyle = `rgba(${MUT},0.3)`;
   ctx.stroke();
 
-  // Stars, brightest first, so the magnitude cut is a break.
-  for (let i = 0; i < sky.stars.length; i++) {
+  // Stars, brightest first, so the magnitude cut is a break. The bright
+  // ones (mag <= FAINT_STAR_MAG) one arc each, exactly as before task 18...
+  const sp = f.starPaint;
+  const starFills = starFillsAt(sp, f.saturation);
+  for (let i = 0; i < sp.brightCount; i++) {
     const [ra, dec, mag] = sky.stars[i];
     if (mag > f.magLimit) break;
     const p = project(c, ra, dec);
     if (!onCanvas(p, 4)) continue;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, clamp(2.1 - 0.32 * mag, 0.5, 2.6), 0, Math.PI * 2);
-    ctx.fillStyle = f.starFills[i];
+    ctx.arc(p.x, p.y, sp.radius[i], 0, Math.PI * 2);
+    ctx.fillStyle = starFills.bright[i];
+    ctx.fill();
+  }
+  // ...then the faint ones, one path and one fill per bucket. The same
+  // projection as `project` (sky-math.ts), split so the constant half is
+  // prepared once.
+  const lstRad = c.lstDeg * D2R;
+  for (let b = 0; b < sp.faint.length; b++) {
+    const bucket = sp.faint[b];
+    if (bucket.mag > f.magLimit) break;
+    let any = false;
+    for (let j = 0; j < bucket.raRad.length; j++) {
+      const rho = c.k * bucket.tanHalfColat[j];
+      const phi = bucket.raRad[j] - lstRad;
+      const x = c.cx + rho * Math.sin(phi);
+      const y = c.cy - rho * Math.cos(phi);
+      if (!(x > -4 && x < width + 4 && y > -4 && y < height + 4)) continue;
+      if (!any) ctx.beginPath();
+      any = true;
+      ctx.rect(Math.floor(x) + FAINT_INSET, Math.floor(y) + FAINT_INSET, FAINT_SIDE, FAINT_SIDE);
+    }
+    if (!any) continue;
+    ctx.fillStyle = starFills.faint[b];
     ctx.fill();
   }
 

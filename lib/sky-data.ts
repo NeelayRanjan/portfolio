@@ -1,6 +1,7 @@
 /**
  * Loads the night sky's star catalog, public/sky/sky.json (built by the
- * hand-run scripts/prepare-sky.mjs). ~55 KB, fetched after first paint by
+ * hand-run scripts/prepare-sky.mjs). ~134 KB (~46 KB gzipped), 5,044 stars
+ * to mag 6.0 since task 18, fetched after first paint by
  * NightSky, never bundled.
  *
  * Same gate discipline as the model loaders: absent (a failed fetch, a 404)
@@ -9,7 +10,8 @@
  */
 import type { Equatorial } from "./sky-math";
 
-export type SkyStar = [raDeg: number, decDeg: number, mag: number, bv: number];
+/** `bv` is null for the two catalog stars with no B-V index (task 18). */
+export type SkyStar = [raDeg: number, decDeg: number, mag: number, bv: number | null];
 export type SkyConstellation = { latin: string; english: string | null; labels: [number, number][] };
 export type SkyData = {
   version: 1;

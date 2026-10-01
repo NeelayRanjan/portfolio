@@ -437,11 +437,11 @@
   "chosen_steps = smallest acceptable = 20",
   "hug @ 20: leg-clear 100.00% >= 98.0%: yes",
   "hug @ 20: exceptions 0 == 0: yes",
-  "hug @ 20: anchor-chord violations 0 == 0: yes",
+  "hug @ 20: anchor-chord invariant 0 == 0 (0 by construction, not a test): yes",
   "hug @ 20: PASSES",
   "wide @ 20: leg-clear 100.00% >= 99.0%: yes",
   "wide @ 20: exceptions 0 == 0: yes",
-  "wide @ 20: anchor-chord violations 0 == 0: yes",
+  "wide @ 20: anchor-chord invariant 0 == 0 (0 by construction, not a test): yes",
   "wide @ 20: PASSES",
   "hug and wide both pass -> display snapped, policies [wide, hug]",
   "display = snapped"
@@ -12650,5 +12650,43 @@
    ]
   }
  ],
- "wall_time_s_this_invocation": 978.9
+ "provenance": {
+  "launch_sua_sha256": "06ae3ca77f5931e6eb0cdbcf348c82160fd3912ba6e0498462e8bcfa33280b63",
+  "routes_sha256": "d181b31b3bf147006cb831d74b1763b3c149cd9bf3974450bf6e8bde7e62a2ce",
+  "config_sha256": "09d8c4ff6ee9f6b5beebf45ec15a64d8b902c6628afd53d14edfff1633a95825",
+  "config": {
+   "cfg": {
+    "clear_margin_nm": 25.0,
+    "device": "cuda",
+    "guidance": 2.0,
+    "hug": 1,
+    "lowpass_sigma": 2.0,
+    "reroute_dist_nm": 10.0,
+    "route_min_spacing_nm": 30.0,
+    "route_radius_nm": 15.0,
+    "sample_size": 256,
+    "seed": 0,
+    "sua_margin_nm": 25.0,
+    "sua_rdp_tol_nm": 10.0,
+    "sua_smooth": 1.0,
+    "sua_snap_tol_nm": 100.0,
+    "sua_spacing_nm": 150.0,
+    "sua_strength": 1.0
+   },
+   "margin": 25.0,
+   "n_random": 200,
+   "opts": {
+    "clear_margin_nm": 25.0,
+    "dev_spacing_nm": 150.0,
+    "hug_margin_nm": 25.0,
+    "lock_dist_nm": 10.0,
+    "rdp_tol_nm": 10.0,
+    "snap_tol_nm": 100.0
+   },
+   "seed": 0
+  }
+ },
+ "anchor_chord_note": "anchor-chord invariant (0 by construction): a polyline is never shorter than the chord between its own ends, so this count cannot be nonzero; kept in the ladder per R9, not a test (R11)",
+ "sweep_wall_time_s": 978.9,
+ "sweep_runs": 2240
 }

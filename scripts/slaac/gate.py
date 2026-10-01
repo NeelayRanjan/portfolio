@@ -42,8 +42,15 @@ A snapped result writes sampler.steps, display and policies into public/slaac/me
 Outputs: scripts/slaac-gate/report.json, scripts/slaac-gate/report.md, and the per-run
 rows at scripts/slaac-gate/rows.jsonl (resumable: rows already present are skipped).
 
-Flags: --n-random 200  --seed 0  --steps 20,30,40,50  --policies hug,wide
-       --limit N (first N cases only, for timing)  --device cuda  --no-report
+Flags: --n-random 200  --seed 0  --steps 20,30,40,50  --policies hug,wide  --workers 8
+       --limit N (first N of each kind, for timing)  --device cuda  --no-report
+       --fresh (delete rows.jsonl first)  --report-only (rebuild the report, sample nothing)
+       --stamp-header WALL_S (one-time: stamp a headerless rows.jsonl with the current inputs)
+
+rows.jsonl starts with a provenance header: sha256 of public/slaac/launch-sua.json and
+public/slaac/routes.json, and of the options (OPTS, the sampler cfg without steps, MARGIN,
+--n-random, --seed). A rows file whose header doesn't match the current inputs is refused
+(exit 1), never resumed; cases.json and report.json carry the same hashes.
 """
 import argparse, json, math, os, statistics, sys, time, traceback
 import numpy as np, torch
@@ -59,6 +66,46 @@ MARGIN = 25.0
 OPTS = dict(lock_dist_nm=10.0, snap_tol_nm=100.0, dev_spacing_nm=150.0, rdp_tol_nm=10.0,
             hug_margin_nm=MARGIN, clear_margin_nm=MARGIN)
 BASE_STEPS = 40
+
+
+def sha256_file(path):
+    import hashlib
+    return hashlib.sha256(open(path, "rb").read()).hexdigest()
+
+
+def provenance(device, n_random, seed):
+    """What a row in rows.jsonl depends on besides its key (kind|pair|route|poly_id, policy,
+    steps). Launch cases all share poly_id "launch-preset" and random cases are named by
+    index, so a row from an older launch-sua.json, routes.json, option set or seed would
+    otherwise be silently resumed as if it were current."""
+    import hashlib
+    cfg = {k: v for k, v in cfg_for(0, device).items() if k != "steps"}
+    conf = json.dumps(dict(opts=OPTS, cfg=cfg, margin=MARGIN, n_random=n_random, seed=seed),
+                      sort_keys=True, separators=(",", ":"))
+    return dict(launch_sua_sha256=sha256_file(os.path.join(PUB, "launch-sua.json")),
+                routes_sha256=sha256_file(os.path.join(PUB, "routes.json")),
+                config_sha256=hashlib.sha256(conf.encode()).hexdigest(), config=json.loads(conf))
+
+
+def read_rows(path, prov):
+    """Rows of rows.jsonl, after checking its header against the current provenance.
+    Exits non-zero on a missing or mismatched header rather than mixing runs."""
+    if not os.path.exists(path) or os.path.getsize(path) == 0:
+        return None, [], []
+    lines = [json.loads(l) for l in open(path) if l.strip()]
+    head = lines[0]
+    if not head.get("header"):
+        sys.exit(f"{path} has no provenance header, so its rows can't be matched to the current "
+                 f"launch-sua.json / routes.json / options. Re-run with --fresh (or delete it).")
+    want = {k: prov[k] for k in ("launch_sua_sha256", "routes_sha256", "config_sha256")}
+    got = {k: head["provenance"].get(k) for k in want}
+    if got != want:
+        diff = ", ".join(f"{k}: file {got[k]} != current {want[k]}" for k in want if got[k] != want[k])
+        sys.exit(f"{path} was produced from different inputs ({diff}). Its rows would be resumed as "
+                 f"if current. Re-run with --fresh (or delete it).")
+    rows = [r for r in lines[1:] if not r.get("header") and not r.get("sweep")]
+    sweeps = [r for r in lines[1:] if r.get("sweep")]
+    return head, rows, sweeps
 
 
 def load_eval_sua(plan_dir):
@@ -272,8 +319,13 @@ CHORD_TOL_NM = 1e-6
 
 def chord_violations(plan, roles, pc):
     """Ruling R8: for each replaced stretch, the plan between the entry and rejoin anchors
-    must not be SHORTER than the straight line between those two anchors (impossible
-    geometry, so a real bug). Returns the offending stretches."""
+    must not be SHORTER than the straight line between those two anchors.
+
+    Ruling R11: this is an INVARIANT, not a test. Both lengths are Euclidean in the same
+    Albers metres, and a polyline is never shorter than the chord between its own ends
+    (triangle inequality), so this returns [] by construction for any plan. It stays in
+    the decision ladder because the owner's rule names it, but it is not evidence of
+    anything and the report labels it "anchor-chord invariant (0 by construction)"."""
     out = []
     for k, r in enumerate(roles):
         if r != "rejoin":
@@ -378,7 +430,8 @@ def decide(table, steps_list, policies):
         c = table[p][str(chosen)]
         conds = [(f"leg-clear {c['leg_clear_rate_pct']:.2f}% >= {th[p]}%", c["leg_clear_rate_pct"] >= th[p]),
                  (f"exceptions {c['exceptions']} == 0", c["exceptions"] == 0),
-                 (f"anchor-chord violations {c['anchor_chord_violations']} == 0", c["anchor_chord_violations"] == 0)]
+                 (f"anchor-chord invariant {c['anchor_chord_violations']} == 0 (0 by construction, not a test)",
+                  c["anchor_chord_violations"] == 0)]
         for txt, v in conds:
             log.append(f"{p} @ {chosen}: {txt}: {'yes' if v else 'NO'}")
         passes[p] = all(v for _, v in conds)
@@ -408,6 +461,12 @@ def main():
     ap.add_argument("--rows", default=os.path.join(OUT, "rows.jsonl"))
     ap.add_argument("--no-report", action="store_true")
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--fresh", action="store_true", help="delete rows.jsonl and start over")
+    ap.add_argument("--report-only", action="store_true",
+                    help="rebuild report/cases from rows.jsonl; refuse if any run is missing")
+    ap.add_argument("--stamp-header", type=float, default=None, metavar="WALL_S",
+                    help="one-time: prepend the CURRENT provenance header (and a sweep record with "
+                         "this wall time) to a headerless rows.jsonl the operator vouches for")
     a = ap.parse_args()
     steps_list = [int(s) for s in a.steps.split(",")]
     policies = [p.strip() for p in a.policies.split(",")]
@@ -417,6 +476,20 @@ def main():
     es = load_eval_sua(plan_dir)
     wpdb = snap_table_boxed(ws)
     lib = library()
+    prov = provenance(a.device, a.n_random, a.seed)
+    if a.fresh and os.path.exists(a.rows):
+        os.remove(a.rows)
+    if a.stamp_header is not None:
+        lines = open(a.rows).read().splitlines() if os.path.exists(a.rows) else []
+        if not lines or json.loads(lines[0]).get("header"):
+            sys.exit(f"--stamp-header needs an existing rows file with no header: {a.rows}")
+        n = sum(1 for l in lines if l.strip())
+        with open(a.rows, "w") as fh:
+            fh.write(json.dumps(dict(header=True, provenance=prov, stamped=True)) + "\n")
+            fh.write("\n".join(lines) + "\n")
+            fh.write(json.dumps(dict(sweep=True, runs=n, wall_s=a.stamp_header, stamped=True)) + "\n")
+        print(f"stamped {a.rows}: {n} rows, current provenance, sweep wall {a.stamp_header}s")
+    head, old_rows, _ = read_rows(a.rows, prov)
     cases, counts = build_cases(sg, es, lib, a.n_random, a.seed)
     for c in cases:
         c["_fixes"] = lib[c["lib"]]["fixes"]
@@ -428,25 +501,28 @@ def main():
     else:         # the exact case set, so the JS port can replay any of it
         os.makedirs(OUT, exist_ok=True)
         with open(os.path.join(OUT, "cases.json"), "w") as fh:
-            json.dump(dict(version=1, counts=counts, launch_polygons="public/slaac/launch-sua.json, every site",
+            json.dump(dict(version=1, counts=counts,
+                           launch_sua_sha256=prov["launch_sua_sha256"], routes_sha256=prov["routes_sha256"],
+                           config_sha256=prov["config_sha256"],
                            cases=[dict(key=c["key"], kind=c["kind"], pair=c["pair"], route=c["route"],
                                        poly_id=c["poly_id"],
                                        ring=(c["rings"][0] if c["kind"] == "random" else None))
                                   for c in cases]), fh, separators=(",", ":"))
 
     os.makedirs(os.path.dirname(a.rows), exist_ok=True)
-    done = set()
-    if os.path.exists(a.rows):
-        for line in open(a.rows):
-            r = json.loads(line)
-            done.add((r["key"], r["policy"], r["steps"]))
+    done = {(r["key"], r["policy"], r["steps"]) for r in old_rows}
     todo = [(c, p, s) for s in steps_list for p in policies for c in cases
             if (c["key"], p, s) not in done]
+    if a.report_only and todo:
+        sys.exit(f"--report-only: {len(todo)} runs missing from {a.rows}")
+    if head is None and todo:
+        with open(a.rows, "w") as fh:
+            fh.write(json.dumps(dict(header=True, provenance=prov)) + "\n")
     print(f"{len(cases)} cases x {len(policies)} policies x {len(steps_list)} steps; "
           f"{len(todo)} runs to do ({len(done)} already in {a.rows})", flush=True)
     t_start = time.perf_counter()
     import multiprocessing as mp
-    # slowest first (launch cases carry 23 polygons) so the pool's tail is short
+    # slowest first (launch cases carry every launch polygon) so the pool's tail is short
     todo.sort(key=lambda j: j[0]["kind"] != "launch")
     ctx = mp.get_context("spawn")
     pool = (ctx.Pool(min(a.workers, len(todo)), initializer=worker_init,
@@ -461,12 +537,14 @@ def main():
     if pool:
         pool.close()
         pool.join()
-    wall = time.perf_counter() - t_start
+        with open(a.rows, "a") as fh:
+            fh.write(json.dumps(dict(sweep=True, runs=len(todo),
+                                     wall_s=round(time.perf_counter() - t_start, 1))) + "\n")
     if a.no_report:
         return
 
     keys = {c["key"] for c in cases}
-    rows = [json.loads(l) for l in open(a.rows)]
+    _, rows, sweeps = read_rows(a.rows, prov)
     rows = [r for r in rows if r["key"] in keys and r["policy"] in policies and r["steps"] in steps_list]
     table, by_kind = {}, {}
     for p in policies:
@@ -494,8 +572,12 @@ def main():
                anchor_chord_cases=[dict(policy=r["policy"], steps=r["steps"], pair=r["pair"], route=r["route"],
                                         poly_id=r["poly_id"], stretches=r["anchor_chord_violations"])
                                    for r in rows if r["exception"] is None and r["anchor_chord_violations"]],
-               failing_cases=failing, shorter_cases=shorter,
-               wall_time_s_this_invocation=round(wall, 1))
+               failing_cases=failing, shorter_cases=shorter, provenance=prov,
+               anchor_chord_note="anchor-chord invariant (0 by construction): a polyline is never shorter "
+                                 "than the chord between its own ends, so this count cannot be nonzero; "
+                                 "kept in the ladder per R9, not a test (R11)",
+               sweep_wall_time_s=round(sum(x["wall_s"] for x in sweeps), 1),
+               sweep_runs=sum(x["runs"] for x in sweeps))
     with open(os.path.join(OUT, "report.json"), "w") as f:
         json.dump(rep, f, indent=1, default=float)
     write_md(rep, policies, steps_list)
@@ -529,8 +611,12 @@ def write_md(rep, policies, steps_list):
           f"{c['random_eligible_routes']} eligible routes after its CONUS / 300-2500 nm / >=4-fix filters), "
           f"{c['random_skipped']} skipped.",
           "- Policies hug (1-waypoint) and wide (infinite lookahead), margin 25 nm, clear_margin 25 nm.",
-          f"- {rep['rates_note']}.", "", "## All cases", "",
-          "| policy | steps | n | leg-clear % | clear at margin % | added nm (med) | added % (med) | min clearance nm (med) | chord viol. | shorter than filed | exceptions | t_gen s (med) |",
+          f"- {rep['rates_note']}.",
+          f"- Inputs: launch-sua.json sha256 `{rep['provenance']['launch_sua_sha256']}`, routes.json sha256 "
+          f"`{rep['provenance']['routes_sha256']}`, options sha256 `{rep['provenance']['config_sha256']}`.",
+          f"- Sweep: {rep['sweep_runs']} runs, {rep['sweep_wall_time_s']} s wall.",
+          f"- Anchor-chord column: {rep['anchor_chord_note']}.", "", "## All cases", "",
+          "| policy | steps | n | leg-clear % | clear at margin % | added nm (med) | added % (med) | min clearance nm (med) | anchor-chord invariant (0 by construction) | shorter than filed | exceptions | t_gen s (med) |",
           "|---|---|---|---|---|---|---|---|---|---|---|---|"]
 
     def f(v, d=2):
@@ -543,7 +629,7 @@ def write_md(rep, policies, steps_list):
                      f"{t['anchor_chord_violations']} | {t['shorter_than_filed']} | {t['exceptions']} | {f(t['t_gen_s_median'], 3)} |")
     for kind in ("launch", "random"):
         L += ["", f"## {kind} cases only", "",
-              "| policy | steps | n | leg-clear % | clear at margin % | added nm (med) | min clearance nm (med) | chord viol. | shorter than filed | exceptions |",
+              "| policy | steps | n | leg-clear % | clear at margin % | added nm (med) | min clearance nm (med) | anchor-chord invariant (0 by construction) | shorter than filed | exceptions |",
               "|---|---|---|---|---|---|---|---|---|---|"]
         for p in policies:
             for s in steps_list:

@@ -2,6 +2,10 @@
 Nothing here copies their source. See the spec's permissions section."""
 import importlib, os, sys
 
+# The owner's directory stays read-only: importing a module from it would otherwise
+# write a __pycache__/*.pyc beside their source. Set before any owner import.
+sys.dont_write_bytecode = True
+
 DEFAULT = "/home/neelayranjan/_SAVE/NASA/NeelayRanjan_Summer2026_Codebase"
 PLAN = "flight_path_generation/Hazard-Aware Generative Flight Planning"
 GEN = "predictive_daily_flight_modeling"

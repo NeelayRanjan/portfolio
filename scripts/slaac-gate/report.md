@@ -9,10 +9,13 @@ Generated 2026-09-30 by `scripts/slaac/gate.py` (owner's pipeline, imported by p
 - Random: 200 cases from `eval_sua.build_cases` (seed 0, 372 eligible routes after its CONUS / 300-2500 nm / >=4-fix filters), 0 skipped.
 - Policies hug (1-waypoint) and wide (infinite lookahead), margin 25 nm, clear_margin 25 nm.
 - exceptions count as not clear; medians over runs without exceptions.
+- Inputs: launch-sua.json sha256 `06ae3ca77f5931e6eb0cdbcf348c82160fd3912ba6e0498462e8bcfa33280b63`, routes.json sha256 `d181b31b3bf147006cb831d74b1763b3c149cd9bf3974450bf6e8bde7e62a2ce`, options sha256 `09d8c4ff6ee9f6b5beebf45ec15a64d8b902c6628afd53d14edfff1633a95825`.
+- Sweep: 2240 runs, 978.9 s wall.
+- Anchor-chord column: anchor-chord invariant (0 by construction): a polyline is never shorter than the chord between its own ends, so this count cannot be nonzero; kept in the ladder per R9, not a test (R11).
 
 ## All cases
 
-| policy | steps | n | leg-clear % | clear at margin % | added nm (med) | added % (med) | min clearance nm (med) | chord viol. | shorter than filed | exceptions | t_gen s (med) |
+| policy | steps | n | leg-clear % | clear at margin % | added nm (med) | added % (med) | min clearance nm (med) | anchor-chord invariant (0 by construction) | shorter than filed | exceptions | t_gen s (med) |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | hug | 20 | 280 | 100.00 | 86.07 | 31.0 | 2.66 | 31.8 | 0 | 11 | 0 | 0.859 |
 | hug | 30 | 280 | 100.00 | 87.50 | 29.8 | 2.59 | 31.8 | 0 | 15 | 0 | 2.170 |
@@ -25,7 +28,7 @@ Generated 2026-09-30 by `scripts/slaac/gate.py` (owner's pipeline, imported by p
 
 ## launch cases only
 
-| policy | steps | n | leg-clear % | clear at margin % | added nm (med) | min clearance nm (med) | chord viol. | shorter than filed | exceptions |
+| policy | steps | n | leg-clear % | clear at margin % | added nm (med) | min clearance nm (med) | anchor-chord invariant (0 by construction) | shorter than filed | exceptions |
 |---|---|---|---|---|---|---|---|---|---|
 | hug | 20 | 80 | 100.00 | 67.50 | 43.2 | 25.1 | 0 | 0 | 0 |
 | hug | 30 | 80 | 100.00 | 75.00 | 35.7 | 25.3 | 0 | 4 | 0 |
@@ -38,7 +41,7 @@ Generated 2026-09-30 by `scripts/slaac/gate.py` (owner's pipeline, imported by p
 
 ## random cases only
 
-| policy | steps | n | leg-clear % | clear at margin % | added nm (med) | min clearance nm (med) | chord viol. | shorter than filed | exceptions |
+| policy | steps | n | leg-clear % | clear at margin % | added nm (med) | min clearance nm (med) | anchor-chord invariant (0 by construction) | shorter than filed | exceptions |
 |---|---|---|---|---|---|---|---|---|---|
 | hug | 20 | 200 | 100.00 | 93.50 | 30.4 | 34.1 | 0 | 11 | 0 |
 | hug | 30 | 200 | 100.00 | 92.50 | 29.8 | 33.8 | 0 | 11 | 0 |
@@ -66,11 +69,11 @@ Generated 2026-09-30 by `scripts/slaac/gate.py` (owner's pipeline, imported by p
 - chosen_steps = smallest acceptable = 20
 - hug @ 20: leg-clear 100.00% >= 98.0%: yes
 - hug @ 20: exceptions 0 == 0: yes
-- hug @ 20: anchor-chord violations 0 == 0: yes
+- hug @ 20: anchor-chord invariant 0 == 0 (0 by construction, not a test): yes
 - hug @ 20: PASSES
 - wide @ 20: leg-clear 100.00% >= 99.0%: yes
 - wide @ 20: exceptions 0 == 0: yes
-- wide @ 20: anchor-chord violations 0 == 0: yes
+- wide @ 20: anchor-chord invariant 0 == 0 (0 by construction, not a test): yes
 - wide @ 20: PASSES
 - hug and wide both pass -> display snapped, policies [wide, hug]
 - display = snapped

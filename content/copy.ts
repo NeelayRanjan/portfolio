@@ -230,9 +230,12 @@ export const copy = {
     /** Margin notes (2026-09-30): the reference detail that used to sit in
      *  the prose column, moved to the rail so the main column reads fast.
      *  `paper` and `study` sit beside the prose, `scope` under DATA beside
-     *  Figure 1; `slaac`, `data` and `disclaimer` stack beside the NASA
-     *  paragraphs (2026-09-30, SLAAC round). Main column keeps the claims,
-     *  the rail keeps the provenance. */
+     *  Figure 1. In the NASA box (2026-09-30, SLAAC round), `slaac` sits in
+     *  the rail beside the NASA paragraphs, and `data` and `disclaimer` sit
+     *  under Figure 3 as a footnote band (two columns from 880px): stacked
+     *  in the rail they ran 725px against ~290px of prose. See the comment
+     *  in app/page.tsx's NASA box. Main column keeps the claims, the notes
+     *  keep the provenance. */
     notes: {
       paper: {
         tag: "paper",
@@ -259,16 +262,17 @@ export const copy = {
        *  which is why this says "where I could", not "all public". */
       data: {
         tag: "data",
-        body: "Public where I could, at some loss of quality: the airspace is the FAA’s Special Use Airspace layer (September 3 to October 29, 2026) plus two past launch TFRs, since NASA’s airspace file isn’t public. With no historical route database, the filed routes are my flight-plan model’s.",
+        body: "Public where I could, at some loss of quality: the airspace is the FAA’s Special Use Airspace layer for the September 3 to October 29, 2026 chart cycle, plus two past launch TFRs, since NASA’s airspace file isn’t public. With no historical route database, the filed routes are my flight-plan model’s.",
       },
       /** The owner's disclaimer, made concrete (the word "approximation" is
        *  out by ruling; the owner rewords later). Task 15 adds the measured
-       *  device facts. The 85-95% / ~65% rates are the Task 10 gate's, at
+       *  device facts. The 99.3-99.6% / 85-95% / ~65% rates are the Task 10
+       *  gate's (legs never crossing / every leg at the full margin), at
        *  20 steps and the 25 nm margin, on snapped plans; R10 rules the copy
        *  must not imply the full buffer is always held. */
       disclaimer: {
         tag: "differences",
-        body: "My SLAAC models are integrated into the simulation software NASA and the FAA use to evaluate future air traffic management strategies. Here the diffusion model has the same weights, sampled in 20 steps where my pipeline uses 40, on public airspace and routes written ahead of time. On my test cases, 85-95% of plans kept every leg the full 25 nm away (about 65% near launch sites).",
+        body: "My SLAAC models are integrated into the simulation software NASA and the FAA use to evaluate future air traffic management strategies. Here the diffusion model has the same weights, sampled in 20 steps where my pipeline uses 40, on public airspace and routes written ahead of time. On my test cases, snapped legs never crossed the airspace in 99.3-99.6% of plans, but only 85-95% kept every leg the full 25 nm away (about 65% near launch sites).",
       },
     },
     /**
@@ -372,7 +376,7 @@ export const copy = {
      *  the 2026-09-30 resume's; Sheth and Panda are the poster's mentors,
      *  Clarke is CLAUDE.md's content fact for the fall engagement. */
     nasaProse: [
-      "In summer 2026 I worked on SLAAC, space launch and airspace coordination, with Dr. Kapil Sheth and Prachi Panda. I trained a diffusion model on FAA radar tracks to reroute flights around closed airspace. It learns what routes look like offline, and the airspace is applied while it samples, so a new closure needs no retraining. A reroute has to come back as an ordered list of named fixes a controller will accept. The lookahead policy, one waypoint or unlimited, is left to the operator; Figure 3 has both.",
+      "In summer 2026 I worked on SLAAC, space launch and airspace coordination, with Dr. Kapil Sheth and Prachi Panda. I trained a diffusion model on FAA radar tracks to reroute flights around closed airspace. It learns what routes look like offline, and the airspace is applied while it samples, so a new closure needs no retraining. A reroute has to come back as an ordered list of named fixes a controller will accept. The lookahead policy, one waypoint or infinite, is left to the operator; Figure 3 has both.",
       "Since August I’ve been on SHIFT with Stephen Clarke: speech-to-text for air traffic control (17% word error rate, against 20% for the Whisper system in use) and a typed parser that turns the transcripts into a maneuver database.",
     ],
     /** Figure S3 on /lab since the SLAAC round (2026-09-30): the flight-plan
@@ -382,7 +386,7 @@ export const copy = {
      *  words; the waypoint sentence is the owner's (2026-09-29). */
     figFlight: {
       caption:
-        "A full day of FAA flight plans, about 44,000 flights matched to historical traffic density, written by the flight-plan language model I trained from scratch for SLAAC on its own token vocabulary. Days like this one feed the simulation software NASA and the FAA use to evaluate future air traffic management strategies, and the same model wrote the filed routes in Figure 3 on the main page. Most of my time went into the waypoint system: a continuous route that obeyed every rule would often stop obeying them once it was snapped onto the waypoint map.",
+        "A full day of FAA flight plans, about 44,000 flights matched to historical traffic density, written by the flight-plan language model I trained from scratch for SLAAC on its own token vocabulary. Days like this one feed the simulation software NASA and the FAA use to evaluate future air traffic management strategies. Most of my time went into the waypoint system: a continuous route that obeyed every rule would often stop obeying them once it was snapped onto the waypoint map.",
       videoAria:
         "A day of FAA flight plans synthesized by a transformer I trained, looping video",
     },
@@ -403,7 +407,7 @@ export const copy = {
       ringDegenerate: "That shape has no area. Draw it again.",
       cannotClear: "can’t clear",
       untouched: "unchanged",
-      noConflict: "No filed route comes within the margin of the airspace, so there’s nothing to reroute.",
+      noConflict: "No filed route comes within the margin of any airspace, so there’s nothing to reroute.",
       stale: "The settings changed since this run. Press reroute to run it again.",
       loading: "fetching the weights",
       running: "rerouting",
@@ -673,7 +677,7 @@ export const copy = {
       {
         when: "since Aug 2026",
         who: "NASA Ames · SHIFT",
-        what: "Speech-to-text for air traffic control, a typed parser from transcripts to maneuvers, and a synthetic speech corpus about 20x the size of the recorded one.",
+        what: "Speech-to-text for air traffic control, a typed parser from transcripts to maneuvers, and a synthetic speech corpus that grows the recorded data about 20x.",
         status: "active",
       },
       {

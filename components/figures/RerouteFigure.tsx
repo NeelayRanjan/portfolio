@@ -843,7 +843,7 @@ export function RerouteFigure() {
         {/* Row 1: the settings on the left; drawing on the right, which on a
             wrapped desktop row stays right-aligned and on a phone sits on its
             own line at the left. */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5 font-mono text-[11px] text-mut">
+        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2.5 border-b border-rule pb-3 font-mono text-[11px] text-mut">
           <label className="flex items-center gap-2">
             <span>{c.pair}</span>
             <select
@@ -984,22 +984,6 @@ export function RerouteFigure() {
           </div>
         </div>
 
-        {/* Row 2: the one primary action. Amber until the result on screen
-            answers the current settings in full, green when it does, "stop"
-            while a press is in flight. */}
-        <div className="mt-3 mb-3 border-t border-rule pt-3">
-          <button
-            type="button"
-            data-reroute-go
-            data-reroute-go-state={goState}
-            disabled={!data}
-            onClick={busy ? stop : () => void reroute()}
-            className={`w-full border px-6 py-2 font-mono text-[13px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 min-[880px]:w-auto ${goClass}`}
-          >
-            {busy ? c.stop : c.go}
-          </button>
-        </div>
-
         {/* Below 880px the map borrows the figure's side padding: every
             pixel of a phone-width map is a bigger target for a tapped vertex. */}
         <div ref={wrapRef} className="-mx-4 min-[880px]:mx-0">
@@ -1014,6 +998,23 @@ export function RerouteFigure() {
             }}
             className={`block w-full ${drawMode ? "cursor-crosshair" : ""}`}
           />
+        </div>
+
+        {/* The one primary action, bottom left under the map (owner, Task
+            12e), right above the readout it drives. Amber until the result
+            on screen answers the current settings in full, green when it
+            does, "stop" while a press is in flight. */}
+        <div className="mt-3">
+          <button
+            type="button"
+            data-reroute-go
+            data-reroute-go-state={goState}
+            disabled={!data}
+            onClick={busy ? stop : () => void reroute()}
+            className={`w-full border px-6 py-2 font-mono text-[13px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 min-[880px]:w-auto ${goClass}`}
+          >
+            {busy ? c.stop : c.go}
+          </button>
         </div>
 
         <div className="mt-2 min-h-[1.5em] font-mono text-[11px] leading-relaxed">

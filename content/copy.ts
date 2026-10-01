@@ -265,19 +265,21 @@ export const copy = {
         body: "Public where I could, at some loss of quality: the airspace is the FAA’s Special Use Airspace layer for the September 3 to October 29, 2026 chart cycle, plus two past launch TFRs, since NASA’s airspace file isn’t public. With no historical route database, the filed routes are my flight-plan model’s.",
       },
       /** The owner's disclaimer, made concrete (the word "approximation" is
-       *  out by ruling; the owner rewords later). The 2-6 seconds is Task 15's
+       *  out by ruling; the owner rewords later). The "about 2-7 seconds" is Task 15's
        *  measurement (2026-09-30): press to done on the dev laptop, stock
        *  Firefox 152 and Playwright's Chromium, prod build, first press
-       *  (model download included), from KJFK-KMIA past the launch sites
-       *  (~2.0-2.8 s) to the library's heaviest launch-sites-plus-drawn-box
-       *  case (8 arcs, ~6.1-6.5 s). A laptop number only: no phone has been
-       *  timed, so the copy names none. The 99.3-99.6% / 85-95% / ~65% rates are the Task 10
+       *  (model download included), medians from 2.07 s (KJFK-KMIA, launch
+       *  sites and a big drawn box) to 6.11-6.54 s (the library's heaviest
+       *  launch-sites-plus-box case, 8 arcs); one Chromium run of that case
+       *  read 7.89 s under machine load. More drawn airspaces mean more
+       *  arcs, run in chunks of 4, hence "longer with several". A laptop
+       *  number only: no phone has been timed, so the copy names none. The 99.3-99.6% / 85-95% / ~65% rates are the Task 10
        *  gate's (legs never crossing / every leg at the full margin), at
        *  20 steps and the 25 nm margin, on snapped plans; R10 rules the copy
        *  must not imply the full buffer is always held. */
       disclaimer: {
         tag: "differences",
-        body: "My SLAAC models are integrated into the simulation software NASA and the FAA use to evaluate future air traffic management strategies. Here the diffusion model has the same weights, sampled in 20 steps where my pipeline uses 40, on public airspace and routes written ahead of time. A reroute here takes 2-6 seconds on my laptop. On my test cases, snapped legs never crossed the airspace in 99.3-99.6% of plans, but only 85-95% kept every leg the full 25 nm away (about 65% near launch sites).",
+        body: "My SLAAC models are integrated into the simulation software NASA and the FAA use to evaluate future air traffic management strategies. Here the diffusion model has the same weights, sampled in 20 steps where my pipeline uses 40, on public airspace and routes written ahead of time. On my laptop a reroute takes about 2-7 seconds, longer with several drawn airspaces. On my test cases, snapped legs never crossed the airspace in 99.3-99.6% of plans, but only 85-95% kept every leg the full 25 nm away (about 65% near launch sites).",
       },
     },
     /**

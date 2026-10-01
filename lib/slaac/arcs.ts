@@ -20,7 +20,7 @@ export type ArcJob = { flight: string; index: number; entry: Fix; rejoin: Fix };
  *  4 samples, 100 at 6, 131 at 8, 248 at 16), so batching buys almost no
  *  throughput. 8 arcs at the old desktop cap of 16 ran as one chunk with 548 ms
  *  intervals in 5.13 s; at 4 they run as two chunks with ~300 ms intervals in
- *  5.48 s. So desktop is 4 too. The phone cap is still unmeasured on a phone
+ *  5.46 s. So desktop is 4 too. The phone cap is still unmeasured on a phone
  *  (the owner's pass): if it stalls there, 2 is the lever, and on this laptop
  *  it costs nothing in total time. */
 export const BATCH_CAP_DESKTOP = 4;

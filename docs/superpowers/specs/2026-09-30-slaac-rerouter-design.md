@@ -465,8 +465,11 @@ At 400px (the phone cap, 4; same laptop CPU), stock Firefox: a 2.76 s, b
   afterwards holds the web process flat (585-859 MB RSS, peak 859 MB) at
   ~97% CPU, the page's own render floor under software rendering: no
   JavaScriptCore runaway of the asyncify kind. Not an iPhone number.
-- **Copy**: the DIFFERENCES note says a reroute takes "2-6 seconds on my
-  laptop" (stock Firefox and Chromium, cases a-d, first press included). No
-  phone timing is claimed anywhere.
+- **Copy**: the DIFFERENCES note says "On my laptop a reroute takes about
+  2-7 seconds, longer with several drawn airspaces." Medians run 2.07-6.54 s
+  over stock Firefox and Chromium, cases a-d, first press included; one
+  Chromium run of case d read 7.89 s under machine load; more drawn
+  airspaces add arcs, run in chunks of 4. No phone timing is claimed
+  anywhere.
 - **Pending (Task 16)**: desktop Chrome and the owner's iPhone, on the
   preview link.

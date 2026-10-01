@@ -560,7 +560,8 @@ Figure 3; Experience became two NASA rows (SLAAC complete, SHIFT active) per
 the new resume. Measured on this laptop (Task 15): ~2.8 s from a first press
 to done for KJFK-KMIA past the launch sites in stock Firefox, ~6 s for the
 heaviest library case; the batch cap went 16 → 4 on that measurement. The
-DIFFERENCES note says "2-6 seconds on my laptop" and nothing about phones.
+DIFFERENCES note says "On my laptop a reroute takes about 2-7 seconds,
+longer with several drawn airspaces" and nothing about phones.
 Contracts, rulings and numbers: "SLAAC rerouter (Figure 3)" under the demos.
 
 **Open items, roughly in order:**
@@ -717,7 +718,9 @@ and the owner's SOP tell one story.
 - **Interactivity bar**: prose sections stay readable — no forced gimmicks — but
   every text section carries one real-work artifact beside it: bio → headshot
   diffusion toy · research → the label-efficiency chart (static since 2026-09-30) and the Dice-CDF pan ·
-  experience → flight-day video · publications → figure hovers. The owner's
+  experience → flight-day video (production; on the `slaac-demo` branch the
+  NASA box's artifact is the live rerouter, Figure 3, and the video is Figure
+  S3 on `/lab`) · publications → figure hovers. The owner's
   rule: "at no point should the user just be staring and reading at something."
 - Fallback is the git tag `v1`, nothing more. No legacy subdomain.
 - **Figure colour conventions (owner calls, 2026-09-12): green = x0-diffusion**
@@ -762,6 +765,9 @@ The machine's `gh` is authenticated with `repo` scope, so:
 **Never publish two things that repo holds**: the owner's phone number, which
 both resumes carry and no page here ever shows, and anything outside
 `Resume/` (it also stores `Unofficial Transcript.pdf` and NASA material).
+⚠️ One override (owner ruling, 2026-09-30): the NASA SLAAC items listed as
+publishable in "SLAAC rerouter (Figure 3)" under the demos may ship;
+everything else outside `Resume/` still never does.
 The Drive URLs below still work and are what the site links today, but the
 owner now updates GitHub, so treat Drive as possibly stale.
 
@@ -1131,7 +1137,8 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   node's global `WebSocket`. That is the desktop Firefox number to quote. The
   machine also holds a Playwright Chromium (`~/.cache/ms-playwright/
   chromium-1243`, from a newer Playwright than the repo's 1.61.1, launched
-  through `executablePath`), which ran within ~15% of stock Firefox; Playwright's
+  through `executablePath`), which ran 14% behind stock Firefox on KJFK-KMIA (3.15 vs 2.77 s) and 35%
+  behind on the 8-arc case at cap 16 (7.76 vs 5.75 s; 7% at cap 4); Playwright's
   WebKit can't launch here (missing system libraries), so a WebKit number
   comes from WebKitGTK through python gi.
 - **Headless Firefox is not a WebKit either, and the iPhone crash loop lived
@@ -2298,12 +2305,16 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   library's airports), and ported code where it has to ship to the browser.
   **Never published**: `SUA_all` (the launch airspace is rebuilt from public
   FAA data instead), the real TRX days (`TRX_2025*`, `data/TRX_*`), anything
-  under `out/`, any `.py` source. `route_db.json` / `route_ranked.json` (mined
+  under `out/`, and any `.py` source (the build plan's addition, in
+  `scripts/slaac/README.md`; the memory file doesn't list it). `route_db.json` / `route_ranked.json` (mined
   from real filed plans) and `airways.txt` were never shipped; ask before
   either is. The NASA directory (`/home/neelayranjan/_SAVE/NASA/
   NeelayRanjan_Summer2026_Codebase`) is read BY PATH (`scripts/slaac/nasa.py`)
   and never copied; the codebase stays private (the owner commits it to
-  `NeelayRanjan/SAVE`) and the site never links it.
+  `NeelayRanjan/SAVE`) and the site never links it. NASA requires no
+  disclaimer; the DIFFERENCES note under Figure 3 is the owner's own (their
+  intent, "an approximation of real models integrated into NASA ATC
+  simulation software", made concrete; the owner rewords it later).
 - **Launch airspace** (`public/slaac/launch-sua.json`,
   `scripts/slaac/prepare_launch_sua.py`, sources in
   `scripts/slaac/launch-sua-sources.json` and
@@ -2355,7 +2366,9 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   ~600-850 MB and ~97% CPU (the sky's render floor), no runaway. Playwright's
   Firefox: 15.8 s, see the trap. **Owed**: Chrome proper and the owner's
   iPhone on the preview link; no phone number exists, and the copy quotes
-  only the laptop's "2-6 seconds".
+  only the laptop's "about 2-7 seconds, longer with several drawn
+  airspaces" (medians 2.07-6.54 s across the cases, one 7.89 s Chromium run
+  under load; each extra drawn airspace can add arcs, run in chunks of 4).
 
 ### Trajectory viewer (pixel + ascii diffusion) — /lab
 - Both files are real trained output. **The placeholder generator was deleted

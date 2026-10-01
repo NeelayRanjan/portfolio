@@ -213,6 +213,10 @@ export function prepareStarPaint(stars: SkyData["stars"]): StarPaint {
     const tint = starRgb(bv ?? 0.6);
     const full = starColourRgb(bv, mag);
     if (mag <= FAINT_STAR_MAG) {
+      // The bright stars must be an exact prefix (sky.json is sorted
+      // brightest first): `radius`/`base` are indexed by catalog position,
+      // so a bright star after a faint one would silently misalign them.
+      if (p.brightCount !== i) throw new Error(`sky.json: star ${i} (mag ${mag}) follows a star fainter than ${FAINT_STAR_MAG}; the catalog must be sorted brightest first`);
       const alpha = clamp(1 - (mag + 1.5) * 0.12, 0.25, 1);
       p.brightCount = i + 1;
       p.radius.push(clamp(2.1 - 0.32 * mag, 0.5, 2.6));

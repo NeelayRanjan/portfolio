@@ -337,31 +337,29 @@ const MILKY_WAY_STARGAZE_ALPHA_GAIN = 2.6;
 const MILKY_WAY_LEVEL_RGB_STARGAZE = ["150,120,84", "168,134,92", "188,152,104", "208,172,120", "226,196,146"];
 
 /**
- * The band's gradient along its own length (task 18, controller ruling R24,
- * 2026-10-01): above saturation 0 each level's wash fills with a radial
- * gradient centred on the galactic core (the grain keeps the flat tan), gold at the core, the tan
- * above through the middle distances, and a whiter, faintly blue tone out
- * along the disc. Every hue is sourced, and both sources are on the Milky
- * Way's card (content/sky-facts.ts):
+ * The band's gradient along its own length (task 18, controller rulings
+ * R24 and R26, 2026-10-01): above saturation 0 each level's wash fills with
+ * a radial gradient centred on the galactic core (the grain keeps the flat
+ * tan): gold at the core, easing into the colour round's tan, which then
+ * holds for the rest of the band. Both hues are sourced, and both sources are
+ * on the Milky Way's card (content/sky-facts.ts):
  *
  *   - the GOLD core: ESA, "ESA's Euclid captures the Milky Way's crowded
  *     heart" (2026; a visible-light image of the bulge; accessed 2026-10-01):
  *     "The galactic bulge – the central region of our galaxy – is a vast,
  *     tightly packed structure filled mainly with old, cooler stars, giving
  *     it its characteristic yellow colour."
- *   - the BLUE-WHITE disc: Las Cumbres Observatory, "The Milky Way Galaxy"
- *     (accessed 2026-10-01): "The disk of our galaxy appears blue because it
- *     has a large proportion of young, hot O and B main sequence stars ...
- *     The central bulge of our galaxy appears yellow or reddish because it
- *     contains many red giants and red super giants." The Euclid page says the
- *     same of the arms in front of the bulge: "newly formed, massive blue
- *     stars".
- *   - the TAN between them is the colour round's own sourced wash
- *     (MILKY_WAY_LEVEL_RGB_STARGAZE above, the APOD 40-minute exposure).
+ *   - the TAN everywhere else is the colour round's own sourced wash
+ *     (MILKY_WAY_LEVEL_RGB_STARGAZE above, the APOD 40-minute exposure),
+ *     exactly as the whole band drew before task 18.
  *
- * Kept faint on purpose ("whiter, faintly blue"): a long exposure from
- * inside the disc records dust and reddening along the whole band, so the
- * disc's blue is a lean, not a colour. No pink H II regions are drawn: the
+ * ⚠️ The first version (fix round 0) cooled the outer disc to a faintly blue
+ * white, sourced to an observatory education page that describes the disc
+ * from OUTSIDE the galaxy beside an artist's impression: not a long exposure
+ * of the band as we see it. The reviewer also measured that it turned the
+ * Cygnus star clouds a cold grey, LESS colourful than before, when the owner
+ * had asked for more. Ruling R26 dropped it: a disc hue returns only with a
+ * long-exposure caption that states it. No pink H II regions either: the
  * band has no positions for them, and the coloured nebulae already are them.
  *
  * The core is Sgr A*'s J2000 position, the same as objects.json's
@@ -374,15 +372,13 @@ const MILKY_WAY_LEVEL_RGB_STARGAZE = ["150,120,84", "168,134,92", "188,152,104",
  * a "warms toward the core" gradient claims; positions stay exact.
  */
 const MILKY_WAY_CORE_RGB = ["172,128,62", "190,142,70", "210,160,80", "230,180,92", "248,200,110"];
-const MILKY_WAY_DISC_RGB = ["140,148,168", "156,165,186", "176,186,208", "198,208,228", "220,228,248"];
 /** Gradient stops as a fraction of the core-to-l=70° radius: gold out to
- *  ~10° of the core, the tan by ~28°, the disc tone from 70° on (the
- *  gradient pads its last colour beyond the radius). */
-const MILKY_WAY_STOPS: readonly (readonly [number, "core" | "mid" | "disc"])[] = [
+ *  ~10° of the core, the tan from ~28° on (the gradient pads its last
+ *  colour beyond its last stop). */
+const MILKY_WAY_STOPS: readonly (readonly [number, "core" | "mid"])[] = [
   [0, "core"],
   [0.15, "core"],
   [0.4, "mid"],
-  [1, "disc"],
 ];
 /** Sgr A*, J2000 (objects.json `sgr-a-star`; test-sky-objects.mjs pins the match). */
 export const GALACTIC_CORE: Equatorial = { raDeg: 266.41683, decDeg: -29.00781 };
@@ -508,18 +504,11 @@ function colourMemo(s: number): void {
   const b = bandMix(s);
   memoBandRgb = MILKY_WAY_LEVEL_RGB_STARGAZE.map((rgb) => lerpRgb(INK, rgb, b));
   memoBandGain = lerpNum(1, MILKY_WAY_STARGAZE_ALPHA_GAIN, b);
-  // The gradient's stops ride the same band curve. The warm ones (gold, tan)
-  // lerp from INK exactly as the flat band always did, so the tan stop at
-  // any saturation IS the old band colour; the blue disc tone can't come from
-  // a cream without passing through grey (its chroma would dip and rise), so
-  // it mixes toward its own grey instead, the way every object palette does
-  // (saturateRgb). Either way chroma only grows with saturation.
+  // The gradient's stops ride the same band curve: both lerp from INK
+  // exactly as the flat band always did, so the tan stop at any saturation
+  // IS the old band colour, and chroma only grows with saturation.
   memoBandStops = MILKY_WAY_LEVEL_RGB_STARGAZE.map((mid, li) =>
-    MILKY_WAY_STOPS.map(([at, which]) => {
-      const rgb =
-        which === "disc" ? saturateRgb(MILKY_WAY_DISC_RGB[li], b) : lerpRgb(INK, which === "core" ? MILKY_WAY_CORE_RGB[li] : mid, b);
-      return [at, rgb] as [number, string];
-    }),
+    MILKY_WAY_STOPS.map(([at, which]) => [at, lerpRgb(INK, which === "core" ? MILKY_WAY_CORE_RGB[li] : mid, b)] as [number, string]),
   );
 }
 /** The palette an object draws with at this view's saturation, or null for

@@ -13,7 +13,7 @@
  *
  * 2. Temperature to an sRGB pixel: Mitchell Charity, "What color is a
  *    blackbody? - some pixel rgb values",
- *    http://www.vendian.org/mncharity/dir3/blackbody/ (accessed 2026-10-01;
+ *    https://www.vendian.org/mncharity/dir3/blackbody/ (accessed 2026-10-01;
  *    the fetched page hashed sha256 27a3910d...ba4aa). His method, in his
  *    words: the blackbody spectrum "mapped to the CIE XYZ color space ...
  *    using the CIE 1964 10-deg color matching functions", then "sRGB's
@@ -22,19 +22,25 @@
  *    29800 K in 200 K steps, nothing edited; scripts/test-sky-stars.mjs pins
  *    entries against it. Between rows the channels are interpolated linearly.
  *
- * One display choice on top, stated rather than hidden: STAR_CHROMA_GAIN.
- * Charity's values are chromaticity at D65, so a 5,300 K star like Capella
- * is #ffe8d5, a peach so pale that a 2px dot at 0.6 alpha on the desk reads
- * as white. The gain pushes each colour AWAY from its own Rec. 709 luminance
- * grey, which keeps the hue the temperature gives and only deepens it (a
- * channel that would pass 255 scales the whole colour down rather than
- * clipping, so the hue survives): the
- * same move as the Milky Way band's stargaze gain (lib/sky-layers.ts), and
- * honest for the same reason, a long exposure records star colour more
- * strongly than the eye does, which is what the credit line already says.
- * Fainter stars get less of it (STAR_CHROMA_GAIN_FAINT), since a tiny dim
- * dot can't carry much colour and a field of saturated specks would read as
- * noise. Nothing here ever assigns a hue the temperature doesn't give.
+ * One display choice on top, stated rather than hidden: STAR_CHROMA_GAIN
+ * (fix round 1, controller ruling R26). Charity's values are chromaticity at
+ * D65, so a 5,300 K star like Capella is #ffe8d5, a peach so pale that a 2px
+ * dot reads as white. So a star draws at the colour of a blackbody FURTHER
+ * FROM WHITE than its own temperature, clamped to the table's extremes: its
+ * distance from the table's white row (WHITE_K, 6,600 K, #fef9ff) is
+ * multiplied by the gain in mireds (1e6 / T, the scale on which equal steps
+ * look like equal colour steps), and the result is clamped to the table's
+ * own range, 1,000 K (#ff3800) to 29,800 K (#9fbfff). Every drawn colour is
+ * therefore a row of Charity's table (or between two rows): never bluer than
+ * his hottest blackbody, never redder than his coolest, on the blackbody
+ * locus and on the star's own side of white. The first version scaled
+ * chroma away from grey instead, which pushed 837 hot stars bluer than any
+ * blackbody; scripts/test-sky-stars.mjs now asserts every drawn colour lies
+ * on the table. Honest for the reason the Milky Way's stargaze gain is: a
+ * long exposure records star colour more strongly than the eye does, which
+ * the credit line already says. Fainter stars get less of it
+ * (STAR_CHROMA_GAIN_FAINT), since a tiny dim dot can't carry much colour and
+ * a field of strong specks would read as noise.
  */
 
 /** Mitchell Charity's blackbody table, 1000 K + 200 K * i, sRGB hex. */
@@ -83,7 +89,10 @@ export function kelvinToRgb(k: number): [number, number, number] {
   return [ch(0), ch(2), ch(4)];
 }
 
-/** How far a bright star's colour is pushed from its own grey (see above). */
+/** The table's most neutral row (6,600 K, #fef9ff): the white the push is away from. */
+export const WHITE_K = 6600;
+export const BLACKBODY_MAX_K = BLACKBODY_MIN_K + BLACKBODY_STEP_K * (BLACKBODY_HEX.length - 1);
+/** How far a bright star's temperature is pushed from white, in mireds. */
 export const STAR_CHROMA_GAIN = 1.8;
 /** The same for the faintest stars on the chart (mag 6). */
 export const STAR_CHROMA_GAIN_FAINT = 1.2;
@@ -91,21 +100,23 @@ export const STAR_CHROMA_GAIN_FAINT = 1.2;
 const GAIN_FULL_MAG = 1.5;
 const GAIN_FAINT_MAG = 6;
 
+/** The temperature a star draws at: its own, pushed from WHITE_K by `gain`
+ *  in mireds, clamped to the table's 1,000-29,800 K. */
+export function displayKelvin(k: number, gain: number): number {
+  const white = 1e6 / WHITE_K;
+  const mired = white + (1e6 / k - white) * gain;
+  const lo = 1e6 / BLACKBODY_MAX_K;
+  const hi = 1e6 / BLACKBODY_MIN_K;
+  return 1e6 / Math.min(hi, Math.max(lo, mired));
+}
+
 /**
  * The full-saturation "r,g,b" a star draws with in stargaze, or null when it
  * has no B-V (two catalog stars): no index, no colour.
  */
 export function starColourRgb(bv: number | null, mag: number): string | null {
   if (bv === null || !Number.isFinite(bv)) return null;
-  const [r, g, b] = kelvinToRgb(bvToKelvin(bv));
   const t = Math.min(1, Math.max(0, (mag - GAIN_FULL_MAG) / (GAIN_FAINT_MAG - GAIN_FULL_MAG)));
   const gain = STAR_CHROMA_GAIN + (STAR_CHROMA_GAIN_FAINT - STAR_CHROMA_GAIN) * t;
-  const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  const out = [r, g, b].map((v) => y + (v - y) * gain);
-  // A channel pushed past 255 would clip, and clipping one channel turns the
-  // hue (Rigel's blue would go cyan). Scale the whole colour down instead:
-  // same hue, same chroma ratio, slightly darker, which the star's alpha
-  // already governs anyway.
-  const over = Math.max(255, ...out);
-  return out.map((v) => Math.min(255, Math.max(0, Math.round((v * 255) / over)))).join(",");
+  return kelvinToRgb(displayKelvin(bvToKelvin(bv), gain)).map(Math.round).join(",");
 }

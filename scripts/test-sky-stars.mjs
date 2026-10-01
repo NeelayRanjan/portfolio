@@ -68,19 +68,32 @@ test("temperature to colour is Mitchell Charity's blackbody table, unedited", ()
 
 test("star colours keep the temperature's hue and grow warmer with B-V", () => {
   assert.equal(C.starColourRgb(null, 1), null, "no B-V, no colour");
-  // Hue kept: the drawn colour's chroma vector points the same way as the
-  // table colour's (cosine > 0.995), only longer.
-  for (const bv of [-0.3, -0.1, 0, 0.3, 0.65, 1.0, 1.5, 2.0, 3.0]) {
-    for (const mag of [0, 3, 5.5]) {
-      const t = C.kelvinToRgb(C.bvToKelvin(bv));
-      const d = rgbOf(C.starColourRgb(bv, mag));
-      const cv = (c) => c.map((x) => x - lum(c));
-      const [a, b] = [cv(t), cv(d)];
-      const cos = a.reduce((s, x, i) => s + x * b[i], 0) / (Math.hypot(...a) * Math.hypot(...b));
-      assert.ok(cos > 0.995, `B-V ${bv} mag ${mag}: hue turned (cos ${cos.toFixed(4)}), table ${t.map(Math.round)} drawn ${d}`);
-      assert.ok(Math.hypot(...b) >= Math.hypot(...a) - 1.5, `B-V ${bv} mag ${mag}: chroma shrank`);
-    }
+  // Fix round 1 (R26): every drawn colour is a colour of the table, on the
+  // blackbody locus between its coolest row (ff3800, 1,000 K) and its
+  // hottest (9fbfff, 29,800 K): the push moves a star's TEMPERATURE further
+  // from white, clamped to the table, and never leaves the locus.
+  const locus = [];
+  for (let k = 1000; k <= 29800; k += 10) locus.push(C.kelvinToRgb(k));
+  const [hotR, hotG, hotB] = [0x9f, 0xbf, 0xff];
+  let checked = 0;
+  for (const [, , mag, bv] of sky.stars) {
+    if (bv === null) continue;
+    const [r, g, b] = rgbOf(C.starColourRgb(bv, mag));
+    const off = Math.min(...locus.map(([x, y, z]) => Math.max(Math.abs(x - r), Math.abs(y - g), Math.abs(z - b))));
+    assert.ok(off <= 1, `B-V ${bv} mag ${mag}: ${r},${g},${b} is ${off} levels off the table's locus`);
+    // Never bluer than the hottest row, never redder than the coolest.
+    // As chromaticity ratios (one level of rounding allowed): red over blue
+    // no lower than 9fbfff's, green over red no lower than ff3800's.
+    assert.ok(r / b >= (hotR - 1) / hotB && g / b >= (hotG - 1) / hotB, `B-V ${bv}: ${r},${g},${b} is bluer than 9fbfff`);
+    assert.ok(g / r >= (0x38 - 1) / 0xff, `B-V ${bv}: ${r},${g},${b} is redder than ff3800`);
+    checked++;
   }
+  assert.equal(checked, sky.stars.length - 2);
+  // The push is away from white on the star's own side, and clamped.
+  assert.ok(Math.abs(C.displayKelvin(C.WHITE_K, 1.8) - C.WHITE_K) < 1e-6, "white stays white");
+  assert.ok(C.displayKelvin(10_000, 1.8) > 10_000 && C.displayKelvin(4_000, 1.8) < 4_000);
+  assert.equal(Math.round(C.displayKelvin(25_000, 3)), 29_800);
+  assert.equal(Math.round(C.displayKelvin(1_500, 3)), 1_000);
   // Warmth (r - b) never falls as B-V rises.
   let prev = -Infinity;
   for (let bv = -0.3; bv <= 3.3; bv += 0.1) {
@@ -206,7 +219,9 @@ test("star fills: the tint at 0, the star's colour at 1, chroma rising between",
 // refreshing.
 const STAR_TRACE_SCENES = [[1600, 1000, 0], [1600, 1000, 90], [1600, 1000, 180], [1600, 1000, 270], [400, 800, 45]];
 const STAR_TRACE_OFF = { n: 22208, sha: "0bff6eb0913eb7717f6233f34e2a3bc3c899dc1e90ed7986f3808f890baf04fa" };
-const STAR_TRACE_FULL = { n: 22208, sha: "7eecf25624b15090cd671ef9d5452a793c83cb29a06d567c0e81388a10fcb13a" };
+// STAR_TRACE_FULL re-recorded in fix round 1 (R26: star colour moved onto
+// the blackbody locus); STAR_TRACE_OFF did not change.
+const STAR_TRACE_FULL = { n: 22208, sha: "96e1dacecdd8b9614660934455d59e49a84912451bf4661aba15f9cc35ffa546" };
 function starTrace(saturation) {
   const log = [];
   const ctx = new Proxy(
@@ -237,15 +252,20 @@ test("the star frame matches its recording at saturation 0 and 1", () => {
 test("every new colour cites its source on the card it shows on", async () => {
   const { SKY_FACTS } = await import("../content/sky-facts.ts");
   const urls = (id) => SKY_FACTS.find((f) => f.id === id).citations.map((c) => c.url);
-  // The band's gradient: the yellow bulge (Euclid) and the bluer disk (LCO).
-  for (const u of [
-    "https://www.esa.int/ESA_Multimedia/Videos/2026/06/ESA_s_Euclid_captures_the_Milky_Way_s_crowded_heart",
-    "https://lco.global/spacebook/galaxies/the-milky-way-galaxy/",
-  ]) assert.ok(urls("milky-way").includes(u), `the Milky Way card does not cite ${u}`);
+  // The band's gradient: the yellow bulge (Euclid).
+  for (const u of ["https://www.esa.int/ESA_Multimedia/Videos/2026/06/ESA_s_Euclid_captures_the_Milky_Way_s_crowded_heart"]) {
+    assert.ok(urls("milky-way").includes(u), `the Milky Way card does not cite ${u}`);
+  }
   // Star colour, on the cards that already talk about a star's colour.
   for (const id of ["betelgeuse", "antares"]) {
     for (const u of ["https://arxiv.org/abs/1201.1809", "https://www.vendian.org/mncharity/dir3/blackbody/"]) {
       assert.ok(urls(id).includes(u), `${id} does not cite ${u}`);
     }
   }
+});
+
+test("prepareStarPaint refuses a catalog whose bright stars are not a prefix", () => {
+  const stars = [[10, 10, 1.0, 0.5], [20, 20, 5.5, 0.5], [30, 30, 4.0, 0.5]];
+  assert.throws(() => R.prepareStarPaint(stars), /brightest first/);
+  assert.doesNotThrow(() => R.prepareStarPaint([stars[0], stars[2], stars[1]]));
 });

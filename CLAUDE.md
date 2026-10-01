@@ -156,12 +156,13 @@ pointer over the sky, back on the sheet, stargaze; each object's DISPLAYED
 chroma share at paper must sit within ±0.15 of `PAPER_COLOUR_SHARE` and the
 median within ±0.08, hovered must equal stargaze within 2, back-on-sheet must
 equal paper exactly, M82's centre stays neutral in every state, the band's
-colour must move at paper and again in stargaze in its own direction (Task
-18: WARMTH, r-b, over 5,000+ band pixels on a second frame with the galactic
-core up, `SKY_CORE_INSTANT`, the original thresholds unchanged; COOLNESS, b-r,
-over 5,000+ disc pixels on the original frame, which shows the anticentre
-side; proved to bite by drawing the disc in the tan, 219 cooling pixels, and
-by drawing the whole wash in the disc tone, 322 warming), and a motion-on half records
+warmth must rise at paper and again in stargaze (the original thresholds, on
+the original frame and, since Task 18, again on a second frame with the
+galactic core up, `SKY_CORE_INSTANT`, where the colour stargaze ADDS must
+also be golder within 300px of Sgr A* than beyond 700px: warmth gained per
+unit of red, measured 0.963 vs 0.716, floor 0.12 more; a raw warmth-gain
+comparison does NOT bite, since the core's levels are brighter, and an
+all-tan mutant measured 0.715 vs 0.716 and fails), and a motion-on half records
 the ease every rAF and requires it monotone and settled inside 500ms; proved
 to bite with `PAPER_COLOUR_SHARE = 0.1`, which fails on M45 at a measured
 share of 0.28. The colour round's version was proved the same way, by
@@ -292,13 +293,13 @@ scripts/test-sky-iss.mjs scripts/test-sky-images.mjs
 scripts/test-chess-selfplay.mjs scripts/test-resume.mjs
 scripts/test-sky-secret.mjs scripts/test-sky-stars.mjs`** (`test-sky-secret`,
 Task 17's door rule, 4 cases; `test-sky-stars`, Task 18's star paint and
-star colour, 8) plus, on the
+star colour, 9) plus, on the
 `slaac-demo` branch, the rerouter's ten (`test-slaac-arcs` 16,
 `test-slaac-data` 8, `test-slaac-dpm` 3, `test-slaac-geometry` 2,
 `test-slaac-guidance` 4, `test-slaac-reroute` 37, `test-slaac-ring` 7,
 `test-slaac-sampler` 5, `test-slaac-summary` 5, `test-slaac-view` 8;
 `node --test scripts/test-*.mjs` runs them all, ~16 s) runs outside
-Playwright, in plain node (201 cases total, 192 before Task 18, 188 before Task 17; 95 of them the rerouter's, which
+Playwright, in plain node (202 cases total, 192 before Task 18, 188 before Task 17; 95 of them the rerouter's, which
 the SLAAC section describes; 180 before Task 12c; 93 before those, 3 of them the served resume's and
 10 the self-play rule's; 80 before those, 73 before the card
 photographs, 62 before the discoverability round and 47 before the colour
@@ -611,10 +612,13 @@ pinned stars.6.json to mag 6.0 (5,044 stars against 1,627), the fainter
 ones drawn smaller and dimmer than the old faintest so the lines and bright
 stars still lead. Ruling R24: stars take their colour from their own B-V
 (Ballesteros 2012 to a temperature, Mitchell Charity's blackbody table to a
-colour) and the Milky Way grew a gradient, gold toward the galactic core and
-whiter, faintly blue along the disc, each hue cited on its card; both ride
+colour) and the Milky Way grew a gradient, gold toward the galactic core
+(cited on its card) easing into the colour round's tan; both ride
 the existing saturation (paper share on the page, full over the sky and in
-stargaze, the grey chart at 0 byte-identical). Frame draw 3.96-4.18 ms
+stargaze, the grey chart at 0 byte-identical). Review fix round 1 (ruling
+R26) put every star colour ON the blackbody table (a hotter or cooler
+blackbody, never a bluer-than-any-blackbody push) and dropped a faintly blue
+disc stop whose only source was an outside-view education page. Frame draw 3.96-4.18 ms
 against 2.82-2.92 ms for the pre-task tree measured in the same session
 (A/B), budget 5.92. Contracts under "Night sky + stargaze": "A denser sky,
 star colour, and the band's gradient".
@@ -1588,33 +1592,45 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
     Ballesteros (2012, EPL 97 34008, eq. 14, read off the arXiv PDF), →
     sRGB by Mitchell Charity's "What color is a blackbody?" table (CIE 1964
     10° CMFs, sRGB, D65; transcribed by script, 1000-29800 K in 200 K steps,
-    accessed 2026-10-01). One display choice on top, stated in the file:
-    `STAR_CHROMA_GAIN` 1.8 (1.2 at mag 6) pushes each colour away from its
-    own grey, hue unchanged, scaling down instead of clipping a channel,
-    because Charity's 5,300 K is a peach too pale to read on a 2px dot.
-    Rigel and Vega come out blue-white, Betelgeuse, Antares and Aldebaran
-    orange, Capella and Arcturus a warm yellow-orange. Through the
+    accessed 2026-10-01). The two source URLs, both read on 2026-10-01:
+    https://arxiv.org/abs/1201.1809 (doi 10.1209/0295-5075/97/34008) and
+    https://www.vendian.org/mncharity/dir3/blackbody/. One display choice on
+    top, stated in the file (ruling R26): **stars draw at the colour of a
+    blackbody further from white than their own temperature, clamped to the
+    table's extremes**: the temperature's distance from the table's white
+    row (6,600 K, #fef9ff) is multiplied by `STAR_CHROMA_GAIN` 1.8 (1.2 at
+    mag 6) in mireds, clamped to 1,000 K (#ff3800) - 29,800 K (#9fbfff),
+    and looked up in the table, because Charity's 5,300 K is a peach too
+    pale to read on a 2px dot. ⚠️ The first version scaled chroma away from
+    grey instead, which pushed 837 stars (every B-V <= -0.1) bluer than any
+    blackbody; `test-sky-stars.mjs` now asserts every drawn colour lies on
+    the table's locus and inside its two extremes. Rigel and Vega (B-V 0.0)
+    draw 172,199,255; Betelgeuse and Aldebaran (1.5) 255,174,96; Antares
+    (1.9) 255,154,57; Arcturus (1.2) 255,192,130; Capella (0.8)
+    255,220,188. Through the
     saturation: the old faint tint at 0 (so the grey chart is unchanged),
     the star's colour at 1, a lerp between (`starFillsAt`, memoised on
     saturation). Betelgeuse's and Antares's cards, the two that already say
     "distinctly reddish", cite both sources (Sources only: their bodies are
     at the three-sentence cap).
-  - **The band's gradient** (`lib/sky-layers.ts`, `MILKY_WAY_CORE_RGB` /
-    `MILKY_WAY_DISC_RGB`): above saturation 0 each level's WASH fills with a
-    radial gradient centred on Sgr A* (objects.json's own position): gold to
-    ~10° of the core, the colour round's tan by ~28°, a whiter, faintly blue
-    tone from 70° (galactic longitude 70, through the standard J2000
-    galactic matrix, pinned against the defined centre). Sources, both on
-    the Milky Way card: ESA's Euclid bulge image ("filled mainly with old,
-    cooler stars, giving it its characteristic yellow colour") and Las
-    Cumbres Observatory ("The disk of our galaxy appears blue because it has
-    a large proportion of young, hot O and B main sequence stars"). The warm
-    stops lerp from INK on `bandMix` exactly as the flat band did (the tan
-    stop IS the old band colour at every saturation); the blue one mixes
-    toward its own grey (`saturateRgb`), since a lerp from a cream to a blue
-    dips through grey and its chroma would fall. The grain stays flat tan:
-    a gradient on ~500 one-pixel points cost 0.3 ms for nothing visible. No
-    pink H II regions: the band has no positions for them.
+  - **The band's gradient** (`lib/sky-layers.ts`, `MILKY_WAY_CORE_RGB`):
+    above saturation 0 each level's WASH fills with a radial gradient
+    centred on Sgr A* (objects.json's own position): gold to ~10° of the
+    core, the colour round's tan from ~28° on, which then holds for the rest
+    of the band (the radius is the screen distance to galactic longitude 70,
+    through the standard J2000 galactic matrix, pinned against the defined
+    centre). Source for the gold, on the Milky Way card: ESA's Euclid bulge
+    image ("filled mainly with old, cooler stars, giving it its
+    characteristic yellow colour"). Both stops lerp from INK on `bandMix`
+    exactly as the flat band did, so the tan stop IS the old band colour at
+    every saturation (asserted). The grain stays flat tan: a gradient on
+    ~500 one-pixel points cost 0.3 ms for nothing visible. ⚠️ **No disc hue**
+    (ruling R26): round 0 cooled the disc to a faintly blue white sourced to
+    Las Cumbres Observatory's education page, which describes the galaxy
+    from outside beside an artist's impression, not a long exposure of the
+    band; it also turned the Cygnus star clouds a cold grey, LESS colour than
+    before. A disc hue returns only with a long-exposure caption that states
+    it. No pink H II regions either: the band has no positions for them.
   - **What the tests pin.** `test-sky-stars.mjs`: eq. 14 and the table
     verbatim, hue kept and warmth monotone in B-V, the owner's named stars,
     faint stars less chroma, every bright star's fill and radius equal to the
@@ -1622,15 +1638,18 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
     one bucket and dimmer than the old faintest, and a full drawSky star-frame
     digest at 0 and 1. `test-sky-objects.mjs`: the band test reads gradients
     stop by stop (the tan and the gold warm with saturation and past half way
-    at paper, the core warmer than the tan, the disc bluish and cooler; the
-    grain keeps the original assertions), the core is objects.json's Sgr A*,
-    and `TRACE_STARGAZE` was RE-RECORDED once, 17,059 → 17,184, after the
+    at paper, the core warmer than the tan, no stop bluish, the tan stop equal
+    to the old flat colour; the grain keeps the original assertions), the
+    core is objects.json's Sgr A*, `prepareStarPaint` throws if a bright star
+    follows a faint one (the prefix its indexing relies on), and
+    `TRACE_STARGAZE` was RE-RECORDED, 17,059 → 17,159 (17,184 in round 0,
+    with the blue stop), after the
     proof (`task-18-trace-proof.mjs`, run against the pre-task modules): with
     the new stars' calls removed, the saturation-0 FULL frame is
     byte-identical; at paper and in stargaze the only differences are 25
-    wash fills (flat → gradient), their 125 gradient calls and the old
+    wash fills (flat → gradient), their 100 gradient calls and the old
     stars' fill colours. `TRACE_COLOUR_OFF` did not change. The browser
-    `sky-colour` check measures the band in both directions (see
+    `sky-colour` check adds a golder-near-the-core assertion (see
     Verification).
   - **Cost**, headless Firefox at 1280px, A/B in one session: pre-task
     2.82-2.92 ms (`sky-animates-1280`), after 3.96-4.18 ms against the 5.92

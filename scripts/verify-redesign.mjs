@@ -3514,8 +3514,21 @@ async function openHitCard(browser, { W, H, date, hitId }) {
 const SKY_COLOUR_INSTANT = new Date("2026-10-01T06:00:00.000Z");
 /** Task 18: an instant with the galactic core and the band's warm end on a
  *  1600x1000 canvas (Sagittarius setting, Scutum and Aquila up), where the
- *  band's warmth gain is measured; SKY_COLOUR_INSTANT shows the disc. */
+ *  band's gradient is measured; SKY_COLOUR_INSTANT shows the tan far from it. */
 const SKY_CORE_INSTANT = new Date("2026-07-14T23:00:00.000Z");
+/** The gradient's own claim, measured at SKY_CORE_INSTANT: the colour
+ *  stargaze adds to band pixels within CORE_NEAR_PX of Sgr A* is golder
+ *  (more warmth per unit of red) than beyond CORE_FAR_PX, by at least CORE_MIN_EXTRA_GOLD
+ *  (calibration below and in the task-18 report's fix round 1). */
+const CORE_NEAR_PX = 300;
+const CORE_FAR_PX = 700;
+// A raw warmth gain is no test (measured: 19.59 near vs 4.68 far, but an
+// all-tan mutant ALSO passed a gap test, the core's levels being brighter),
+// so the check compares the hue of the added colour instead. Measured (fix
+// round 1, 2026-10-01): 0.963 near vs 0.716 far, a gap of 0.247; the all-tan
+// mutant (no gold stop) measured 0.715 vs 0.716, a gap of -0.001, and FAILS.
+// Half the real gap:
+const CORE_MIN_EXTRA_GOLD = 0.12;
 /** Catalog ids that draw in sourced colour, and the deep-sky ids overall. */
 const COLOURED_IDS = Object.keys(OBJECT_COLOURS);
 const DEEP_SKY_IDS = OBJECTS_DATA.objects.filter((o) => ["galaxy", "nebula", "cluster"].includes(o.symbol)).map((o) => o.id);
@@ -3575,7 +3588,8 @@ const BAND_CLEAR_PX = 25;
  */
 function installBandStats(page) {
   return page.evaluate(() => {
-    window.__bandStats = (hits, bandClear) => {
+    window.__bandStats = (hits, bandClear, centre = null, near = 0, far = 0) => {
+      const grad = { nearN: 0, farN: 0, nearSum: 0, farSum: 0, nearDr: 0, farDr: 0 };
       const f = window.__colourFrames;
       const c = document.querySelector("body > canvas");
       const s = c.width / window.innerWidth;
@@ -3593,6 +3607,19 @@ function installBandStats(page) {
           if (dw > -3 && dw < 3) continue;
           if (pts.some(([px, py]) => Math.abs(px - xx) < clear && Math.abs(py - yy) < clear)) continue;
           const set = dw >= 3 ? sets.band : sets.cool;
+          if (centre && dw >= 3) {
+            const dist = Math.hypot(xx / s - centre.x, yy / s - centre.y);
+            const dr = f.stargaze[i] - f.grey[i];
+            if (dist < near) {
+              grad.nearN++;
+              grad.nearSum += dw;
+              grad.nearDr += dr;
+            } else if (dist > far) {
+              grad.farN++;
+              grad.farSum += dw;
+              grad.farDr += dr;
+            }
+          }
           const sign = dw >= 3 ? 1 : -1;
           set.grey.push(sign * warm(f.grey, i));
           set.paper.push(sign * warm(f.paper, i));
@@ -3616,6 +3643,19 @@ function installBandStats(page) {
         }
         out[name] = st;
       }
+      // The hue of what stargaze ADDS: warmth gained per unit of red gained,
+      // summed over the pixels. Brightness cancels out of the ratio (the
+      // core's levels are denser and brighter, so a raw warmth gain is
+      // bigger there even for an all-tan band, which a mutant proved);
+      // what's left is how gold the added colour is.
+      out.gradient = {
+        nearN: grad.nearN,
+        farN: grad.farN,
+        nearGain: grad.nearN ? grad.nearSum / grad.nearN : 0,
+        farGain: grad.farN ? grad.farSum / grad.farN : 0,
+        nearHue: grad.nearDr ? grad.nearSum / grad.nearDr : 0,
+        farHue: grad.farDr ? grad.farSum / grad.farDr : 0,
+      };
       return out;
     };
   });
@@ -3705,7 +3745,10 @@ async function bandAtCore(browser) {
     if ((await page.evaluate(() => window.__sky.highlight)) !== null) throw new Error("the stargaze pointer highlights something at SKY_CORE_INSTANT");
     await snapSky(page, "stargaze");
     await installBandStats(page);
-    return page.evaluate((clear) => window.__bandStats(window.__sky.hits, clear), BAND_CLEAR_PX);
+    return page.evaluate(([clear, near, far]) => {
+      const c = window.__sky.hits.find((h) => h.id === "sgr-a-star");
+      return window.__bandStats(window.__sky.hits, clear, { x: c.x, y: c.y }, near, far);
+    }, [BAND_CLEAR_PX, CORE_NEAR_PX, CORE_FAR_PX]);
   });
 }
 
@@ -3913,27 +3956,26 @@ async function checkSkyColour(browser) {
   }
   const m82Spread = Math.max(...Object.values(m82.worst)) - Math.min(...Object.values(m82.worst));
   if (m82Spread > M82_MAX_STATE_SPREAD) throw new Error(`M82 has no palette but its centre's channel spread changes with saturation: ${JSON.stringify(m82.worst)}, spread ${m82Spread} over ${M82_MAX_STATE_SPREAD}`);
-  // The band (fix round 1, extended for task 18's core-to-disc gradient,
-  // ruling R24). Its own curve must give paper mode a real colour gain over
+  // The band (fix round 1; task 18 added the gold-core gradient, rulings
+  // R24/R26). Its own curve must give paper mode a real warmth gain over
   // saturation 0, not only the brightness its alpha gain adds, and stargaze
-  // must add more on top. Since task 18 the band WARMS toward the galactic
-  // core and COOLS along the disc, so the same two thresholds apply to each
-  // direction on a frame where that direction is what shows:
-  //   - this frame (SKY_COLOUR_INSTANT, the autumn sky: Cassiopeia, Perseus,
-  //     Auriga, far from the core) is the disc, measured as coolness (b-r);
-  //   - SKY_CORE_INSTANT, below, is the core, measured as warmth (r-b), the
-  //     original assertion with its original numbers.
-  // Before task 18 this frame's band only warmed; with the gradient 287 of
-  // its pixels still warm (measured), so the warmth half moved to a frame
-  // where the band is warm, with its numbers unchanged, rather than being
-  // loosened here.
-  const d = pixels.cool;
-  if (pixels.band.n + d.n < 5000) throw new Error(`only ${pixels.band.n + d.n} band pixels found (colour moving between saturation 0 and 1, ${BAND_CLEAR_PX}px clear of objects)`);
-  if (d.n < 5000) throw new Error(`only ${d.n} disc pixels found cooling between saturation 0 and 1 (${pixels.band.n} warming); this frame is the disc, it should mostly cool`);
-  assertBandGain("disc", "coolness (b-r)", d);
+  // must add warmth on top. This frame (SKY_COLOUR_INSTANT, the autumn sky
+  // far from the core) is the band's tan, held to the original assertion and
+  // numbers; SKY_CORE_INSTANT, below, has the core up and adds the gradient's
+  // own claim: the band warms MORE near the core than far from it.
+  // (Fix round 0 cooled the disc toward blue and moved this frame's half to
+  // a coolness measure; R26 dropped the blue, and this half is back as it was.)
+  const t = pixels.band;
+  if (t.n < 5000) throw new Error(`only ${t.n} band pixels found (warmth moving between saturation 0 and 1, ${BAND_CLEAR_PX}px clear of objects)`);
+  assertBandGain("tan", "warmth (r-b)", t);
   const core = await bandAtCore(browser);
-  if (core.band.n < 5000) throw new Error(`only ${core.band.n} band pixels found warming between saturation 0 and 1 at ${SKY_CORE_INSTANT.toISOString()} (${core.cool.n} cooling), ${BAND_CLEAR_PX}px clear of objects`);
+  if (core.band.n < 5000) throw new Error(`only ${core.band.n} band pixels found warming between saturation 0 and 1 at ${SKY_CORE_INSTANT.toISOString()}, ${BAND_CLEAR_PX}px clear of objects`);
   assertBandGain("core", "warmth (r-b)", core.band);
+  const g = core.gradient;
+  if (!(g.nearN >= 2000 && g.farN >= 2000)) throw new Error(`too few band pixels to compare near the core (${g.nearN} within ${CORE_NEAR_PX}px) with far from it (${g.farN} beyond ${CORE_FAR_PX}px)`);
+  if (!(g.nearHue - g.farHue >= CORE_MIN_EXTRA_GOLD)) {
+    throw new Error(`the band does not turn gold toward the core: what stargaze adds carries ${g.nearHue.toFixed(3)} warmth per unit of red within ${CORE_NEAR_PX}px of Sgr A* (${g.nearN} px) and ${g.farHue.toFixed(3)} beyond ${CORE_FAR_PX}px (${g.farN} px); the core must be at least ${CORE_MIN_EXTRA_GOLD} more (warmth gains ${g.nearGain.toFixed(2)} / ${g.farGain.toFixed(2)})`);
+  }
   const b = core.band;
 
   // --- the ease, motion on ---
@@ -3987,7 +4029,7 @@ async function checkSkyColour(browser) {
     if (e.settleMs > EASE_MAX_SETTLE_MS) throw new Error(`easing ${dir} took ${e.settleMs}ms, over ${EASE_MAX_SETTLE_MS}: ${s}`);
   }
 
-  return `${ids.length} coloured objects across ${[...families].sort().join("/")}, paper's displayed colour share (constant ${PAPER_COLOUR_SHARE}, median ${medianShare.toFixed(2)}) and stargaze chroma shift at each object's most-moved pixel: ${notes.join(", ")}; hovered sky = stargaze, back on the sheet = paper exactly; M82 centre worst ${JSON.stringify(m82.worst)}; band toward the core (${SKY_CORE_INSTANT.toISOString()}) mean warmth over ${b.n} px ${b.greyMean.toFixed(2)}/${b.paperMean.toFixed(2)}/${b.stargazeMean.toFixed(2)}, mean luminance ${b.lumGreyMean.toFixed(2)}/${b.lumPaperMean.toFixed(2)}/${b.lumStargazeMean.toFixed(2)}; along the disc mean coolness over ${d.n} px ${d.greyMean.toFixed(2)}/${d.paperMean.toFixed(2)}/${d.stargazeMean.toFixed(2)}; ease up ${ease.up.settleMs}ms over ${ease.up.between} painted steps, down ${ease.down.settleMs}ms over ${ease.down.between}`;
+  return `${ids.length} coloured objects across ${[...families].sort().join("/")}, paper's displayed colour share (constant ${PAPER_COLOUR_SHARE}, median ${medianShare.toFixed(2)}) and stargaze chroma shift at each object's most-moved pixel: ${notes.join(", ")}; hovered sky = stargaze, back on the sheet = paper exactly; M82 centre worst ${JSON.stringify(m82.worst)}; band mean warmth over ${t.n} px ${t.greyMean.toFixed(2)}/${t.paperMean.toFixed(2)}/${t.stargazeMean.toFixed(2)}, mean luminance ${t.lumGreyMean.toFixed(2)}/${t.lumPaperMean.toFixed(2)}/${t.lumStargazeMean.toFixed(2)}; with the core up (${SKY_CORE_INSTANT.toISOString()}) ${b.greyMean.toFixed(2)}/${b.paperMean.toFixed(2)}/${b.stargazeMean.toFixed(2)} over ${b.n} px, stargaze's added colour ${core.gradient.nearHue.toFixed(3)} warmth per red within ${CORE_NEAR_PX}px of the core vs ${core.gradient.farHue.toFixed(3)} beyond ${CORE_FAR_PX}px (warmth gain ${core.gradient.nearGain.toFixed(2)} vs ${core.gradient.farGain.toFixed(2)}); ease up ${ease.up.settleMs}ms over ${ease.up.between} painted steps, down ${ease.down.settleMs}ms over ${ease.down.between}`;
 }
 
 async function checkStargazeCard(browser) {

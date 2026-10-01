@@ -82,7 +82,10 @@ honest limit: the main-thread ORT wasm heap never actually shrinks, only the
 chess worker's termination truly frees memory. `window.__sky` and
 `window.__offload` are verify hooks, not UI.
 
-**Verification: `scripts/verify-redesign.mjs`** — 45 named checks (46 until
+**Verification: `scripts/verify-redesign.mjs`** — 50 named checks on the
+`slaac-demo` branch (45 before the SLAAC round, 2026-09-30, added the five
+`slaac-*` checks and renamed `flight-video-play-pause` to `lab-flight-video`
+when the video moved to `/lab`; 46 until
 the 2026-09-29 copy pass cut `draw-classify-lead-400` with the line it
 checked; 45 before `resume-pdf`, 2026-09-22; 43 before the
 2026-09-17 rounds added `chess-self-play` and `search-basics`; 30 before
@@ -208,7 +211,25 @@ displayed series with one point per budget and ε-diffusion off it, x0 drawn
 last at full strength with the baselines faded, x0's printed value and the
 lead bracket's number equal to what the SERVED `label_efficiency.json`
 gives at the smallest budget, and the shaded column on those points), the Dice-CDF slider (curves, readouts vs `cdf.json`, repaint on stop
-change), flight video play/pause, a drawn stroke producing a real auto-label,
+change), **`lab-flight-video`** (the flight-day video plays in view and
+pauses out of it on `/lab`, captioned Figure S3), the SLAAC rerouter's five
+(2026-09-30, each proved to bite, headers in the suite):
+**`slaac-nothing-at-rest`** (scrolling Figure 3 in fetches its six JSON files
+and no model and starts no rerouter worker; a no-conflict press, a Nevada box
+with the launch sites off, still loads nothing), **`slaac-reroute`**
+(KJFK-KMIA past all six launch sites at a pinned clock; legs crossing
+recomputed in node from every plan the page received, 0 for `ok` and
+`untouched`, more than 0 for `cannot-clear`; then the stale-run rule at each
+layer: three presses in one task run once, a run-999 reply is dropped by the
+engine, back-to-back runs 1001/1002 sent straight to the worker stop 1001 at
+its first yield; `demo_used{slaac}` once), **`slaac-launch-preset`**
+(whole-US view at 1280: all six sites in view, labelled and airspace-red at
+their centroids, all clear with the sites off), **`slaac-stargaze-cancel`**
+(stargaze mid-run terminates the worker, `__offload.slaac` 1, idle with no
+`done`, no error and no `demo_used`, no transient `done`/`unavailable` seen,
+a new worker on return), **`slaac-400`** (no horizontal scroll at 400px with
+touch; three taps and a tap on the first corner close a shape, two say it
+needs three corners); a drawn stroke producing a real auto-label,
 the chess hint matching vector D (`g3 p=0.236`), **`chess-self-play`** (pinned
 clock, so the seed and the game are fixed: at least one departure, every one
 a near-tie in the top three and within budget, the rule stated while it
@@ -238,8 +259,14 @@ change touching a demo, a figure, or the page shell.
 scripts/test-sky-data.mjs scripts/test-sky-math.mjs scripts/test-sky-pan.mjs
 scripts/test-sky-objects.mjs scripts/test-sky-facts.mjs
 scripts/test-sky-iss.mjs scripts/test-sky-images.mjs
-scripts/test-chess-selfplay.mjs scripts/test-resume.mjs`** runs outside
-Playwright, in plain node (93 cases total, 3 of them the served resume's and
+scripts/test-chess-selfplay.mjs scripts/test-resume.mjs`** plus, on the
+`slaac-demo` branch, the rerouter's nine (`test-slaac-arcs` 14,
+`test-slaac-data` 8, `test-slaac-dpm` 3, `test-slaac-geometry` 2,
+`test-slaac-guidance` 4, `test-slaac-reroute` 37, `test-slaac-ring` 7,
+`test-slaac-sampler` 5, `test-slaac-view` 7; `node --test scripts/test-*.mjs`
+runs them all, ~16 s) runs outside
+Playwright, in plain node (180 cases total, 87 of them the rerouter's, which
+the SLAAC section describes; 93 before those, 3 of them the served resume's and
 10 the self-play rule's; 80 before those, 73 before the card
 photographs, 62 before the discoverability round and 47 before the colour
 round): `test-sky-data` pins the committed `sky.json`'s shape (star
@@ -514,7 +541,58 @@ figure (`copy.systems.chess.ledeNotes`, the same `Note` and 880px split as
 the Research rows). The limit, "here it runs without search, a few hundred
 Elo weaker", stays in the main column.
 
+**2026-09-30/10-01: the SLAAC rerouter, branch `slaac-demo`, PREVIEW ONLY**
+(worktree `../portfolio-slaac`, 16-task SDD build from `1e9b4f8`). ⚠️ Nothing
+here is on `main` or neelayranjan.dev: it merges only when the owner says
+their NASA mentor approved the preview link, and the first push (which builds
+that preview) is the owner's call. NASA cleared the Summer 2026 codebase for
+sharing (owner, 2026-09-30), so **Figure 3 became the live rerouter**: pick
+one of 48 hub pairs, its flight-plan-LM routes draw, draw an airspace or turn
+on all six US launch sites, and the owner's 5.78M-param diffusion model
+reroutes every flight in a worker and snaps each arc to named fixes, with
+added nm, minimum clearance and legs crossing per flight. The port is pinned
+against the owner's Python by vectors, the routes are precomputed (the LM is
+222M params), and a Python gate over 2,240 runs chose 20 steps and snapped
+plans with both lookahead policies. **The flight-day video moved to `/lab` as
+Figure S3**, unchanged (the slot the cut sample-space figure left). The NASA
+box went SLAAC-first with a SHIFT paragraph and DATA/DIFFERENCES notes under
+Figure 3; Experience became two NASA rows (SLAAC complete, SHIFT active) per
+the new resume. Measured on this laptop (Task 15): ~2.8 s from a first press
+to done for KJFK-KMIA past the launch sites in stock Firefox, ~6 s for the
+heaviest library case; the batch cap went 16 → 4 on that measurement. The
+DIFFERENCES note says "2-6 seconds on my laptop" and nothing about phones.
+Contracts, rulings and numbers: "SLAAC rerouter (Figure 3)" under the demos.
+
 **Open items, roughly in order:**
+
+The SLAAC round's own, ahead of the list (branch `slaac-demo`):
+- a. **Mentor approval of the preview is the merge gate.** Before the first
+  push, ask the owner; check Vercel's Deployment Protection so the mentor can
+  open the preview (a shareable link or a bypass, the owner's choice).
+- b. **Chrome proper and the owner's iPhone, timed on the preview link.** The
+  laptop numbers are in the SLAAC section; no phone has run the rerouter.
+  The phone batch cap (4) is unmeasured on a phone: if the iPhone stalls
+  between progress updates, 2 is the lever, and on this laptop it costs
+  nothing in total time. A WebKitGTK run showed no JavaScriptCore runaway.
+- c. **The route LM, live**: distil it to a browser-sized student, or export
+  it with a KV cache; the likely shape is a desktop-only "write a new route"
+  button. Until then its routes are precomputed data.
+- d. **The owner's pipeline rewrite** (it was built in 7 weeks and the owner
+  wants to redo parts). Any change to `plan_cli.py`, `sua_guidance.py` or the
+  checkpoint means re-running `make_vectors.py`, the nine `test-slaac-*`
+  files and the gate, in that order, and re-exporting the ONNX under a new
+  hashed name.
+- e. **The FRD doubling-back bug, upstream** (R13): fix
+  `gen_trx_sua.py`'s `geocode_items` LM-token path in the owner's own repo;
+  this site only works around it in `route_library.py`.
+- f. **Two owner questions, non-blocking**: (1) did the `/lab` video come from
+  `route_lm_best.pt` or `route_lm.pt`? Figure S3's caption cut its "the same
+  model wrote Figure 3's routes" clause until it's answered (R15). (2) May
+  the NASA box name Dr. Kapil Sheth, Prachi Panda (new to the site) and
+  Stephen Clarke? The branch's copy names all three.
+- g. **The FAA chart cycle in `launch-sua.json` expires 2026-10-29**: re-pull
+  per the SLAAC section.
+
 1. **Stargaze discoverability: built, not yet measured** (owner, 2026-09-14:
    "We 100% need to make that button more noticable, I have had to tell
    everyone about it"; re-confirmed 2026-09-16 as second only to the
@@ -690,13 +768,10 @@ owner now updates GitHub, so treat Drive as possibly stale.
 **Drift, 2026-09-22: the owner fixed the resume the same day and most of it
 is gone.** The resume now reads 88.2% Dice at 16 labels, the 75%
 correction-time speedup, Regenstrief from Feb 2024, and both first-author
-manuscripts by name, all matching this file. **Two gaps are still open and
-are the owner's call**: the resume describes NASA as ONE role (generative
-trajectory modelling: diffusion hazard-aware routing on FAA radar-track
-data, a mid-sampling gradient-guidance step, integrated into ATM simulation
-software used by NASA and the FAA, with the flight-plan LLM as one bullet),
-while the site still says SLAAC plus the synthetic ATC-speech pipeline; and
-the resume lists TWO first-author manuscripts in preparation (the second,
+manuscripts by name, all matching this file. **The NASA gap is RESOLVED
+(2026-09-30)**: the resume now lists NASA as two roles, SLAAC and SHIFT, and
+the `slaac-demo` branch's copy follows it (see the NASA bullet below). **One
+gap is still open and is the owner's call**: the resume lists TWO first-author manuscripts in preparation (the second,
 "Modular SAM-prior diffusion refinement for real-world angiogram and
 seven-shot moyamoya MRA vessel segmentation"), while the site names one.
 Davinci Wearables is on the site and not on the resume, which is a superset,
@@ -751,12 +826,28 @@ not a contradiction. The original drift list, for the record:
   **On leave Fall 2026 for NASA (the site says "gap semester", owner's
   wording); returns January 2027; graduates May 2027.** Rendered as its own
   Experience row on an amber "gap semester" lamp (owner call, 2026-09-14).
-- **NASA Ames is two engagements, presented as one arc**: Summer 2026 (SLAAC,
-  space-launch/airspace coordination, Dr. Kapil Sheth) · Fall 2026, Aug 24–Dec 4
-  (synthetic text-to-ATC-speech dataset; ATC speech→text→database pipeline,
-  Stephen Clarke). **The Summer 2027 lunar digital twin is DROPPED** (owner,
-  2026-09-14: no longer pursuing it); never mention it again.
-- **The flight-day transformer (Figure 3) is the owner's own work**, trained
+- **NASA Ames is two roles** (per the resume since 2026-09-30; NASA Ames,
+  Aeronautics Directorate, Code AF, May 2026 to present; the `slaac-demo`
+  branch's NASA box and Experience rows follow it, production still shows the
+  older two-engagement arc until that branch merges):
+  **GenAI Applied Research Intern, SLAAC, May-Aug 2026** (space-launch and
+  airspace coordination, Dr. Kapil Sheth, and Prachi Panda on the branch's
+  copy): hazard-aware rerouting with diffusion models learned from FAA radar
+  tracks, guidance applied mid-sampling, no retraining, "99% of reroutes clear
+  the 25 nm hazard buffer at a median +10 nm (1.1%) added distance, within
+  1.2% of the geometric optimum"; and the flight-plan LLM, ~44,000 flights a
+  day for the simulation software NASA and the FAA use to evaluate future ATM
+  strategies. **GenAI Applied Research Intern, SHIFT, Aug 2026 to present**
+  (Stephen Clarke): Qwen3-Omni-30B fine-tuned with QLoRA for ATC
+  speech-to-text, 17% WER vs 20% for the Whisper ASR in use (30% zero-shot,
+  5-fold CV, ~1.5 h of real audio); Kev, a typed decision model parsing
+  transcripts into the DTI maneuver ontology, value-match 40% → 80%; a
+  text-to-speech synthetic ATC corpus ~20x the real data. ⚠️ Naming Sheth,
+  Panda and Clarke is an open owner question (Open items, f). **The Summer
+  2027 lunar digital twin is DROPPED** (owner, 2026-09-14: no longer
+  pursuing it); never mention it again.
+- **The flight-day transformer (Figure 3 on production; Figure S3 on `/lab`
+  on the `slaac-demo` branch) is the owner's own work**, trained
   from scratch (owner, 2026-09-14), and **part of SLAAC** (owner,
   2026-09-29). What broke: the waypoint system, where a continuous route that
   obeyed every rule often stopped obeying once snapped onto the waypoint map;
@@ -765,7 +856,8 @@ not a contradiction. The original drift list, for the record:
   token vocabulary that "speaks" filed flight plans, synthesizing ~44,000
   flights matched to historical density, for capacity and safety studies of US
   airspace failure modes; the owner adds it is being used at NASA to justify
-  real changes and projects. Too slow to run live in the browser.
+  real changes and projects. Too slow to run live in the browser (222M
+  params, 890 MB fp32); the rerouter's routes are its precomputed output.
 - Also real and usable: **Regenstrief** (Feb 2024 →; x0-diffusion vessel
   segmentation, synthetic angiogram pipeline, img2img CLIP for vessel locality;
   Dr. Andrew Gonzalez, Shantanu Dev) · **Davinci Wearables** (2025; agentic vLLM
@@ -989,7 +1081,9 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   bundle.
 - Loading discipline (v1 behavior worth keeping in any design): nothing heavy in
   flight at first paint; each demo's payload loads when its section is reached;
-  the 26MB draw model loads on first interaction; ORT+chess (24.4MB) may warm on
+  the 26MB draw model loads on first interaction (and, on `slaac-demo`, the
+  rerouter's 23.4MB model on the first reroute press that has an arc to
+  sample, never in the warm window); ORT+chess (24.4MB) may warm on
   desktop idle, gated by `saveData` / bad `effectiveType` / `deviceMemory < 4` /
   `(max-width: 767px)`, where **absent means unknown, not no** (the connection
   APIs are Chrome-only). All loaders are memoized promises so warm and section
@@ -1022,7 +1116,24 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   proportional type: v1 measured `54ch` ≈ 70 real characters, `68ch` ≈ 88.
 - **Headless Firefox is not a browser for timing**: no WebGPU adapter, ~20x slower
   ONNX inference than the same machine natively. Verify UX timing in a real
-  browser; quote only measured numbers.
+  browser; quote only measured numbers. **⚠️ It isn't the headlessness, it's
+  Playwright's Firefox build** (measured 2026-09-30, Task 15 of the SLAAC
+  round): HEADED Playwright Firefox ran the rerouter's forwards ~7x slower
+  than the stock system Firefox 152 on the same laptop, the same build and
+  the same press (686 vs 100 ms per forward at 6 CFG samples, 447 vs 65 at 4,
+  1655 vs 248 at 16; 13.9 s vs 2.15 s of worker time), and headless read the
+  same as headed (14.2 s). Playwright can't drive stock Firefox (it needs its
+  Juggler-patched build), but WebDriver BiDi can, with no dependency: launch
+  `/usr/bin/firefox --new-instance --no-remote --profile <fresh dir>
+  --remote-debugging-port=<port>`, read "WebDriver BiDi listening on ws://..."
+  from its output, and drive it with `session.new`,
+  `browsingContext.navigate`, `script.evaluate`, `input.performActions` over
+  node's global `WebSocket`. That is the desktop Firefox number to quote. The
+  machine also holds a Playwright Chromium (`~/.cache/ms-playwright/
+  chromium-1243`, from a newer Playwright than the repo's 1.61.1, launched
+  through `executablePath`), which ran within ~15% of stock Firefox; Playwright's
+  WebKit can't launch here (missing system libraries), so a WebKit number
+  comes from WebKitGTK through python gi.
 - **Headless Firefox is not a WebKit either, and the iPhone crash loop lived
   in JavaScriptCore** (2026-09-16). The site imported `onnxruntime-web/webgpu`
   for every model, that entry always fetches ORT's asyncify wasm build, and
@@ -2030,6 +2141,222 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   for this model because the backbone never downsamples below 8x8; don't attempt
   it on the diffusion UNets.
 
+### SLAAC rerouter (Figure 3) — page 1's NASA box (PREVIEW ONLY, branch `slaac-demo`)
+- What it is: the owner's SLAAC hazard-aware rerouter, live. A visitor picks
+  one of 48 hub pairs, its LM-filed routes draw, they draw an airspace and/or
+  turn on all six US launch sites, and the owner's diffusion model
+  (`FlightDiffusion`, a diffusers `UNet1DModel`, 5.78M params, 7 channels x
+  256 points, v-prediction, CFG 2.0) reroutes every affected flight, then the
+  owner's `local_reroute` snaps each arc to named fixes. Spec
+  `docs/superpowers/specs/2026-09-30-slaac-rerouter-design.md` (with an "As
+  built" and a "Measured" section), rulings R1-R16 in the gitignored ledger
+  `.superpowers/sdd/2026-09-30-slaac-rerouter/progress.md`. Files:
+  `components/figures/RerouteFigure.tsx` (the figure), `reroute-map.ts` (canvas
+  drawing and view math, node-tested), `ring.ts` (drawn-ring validation);
+  `lib/slaac-engine.ts` (main-thread client), `lib/slaac-worker.ts` (thin
+  shell), `lib/slaac-protocol.ts` (the wire); `lib/slaac/*` (the port and the
+  pipeline: `albers`, `geometry`, `dpm-solver`, `guidance`, `sampler`,
+  `reroute`, `navaids`, `rng`, `arcs`, `run`, `yield`, `data`). Python
+  generators in `scripts/slaac/` (README there has the venv and the order).
+- **The port is pinned by vectors, never trusted by reading**
+  (`scripts/slaac/make_vectors.py` runs the owner's REAL modules, imported by
+  path, into `scripts/slaac-vectors/*.json`, ~2.8 MB, never in `public/`):
+  `test-slaac-geometry` (Albers forward 1e-6 m, inverse 1e-9°; inside,
+  nearest boundary, segment tests, RDP case for case), `test-slaac-dpm`
+  (diffusers 0.38.0 `DPMSolverMultistepScheduler` for exactly this config:
+  timesteps equal for 20/30/40/50 steps, every step's `prev_sample` < 1e-4,
+  a full 40-step rollout < 1e-4; any other config throws),
+  `test-slaac-guidance` (smoothing and low-pass < 1e-6, margin top-up and
+  `sua_displacement` < 1e-3 m), `test-slaac-sampler` (the real ONNX graph in
+  node, 1 thread, on Python's own injected noise: `chord_features` < 1e-4,
+  the first three x0 estimates < 1.5e-4, the final path within
+  `tolerance_m = max(50, 20 x torch-vs-ORT drift)` per run (R2); measured
+  0.585 m with no airspace, 1.02 m with it), `test-slaac-reroute`
+  (`local_reroute` both policies, `refine_route_sua`, the snap: identical fix
+  names and roles, coordinates < 1e-9°, and `anchorsFor` predicting every
+  sampler call's entry and rejoin exactly). **⚠️ The float32 chord-end
+  trap**: the Python sampler is float32 end to end, and torch's float32
+  `linspace` and `A + (D - A) * s` put the pinned last chord point 1 ulp off
+  the endpoint, so `chord_features`' to-end vector there is a tiny nonzero one
+  and `atan2` reads pi (or -pi/2), not 0. A float64 chord flips those
+  channels and the samples drift visibly. `sampler.ts` rounds through
+  `Math.fround` wherever torch rounds; the chord is the one place that is
+  load-bearing, and `make_vectors.py` carries pipeline-captured
+  `chord_features` cases for it (Task 2 fix round). Re-run the vectors and all
+  nine `test-slaac-*` files after any change to the owner's pipeline.
+- **The owner's pipeline semantics are kept, even where they look odd**:
+  `plan_cli.Sampler` reseeds per arc, so every arc in a press starts from the
+  SAME noise (`normalNoise(seed, C*N)`, mulberry32 + Box-Muller, drawn once
+  per press from `Date.now() >>> 0` and repeated per arc), which also makes an
+  arc a pure function of its (entry, rejoin), so `run.ts` dedupes flights that
+  share one. Both policies ship, named as on the poster: "1-waypoint lookahead"
+  (`hug=1`) and "infinite lookahead" (`hug=0`, wide berth, the default); margin
+  default 25 nm. 20 DPM-Solver steps from the gate (R10), not the pipeline's
+  40. Every reroute option is read from `meta.reroute`, never hardcoded.
+  (R5: the "wide branch returns None" bug the spec once claimed does not
+  exist; `sua_guidance.py`'s last line has no trailing newline and line-count
+  tools hid it. Call the owner's function as is.)
+- **Batching**: an arc's anchors depend only on the filed route and the
+  polygons (`anchorsFor`, exact in both policies), so `planArcs` knows every
+  arc of a press before the model runs and the worker samples them together,
+  one forward per step per chunk of `BATCH_CAP_DESKTOP`/`BATCH_CAP_PHONE` arcs
+  (`lib/slaac/arcs.ts`; the CFG batch is twice that). **Both caps are 4
+  (Task 15, measured, see Measured below)**: a forward costs ~16 ms per CFG
+  sample whatever the batch, so batching buys almost no throughput, and the
+  old desktop cap of 16 gave 548 ms progress intervals on 8 arcs. **R3
+  fallback**: `localReroute` stays exact; its sampler returns the batched arc
+  for a planned (entry, rejoin) and samples on demand, unbatched on the same
+  noise, for any pair the planner missed, counted as `fallbackArcs` (expected
+  0, asserted by `test-slaac-arcs`).
+- **The worker yields one macrotask before every forward (R16)**: ORT-web's
+  `session.run` settles without returning to the worker's task queue, so a
+  run that only awaits forwards never lets a `cancel` or a newer `reroute`
+  message in: it would post its whole run first. `lib/slaac/yield.ts` uses a
+  MessageChannel round trip in browsers (measured in a Firefox worker:
+  0.01-0.02 ms, where `setTimeout(0)` clamps to 4.17 ms) and `setImmediate` in
+  node (a self-reposting MessagePort starves node's other ports; measured).
+  `session.run` calls are chained through a promise `gate`, so two runs are
+  never in one session at once. ⚠️ Chrome and Safari worker task ordering is
+  unmeasured.
+- **Stale-run discipline, three layers, each proved to bite in
+  `slaac-reroute`**: the figure (`busyRef` plus a press generation: three
+  presses in one task start one run); the engine (every run-scoped message
+  carries `runId`, and the client drops any but the run it awaits; a newer
+  press rejects the old one with `SlaacCancelled`); the worker (`currentRun`,
+  checked at every forward after the yield, and `post` drops any message for
+  a run that isn't current, so a superseded run stops within one forward).
+  `SlaacCancelled` and `SlaacUnloaded` are idle, never errors.
+- **Loading and stargaze** (the chess rules): behind `DeferredMount`; at
+  scroll-in only the six small JSON files load (~230 KB, `loadSlaacData`, one
+  memo); a press first plans on the MAIN thread (a dynamic import of the pure
+  planner) and a press with no affected leg says "no conflict" without loading
+  anything (`slaac-nothing-at-rest`). Only then do the model (HEAD-probed:
+  absent → "unavailable", nothing stands in) and the runtime load, in a worker
+  created with the literal `new Worker(new URL("./slaac-worker.ts",
+  import.meta.url), { type: "module" })`; onnxruntime-web is imported there
+  through `onnxruntime-web/wasm` only (the WebKit trap). Stargaze terminates
+  the worker (`unloadSlaacEngine`, `noteOffload("slaac")`) and reloads on
+  return only if it was loaded or loading; load generations discard a load
+  that lands after an unload. `demo_used {demo: "slaac"}` once per load, after
+  a completed reroute. The model is `public/models/flightdiff-<sha8>.onnx`
+  (`/models/*` is immutable for a year), its name read from `meta.json`.
+- **R6, `.ts` sibling imports**: `lib/slaac/*` imports siblings as `./x.ts`
+  (`allowImportingTsExtensions` in tsconfig) so plain `node --test` loads the
+  real modules; Turbopack bundles them fine (verified in the production
+  build's worker). Components import them extensionless through `@/lib/slaac/...`.
+- **The gate decided what ships** (`scripts/slaac/gate.py`, hand-run, owner's
+  real pipeline imported by path; `scripts/slaac-gate/report.{md,json}`
+  committed, per-run `rows.jsonl` gitignored and provenance-hashed, so a resume
+  on changed inputs is refused). Case set: every library route against all
+  launch polygons at once (80 affected of 373), plus 200 random polygons from
+  `eval_sua.build_cases` (seed 0), x both policies x 20/30/40/50 steps at
+  margin 25: 2,240 runs, 0 exceptions. **R7**: each launch site's touching or
+  overlapping rings are unioned into one outline (KSC's R-2932..R-2935 and
+  W-497A/B abut, and the guidance field, treating polygons independently,
+  pushed paths out of one ring into the next; hug sat at 97.5% before it).
+  Each merged polygon keeps `merged_from` and every source URL. **R9's
+  ladder**: snapped with `[wide, hug]` if hug >= 98% and wide >= 99% leg-clear
+  with 0 exceptions; else `[wide]` alone (the lookahead control drops); else
+  continuous (owner checkpoint). **R11**: the "never shorter than its anchor
+  chord" column is an invariant, 0 by construction, not evidence; the evidence
+  is leg-clear and clear-at-margin. Result (after R13): **20 steps, snapped,
+  `[wide, hug]`**, hug 99.64% / wide 99.29% of plans with no leg crossing (the
+  two failures are the same two random cases at every step count: snapping
+  pulls a leg through, the repair budget stops; the figure draws such a flight
+  as cannot-clear, dashed, its crossing legs red). **R10's trade**: 20 steps
+  holds every leg at the full 25 nm on 86.1% / 85.4% (hug/wide) against 89.3% /
+  85.4% at 40; the metric isn't monotone in steps (50 reads 86.4/82.5), and
+  the launch-preset subset is noisier (hug 68.8% at 20 vs 77.5% at 40). Copy
+  must never imply the buffer is always held; the figure prints each flight's
+  real minimum clearance, floored, in red when under the margin.
+- **R13, the FRD doubling-back fix, is an OWNER-PIPELINE bug worth fixing
+  upstream**: for an LM token `NAV <Rxxx> <Dyyy>`, `gen_trx_sua.py`'s
+  `geocode_items` keeps NAV as a waypoint AND appends the FRD point, so the
+  route flies over NAV and then up to ~100 nm back (138 of 373 routes doubled
+  back; 122 contained an FRD). The owner's own FP_ROUTE path (`rdp`) emits
+  only the FRD point. `route_library.py`'s `frd_rewrite` turns each
+  `("fix", NAV), ("rd", (b, d))` pair into `("rdp", (NAV, b, d))` before
+  calling the owner's function (no owner file edited); same seeds, identical
+  LM tokens, regenerated, gate re-run. 11 routes still backtrack: those are
+  the LM's own doglegs, shown as generated, never reordered.
+- **The route LM is precomputed, not live**: 222M params, 890 MB fp32 (~222
+  MB even at int8), ~120 ms/token on CPU with no KV cache, 17-35 tokens a
+  route. `route_library.py` ran `route_lm_best.pt` through the owner's
+  `generate_batch` (temperature 0.8, top-k 40, seed = pair index) under one
+  fixed context per pair (B738 FL350, or E75L FL300 under 400 nm great
+  circle; month 9, dow 2, hour 14), geocoded with the owner's Viterbi
+  geocoder (`max-leg-nm 1000`, endpoints anchored), broken routes dropped and
+  counted: 48 owner-approved pairs (Task 9 checkpoint) between public hubs
+  (FAA CY2025 enplanement rankings, lower 48, `scripts/slaac/hubs.json`; never
+  ranked from `flights.csv`), 373 routes, each with its tokens and seed. The
+  copy says the routes were written ahead of time.
+- **Data permissions** (owner, 2026-09-30, NASA cleared the Summer 2026
+  codebase; mirrors memory `nasa-codebase-permissions`): publishable are the
+  trained weights (the rerouter's ONNX here; the LM's by extension, not
+  shipped), the nav DB (`wyp345plus.txt`, shipped only as the 3-letter-navaid
+  snap table clipped to the lower-48 box), `airports.txt` (only the
+  library's airports), and ported code where it has to ship to the browser.
+  **Never published**: `SUA_all` (the launch airspace is rebuilt from public
+  FAA data instead), the real TRX days (`TRX_2025*`, `data/TRX_*`), anything
+  under `out/`, any `.py` source. `route_db.json` / `route_ranked.json` (mined
+  from real filed plans) and `airways.txt` were never shipped; ask before
+  either is. The NASA directory (`/home/neelayranjan/_SAVE/NASA/
+  NeelayRanjan_Summer2026_Codebase`) is read BY PATH (`scripts/slaac/nasa.py`)
+  and never copied; the codebase stays private (the owner commits it to
+  `NeelayRanjan/SAVE`) and the site never links it.
+- **Launch airspace** (`public/slaac/launch-sua.json`,
+  `scripts/slaac/prepare_launch_sua.py`, sources in
+  `scripts/slaac/launch-sua-sources.json` and
+  `docs/superpowers/specs/2026-09-30-launch-sua-sources.md`): six sites. Cape
+  Canaveral/KSC (R-2932..R-2935, W-497A/B), Vandenberg (R-2516, R-2517,
+  R-2534A/B, W-532S), Wallops (R-6604A/B; W-386 out, the handbook names no W
+  number), Spaceport America (R-5111A/B, per the FAA PDF), all from the FAA AIS
+  `Special_Use_Airspace` ArcGIS layer (public domain); Starbase and Blue
+  Origin's Van Horn from two PAST launch TFRs (FDC 5/3325, FDC 5/0611),
+  labelled as past TFRs. White Sands and Mojave dropped (owner), Kodiak outside
+  the domain. Rings clipped to the model's box (lat 24-50, lon -126..-66),
+  `clipped: true` where that changed them. **⚠️ The FAA chart cycle expires
+  2026-10-29** (`cycle: "2026-09-03..2026-10-29"`). Re-pull: delete
+  `scripts/slaac/.cache/faa_sua.geojson` (the layer rate-limits with HTTP 429,
+  so pull once), set `CYCLE` in `prepare_launch_sua.py`, re-run it, run
+  `test-slaac-data`; if `launch-sua.json`'s bytes changed, re-run the gate with
+  `--fresh` (its sha256 is in the provenance) and re-check the decision it
+  writes into `meta.json`; then update the cycle dates in
+  `copy.research.notes.data`. The demo treats every polygon as surface to
+  unlimited and always active.
+- **Dynamic zoom (R14, Task 12b)**: the map fits the selected pair's routes,
+  any launch airspace within 150 nm of them (`FOCUS_LAUNCH_NM`) and any drawn
+  ring, padded, eased over 350 ms on real elapsed ms (snap under reduced
+  motion); "whole US" returns to the lower-48 fit; the ring tool works at any
+  zoom through `fromScreen` of the CURRENT view, mid-ease included; an open
+  ring holds the view still until it closes. A finished run re-zooms once.
+- **Presentation rules**: airspace stamp red, filed routes ink, rerouted plans
+  x0 green, numbers warm amber; a plan made stale by a control change is drawn
+  faded and only a press re-runs it; cannot-clear plans are dashed with red
+  crossing legs; untouched flights say so; degenerate or self-crossing rings
+  are refused with a message; Escape clears an open ring except while
+  stargazing. Taps add vertices on release within a slop (a phone's press is
+  also a scroll); a tap near the first corner closes (22px touch, 12px mouse).
+  `window.__slaac` (`runId`, `loaded`, `lastDone`, `view`) and
+  `data-reroute-status` (state, step, arcs, ms, flights, launchSites with
+  centroids, view) are verify hooks, not UI.
+- **Measured** (Task 15, 2026-09-30, this laptop, production build, headed;
+  first press, cold cache; median of 3 [range]): stock Firefox 152 (driven
+  over WebDriver BiDi): KJFK-KMIA past all six launch sites, 3 arcs, 2.77 s
+  [2.71-2.78] press to done, 2.15 s of worker time, ~100 ms per forward at 6
+  CFG samples; with a large box over the Southeast too, 2 arcs, 2.07 s; the
+  heaviest library case (KCLT-KSAN, launch sites plus the box, 8 arcs) 6.11 s
+  at cap 4 (5.75 s at the old cap 16); a no-conflict press settles in ~17 ms
+  and loads nothing. Press to model loaded ~0.62 s on localhost (23.4 MB model,
+  plus 3.46 MB of gzipped runtime when the chess worker hasn't already fetched
+  it; the runtime is 13.5 MB raw). Playwright's Chromium 1243: 3.15 s for
+  KJFK-KMIA. WebKitGTK 2.52.5
+  (JavaScriptCore): 8.3 s, ~330 ms per forward, idle afterwards flat at
+  ~600-850 MB and ~97% CPU (the sky's render floor), no runaway. Playwright's
+  Firefox: 15.8 s, see the trap. **Owed**: Chrome proper and the owner's
+  iPhone on the preview link; no phone number exists, and the copy quotes
+  only the laptop's "2-6 seconds".
+
 ### Trajectory viewer (pixel + ascii diffusion) — /lab
 - Both files are real trained output. **The placeholder generator was deleted
   deliberately** (it wrote to the real export's path); never add one back.
@@ -2180,7 +2507,8 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   the cursor is still a threshold, and the copy keeps saying so. Panel Dice =
   computed from the shown pixels (SAM's are a fresh stochastic draw; see the
   drift bullet above).
-- **Figure 3 (flight video, `FlightFigure.tsx`)**: the committed mp4 is
+- **Figure 3 (flight video, `FlightFigure.tsx`)**, Figure S3 on `/lab` on the
+  `slaac-demo` branch, where the live rerouter took Figure 3's slot: the committed mp4 is
   untouched; the dark-map look is pure CSS — `invert(1) hue-rotate(33deg)
   saturate(2.1) brightness(1.05)` lands the blips on the warm token,
   `mix-blend-mode: screen` makes the inverted-black ground contribute nothing
@@ -2213,6 +2541,15 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 | `public/headshot/v2/photos/{0,1,2}_thumb.webp` | ~2 KB each | 96² derivatives for the 44px face buttons (first paint) |
 | `public/research/*` | ~1.7 MB | prepare-research outputs: `label_efficiency.json` + `eff/` strip (Figure 1), `cdf/` stops + `cdf.json` (Figure 2), flight mp4 + poster, wipe assets (unrendered), `provenance.json` |
 | `public/sky/images/*` | ~1.7 MB | 35 card photographs (640px WebP, metadata stripped) plus `index.json` with author, license, Commons source and pinned sha1; built by `scripts/prepare-sky-images.mjs` from `scripts/sky-image-picks.json` |
+| `public/models/flightdiff-b3463317.onnx` | 23.4 MB | the SLAAC rerouter's diffusion UNet (5.78M params, fp32, opset 17, dynamic batch; ONNX vs torch max abs 3.8e-6), branch `slaac-demo`; the hash in the name is its sha256's head, and `meta.json` names it |
+| `public/slaac/meta.json` | 1.5 KB | normalization stats, channels, the scheduler config, the sampler (20 steps, from the gate) and reroute settings, the model's name and sha256, `display: "snapped"`, `policies: ["wide", "hug"]` |
+| `public/slaac/routes.json` | 143 KB | the LM route library: 48 pairs, 373 routes, each with its tokens, fixes and seed (`scripts/slaac/route_library.py`) |
+| `public/slaac/navaids.json` | 57 KB | the snap table: 3-letter navaids from the nav DB, clipped to the lower-48 box |
+| `public/slaac/us-outline.json` | 12.5 KB | the lower-48 outline embedded in the owner's `viz_common` |
+| `public/slaac/launch-sua.json` | 9.8 KB | six launch sites' merged outlines (R7), each with its designators, source URLs and the FAA cycle (expires 2026-10-29) |
+| `public/slaac/airports.json` | 2.1 KB | only the library's airports |
+| `scripts/slaac-vectors/*.json` | ~2.8 MB | parity vectors from the owner's real modules; never in `public/` |
+| `scripts/slaac-gate/report.{md,json}` | ~240 KB | the gate's decision and per-case table (`rows.jsonl` gitignored) |
 | `public/ort/*` | ~37 MB | onnxruntime-web wasm, vendored, **gitignored**, synced on prebuild |
 
 The JEPA bundle is produced by
@@ -2223,7 +2560,11 @@ to the `headshot256*` / `headshot128*` scheme; the photos re-encoded from the ne
 `photos/{i}.png` with `ffmpeg -map_metadata -1 -c:v libwebp -quality 80`, 512²
 plus 96² thumbs); the bundle's `vectors/` and `*_{128,256}.png` training inputs
 stay out of `public/`. Git LFS: settled, not needed (~49 MB tracked binaries,
-up from ~47 MB since the card photographs; final-review fix #9, 2026-09-17).
+up from ~47 MB since the card photographs; final-review fix #9, 2026-09-17;
+~73 MB on the `slaac-demo` branch with the rerouter's 23.4 MB ONNX, still
+under GitHub's 100 MB per-file limit). `public/models/flightdiff-*.onnx` and
+`public/slaac/*` come from `scripts/slaac/` (hand-run, a local venv with
+torch 2.13 and diffusers 0.38.0, reading the NASA directory by path).
 
 ## Known bugs — open on the live site
 

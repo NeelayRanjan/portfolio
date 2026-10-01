@@ -1,6 +1,7 @@
 # SLAAC rerouter: a live Figure 3 — design
 
-Status: DRAFT for owner review, 2026-09-30. Branch `slaac-demo` (worktree
+Status: BUILT on `slaac-demo` (plan Tasks 1-15, 2026-09-30/10-01; see sections 13
+and 14), preview pending (Task 16). Originally a DRAFT for owner review, 2026-09-30. Branch `slaac-demo` (worktree
 `../portfolio-slaac`). **Preview only**: nothing here merges to `main` or
 reaches neelayranjan.dev until the owner says their NASA mentor approved the
 preview link.
@@ -345,3 +346,127 @@ the owner's phone for the WebKit pass), not headless Firefox.
   the LM run (owner).
 - Whether int8 helps the UNet (measure; ship fp32 if not).
 - The batch cap on phones (measure).
+
+## 13. As built: where the build departed from this design
+
+Rulings are numbered as in the build's ledger
+(`.superpowers/sdd/2026-09-30-slaac-rerouter/progress.md`, gitignored).
+
+- **Merged launch rings (R7).** Section 5 merged rows by designator only. The
+  gate found KSC's abutting rings (R-2932..R-2935, W-497A/B) made the guidance
+  push a path out of one ring into the next (1-waypoint lookahead at 97.5%,
+  under its 98% bar), so each site's touching or overlapping rings are unioned
+  into one outline. Every merged polygon keeps `merged_from` and every source
+  URL; the outline differs from the FAA's separate designators, and the data
+  says which it came from. W-386 is out (the Wallops handbook names no W
+  number); R-5111A/B are in (the FAA PDF names them).
+- **The gate's rules (R8, R9, R11) and its result (R10).** The
+  `flights_shorter_after_reroute` rule measured the LM's own doglegs, not the
+  rerouter; it became "never shorter than the straight line between its own
+  anchors", which is an invariant (0 by construction), so the evidence is
+  leg-clear and clear-at-margin only. Decision ladder: snapped with both
+  policies if hug >= 98% and wide >= 99% leg-clear with 0 exceptions, else
+  wide alone, else continuous. Result over 2,240 runs: **20 steps, snapped,
+  `[wide, hug]`**, 99.64% / 99.29% of plans with no leg crossing. The trade
+  of 20 over 40 steps: every leg at the full 25 nm on 86.1% / 85.4% of plans
+  against 89.3% / 85.4% (the metric isn't monotone in steps; up to ~9 points
+  on the noisier 80 launch-preset cases). The copy never implies the buffer
+  is always held, and the figure prints each flight's real minimum clearance.
+- **The FRD geocoding fix (R13).** The owner's `geocode_items` keeps a navaid
+  AND appends its FRD point for an LM token `NAV <Rxxx> <Dyyy>`, so 138 of
+  373 routes doubled back. `route_library.py` rewrites each such pair into the
+  owner's own `rdp` form before calling the owner's function (no owner file
+  edited), routes regenerated on the same seeds with identical tokens, gate
+  re-run. 11 routes still backtrack: the LM's own doglegs, shown as generated.
+  The bug is the owner's to fix upstream.
+- **The worker yields before every forward (R16).** ORT-web's `session.run`
+  never returns to the worker's task queue, so without a yield a `cancel` or a
+  newer press was read only after the whole old run. A MessageChannel
+  round trip (0.01-0.02 ms, measured in a Firefox worker) before each forward
+  lets it in; the run stops within one forward. Section 6's "abort path" is
+  this yield plus the run-id guards at the figure, engine and worker.
+- **Dynamic zoom (R14, owner request).** Not in section 7: the map fits the
+  selected pair's routes, launch airspace within 150 nm of them and drawn
+  rings, eased over 350 ms (snapped under reduced motion), with a "whole US"
+  toggle; the ring tool works at any zoom.
+- **Notes layout.** Section 8 put DATA and the disclaimer in the rail. Stacked
+  there they ran 725px against ~290px of prose, so the SLAAC note stays in the
+  rail and DATA and DIFFERENCES sit under Figure 3 as a footnote band (two
+  columns from 880px).
+- **Smaller changes.** Arcs are deduplicated by (entry, rejoin), since every
+  arc starts from the same noise; an arc the planner missed is sampled on
+  demand (R3, expected never; counted as `fallbackArcs`). Progress posts
+  every 2 forwards, not every step. The outline ships as
+  `us-outline.json`, not `.bin`. The route library is 48 owner-approved pairs,
+  373 routes. Both batch caps are 4 (section 14). `slaac-reroute` recomputes
+  legs crossing in node from each received plan rather than matching a node
+  reference run; the node reference lives in `test-slaac-arcs.mjs`, which
+  pins `runReroute` against `localReroute` driven by the real ONNX model.
+  The UNet ships fp32; int8 was not tried.
+
+## 14. Measured (Task 15, 2026-09-30)
+
+Where: this laptop (20 hardware threads; ORT runs 4), a production build
+(`next build && next start -p 3100`), first press on a cold cache (a fresh
+profile or context per run), headed windows on the desktop. Three runs each;
+median [range]. Stock Firefox 152 is driven over WebDriver BiDi (Playwright
+can't drive it); Chromium is Playwright's bundled Chromium 1243, not Google
+Chrome. These are laptop numbers: **no phone, and not Chrome proper, has
+been measured**.
+
+Cases: (a) KJFK-KMIA with all six launch sites, 3 arcs; (b) the same plus a
+large drawn box over the Southeast (36.5N-30N, 90W-75.5W), 2 arcs (fewer
+distinct entry/rejoin pairs than (a)); (c) KJFK-KMIA, launch sites off, a box over central
+Nevada: no conflict; (d) KCLT-KSAN with the launch sites and the Southeast
+box, 8 arcs, the library's heaviest case with that box (found by planning
+every pair offline). Default margin 25 nm, infinite lookahead, 20 steps.
+
+| browser | case | cap | press → done | worker time | per forward | worst progress interval |
+|---|---|---|---|---|---|---|
+| stock Firefox 152 | a | 16 | 2.77 s [2.71-2.78] | 2.15 s [2.10-2.16] | 100 ms (6 samples) | 245 ms [240-277] |
+| stock Firefox 152 | a | 4 | 2.82 s [2.77-2.92] | 2.20 s [2.15-2.28] | 104 ms | 266 ms [233-290] |
+| stock Firefox 152 | b | 16 | 2.07 s [2.05-2.08] | 1.45 s | 65 ms (4 samples) | 174 ms [169-176] |
+| stock Firefox 152 | c | - | 17 ms to "no conflict" [16-18] | none | - | - |
+| stock Firefox 152 | d | 16 | 5.75 s [5.74-5.77] | 5.13 s | 248 ms (16 samples) | 548 ms [535-554] |
+| stock Firefox 152 | d | 4 | 6.11 s [6.03-6.13] | 5.46 s | 131 ms (8 samples) | 309 ms [306-314] |
+| Chromium 1243 | a | 16 | 3.15 s [3.14-3.17] | 2.22 s | 102 ms | 305 ms [294-325] |
+| Chromium 1243 | b | 16 | 2.44 s [2.43-2.60] | 1.52 s | 68 ms | 224 ms [223-248] |
+| Chromium 1243 | c | - | 18 ms to "no conflict" | none | - | - |
+| Chromium 1243 | d | 16 | 7.76 s [7.70-7.97] | 6.85 s | 375 ms | 776 ms [773-827] |
+| Chromium 1243 | d | 4 | 6.54 s [6.40-7.89] | 5.60 s | 132 ms | 407 ms [406-447] |
+| WebKitGTK 2.52.5 (JavaScriptCore) | a | 16 | 8.28 s [8.12-8.44] | 6.61 s [6.61-6.84] | ~330 ms | ~700 ms |
+| Playwright Firefox 151 | a | 16 | 15.8 s [15.7-15.9] | 13.9 s | 686 ms | 1450 ms |
+| Playwright Firefox 151 | d | 16 | 35.2 s | 33.3 s | 1655 ms | 3408 ms |
+
+At 400px (the phone cap, 4; same laptop CPU), stock Firefox: a 2.76 s, b
+2.04 s, d 6.12 s with a 302 ms worst interval [298-311].
+
+- **First-press download**: the model is 23,395,296 bytes, served
+  uncompressed by `next start`;
+  press to model loaded (HEAD probe, download, worker start, session
+  create) 0.62 s [0.61-0.64] in stock Firefox, 0.92 s in Chromium, over
+  localhost, so it says nothing about a visitor's network. The runtime
+  (`ort-wasm-simd-threaded.wasm`, 13.5 MB raw) transfers as 3.46 MB gzipped
+  when the chess worker hasn't already fetched it.
+- **No conflict loads nothing**: case (c) made no model and no rerouter
+  runtime request in every run (the planner runs on the main thread).
+- **Batch caps (changed 16 → 4 on desktop)**: a forward costs ~16 ms per CFG
+  sample in stock Firefox whatever the batch (65 ms at 4, 100 at 6, 131 at 8,
+  248 at 16), so batching buys ~5-7% throughput at most. At the old desktop
+  cap, case (d) ran as one chunk with 548 ms intervals; at 4 it runs as two,
+  ~300 ms worst (the first interval, which includes setup) and ~250-280 ms in
+  steady state, for 6% more total time. The phone cap stays 4 until a phone
+  says otherwise; on this laptop a cap of 2 would cost nothing in total time.
+- **Playwright's Firefox is ~7x slower at this wasm than stock Firefox**,
+  headed or headless (the verify suite's headless run read 14.2 s for case
+  a), so the suite's timings and timeouts say nothing about a visitor.
+- **WebKitGTK** (`probe-webkit-draw.py`'s method, adapted to press reroute;
+  3 runs): the press completes, all 8 flights `ok`, and the 30-60 s idle
+  afterwards holds the web process flat (585-859 MB RSS, peak 859 MB) at
+  ~97% CPU, the page's own render floor under software rendering: no
+  JavaScriptCore runaway of the asyncify kind. Not an iPhone number.
+- **Copy**: the DIFFERENCES note says a reroute takes "2-6 seconds on my
+  laptop" (stock Firefox and Chromium, cases a-d, first press included). No
+  phone timing is claimed anywhere.
+- **Pending (Task 16)**: desktop Chrome and the owner's iPhone, on the
+  preview link.

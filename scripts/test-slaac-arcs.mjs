@@ -100,7 +100,7 @@ test("(c) chunk", () => {
   assert.deepEqual(A.chunk([], 4), []);
   assert.deepEqual(A.chunk([1, 2], 4), [[1, 2]]);
   assert.throws(() => A.chunk([1], 0));
-  assert.equal(A.BATCH_CAP_DESKTOP, 16);
+  assert.equal(A.BATCH_CAP_DESKTOP, 4);
   assert.equal(A.BATCH_CAP_PHONE, 4);
 });
 

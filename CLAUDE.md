@@ -222,6 +222,15 @@ the stamp in a Link), **`references-lab-link-resolves`**,
 flush above Andromeda's card, CSS-sized before load, credited and cited;
 none on Polaris; the card complete with the index held; the docked phone
 card's photograph at most 28% of the viewport and the card at most 60%),
+**`stargaze-myth-image`** (2026-10-01, task 19: Andromeda's card, opened
+from the keyboard list, shows its artwork flush on top in the photographs'
+318x238.5 box, credited "Image:" with the index's author, the artwork's name
+plus "An artwork, not a photograph of the sky.", a Commons citation tagged
+"[Image]" and the pick's `focus` as `object-position`; a constellation the
+SERVED index gives no entry opens with no image markup at all; Orion's
+docked 400px card keeps the artwork at most 28% and the card at most 60%;
+proved to bite by dropping `image: imageFor(h.id)` from the constellation
+branch of `buildCard`),
 stargaze mode
 (hiding the page with `inert` and firing no page-content fetch; offloading
 the chess worker and the draw/headshot sessions; cancelling a run in flight
@@ -342,7 +351,10 @@ Cluster and the Veil as paired objects, and carry no invented magnitude;
 conversion and the 7-day TLE-staleness gate; `test-sky-images` pins
 `public/sky/images/index.json`'s shape against the pick list (every pick has
 an entry and every entry a pick, every file on disk is indexed, the right
-subjects per spec §2 coverage and no others), the generator's license
+subjects per spec §2 coverage and no others, and since task 19 exactly the
+37 `MYTH_CONSTELLATIONS` among the 88 with an image, each carrying an
+`artwork` name, and no `artwork` on anything else; proved to bite by
+dropping Tau from the list), the generator's license
 allow-list matching the runtime validator's, and the validator itself
 accepting the committed index and rejecting malformed ones. `SKY_FACTS_PARTIAL=1` in front
 of `test-sky-facts` exists only so facts can be written in batches without
@@ -505,8 +517,10 @@ because COEP forbids hotlinking anyway. The card prints the credit and adds
 a Commons citation; the box is CSS-sized (318x238.5 desktop, measuring the
 aside's 320px border-box less its 1px border against the 4:3 aspect; 2:1
 capped at 28dvh on phones, body cap 32dvh so the docked card stays under 60%)
-so the cached card height never goes stale. Stars, constellations, showers,
-the Voyagers and the Kepler field get none, on purpose.
+so the cached card height never goes stale. Stars, showers, the Voyagers
+and the Kepler field get none, on purpose; constellations got none until
+2026-10-01, when the 37 whose card tells a myth gained an artwork (see
+"Card photographs" below).
 
 **2026-09-17: what search engines read, LIVE** (merged to `main` with the
 chess round). The owner
@@ -1855,6 +1869,42 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   once the whole run has no failures, wraps its temp source fetch in
   try/finally, and never upscales past a source's own resolution
   (`min(long side, 640)`).
+  **Myth artworks on constellation cards (task 19, ruling R25,
+  2026-10-01)**, owner: "for the constellations named after a myth, display
+  an image of the myth, fitting with its description". The rule: a
+  constellation gets an image only if ITS CARD in `content/sky-facts.ts`
+  tells or names a myth, decided by reading each card (37 of 88; the
+  included and excluded ids with a reason each are in the task-19 report,
+  and `MYTH_CONSTELLATIONS` in `test-sky-images.mjs` pins the set). Not on
+  the list, on purpose: the modern instruments and animals with no story,
+  cards that tell history rather than myth (Coma Berenices, Scutum), Ursa
+  Major and Ursa Minor (their cards quote Homer and Thales, no myth),
+  Sagittarius (its card says no Greek myth belongs to it), Columba (a
+  biblical story, left to the owner) and the Argo pieces (the brief admits
+  them only if the card tells the Argo myth, and none does). The image is a
+  public-domain or allow-listed artwork showing THE CARD'S version of the
+  myth where one exists (Titian's *Bacchus and Ariadne* for Corona Borealis,
+  with the crown in its sky; the Getty's Caeretan hydria for both Hydra and
+  Cancer, whose crab pinches Herakles' heel), each subject confirmed on its
+  Commons description page, not from the filename; otherwise the
+  constellation's plate from a star atlas (Sidney Hall's *Urania's Mirror*,
+  1825, for most; Bayer's *Uranometria* for Ara and Phoenix, Hevelius for
+  Piscis Austrinus, which Urania's Mirror lacks or draws too small). Same
+  pipeline as the photographs; two optional pick fields: `artwork` (the
+  work's name, artist and date, typed from the description page) and
+  `focus` (a CSS `object-position`, "50% 30%", so a figure's face survives
+  the 4:3 / 2:1 box; it positions, never crops the file, so `cropped` still
+  means only the generator's own `crop`). An entry with `artwork` is
+  credited "Image:" (`imageCreditArtwork`) instead of "Photograph:", its
+  citation is tagged " [Image]", and the credit ends with the work's name
+  and `imageArtworkNote`, "An artwork, not a photograph of the sky." Nudity
+  calls, made for a portfolio admissions committees read: Leda (the usual
+  Cygnus subject), Rubens' and Goltzius' Juno pictures, a Collaert Arion and
+  the nude Hercules statues were passed over for clothed alternatives;
+  Urania's Mirror's Cassiopeia (one bare breast) and Burne-Jones' small
+  stylised Chrysaor on Pegasus' card were kept as the best fit, and are the
+  owner's to veto. The generator's Commons lookup is batched at 50 titles
+  (the API's limit, passed when the list reached 72 picks). ~2.0 MB added.
 - **The stargaze keyboard list** (NightSky, portalled into
   `[data-sky-list-slot]`, which `StargazeToggle` renders right after the exit
   control): the canvas is `aria-hidden`, so this `sr-only` group of buttons,
@@ -2784,7 +2834,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 | `public/headshot/v2/photos/{0,1,2}.webp` | 18/57/36 KB | the three approved crops, 512², q80, metadata stripped |
 | `public/headshot/v2/photos/{0,1,2}_thumb.webp` | ~2 KB each | 96² derivatives for the 44px face buttons (first paint) |
 | `public/research/*` | ~1.7 MB | prepare-research outputs: `label_efficiency.json` + `eff/` strip (Figure 1), `cdf/` stops + `cdf.json` (Figure 2), flight mp4 + poster, wipe assets (unrendered), `provenance.json` |
-| `public/sky/images/*` | ~1.7 MB | 35 card photographs (640px WebP, metadata stripped) plus `index.json` with author, license, Commons source and pinned sha1; built by `scripts/prepare-sky-images.mjs` from `scripts/sky-image-picks.json` |
+| `public/sky/images/*` | ~3.7 MB | 35 card photographs and (task 19) 37 myth-constellation artworks (640px WebP, metadata stripped) plus `index.json` with author, license, Commons source and pinned sha1; built by `scripts/prepare-sky-images.mjs` from `scripts/sky-image-picks.json` |
 | `public/models/flightdiff-b3463317.onnx` | 23.4 MB | the SLAAC rerouter's diffusion UNet (5.78M params, fp32, opset 17, dynamic batch; ONNX vs torch max abs 3.8e-6), branch `slaac-demo`; the hash in the name is its sha256's head, and `meta.json` names it |
 | `public/slaac/meta.json` | 1.5 KB | normalization stats, channels, the scheduler config, the sampler (20 steps, from the gate) and reroute settings, the model's name and sha256, `display: "snapped"`, `policies: ["wide", "hug"]` |
 | `public/slaac/routes.json` | 143 KB | the LM route library: 48 pairs, 373 routes, each with its tokens, fixes and seed (`scripts/slaac/route_library.py`) |
@@ -2803,7 +2853,7 @@ repo generates it. `public/headshot/v2/` is copied verbatim out of
 to the `headshot256*` / `headshot128*` scheme; the photos re-encoded from the new
 `photos/{i}.png` with `ffmpeg -map_metadata -1 -c:v libwebp -quality 80`, 512²
 plus 96² thumbs); the bundle's `vectors/` and `*_{128,256}.png` training inputs
-stay out of `public/`. Git LFS: settled, not needed (~49 MB tracked binaries,
+stay out of `public/`. Git LFS: settled, not needed (~51 MB tracked binaries after task 19's ~2 MB of artworks;
 up from ~47 MB since the card photographs; final-review fix #9, 2026-09-17;
 ~73 MB on the `slaac-demo` branch with the rerouter's 23.4 MB ONNX, still
 under GitHub's 100 MB per-file limit). `public/models/flightdiff-*.onnx` and

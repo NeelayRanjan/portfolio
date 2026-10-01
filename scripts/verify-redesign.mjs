@@ -4626,6 +4626,157 @@ async function checkStargazeCardImage(browser) {
 }
 
 /**
+ * Task 19 (ruling R25): a constellation whose card tells a myth opens with an
+ * ARTWORK of that myth, flush above the card exactly like the deep-sky
+ * photographs, but credited "Image:" (not "Photograph:"), naming the work and
+ * saying it is not a photograph of the sky, with a Commons citation tagged
+ * "[Image]". Every other constellation still opens with none. Which is which
+ * comes from the SERVED index.json (an entry keyed by a constellation id), so
+ * a regenerated pick list changes the check with no edit here. Opened through
+ * the keyboard list for determinism (constellation hit bands overlap), at
+ * desktop and on the docked 400px phone card.
+ */
+async function checkStargazeMythImage(browser) {
+  const notes = [];
+  const t = copy.stargaze.card;
+  const openFromList = async (page, id) => {
+    const button = page.locator(`[data-sky-list-item="${id}"]`);
+    if ((await button.count()) !== 1) throw new Error(`${id} has no keyboard-list button`);
+    await button.evaluate((el) => el.click());
+    const card = page.locator(`[data-sky-card="${id}"]`);
+    await card.waitFor({ state: "attached", timeout: 3000 }).catch(async () => {
+      const opened = await page.evaluate(() => window.__sky.card);
+      throw new Error(`the list button for ${id} opened ${JSON.stringify(opened)}`);
+    });
+    return card;
+  };
+  const readCard = (card) =>
+    card.evaluate((el) => {
+      const first = el.firstElementChild;
+      const body = first?.nextElementSibling;
+      const img = el.querySelector("[data-sky-card-image] img");
+      const a = first?.getBoundingClientRect();
+      const b = body?.getBoundingClientRect();
+      return {
+        figures: el.querySelectorAll("[data-sky-card-image]").length,
+        firstIsFigure: first?.hasAttribute("data-sky-card-image") ?? false,
+        gap: a && b ? b.top - a.bottom : null,
+        src: img?.getAttribute("src") ?? null,
+        alt: img?.getAttribute("alt") ?? "",
+        objectPosition: img ? getComputedStyle(img).objectPosition : null,
+        credit: el.querySelector("[data-sky-card-image-credit]")?.textContent ?? null,
+        artwork: el.querySelector("[data-sky-card-image-artwork]")?.textContent ?? null,
+        commons: [...el.querySelectorAll("[data-sky-card-sources] li")]
+          .filter((li) => [...li.querySelectorAll("a")].some((x) => (x.getAttribute("href") ?? "").startsWith("https://commons.wikimedia.org/wiki/File:")))
+          .map((li) => li.textContent),
+        box: a ? { w: a.width, h: a.height } : null,
+        card: el.getBoundingClientRect().height,
+      };
+    });
+  const assertMyth = (id, c, entry, where) => {
+    if (c.figures !== 1 || !c.firstIsFigure) throw new Error(`${where}: ${id}'s card has no artwork flush on top: ${JSON.stringify(c)}`);
+    if (c.gap === null || Math.abs(c.gap) > 1) throw new Error(`${where}: ${id}'s artwork sits ${c.gap}px off the card body`);
+    if (c.src !== entry.src) throw new Error(`${where}: ${id}'s image is ${c.src}, the index says ${entry.src}`);
+    if (c.alt !== entry.alt) throw new Error(`${where}: ${id}'s alt ${JSON.stringify(c.alt)} is not the index's`);
+    if (!c.credit?.startsWith(t.imageCreditArtwork + entry.author)) throw new Error(`${where}: ${id}'s credit ${JSON.stringify(c.credit)} does not start "${t.imageCreditArtwork}${entry.author}"`);
+    if (c.credit.startsWith(t.imageCredit)) throw new Error(`${where}: ${id}'s artwork is credited as a photograph: ${JSON.stringify(c.credit)}`);
+    const wantArt = `. ${entry.artwork}. ${t.imageArtworkNote}`;
+    if (c.artwork !== wantArt) throw new Error(`${where}: ${id}'s artwork line ${JSON.stringify(c.artwork)}, want ${JSON.stringify(wantArt)}`);
+    if (!c.commons.some((x) => x.includes(entry.sourceTitle + t.imageSourceSuffixArtwork))) {
+      throw new Error(`${where}: ${id} has no Commons citation tagged "${t.imageSourceSuffixArtwork.trim()}": ${JSON.stringify(c.commons)}`);
+    }
+    if (entry.focus) {
+      const want = entry.focus.split(" ").join(" ");
+      if (c.objectPosition !== want) throw new Error(`${where}: ${id}'s object-position is ${c.objectPosition}, its focus is ${entry.focus}`);
+    }
+  };
+  const assertNone = (id, c, where) => {
+    if (c.figures || c.credit !== null || c.artwork !== null || c.commons.length) {
+      throw new Error(`${where}: ${id} tells no myth on its card, yet it carries image markup: ${JSON.stringify(c)}`);
+    }
+  };
+  const servedSplit = (page) =>
+    page.evaluate(async () => {
+      const index = await (await fetch("/sky/images/index.json")).json();
+      const sky = await (await fetch("/sky/sky.json")).json();
+      const abbrs = Object.keys(sky.constellations);
+      const listed = [...document.querySelectorAll("[data-sky-list-item]")].map((b) => b.getAttribute("data-sky-list-item"));
+      const myth = abbrs.filter((a) => index.images[a]);
+      return {
+        myth,
+        entries: Object.fromEntries(myth.map((a) => [a, index.images[a]])),
+        listedMyth: listed.filter((x) => myth.includes(x)),
+        listedPlain: listed.filter((x) => abbrs.includes(x) && !myth.includes(x)),
+      };
+    });
+
+  // Desktop: Andromeda (the brief's own example) when it is listed, and a
+  // constellation with no myth on its card, on the same page.
+  const W = 1440;
+  const H = 900;
+  const { date } = findInstant(new Date(Date.UTC(2026, 9, 1)), W, H, M31, 120);
+  await pinnedSkyPage(browser, { W, H, date }, async (page) => {
+    await page.waitForFunction(() => window.__sky.layers.facts === "ready" && window.__sky.layers.images === "ready", null, { timeout: 20000 }).catch(async () => {
+      const layers = await page.evaluate(() => ({ ...window.__sky.layers }));
+      throw new Error("desktop: layers not ready within 20s: " + JSON.stringify(layers));
+    });
+    await waitStargazeReady(page);
+    await stargazeToggle(page).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    await page.waitForFunction(() => document.querySelectorAll("[data-sky-list-item]").length > 0, null, { timeout: 5000 });
+    const split = await servedSplit(page);
+    if (split.myth.length < 20) throw new Error(`the served index gives only ${split.myth.length} constellations an artwork`);
+    if (!split.listedMyth.includes("And")) throw new Error(`Andromeda is not in the keyboard list at ${date.toISOString()}; listed myth constellations: ${split.listedMyth.join(", ")}`);
+    if (!split.listedPlain.length) throw new Error(`no constellation without a myth is on screen at ${date.toISOString()}; the "none" side would be untested`);
+
+    const card = await openFromList(page, "And");
+    await page.waitForFunction(() => {
+      const img = document.querySelector('[data-sky-card="And"] [data-sky-card-image] img');
+      return img && img.complete && img.naturalWidth > 0;
+    }, null, { timeout: 10000 }).catch(() => {
+      throw new Error("Andromeda's artwork never finished loading");
+    });
+    const c = await readCard(card);
+    assertMyth("And", c, split.entries.And, "1440");
+    if (!c.box || Math.abs(c.box.w - 318) > 1 || Math.abs(c.box.h - 238.5) > 1) throw new Error(`1440: artwork box ${JSON.stringify(c.box)}, expected the photographs' 318x238.5`);
+    notes.push(`And: ${c.src} ${JSON.stringify(c.credit)}`);
+    await page.keyboard.press("Escape");
+    await card.waitFor({ state: "detached", timeout: 2000 });
+
+    const plainId = split.listedPlain.includes("Tel") ? "Tel" : split.listedPlain[0];
+    const plain = await readCard(await openFromList(page, plainId));
+    assertNone(plainId, plain, "1440");
+    notes.push(`${plainId}: no image (${split.listedPlain.length} plain and ${split.listedMyth.length} myth constellations listed, ${split.myth.length} myth in the index)`);
+  });
+
+  // 400px, touch: the docked card for Orion (or the first myth constellation
+  // listed), artwork at most 28% of the viewport, the card at most 60%.
+  const P = { W: 400, H: 800 };
+  const ori = findInstant(new Date(Date.UTC(2026, 0, 15)), P.W, P.H, { raDeg: 83.8, decDeg: 2 }, 30);
+  await pinnedSkyPage(browser, { W: P.W, H: P.H, date: ori.date, contextOptions: { hasTouch: true } }, async (page) => {
+    await page.waitForFunction(() => window.__sky.layers.facts === "ready" && window.__sky.layers.images === "ready", null, { timeout: 20000 });
+    await waitStargazeReady(page);
+    await stargazeToggle(page).click();
+    await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    await page.waitForFunction(() => document.querySelectorAll("[data-sky-list-item]").length > 0, null, { timeout: 5000 });
+    const split = await servedSplit(page);
+    const id = split.listedMyth.includes("Ori") ? "Ori" : split.listedMyth[0];
+    if (!id) throw new Error(`400: no myth constellation listed at ${ori.date.toISOString()}`);
+    const card = await openFromList(page, id);
+    await page.waitForFunction((cid) => {
+      const img = document.querySelector(`[data-sky-card="${cid}"] [data-sky-card-image] img`);
+      return img && img.complete && img.naturalWidth > 0;
+    }, id, { timeout: 10000 });
+    const c = await readCard(card);
+    assertMyth(id, c, split.entries[id], "400");
+    if (c.box.h > 0.28 * P.H + 1) throw new Error(`400: ${id}'s artwork is ${c.box.h}px tall, over 28% of ${P.H}`);
+    if (c.card > 0.6 * P.H + 2) throw new Error(`400: ${id}'s card is ${c.card}px tall, over 60% of ${P.H}`);
+    notes.push(`400 ${id}: artwork ${Math.round(c.box.h)}px of card ${Math.round(c.card)}px`);
+  });
+  return notes.join("; ");
+}
+
+/**
  * Final review F2: keyboard and screen-reader users reach every card. In
  * stargaze, a visually hidden list of buttons, one per selectable on screen
  * (every drawn hit plus every constellation with a segment in view), sits
@@ -6403,6 +6554,7 @@ const CHECKS = [
   ["stargaze-during-download", checkStargazeDuringDownload],
   ["stargaze-card", checkStargazeCard],
   ["stargaze-card-image", checkStargazeCardImage],
+  ["stargaze-myth-image", checkStargazeMythImage],
   ["stargaze-keyboard-list", checkStargazeKeyboardList],
   ["stargaze-touch-400", checkStargazeTouch400],
   ["stargaze-affordances", checkStargazeAffordances],

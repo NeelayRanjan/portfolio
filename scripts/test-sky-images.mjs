@@ -42,6 +42,20 @@ const ALLOWED_LICENSES = [
 const WITH_IMAGE_SYMBOLS = new Set(["galaxy", "nebula", "cluster", "core", "square"]);
 const FIXED_WITH_IMAGE = ["milky-way", "mercury", "venus", "mars", "jupiter", "saturn", "moon", "iss"];
 const NEVER_WITH_IMAGE_SYMBOLS = new Set(["star", "chevron", "field"]);
+/**
+ * Task 19 (ruling R25): the constellations whose card (content/sky-facts.ts)
+ * tells or names a myth get an ARTWORK of that myth (or the constellation's
+ * plate from a star atlas when no artwork fits the card's version). Decided
+ * by reading each card, listed with reasons in the task-19 report. Every
+ * other constellation gets nothing: the modern instruments, the animals
+ * with no story, and the cards that tell history rather than myth.
+ */
+const MYTH_CONSTELLATIONS = [
+  "And", "Aql", "Aqr", "Ara", "Ari", "Aur", "Boo", "Cap", "Cas", "Cen",
+  "Cep", "Cet", "CMa", "Cnc", "CrB", "Crt", "Crv", "Cyg", "Del", "Dra",
+  "Gem", "Her", "Hya", "Leo", "Lep", "Lyr", "Oph", "Ori", "Pav", "Peg",
+  "Per", "Phe", "Psc", "PsA", "Sco", "Tau", "Vir",
+];
 
 /**
  * Fix round #5: the WebP container's own VP8/VP8L/VP8X chunk carries the
@@ -81,6 +95,7 @@ function webpDimensions(bytes) {
 const index = JSON.parse(await readFile(INDEX, "utf8"));
 const picks = JSON.parse(await readFile(PICKS, "utf8")).picks;
 const objects = JSON.parse(await readFile(new URL("public/sky/objects.json", ROOT), "utf8")).objects;
+const constellationIds = Object.keys(JSON.parse(await readFile(new URL("public/sky/sky.json", ROOT), "utf8")).constellations);
 
 test("index shape", () => {
   assert.equal(index.version, 1);
@@ -113,7 +128,8 @@ test("every entry is complete, licensed, served, and sized as the file says", as
     assert.ok(im.sourceTitle.length > 0 && !im.sourceTitle.startsWith("File:"), id);
     assert.match(im.sha1, /^[0-9a-f]{40}$/, id);
     assert.ok(im.alt.length > 20, `${id}: alt`);
-    for (const s of [im.alt, im.author, im.note ?? ""]) {
+    if (im.focus !== undefined) assert.match(im.focus, /^(100|[1-9]?\d)% (100|[1-9]?\d)%$/, `${id}: focus`);
+    for (const s of [im.alt, im.author, im.note ?? "", im.artwork ?? ""]) {
       assert.ok(!s.includes("—"), `${id}: em dash in ${JSON.stringify(s)}`);
     }
   }
@@ -131,6 +147,25 @@ test("spec §2 coverage: the right subjects have images and the rest don't", () 
     if (NEVER_WITH_IMAGE_SYMBOLS.has(o.symbol)) assert.ok(!ids.has(o.id), `${o.id} (${o.symbol}) must not have an image`);
   }
   for (const id of FIXED_WITH_IMAGE) assert.ok(ids.has(id), `${id} should have an image`);
+});
+
+test("task 19 coverage: exactly the myth constellations have an image, each an artwork", () => {
+  const ids = new Set(Object.keys(index.images));
+  assert.equal(constellationIds.length, 88);
+  for (const id of MYTH_CONSTELLATIONS) assert.ok(constellationIds.includes(id), `${id} is not a constellation id`);
+  for (const id of constellationIds) {
+    const want = MYTH_CONSTELLATIONS.includes(id);
+    assert.equal(ids.has(id), want, want ? `${id} (myth) should have an artwork` : `${id} (no myth on its card) must not have an image`);
+    if (want) {
+      const im = index.images[id];
+      assert.ok(typeof im.artwork === "string" && im.artwork.length > 10, `${id}: artwork names the work`);
+    }
+  }
+  // An artwork is only ever a myth constellation's: a photograph never carries
+  // the "not a photograph of the sky" line, and vice versa.
+  for (const [id, im] of Object.entries(index.images)) {
+    if (im.artwork !== undefined) assert.ok(MYTH_CONSTELLATIONS.includes(id), `${id}: artwork on a non-myth entry`);
+  }
 });
 
 test("the allow-list equals the generator's", async () => {

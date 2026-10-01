@@ -1021,6 +1021,14 @@ export const copy = {
        *  photograph is resized; two, m8 and m33, are also cropped). */
       imageResized: ", resized",
       imageCropped: ", cropped and resized",
+      /** Task 19 (R25): a myth constellation's card opens with an artwork
+       *  (a painting, a vase, a star-atlas plate) rather than a photograph.
+       *  The credit says "Image:" for it, its citation is tagged "[Image]",
+       *  and after the artwork's own name (index.json's `artwork`) comes this
+       *  line, so nobody reads it as a picture of the sky. */
+      imageCreditArtwork: "Image: ",
+      imageSourceSuffixArtwork: " [Image]",
+      imageArtworkNote: "An artwork, not a photograph of the sky.",
       /** "Retrieved September 15, 2026, from https://…" (APA). */
       retrieved: "Retrieved",
       from: "from",

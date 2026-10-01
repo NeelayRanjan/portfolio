@@ -62,7 +62,8 @@ export function createCardController(s: SkyState, deps: CardControllerDeps) {
   // ---- cards ----
   /** The card's photograph, if the index has one for this id (task 2): the
    *  index entry plus its generation date, which the card cites as the
-   *  photograph's access date. Constellations and showers never call this. */
+   *  photograph's access date. Showers never call this; constellations do
+   *  since task 19 (R25), and only the myth ones have an entry (an artwork). */
   const imageFor = (id: string): CardModel["image"] | undefined => {
     const im = s.images?.images[id];
     return im ? { ...im, accessed: s.images!.generated } : undefined;
@@ -73,7 +74,7 @@ export function createCardController(s: SkyState, deps: CardControllerDeps) {
     if (!fact || !sky) return null;
     if (h.kind === "constellation") {
       const con = sky.constellations[h.id];
-      return con ? { id: h.id, title: con.english ? `${con.latin} (${con.english})` : con.latin, fact, extra: { type: "none" } } : null;
+      return con ? { id: h.id, title: con.english ? `${con.latin} (${con.english})` : con.latin, fact, extra: { type: "none" }, image: imageFor(h.id) } : null;
     }
     const shower = objectsData?.showers.find((x) => x.id === h.id);
     if (shower) return { id: h.id, title: shower.name, fact, extra: { type: "shower", shower } };

@@ -39,6 +39,9 @@ const ALLOWED_LICENSES = [
   "CC BY-SA 2.0", "CC BY-SA 2.5", "CC BY-SA 3.0", "CC BY-SA 4.0",
 ];
 
+/** "50% 30%": object-position as two percentages, nothing else. */
+const FOCUS_RE = /^(100|[1-9]?\d)% (100|[1-9]?\d)%$/;
+
 const args = process.argv.slice(2);
 const repin = args.includes("--repin");
 const only = new Set(args.filter((a) => !a.startsWith("--")));
@@ -56,7 +59,18 @@ const firstLine = (s) => s.split(/\r?\n/).map((l) => l.trim()).find((l) => l.len
 const stripInterwiki = (s) => s.replace(/(^|[,/(]\s*)[a-z]{2}:(?=[A-Z])/g, "$1");
 const stripUtm = (u) => u.replace(/\?utm_source=.*$/, "");
 
-async function commonsInfo(titles) {
+// The imageinfo API takes at most 50 titles per request (task 19 took the
+// pick list past 50), so the lookup is batched and merged.
+async function commonsInfo(allTitles) {
+  const unique = [...new Set(allTitles)];
+  const byTitle = new Map();
+  for (let i = 0; i < unique.length; i += 50) await commonsBatch(unique.slice(i, i + 50), byTitle);
+  // The API normalises titles (underscores to spaces); map back by normalised form.
+  const norm = (t) => t.replace(/_/g, " ");
+  return (t) => byTitle.get(norm(t)) ?? null;
+}
+
+async function commonsBatch(titles, byTitle) {
   const url =
     "https://commons.wikimedia.org/w/api.php?action=query&format=json&prop=imageinfo" +
     "&iiprop=url|size|sha1|extmetadata&iiurlwidth=" + THUMB_PX +
@@ -65,7 +79,6 @@ async function commonsInfo(titles) {
   const res = await fetch(url, { headers: { "User-Agent": UA } });
   if (!res.ok) throw new Error(`Commons API ${res.status}`);
   const data = await res.json();
-  const byTitle = new Map();
   for (const page of Object.values(data.query.pages)) {
     if (page.missing !== undefined) { byTitle.set(page.title, null); continue; }
     const ii = page.imageinfo[0];
@@ -80,9 +93,6 @@ async function commonsInfo(titles) {
       author: stripInterwiki(firstLine(stripHtml(m.Artist?.value ?? "")).replace(/\s+/g, " ")).slice(0, 160),
     });
   }
-  // The API normalises titles (underscores to spaces); map back by normalised form.
-  const norm = (t) => t.replace(/_/g, " ");
-  return (t) => byTitle.get(norm(t)) ?? null;
 }
 
 function encode(inputPath, outPath, crop) {
@@ -120,6 +130,10 @@ for (const pick of selected) {
   if (!info) { failures.push(`${pick.id}: ${pick.file} is missing on Commons`); continue; }
   if (!ALLOWED_LICENSES.includes(info.license)) { failures.push(`${pick.id}: license ${JSON.stringify(info.license)} is not allowed`); continue; }
   if (!info.author) { failures.push(`${pick.id}: no Artist on Commons`); continue; }
+  // Task 19 (R25): `focus` is a CSS object-position for the card's
+  // object-fit: cover box, two percentages, so a painting's faces survive
+  // the 4:3 / 2:1 crop the CSS makes. It positions, never crops the file.
+  if (pick.focus !== undefined && !FOCUS_RE.test(pick.focus)) { failures.push(`${pick.id}: focus ${JSON.stringify(pick.focus)} is not "NN% NN%"`); continue; }
   const prev = previous.images[pick.id];
   if (prev && prev.sha1 !== info.sha1 && !repin) { failures.push(`${pick.id}: upstream changed (sha1 ${prev.sha1} -> ${info.sha1}); re-run with --repin to accept`); continue; }
 
@@ -155,6 +169,13 @@ for (const pick of selected) {
     sha1: info.sha1,
     ...(pick.crop ? { cropped: true } : {}),
     ...(pick.note ? { note: pick.note } : {}),
+    // Task 19 (R25): a myth constellation's image is an artwork (a painting,
+    // a vase, a star-atlas plate), not a photograph of the sky. `artwork`
+    // names it ("Bacchus and Ariadne, Titian, 1520-1523"), typed in the pick
+    // list from the Commons description page; the card prints it after the
+    // credit and says the image is an artwork.
+    ...(pick.artwork ? { artwork: pick.artwork } : {}),
+    ...(pick.focus ? { focus: pick.focus } : {}),
   };
   console.log(`${pick.id.padEnd(18)} ${info.license.padEnd(14)} ${dims.width}x${dims.height}  ${info.author}`);
 }

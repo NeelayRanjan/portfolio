@@ -121,7 +121,7 @@ function cardCitations(model: CardModel): Citation[] {
     {
       author: model.image.author,
       year: "n.d.",
-      title: `${model.image.sourceTitle}${copy.stargaze.card.imageSourceSuffix}`,
+      title: `${model.image.sourceTitle}${model.image.artwork ? copy.stargaze.card.imageSourceSuffixArtwork : copy.stargaze.card.imageSourceSuffix}`,
       site: copy.stargaze.card.imageSite,
       url: model.image.sourceUrl,
       accessed: model.image.accessed,
@@ -247,6 +247,9 @@ export function SkyCard({
             draggable={false}
             onError={() => setImageFailed(true)}
             className="h-full w-full object-cover"
+            // Task 19: a painting framed by the 4:3 / 2:1 box keeps its faces
+            // through the pick list's focus; photographs stay centred.
+            style={model.image!.focus ? { objectPosition: model.image!.focus } : undefined}
           />
         </figure>
       ) : null}
@@ -280,7 +283,7 @@ export function SkyCard({
         </p>
         {showImage ? (
           <p data-sky-card-image-credit className="mt-1 text-mut/80">
-            {t.imageCredit}
+            {model.image!.artwork ? t.imageCreditArtwork : t.imageCredit}
             {model.image!.author} ·{" "}
             {/* Fix round #2: CC BY / CC BY-SA ask for a link to the license
                 itself, not just its name. Public-domain entries carry an
@@ -295,6 +298,9 @@ export function SkyCard({
             )}
             {model.image!.cropped ? t.imageCropped : t.imageResized}
             {model.image!.note ? ` ${model.image!.note}` : ""}
+            {model.image!.artwork ? (
+              <span data-sky-card-image-artwork>{`. ${model.image!.artwork}. ${t.imageArtworkNote}`}</span>
+            ) : null}
           </p>
         ) : null}
         {/* Polite, so a screen reader hears the subject leave (and the

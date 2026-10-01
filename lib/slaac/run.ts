@@ -14,7 +14,7 @@
  *    same noise, for any pair the planner missed. anchorsFor is exact in both
  *    policies, so that path should never run; `fallbackArcs` counts it if it does. */
 import { inverseAlbers } from "./albers.ts";
-import { chunk, planArcs, type ArcJob, type FlightIn, type RerouteOpts } from "./arcs.ts";
+import { arcKey, chunk, planArcs, type ArcJob, type FlightIn, type RerouteOpts } from "./arcs.ts";
 import type { SlaacMeta } from "./data.ts";
 import { loadSua, type Poly, type Pt } from "./geometry.ts";
 import type { Navaids } from "./navaids.ts";
@@ -44,6 +44,9 @@ export type RunProgress = {
   step: number; steps: number;
   /** The current chunk's arcs: each one's x0 estimate after this step. */
   arcs: ProgressArc[];
+  /** Unique arcs whose sampling has finished (every earlier chunk, plus this
+   *  one on its last step), out of `arcsTotal`, the press's unique arcs. */
+  arcsDone: number; arcsTotal: number;
 };
 
 export type FlightOut = {
@@ -117,7 +120,7 @@ export function rerouteOpts(meta: SlaacMeta, marginNm: number, hug: boolean, wpd
   };
 }
 
-const keyOf = (entry: LL, rejoin: LL) => `${entry[0]},${entry[1]}>${rejoin[0]},${rejoin[1]}`;
+const keyOf = arcKey;
 
 export async function runReroute(req: RunReq, deps: RunDeps): Promise<RunResult> {
   const { model, meta, wpdb, onProgress } = deps;
@@ -181,12 +184,14 @@ export async function runReroute(req: RunReq, deps: RunDeps): Promise<RunResult>
   const arcs = new Map<string, Pt[]>();
   const chunks = chunk([...unique.entries()], req.batchCap);
   const total = chunks.length * steps;
+  let arcsBefore = 0;
   for (const [ci, ch] of chunks.entries()) {
     if (!isCurrent()) throw new RunCancelled();
     const sampled = await sampleBatch(ch.map(([, u]) => [u.entry, u.rejoin]), (i, x0Abs) => {
       if (!onProgress || (i % 2 !== 1 && i !== steps - 1)) return;
       onProgress({
         step: ci * steps + i + 1, steps: total,
+        arcsDone: arcsBefore + (i === steps - 1 ? ch.length : 0), arcsTotal: unique.size,
         arcs: ch.flatMap(([, u], b) => {
           const xyLL = xyLLOf(x0Abs, b);
           return u.jobs.map((j) => ({ flight: j.flight, index: j.index, xyLL }));
@@ -194,6 +199,7 @@ export async function runReroute(req: RunReq, deps: RunDeps): Promise<RunResult>
       });
     });
     ch.forEach(([k], b) => arcs.set(k, sampled[b]));
+    arcsBefore += ch.length;
   }
 
   let fallbackArcs = 0;

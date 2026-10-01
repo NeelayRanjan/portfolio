@@ -82,3 +82,16 @@ test("fromScreen(toScreen(p)) round-trips at a zoomed view", () => {
     assert.ok(Math.abs(la2 - la) < 1e-9 && Math.abs(lo2 - lo) < 1e-9, `${la},${lo} -> ${la2},${lo2}`);
   }
 });
+
+test("nearestFlight picks the polyline under the pointer, within its radius, earlier entry on a tie", async () => {
+  const { nearestFlight } = await import("../components/figures/reroute-map.ts");
+  const v = fitLower48(800, 500, 1);
+  const a = { id: "a", pts: [[35, -100], [35, -90]] };
+  const b = { id: "b", pts: [[40, -100], [40, -90]] };
+  const [x, y] = toScreen(v, 35, -95);
+  assert.equal(nearestFlight(v, [a, b], x, y + 3, 8), "a");
+  assert.equal(nearestFlight(v, [a, b], x, y + 30, 8), null);
+  assert.equal(nearestFlight(v, [{ ...a, id: "plan" }, { ...a, id: "filed" }], x, y, 8), "plan");
+  const [bx, by] = toScreen(v, 40, -95);
+  assert.equal(nearestFlight(v, [a, b], bx, by - 5, 8), "b");
+});

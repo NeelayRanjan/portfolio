@@ -14,6 +14,8 @@ import {
   type SlaacEngine,
 } from "@/lib/slaac-engine";
 import type { ProgressArc, Res } from "@/lib/slaac-protocol";
+import type { Fix } from "@/lib/slaac/reroute";
+import { summarizeFlights } from "@/lib/slaac/summary";
 import { isStargazing, subscribeStargaze } from "@/lib/stargaze";
 import { trackDemoOnce } from "@/lib/track";
 import { checkRing } from "./ring";
@@ -24,6 +26,7 @@ import {
   focusBox,
   fromScreen,
   lerpView,
+  nearestFlight,
   sameView,
   siteAnchor,
   toScreen,
@@ -59,6 +62,16 @@ import {
  * never to an error. Load generations discard a load that resolves after an
  * unload, as ChessPanel does.
  *
+ * Two modes (Task 12c): "all flights", the default, sends every library
+ * route (373) in one press and answers with a summary (lib/slaac/summary.ts)
+ * plus a detail row for a flight picked on the map; one pair keeps its
+ * per-flight table. Before a press the readout counts the arcs it will
+ * sample (the same planner and dedupe as the worker, never a predicted
+ * time). The reroute button is amber until the result on screen answers the
+ * current settings with every touched flight cleared, then green, and reads
+ * "stop" while a press is in flight: stopping returns to the previous result
+ * with no error and no demo_used.
+ *
  * No animation loop: the map repaints on state changes only (progress events
  * included, coalesced into one rAF), so nothing runs off-screen or in a hidden
  * tab except a reroute the visitor started, and a 350 ms ease when the view
@@ -81,9 +94,25 @@ type Outcome =
   | { kind: "no-conflict"; sig: string; pairIdx: number }
   | null;
 
-/** Opens on a pair that runs past the Cape, so a first press with the launch
- *  sites on has something to reroute. Falls back to the library's first pair. */
-const DEFAULT_PAIR = "KJFK-KMIA";
+/** The route picker's "all flights" entry (Task 12c, the default): every
+ *  library route in one press. Any other value is an index into routes.pairs. */
+const ALL = -1;
+/** Filed-route ink: one pair reads at 0.45; all 373 routes are texture. */
+const ROUTE_ALPHA_PAIR = 0.45;
+const ROUTE_ALPHA_ALL = 0.2;
+/** Picking a flight on the all-flights map: CSS px from its line. */
+const PICK_PX_MOUSE = 8;
+const PICK_PX_TOUCH = 16;
+
+/** One flight as the figure knows it: the wire's id and route, plus where it
+ *  came from for the all-flights detail row. */
+type FlightRef = { id: string; nominal: Fix[]; pair: string; route: number };
+
+/** The planner (pure geometry, no model) as one memoized dynamic import: the
+ *  pre-press arc count and every press share it, and it stays out of the page
+ *  bundle. */
+let plannerP: Promise<[typeof import("@/lib/slaac/arcs"), typeof import("@/lib/slaac/run")]> | null = null;
+const loadPlanner = () => (plannerP ??= Promise.all([import("@/lib/slaac/arcs"), import("@/lib/slaac/run")]));
 const RING_MSG_MS = 3000;
 const TAP_SLOP_PX = 8;
 /** A click this close to the last vertex is a double click, not a new corner. */
@@ -138,7 +167,7 @@ export function RerouteFigure() {
   const c = t.controls;
 
   const [data, setData] = useState<SlaacData | null | undefined>(undefined);
-  const [pairIdx, setPairIdx] = useState(0);
+  const [pairIdx, setPairIdx] = useState(ALL);
   const [launchOn, setLaunchOn] = useState(true);
   const [drawMode, setDrawMode] = useState(false);
   const [drawn, setDrawn] = useState<LL[][]>([]);
@@ -147,7 +176,11 @@ export function RerouteFigure() {
   const [margin, setMargin] = useState(25);
   const [hug, setHug] = useState(false);
   const [runState, setRunState] = useState<RunState>("idle");
-  const [progress, setProgress] = useState<{ step: number; steps: number } | null>(null);
+  const [progress, setProgress] = useState<{ step: number; steps: number; arcsDone: number; arcsTotal: number } | null>(null);
+  /** The pre-press arc count, for the settings it was counted under. */
+  const [planned, setPlanned] = useState<{ sig: string; n: number } | null>(null);
+  /** All flights: the flight picked on the map (its id), or null. */
+  const [picked, setPicked] = useState<string | null>(null);
   const [arcs, setArcs] = useState<ProgressArc[]>([]);
   const [outcome, setOutcome] = useState<Outcome>(null);
   const [hover, setHover] = useState<string | null>(null);
@@ -174,7 +207,12 @@ export function RerouteFigure() {
   const downRef = useRef<{ x: number; y: number; id: number } | null>(null);
   const ringTimerRef = useRef(0);
 
-  const busyRef = useRef(false);
+  /** The generation of the press in flight, or 0. A press only clears it (and
+   *  its own run state) while it is still the one in flight: "stop" hands the
+   *  figure back at once, and the abandoned press must not touch it later. */
+  const activeRef = useRef(0);
+  /** The outcome on screen when the press began: "stop" puts it back. */
+  const stashRef = useRef<Outcome>(null);
   const runIdRef = useRef(0);
   /** Bumped by every press and every pair change; a press writes its outcome
    *  only while it is still the current one. Kept apart from runIdRef, which
@@ -201,10 +239,6 @@ export function RerouteFigure() {
     loadSlaacData().then(
       (d) => {
         if (!live) return;
-        if (d) {
-          const i = d.routes.pairs.findIndex((p) => `${p.origin}-${p.dest}` === DEFAULT_PAIR);
-          setPairIdx(i >= 0 ? i : 0);
-        }
         setData(d);
       },
       (err) => {
@@ -221,7 +255,25 @@ export function RerouteFigure() {
   const policies = data?.meta.policies ?? ["wide"];
   const showLookahead = policies.includes("hug") && policies.includes("wide");
   const display = data?.meta.display ?? "snapped";
-  const pair = data?.routes.pairs[pairIdx] ?? null;
+  const isAll = pairIdx === ALL;
+  const pair = !isAll ? (data?.routes.pairs[pairIdx] ?? null) : null;
+  const totalRoutes = useMemo(() => data?.routes.pairs.reduce((n, p) => n + p.routes.length, 0) ?? 0, [data]);
+  /** The flights a press sends: every library route, or the pair's. Ids are
+   *  "1".."8" for one pair (the table's route numbers) and
+   *  "ORIG-DEST-n" for all flights, unique across the library. */
+  const flights = useMemo((): FlightRef[] => {
+    if (!data) return [];
+    const of = (p: SlaacData["routes"]["pairs"][number], all: boolean) =>
+      p.routes.map((r, i) => ({
+        id: all ? `${p.origin}-${p.dest}-${i + 1}` : String(i + 1),
+        nominal: r.fixes,
+        pair: `${p.origin} → ${p.dest}`,
+        route: i + 1,
+      }));
+    if (pairIdx === ALL) return data.routes.pairs.flatMap((p) => of(p, true));
+    const p = data.routes.pairs[pairIdx];
+    return p ? of(p, false) : [];
+  }, [data, pairIdx]);
   const sig = `${pairIdx}|${launchOn}|${margin}|${hug}|${JSON.stringify(drawn)}`;
 
   // ---- engine (load generations, stargaze) ----------------------------------
@@ -294,13 +346,16 @@ export function RerouteFigure() {
   const fresh = shown !== null && shown.sig === sig;
 
   const mapState = (): MapState | null => {
-    if (!data || !pair) return null;
+    if (!data || !flights.length) return null;
     const done = shown?.kind === "done" ? shown : null;
     const ap = data.airports.airports;
     return {
       outline: data.outline.lonlat,
-      endpoints: [pair.origin, pair.dest].flatMap((code) => (ap[code] ? [{ code, lat: ap[code].lat, lon: ap[code].lon }] : [])),
-      routes: pair.routes.map((r, i) => ({ id: String(i + 1), fixes: r.fixes })),
+      endpoints: pair
+        ? [pair.origin, pair.dest].flatMap((code) => (ap[code] ? [{ code, lat: ap[code].lat, lon: ap[code].lon }] : []))
+        : [],
+      routes: flights.map((f) => ({ id: f.id, fixes: f.nominal })),
+      routeAlpha: isAll ? ROUTE_ALPHA_ALL : ROUTE_ALPHA_PAIR,
       sites: launchOn
         ? data.launch.sites.map((s) => ({ id: s.id, name: s.name, rings: s.polys.map((p) => p.ring) }))
         : [],
@@ -310,7 +365,7 @@ export function RerouteFigure() {
       results: done ? done.done.flights.map((f) => ({ ...f, crossingLegs: done.crossing[f.id] ?? [] })) : null,
       fresh,
       display,
-      hover,
+      hover: isAll ? picked : hover,
     };
   };
 
@@ -320,20 +375,20 @@ export function RerouteFigure() {
   // run re-zooms once, when it is done, not on every progress message.
   const shownKey = shown?.kind === "done" ? shown : null;
   const targetView = useMemo((): MapView | null => {
-    if (!size || !data || !pair) return null;
+    if (!size || !data || !flights.length) return null;
     if (viewMode === "us") return fitLower48(size.w, size.h, size.dpr);
     const outcomePts: LL[] = shownKey
       ? shownKey.done.flights.flatMap((f) => [...f.plan.map((q): LL => [q[1], q[2]]), ...f.dense])
       : [];
     const box = focusBox(
-      pair.routes.map((r) => r.fixes.map((q): LL => [q[1], q[2]])),
+      flights.map((f) => f.nominal.map((q): LL => [q[1], q[2]])),
       launchOn ? data.launch.sites.flatMap((st) => st.polys.map((p) => p.ring)) : [],
       drawn,
       outcomePts,
       { launchWithinNm: FOCUS_LAUNCH_NM },
     );
     return box ? fitBox(size.w, size.h, size.dpr, box, FOCUS_FIT) : fitLower48(size.w, size.h, size.dpr);
-  }, [size, data, pair, viewMode, launchOn, drawn, shownKey]);
+  }, [size, data, flights, viewMode, launchOn, drawn, shownKey]);
 
   useEffect(() => {
     if (!targetView) return;
@@ -441,8 +496,10 @@ export function RerouteFigure() {
 
   const busy = runState === "planning" || runState === "loading" || runState === "running";
 
+  const ringTool = drawMode && !busy;
   const onPointerDown = (e: PointerEvent<HTMLCanvasElement>) => {
-    if (!drawMode || busy) return;
+    // The ring tool, or (all flights, draw mode off) picking a flight.
+    if (!ringTool && !(isAll && !drawMode)) return;
     const r = e.currentTarget.getBoundingClientRect();
     downRef.current = { x: e.clientX - r.left, y: e.clientY - r.top, id: e.pointerId };
   };
@@ -453,10 +510,22 @@ export function RerouteFigure() {
     const d = downRef.current;
     downRef.current = null;
     const view = viewRef.current; // the current view, mid-ease included
-    if (!d || d.id !== e.pointerId || !drawMode || busy || !view) return;
+    if (!d || d.id !== e.pointerId || !view) return;
     const r = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - r.left, y = e.clientY - r.top;
     if (Math.hypot(x - d.x, y - d.y) > TAP_SLOP_PX) return;
+    if (!ringTool) {
+      if (!isAll || drawMode) return;
+      // Pick the flight under the pointer: rerouted plans first (they draw on
+      // top), then every filed route. Empty map clears the pick.
+      const res = shown?.kind === "done" ? shown.done.flights.filter((f) => f.status !== "untouched") : [];
+      const lines = [
+        ...res.map((f) => ({ id: f.id, pts: f.plan.map((q): LL => [q[1], q[2]]) })),
+        ...flights.map((f) => ({ id: f.id, pts: f.nominal.map((q): LL => [q[1], q[2]]) })),
+      ];
+      setPicked(nearestFlight(view, lines, x, y, e.pointerType === "touch" ? PICK_PX_TOUCH : PICK_PX_MOUSE));
+      return;
+    }
     if (pending.length) {
       const [fx, fy] = toScreen(view, pending[0][0], pending[0][1]);
       if (Math.hypot(x - fx, y - fy) <= (e.pointerType === "touch" ? 22 : 12)) {
@@ -486,22 +555,47 @@ export function RerouteFigure() {
   }, [pending.length]);
 
   // ---- the press ------------------------------------------------------------
+  /** The polygons in play: the launch sites (when on) and the drawn rings. */
+  const ringsNow = useMemo(
+    (): LL[][] => [...(launchOn && data ? data.launch.sites.flatMap((st) => st.polys.map((p) => p.ring)) : []), ...drawn],
+    [data, launchOn, drawn],
+  );
+
+  // Before a press: how many distinct arcs it will sample, by the same planner
+  // and dedupe the worker uses. The box prefilter (mayConflict, exact) keeps
+  // all 373 routes off the slow path; a short debounce lets a margin drag settle.
+  useEffect(() => {
+    if (!data || !flights.length) return;
+    let live = true;
+    const id = window.setTimeout(() => {
+      void loadPlanner().then(([{ planArcs, mayConflict, uniqueArcCount }, { rerouteOpts }]) => {
+        if (!live) return;
+        const polys = loadSua(ringsNow);
+        const opts = rerouteOpts(data.meta, margin, hug, null);
+        const n = uniqueArcCount(planArcs(flights.filter((f) => mayConflict(f.nominal, polys, opts)), polys, opts));
+        setPlanned({ sig, n });
+      });
+    }, 120);
+    return () => {
+      live = false;
+      window.clearTimeout(id);
+    };
+  }, [data, flights, ringsNow, margin, hug, sig]);
+
   const reroute = async () => {
-    if (busyRef.current || !data || !pair) return;
-    busyRef.current = true;
+    if (activeRef.current || !data || !flights.length) return;
     setRunState("planning"); // before the first await: the controls lock now
     runIdRef.current++;
     const gen = ++pressGenRef.current;
+    activeRef.current = gen;
     const current = () => gen === pressGenRef.current;
     const pressPair = pairIdx;
     const pressMargin = margin;
     publishHook();
     const pressSig = sig;
-    const flights = pair.routes.map((r, i) => ({ id: String(i + 1), nominal: r.fixes }));
-    const rings: LL[][] = [
-      ...(launchOn ? data.launch.sites.flatMap((s) => s.polys.map((p) => p.ring)) : []),
-      ...drawn,
-    ];
+    const sent = flights.map((f) => ({ id: f.id, nominal: f.nominal }));
+    const rings = ringsNow;
+    stashRef.current = outcome;
     setOutcome(null);
     setArcs([]);
     setProgress(null);
@@ -512,14 +606,12 @@ export function RerouteFigure() {
     try {
       // Plan first, on this thread: a press with nothing to reroute never
       // loads the model.
-      const [{ planArcs, BATCH_CAP_DESKTOP, BATCH_CAP_PHONE }, { rerouteOpts }] = await Promise.all([
-        import("@/lib/slaac/arcs"),
-        import("@/lib/slaac/run"),
-      ]);
+      const [{ planArcs, mayConflict, BATCH_CAP_DESKTOP, BATCH_CAP_PHONE }, { rerouteOpts }] = await loadPlanner();
       if (isStargazing() || !current()) return;
       phase = "run";
       const polys = loadSua(rings);
-      const jobs = planArcs(flights, polys, rerouteOpts(data.meta, margin, hug, null));
+      const opts = rerouteOpts(data.meta, margin, hug, null);
+      const jobs = planArcs(sent.filter((f) => mayConflict(f.nominal, polys, opts)), polys, opts);
       if (jobs.length === 0) {
         setOutcome({ kind: "no-conflict", sig: pressSig, pairIdx: pressPair });
         return;
@@ -527,6 +619,7 @@ export function RerouteFigure() {
       setRunState("loading");
       phase = "load";
       const engine = engineRef.current ?? (await startLoad());
+      if (!current()) return; // stopped while the model loaded
       if (!engine) {
         setRunState("unavailable");
         return;
@@ -534,9 +627,11 @@ export function RerouteFigure() {
       phase = "run";
       setRunState("running");
       const isPhone = window.matchMedia("(max-width: 879px)").matches;
+      // Every flight, all 373 in all-flights mode, in ONE request: the worker
+      // plans, dedupes and batches the arcs itself.
       const done = await engine.reroute(
         {
-          flights,
+          flights: sent,
           rings,
           marginNm: margin,
           hug,
@@ -546,8 +641,9 @@ export function RerouteFigure() {
           display,
         },
         (p) => {
+          if (!current()) return;
           setArcs(p.arcs);
-          setProgress({ step: p.step, steps: p.steps });
+          setProgress({ step: p.step, steps: p.steps, arcsDone: p.arcsDone, arcsTotal: p.arcsTotal });
         },
       );
       if (!current()) return;
@@ -565,18 +661,39 @@ export function RerouteFigure() {
       setRunState("idle");
       trackDemoOnce("slaac");
     } catch (err) {
+      if (!current()) return; // "stop" already handed the figure back
       if (err instanceof SlaacCancelled || err instanceof SlaacUnloaded) {
-        setRunState("idle"); // stargaze or a newer press: idle, never an error
+        // Stargaze or a newer press: idle, never an error, the last result back.
+        setRunState("idle");
+        setOutcome(stashRef.current);
         return;
       }
       console.error(err);
       setRunState(phase === "run" ? "failed" : "unavailable");
     } finally {
-      busyRef.current = false;
-      setArcs([]);
-      setProgress(null);
-      setRunState((s) => (s === "planning" || s === "loading" || s === "running" ? "idle" : s));
+      if (activeRef.current === gen) {
+        activeRef.current = 0;
+        setArcs([]);
+        setProgress(null);
+        setRunState((st) => (st === "planning" || st === "loading" || st === "running" ? "idle" : st));
+      }
     }
+  };
+
+  /** "stop": the press in flight is abandoned at once. The figure goes back to
+   *  idle with the result it showed before the press; the worker's run is
+   *  cancelled (R16's per-forward yield lets the cancel land within a forward
+   *  or two); a model still loading keeps loading, for the next press. No
+   *  error, no done, no demo_used. */
+  const stop = () => {
+    if (!activeRef.current) return;
+    activeRef.current = 0;
+    pressGenRef.current++;
+    engineRef.current?.cancel();
+    setArcs([]);
+    setProgress(null);
+    setRunState("idle");
+    setOutcome(stashRef.current);
   };
 
   // ---- render ---------------------------------------------------------------
@@ -622,13 +739,31 @@ export function RerouteFigure() {
           })
         : [],
     view: cur ? { mode: viewMode, scale: cur.scale } : null,
+    mode: isAll ? "all" : "pair",
+    /** The arcs a press would sample under the current settings (null until counted). */
+    arcsPlanned: planned && planned.sig === sig ? planned.n : null,
+    arcsDone: progress?.arcsDone ?? null,
+    arcsTotal: progress?.arcsTotal ?? null,
+    picked: isAll ? picked : null,
   });
+
+  /** The reroute button's colour and label (Task 12c). "running": it reads
+   *  "stop". "ok" (green): the result on screen is for the current settings
+   *  and every touched flight cleared (a no-conflict press counts: nothing
+   *  needed clearing). "idle-stale" (amber): anything else, never run, stale,
+   *  failed, unavailable, or a run with a cannot-clear flight. */
+  const cannotClearN = done ? done.flights.filter((f) => f.status === "cannot-clear").length : 0;
+  const goState: "running" | "ok" | "idle-stale" = busy
+    ? "running"
+    : (stateName === "done" && cannotClearN === 0) || stateName === "no-conflict"
+      ? "ok"
+      : "idle-stale";
 
   const readout =
     runState === "loading"
       ? t.loading
       : runState === "running"
-        ? `${t.running}${progress ? ` ${progress.step}/${progress.steps}` : ""}`
+        ? `${t.running}${progress ? ` ${progress.arcsDone}/${progress.arcsTotal}${t.runningArcs}` : ""}`
         : stateName === "done" && done
           ? `${t.runtimePre}${done.arcs}${done.arcs === 1 ? t.runtimeMidOne : t.runtimeMid}${(done.ms / 1000).toFixed(1)}${t.runtimePost}`
           : stateName === "stale"
@@ -636,6 +771,12 @@ export function RerouteFigure() {
             : stateName === "no-conflict"
               ? t.noConflict
               : "";
+  /** Before a press (and while a result is stale): the arcs it would sample. */
+  const plannedN = planned && planned.sig === sig ? planned.n : null;
+  const plannedLine =
+    plannedN !== null && !busy && stateName !== "done" && stateName !== "no-conflict" && stateName !== "unavailable"
+      ? `${t.toSamplePre}${plannedN}${plannedN === 1 ? t.toSampleMidOne : t.toSampleMid}`
+      : null;
 
   if (data === null) {
     return (
@@ -656,11 +797,54 @@ export function RerouteFigure() {
   const btn =
     "border px-2.5 py-1 transition-colors disabled:cursor-not-allowed disabled:opacity-40";
   const idleBtn = "border-rule text-mut hover:border-mut hover:text-ink";
+  const cell = "whitespace-nowrap py-1 pr-1.5 min-[880px]:pr-2";
+  const head = "py-1 pr-1.5 min-[880px]:pr-2 font-normal";
+  /** Floored, never rounded up: 24.96 nm against a 25 nm margin must not
+   *  print as 25. Red when under the margin this run was asked for. */
+  const clearanceCell = (v: number | null) => (
+    <td className={`${cell} ${v !== null && doneOut && v < doneOut.marginNm ? "text-red-ink" : "text-warm"}`}>
+      {v === null ? "-" : `${(Math.floor(v * 10) / 10).toFixed(1)} nm`}
+    </td>
+  );
+  /** One flight's numbers: the pair table's row and the all-flights detail row. */
+  const flightCells = (f: Done["flights"][number]) => {
+    const m = f.metrics;
+    return (
+      <>
+        {f.status === "untouched" ? (
+          <td colSpan={2} className={`${cell} text-mut`}>
+            {t.untouched}
+          </td>
+        ) : (
+          <>
+            <td className={`${cell} text-warm`}>{`${fmtSigned(m.addedNm, 0)} nm`}</td>
+            <td className={`${cell} text-warm`}>{`${fmtSigned(m.addedPct, 1)}%`}</td>
+          </>
+        )}
+        {clearanceCell(m.minClearanceNm)}
+        <td className={`whitespace-nowrap py-1 ${f.status === "cannot-clear" ? "text-red-ink" : "text-warm"}`}>
+          {f.status === "cannot-clear" ? `${m.legCrossings} · ${t.cannotClear}` : m.legCrossings}
+        </td>
+      </>
+    );
+  };
+  const summary = isAll && done && doneOut ? summarizeFlights(done.flights, doneOut.marginNm) : null;
+  const pickedRef = isAll && picked ? flights.find((f) => f.id === picked) ?? null : null;
+  const pickedOut = pickedRef && done ? done.flights.find((f) => f.id === pickedRef.id) ?? null : null;
+  const goClass =
+    goState === "running"
+      ? "border-ink text-ink hover:bg-ink/10"
+      : goState === "ok"
+        ? "border-ok text-ok hover:bg-ok/10"
+        : "border-warm text-warm hover:bg-warm/10";
 
   return (
     <InstrumentFigure n="3" caption={t.caption}>
       <div data-reroute-figure data-reroute-status={status}>
-        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2.5 font-mono text-[11px] text-mut">
+        {/* Row 1: the settings on the left; drawing on the right, which on a
+            wrapped desktop row stays right-aligned and on a phone sits on its
+            own line at the left. */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5 font-mono text-[11px] text-mut">
           <label className="flex items-center gap-2">
             <span>{c.pair}</span>
             <select
@@ -673,9 +857,11 @@ export function RerouteFigure() {
                 setOutcome(null);
                 setRunState((st) => (st === "failed" ? "idle" : st)); // the error was the old pair's run
                 setHover(null);
+                setPicked(null);
               }}
               className="border border-rule bg-panel px-1.5 py-1 text-ink disabled:opacity-40"
             >
+              <option value={ALL}>{`${c.allFlightsPre}${totalRoutes}${c.allFlightsPost}`}</option>
               {data?.routes.pairs.map((p, i) => (
                 <option key={`${p.origin}-${p.dest}`} value={i}>
                   {`${p.origin} → ${p.dest}`}
@@ -716,45 +902,6 @@ export function RerouteFigure() {
                 </button>
               ))}
             </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              data-reroute-draw
-              aria-pressed={drawMode}
-              disabled={busy}
-              onClick={() => {
-                setDrawMode((m) => !m);
-                setPending([]);
-              }}
-              className={`${btn} ${drawMode ? "border-red-ink text-red-ink" : idleBtn}`}
-            >
-              {c.draw}
-            </button>
-            {drawMode && pending.length > 0 ? (
-              <button
-                type="button"
-                data-reroute-close
-                disabled={busy}
-                onClick={closeRing}
-                className={`${btn} ${idleBtn} min-h-11 min-[880px]:min-h-0`}
-              >
-                {c.close}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              data-reroute-clear
-              disabled={busy || (drawn.length === 0 && pending.length === 0)}
-              onClick={() => {
-                setDrawn([]);
-                setPending([]);
-              }}
-              className={`${btn} ${idleBtn}`}
-            >
-              {c.clear}
-            </button>
           </div>
 
           <label className="flex items-center gap-2">
@@ -798,14 +945,59 @@ export function RerouteFigure() {
             </div>
           ) : null}
 
+          <div data-reroute-draw-group className="flex items-center gap-2 min-[880px]:ml-auto min-[880px]:pl-6">
+            <button
+              type="button"
+              data-reroute-draw
+              aria-pressed={drawMode}
+              disabled={busy}
+              onClick={() => {
+                setDrawMode((m) => !m);
+                setPending([]);
+              }}
+              className={`${btn} ${drawMode ? "border-red-ink text-red-ink" : idleBtn}`}
+            >
+              {c.draw}
+            </button>
+            {drawMode && pending.length > 0 ? (
+              <button
+                type="button"
+                data-reroute-close
+                disabled={busy}
+                onClick={closeRing}
+                className={`${btn} ${idleBtn} min-h-11 min-[880px]:min-h-0`}
+              >
+                {c.close}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              data-reroute-clear
+              disabled={busy || (drawn.length === 0 && pending.length === 0)}
+              onClick={() => {
+                setDrawn([]);
+                setPending([]);
+              }}
+              className={`${btn} ${idleBtn}`}
+            >
+              {c.clear}
+            </button>
+          </div>
+        </div>
+
+        {/* Row 2: the one primary action. Amber until the result on screen
+            answers the current settings in full, green when it does, "stop"
+            while a press is in flight. */}
+        <div className="mt-3 mb-3 border-t border-rule pt-3">
           <button
             type="button"
             data-reroute-go
-            disabled={busy || !data}
-            onClick={() => void reroute()}
-            className={`${btn} border-ok text-ok hover:bg-ok/10`}
+            data-reroute-go-state={goState}
+            disabled={!data}
+            onClick={busy ? stop : () => void reroute()}
+            className={`w-full border px-6 py-2 font-mono text-[13px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 min-[880px]:w-auto ${goClass}`}
           >
-            {c.go}
+            {busy ? c.stop : c.go}
           </button>
         </div>
 
@@ -836,57 +1028,135 @@ export function RerouteFigure() {
           <p className="text-warm" role="status">
             {runState === "unavailable" ? t.unavailable : runState === "failed" ? t.runFailed : readout}
           </p>
+          {plannedLine ? (
+            <p data-reroute-planned className="text-mut">
+              {plannedLine}
+            </p>
+          ) : null}
         </div>
 
-        {done ? (
+        {summary ? (
+          <div data-reroute-summary className={`mt-2 font-mono text-[11px] ${fresh ? "" : "opacity-50"}`}>
+            <dl className="grid grid-cols-[auto_auto] gap-x-4 gap-y-0.5 min-[880px]:grid-cols-[auto_auto_auto_auto] min-[880px]:gap-x-6">
+              {(
+                [
+                  ["checked", t.summary.checked, String(summary.checked), "text-ink"],
+                  ["affected", t.summary.affected, String(summary.affected), "text-warm"],
+                  ["rerouted", t.summary.rerouted, String(summary.rerouted), "text-warm"],
+                  ["cannotClear", t.summary.cannotClear, String(summary.cannotClear), summary.cannotClear ? "text-red-ink" : "text-warm"],
+                  [
+                    "medianAdded",
+                    t.summary.medianAdded,
+                    summary.medianAddedNm === null || summary.medianAddedPct === null
+                      ? "-"
+                      : `${fmtSigned(summary.medianAddedNm, 0)} nm (${fmtSigned(summary.medianAddedPct, 1)}%)`,
+                    "text-warm",
+                  ],
+                  [
+                    "worstAdded",
+                    t.summary.worstAdded,
+                    summary.maxAddedNm === null || summary.maxAddedPct === null
+                      ? "-"
+                      : `${fmtSigned(summary.maxAddedNm, 0)} nm (${fmtSigned(summary.maxAddedPct, 1)}%)`,
+                    "text-warm",
+                  ],
+                  [
+                    "lowestClearance",
+                    t.summary.lowestClearance,
+                    summary.minClearanceNm === null ? "-" : `${(Math.floor(summary.minClearanceNm * 10) / 10).toFixed(1)} nm`,
+                    summary.belowMargin ? "text-red-ink" : "text-warm",
+                  ],
+                ] as const
+              ).map(([key, label, value, tone]) => (
+                <div key={key} className="contents">
+                  <dt className="text-mut">{label}</dt>
+                  <dd data-summary={key} className={`tabular-nums ${tone}`}>
+                    {value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            {pickedRef ? (
+              // One flight's numbers as label/value pairs, the summary's own
+              // grid, so six fields fit a phone without a sideways scroll.
+              <dl
+                data-reroute-detail
+                className="mt-2 grid grid-cols-[auto_auto] gap-x-4 gap-y-0.5 border-t border-rule pt-2 min-[880px]:grid-cols-[auto_auto_auto_auto] min-[880px]:gap-x-6"
+              >
+                {(
+                  [
+                    ["pair", t.table.pair, pickedRef.pair, "text-ink"],
+                    ["route", t.table.flight, String(pickedRef.route), "text-ink"],
+                    ...(pickedOut
+                      ? pickedOut.status === "untouched"
+                        ? ([["added", t.table.added, t.untouched, "text-mut"]] as const)
+                        : ([
+                            ["added", t.table.added, `${fmtSigned(pickedOut.metrics.addedNm, 0)} nm`, "text-warm"],
+                            ["addedPct", t.table.addedPct, `${fmtSigned(pickedOut.metrics.addedPct, 1)}%`, "text-warm"],
+                          ] as const)
+                      : []),
+                    ...(pickedOut
+                      ? ([
+                          [
+                            "clearance",
+                            t.table.clearance,
+                            pickedOut.metrics.minClearanceNm === null
+                              ? "-"
+                              : `${(Math.floor(pickedOut.metrics.minClearanceNm * 10) / 10).toFixed(1)} nm`,
+                            pickedOut.metrics.minClearanceNm !== null && doneOut && pickedOut.metrics.minClearanceNm < doneOut.marginNm
+                              ? "text-red-ink"
+                              : "text-warm",
+                          ],
+                          [
+                            "crossings",
+                            t.table.crossings,
+                            pickedOut.status === "cannot-clear"
+                              ? `${pickedOut.metrics.legCrossings} · ${t.cannotClear}`
+                              : String(pickedOut.metrics.legCrossings),
+                            pickedOut.status === "cannot-clear" ? "text-red-ink" : "text-warm",
+                          ],
+                        ] as const)
+                      : []),
+                  ] as const
+                ).map(([key, label, value, tone]) => (
+                  <div key={key} className="contents">
+                    <dt className="text-mut">{label}</dt>
+                    <dd data-detail={key} className={`tabular-nums ${tone}`}>
+                      {value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className="mt-2 text-mut">{t.pickHint}</p>
+            )}
+          </div>
+        ) : null}
+
+        {!isAll && done ? (
           <div className={`mt-2 overflow-x-auto ${fresh ? "" : "opacity-50"}`}>
             <table className="w-full border-collapse font-mono text-[11px] tabular-nums">
               <thead>
                 <tr className="border-b border-rule text-left text-mut">
-                  <th className="py-1 pr-1.5 min-[880px]:pr-2 font-normal">{t.table.flight}</th>
-                  <th className="py-1 pr-1.5 min-[880px]:pr-2 font-normal">{t.table.added}</th>
-                  <th className="py-1 pr-1.5 min-[880px]:pr-2 font-normal">{t.table.addedPct}</th>
-                  <th className="py-1 pr-1.5 min-[880px]:pr-2 font-normal">{t.table.clearance}</th>
+                  <th className={head}>{t.table.flight}</th>
+                  <th className={head}>{t.table.added}</th>
+                  <th className={head}>{t.table.addedPct}</th>
+                  <th className={head}>{t.table.clearance}</th>
                   <th className="py-1 font-normal">{t.table.crossings}</th>
                 </tr>
               </thead>
               <tbody>
-                {done.flights.map((f) => {
-                  const m = f.metrics;
-                  return (
-                    <tr
-                      key={f.id}
-                      onPointerEnter={() => setHover(f.id)}
-                      onPointerLeave={() => setHover((h) => (h === f.id ? null : h))}
-                      className={`border-b border-hair ${hover === f.id ? "bg-ink/5" : ""}`}
-                    >
-                      <td className="py-1 pr-1.5 min-[880px]:pr-2 text-ink">{f.id}</td>
-                      {f.status === "untouched" ? (
-                        <td colSpan={2} className="py-1 pr-1.5 min-[880px]:pr-2 text-mut">
-                          {t.untouched}
-                        </td>
-                      ) : (
-                        <>
-                          <td className="whitespace-nowrap py-1 pr-1.5 min-[880px]:pr-2 text-warm">{`${fmtSigned(m.addedNm, 0)} nm`}</td>
-                          <td className="whitespace-nowrap py-1 pr-1.5 min-[880px]:pr-2 text-warm">{`${fmtSigned(m.addedPct, 1)}%`}</td>
-                        </>
-                      )}
-                      {/* Floored, never rounded up: 24.96 nm against a 25 nm
-                          margin must not print as 25. Red when under the
-                          margin this run was asked for. */}
-                      <td
-                        className={`whitespace-nowrap py-1 pr-1.5 min-[880px]:pr-2 ${
-                          m.minClearanceNm !== null && doneOut && m.minClearanceNm < doneOut.marginNm ? "text-red-ink" : "text-warm"
-                        }`}
-                      >
-                        {m.minClearanceNm === null ? "-" : `${(Math.floor(m.minClearanceNm * 10) / 10).toFixed(1)} nm`}
-                      </td>
-                      <td className={`whitespace-nowrap py-1 ${f.status === "cannot-clear" ? "text-red-ink" : "text-warm"}`}>
-                        {f.status === "cannot-clear" ? `${m.legCrossings} · ${t.cannotClear}` : m.legCrossings}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {done.flights.map((f) => (
+                  <tr
+                    key={f.id}
+                    onPointerEnter={() => setHover(f.id)}
+                    onPointerLeave={() => setHover((h) => (h === f.id ? null : h))}
+                    className={`border-b border-hair ${hover === f.id ? "bg-ink/5" : ""}`}
+                  >
+                    <td className="py-1 pr-1.5 min-[880px]:pr-2 text-ink">{f.id}</td>
+                    {flightCells(f)}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

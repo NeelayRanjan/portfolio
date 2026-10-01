@@ -34,6 +34,10 @@ export type MapState = {
   endpoints: { code: string; lat: number; lon: number }[];
   /** The filed routes (the flight-plan LM's), drawn thin in ink. */
   routes: MapRoute[];
+  /** Their ink alpha: 0.45 for one pair; all flights (373 routes) draw
+   *  fainter, as texture. One path for all of them, so where routes overlap
+   *  the ink doesn't stack. */
+  routeAlpha?: number;
   /** Launch sites in play; empty while the preset is off. */
   sites: MapSite[];
   /** Closed rings the visitor drew. */
@@ -229,6 +233,30 @@ export function siteAnchor(v: MapView, site: MapSite): [number, number] | null {
 }
 
 const rgba = (c: string, a: number) => `rgba(${c}, ${a})`;
+
+/**
+ * The flight whose polyline passes nearest (x, y) in CSS px through view v,
+ * if within maxPx; ties go to the earlier entry, so a caller listing plans
+ * before filed routes picks the plan. For picking one flight out of the
+ * all-flights map.
+ */
+export function nearestFlight(v: MapView, lines: { id: string; pts: LL[] }[], x: number, y: number, maxPx: number): string | null {
+  let best: string | null = null, bestD = maxPx;
+  for (const { id, pts } of lines) {
+    let prev: [number, number] | null = null;
+    for (const [la, lo] of pts) {
+      const q = toScreen(v, la, lo);
+      if (prev) {
+        const abx = q[0] - prev[0], aby = q[1] - prev[1];
+        const t = Math.min(1, Math.max(0, ((x - prev[0]) * abx + (y - prev[1]) * aby) / (abx * abx + aby * aby + 1e-12)));
+        const d = Math.hypot(x - prev[0] - t * abx, y - prev[1] - t * aby);
+        if (d < bestD) { bestD = d; best = id; }
+      }
+      prev = q;
+    }
+  }
+  return best;
+}
 /** c mixed toward the panel by (1 - t), opaque. Fading by colour, not
  *  globalAlpha: five stale plans on one path would stack back to full
  *  strength under alpha (measured: 515 of 1,555 bright pixels survived). */
@@ -311,6 +339,17 @@ function drawPlan(ctx: CanvasRenderingContext2D, v: MapView, r: MapResult, c: Ma
   ctx.restore();
 }
 
+let routeCanvas: HTMLCanvasElement | null = null;
+/** The filed routes' own layer, reused while the backing size holds. */
+function routeLayer(ctx: CanvasRenderingContext2D, w: number, h: number): HTMLCanvasElement | null {
+  const doc = ctx.canvas.ownerDocument;
+  if (!doc) return null;
+  if (!routeCanvas) routeCanvas = doc.createElement("canvas");
+  if (routeCanvas.width !== w) routeCanvas.width = w;
+  if (routeCanvas.height !== h) routeCanvas.height = h;
+  return routeCanvas;
+}
+
 export function drawMap(ctx: CanvasRenderingContext2D, v: MapView, s: MapState, colours: MapColours, font: string): { labelled: string[] } {
   const c = colours;
   ctx.setTransform(v.dpr, 0, 0, v.dpr, 0, 0);
@@ -370,13 +409,29 @@ export function drawMap(ctx: CanvasRenderingContext2D, v: MapView, s: MapState, 
     });
   }
 
-  // 4. Filed routes.
-  ctx.strokeStyle = rgba(c.ink, 0.45);
-  ctx.lineWidth = 1;
-  for (const r of s.routes) {
-    ctx.beginPath();
-    pathLL(ctx, v, r.fixes.map(fixLL));
-    ctx.stroke();
+  // 4. Filed routes: opaque ink on a layer of their own, then the layer
+  // composited once at routeAlpha. Stroking them straight onto the map at low
+  // alpha stacks wherever routes overlap (a 1px line is a Skia hairline, and
+  // hairlines accumulate even within one path): measured, 373 routes at 0.14
+  // read up to 229/255 on shared legs. On the layer an overlap is just more
+  // of the same opaque ink.
+  const layer = routeLayer(ctx, Math.round(v.w * v.dpr), Math.round(v.h * v.dpr));
+  const lctx = layer?.getContext("2d") as CanvasRenderingContext2D | null;
+  if (layer && lctx) {
+    lctx.setTransform(v.dpr, 0, 0, v.dpr, 0, 0);
+    lctx.clearRect(0, 0, v.w, v.h);
+    lctx.lineJoin = "round";
+    lctx.lineCap = "round";
+    lctx.strokeStyle = rgba(c.ink, 1);
+    lctx.lineWidth = 1;
+    lctx.beginPath();
+    for (const r of s.routes) pathLL(lctx, v, r.fixes.map(fixLL));
+    lctx.stroke();
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = s.routeAlpha ?? 0.45;
+    ctx.drawImage(layer as CanvasImageSource, 0, 0);
+    ctx.restore();
   }
 
   // The pair's airports.

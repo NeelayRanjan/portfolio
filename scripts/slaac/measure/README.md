@@ -16,7 +16,8 @@ Scenarios (the browser scripts): `a` KJFK-KMIA past all six launch sites;
 `b` `a` plus a drawn box over the Southeast; `c` KJFK-KMIA with the launch
 sites off and a box over Nevada (no conflict: settles without loading the
 model); `d` KCLT-KSAN with the launch sites and the Southeast box, the
-heaviest library case. Each prints one JSON line per run, then a `SUMMARY`
+heaviest library case; `all` (Task 12c) every library route in one press
+(the figure's default), launch sites on, no drawn box (`measure-sysff.mjs` only). Each prints one JSON line per run, then a `SUMMARY`
 line with median [min-max] per metric (press to done, press to model loaded,
 worker ms, ms per forward, the longest gap between progress messages).
 

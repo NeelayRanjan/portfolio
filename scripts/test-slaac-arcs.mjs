@@ -244,6 +244,33 @@ test("runReroute chunks under batchCap: same plans, one forward per step per chu
   assert.deepEqual(p2.map((p) => p.step), [...p2.map((p) => p.step)].sort((a, b) => a - b));
   assert.equal(p2.at(-1).step, total);
   assert.ok(p2.every((p) => new Set(p.arcs.map((a) => a.xyLL)).size <= 2));
+  // arcsDone / arcsTotal (Task 12c): the total is the unique arcs; done counts
+  // finished chunks, rises by the chunk at each chunk's last step, ends at the total.
+  assert.ok(p2.every((p) => p.arcsTotal === uniq), JSON.stringify(p2.map((p) => p.arcsTotal)));
+  assert.deepEqual(p2.map((p) => p.arcsDone), [...p2.map((p) => p.arcsDone)].sort((a, b) => a - b));
+  assert.equal(p2.at(-1).arcsDone, uniq);
+  const lastOfChunk = p2.filter((p) => p.step % 6 === 0).map((p) => p.arcsDone);
+  assert.deepEqual(lastOfChunk, Array.from({ length: Math.ceil(uniq / 2) }, (_, k) => Math.min(2 * (k + 1), uniq)));
+  assert.ok(p2.filter((p) => p.step % 6 !== 0).every((p) => p.arcsDone === 2 * Math.floor(p.step / 6)));
+});
+
+test("mayConflict keeps exactly the flights that plan arcs, over the whole library (Task 12c)", () => {
+  const routes = JSON.parse(readFileSync(new URL("../public/slaac/routes.json", import.meta.url)));
+  const launch = JSON.parse(readFileSync(new URL("../public/slaac/launch-sua.json", import.meta.url)));
+  const flights = routes.pairs.flatMap((p) => p.routes.map((r, k) => ({ id: `${p.origin}-${p.dest}-${k + 1}`, nominal: r.fixes })));
+  assert.ok(flights.length > 300, `${flights.length}`);
+  const SE = [[36.5, -90], [36.5, -75.5], [30, -80.5], [30, -90]];
+  const L = launch.sites.flatMap((s) => s.polys.map((p) => p.ring));
+  for (const rings of [L, [...L, SE]]) for (const hug of [false, true]) for (const margin of [10, 25, 50]) {
+    const polys = loadSua(rings);
+    const opts = rerouteOpts(meta, margin, hug, null);
+    const full = A.planArcs(flights, polys, opts);
+    const kept = flights.filter((f) => A.mayConflict(f.nominal, polys, opts));
+    assert.deepEqual(A.planArcs(kept, polys, opts), full, `hug ${hug} margin ${margin} rings ${rings.length}`);
+    assert.ok(kept.length < flights.length, "the box test skips something");
+    assert.equal(A.uniqueArcCount(full), new Set(full.map((j) => A.arcKey([j.entry[1], j.entry[2]], [j.rejoin[1], j.rejoin[2]]))).size);
+  }
+  assert.equal(A.mayConflict(flights[0].nominal, [], rerouteOpts(meta, 25, false, null)), false);
 });
 
 test("runReroute samples on demand any arc it did not plan (R3), and counts it", async () => {

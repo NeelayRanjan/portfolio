@@ -43,6 +43,9 @@ import { SITE } from "../lib/site.ts";
 import { fitLower48, fromScreen, toScreen } from "../components/figures/reroute-map.ts";
 import { albers } from "../lib/slaac/albers.ts";
 import { loadSua, segCrossesPoly } from "../lib/slaac/geometry.ts";
+import { planArcs, mayConflict, uniqueArcCount } from "../lib/slaac/arcs.ts";
+import { rerouteOpts } from "../lib/slaac/run.ts";
+import { summarizeFlights } from "../lib/slaac/summary.ts";
 
 /**
  * The colour round's `sky-colour` and the card checks read the palette table
@@ -884,11 +887,12 @@ async function checkOrtRuntimeBuild(browser) {
 
     // The rerouter's worker (SLAAC round): last, so the chess worker and the
     // draw session have finished every runtime fetch of their own and
-    // whatever /ort/ request follows is the rerouter's. A press on the default
-    // pair (KJFK-KMIA past the Cape) has arcs to sample, so it loads the
+    // whatever /ort/ request follows is the rerouter's. A press on
+    // KJFK-KMIA (past the Cape) has arcs to sample, so it loads the
     // model and the runtime; `window.__slaac.loaded` turns true once the
     // worker's session exists. The run itself is left to finish unobserved.
     await openReroute(page);
+    await selectReroutePair(page, "KJFK-KMIA");
     await page.locator("[data-reroute-go]").click();
     // Loaded, or failed to load: a wrong runtime build 404s (sync-ort ships
     // only the plain pair) and the figure goes unavailable, and the URL
@@ -1550,6 +1554,19 @@ async function openReroute(page) {
   await page.evaluate(() => document.querySelector("[data-reroute-figure] canvas").scrollIntoView({ block: "center" }));
 }
 
+/** Pick one library pair by name ("KJFK-KMIA"). Figure 3 opens on "all
+ *  flights" since Task 12c, so every check about one pair says which. */
+async function selectReroutePair(page, name) {
+  const i = SLAAC_ROUTES.pairs.findIndex((p) => `${p.origin}-${p.dest}` === name);
+  if (i < 0) throw new Error(`${name} is not in routes.json`);
+  await page.selectOption("[data-reroute-pair]", String(i));
+  await page.waitForFunction((i) => JSON.parse(document.querySelector("[data-reroute-status]").dataset.rerouteStatus).mode === "pair" && document.querySelector("[data-reroute-pair]").value === String(i), i);
+  // The focus view eases from all flights to the pair (350 ms): let it land
+  // before anything reads the view to aim a click.
+  await page.waitForTimeout(500);
+  return SLAAC_ROUTES.pairs[i];
+}
+
 /** The map's current view as reroute-map.ts's MapView, from the page's hook. */
 async function rerouteView(page) {
   const { box, view, dpr } = await page.evaluate(() => {
@@ -1662,6 +1679,8 @@ async function checkSlaacNothingAtRest(browser) {
     let bad = await loaded();
     if (bad) throw new Error(`the rerouter loaded at rest: ${bad}`);
 
+    // At rest is the all-flights default; the no-conflict press is one pair's.
+    await selectReroutePair(page, "KJFK-KMIA");
     await page.locator("[data-reroute-launch]").uncheck();
     await rerouteWholeUs(page);
     await page.locator("[data-reroute-draw]").click();
@@ -1681,7 +1700,7 @@ async function checkSlaacNothingAtRest(browser) {
     bad = await loaded();
     if (bad) throw new Error(`a no-conflict press loaded the rerouter: ${bad}`);
     const ortFiles = [...new Set(urls.filter((u) => /\/ort\//.test(u)).map((u) => new URL(u.split(" ")[1]).pathname))];
-    return `scrolled in: ${data} JSON files, no model, no rerouter worker (distinct /ort/ files on the page, all the chess figure's: ${ortFiles.join(", ") || "none"}); a Nevada box with launch sites off read "no conflict" and still loaded nothing`;
+    return `scrolled in (all flights, the default): ${data} JSON files, no model, no rerouter worker (distinct /ort/ files on the page, all the chess figure's: ${ortFiles.join(", ") || "none"}); a Nevada box with launch sites off read "no conflict" and still loaded nothing`;
   });
 }
 
@@ -1874,6 +1893,8 @@ async function checkSlaacLaunchPreset(browser) {
   return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
     await page.goto(BASE, { waitUntil: "networkidle" });
     await openReroute(page);
+    // One pair: all 373 filed routes would put route ink on some centroids.
+    await selectReroutePair(page, "KJFK-KMIA");
     await page.locator("[data-reroute-launch]").check();
     await rerouteWholeUs(page);
     const pixelAt = ([x, y]) =>
@@ -1938,6 +1959,7 @@ async function checkSlaacStargazeCancel(browser) {
     await page.goto(BASE, { waitUntil: "networkidle" });
     await waitStargazeReady(page);
     await openReroute(page);
+    await selectReroutePair(page, "KJFK-KMIA");
     await page.locator("[data-reroute-launch]").check();
     // Every state from the press to the end, so a transient done or
     // unavailable between the cancel and the restore can't hide behind a
@@ -2017,6 +2039,7 @@ async function checkSlaac400(browser) {
   return withPage(browser, { viewport: { width: 400, height: 800 }, hasTouch: true }, async (page) => {
     await page.goto(BASE, { waitUntil: "networkidle" });
     await openReroute(page);
+    await selectReroutePair(page, "KJFK-KMIA");
     const overflow = () =>
       page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     if ((await overflow()) > 1) throw new Error(`horizontal scroll at 400px with Figure 3 mounted: ${await overflow()}px`);
@@ -2050,6 +2073,159 @@ async function checkSlaac400(browser) {
     if (msg !== SLAAC_COPY.ringTooFew) throw new Error(`two-corner close says ${JSON.stringify(msg)}`);
     if ((await overflow()) > 1) throw new Error(`horizontal scroll at 400px after drawing: ${await overflow()}px`);
     return `no horizontal scroll at 400; a 3-tap triangle closed on a tap at its first corner; a 2-tap close said "${msg}"`;
+  });
+}
+
+/**
+ * All flights, the default since Task 12c. At rest: the picker reads "all
+ * flights (373)" (the library's own route count), the status mode is "all",
+ * the reroute button is amber, and the readout counts the arcs a press will
+ * sample, equal to this script's own count of the same planner over every
+ * library route (launch sites on, margin 25, infinite lookahead). A press
+ * turns the button into "stop", reports progress as unique arcs done of that
+ * same total, and finishes with every library flight in the status, the
+ * worker's own unique-arc count equal to the planned one, and a summary whose
+ * every value equals summarizeFlights over the status's flights. The button
+ * is green exactly when no flight is cannot-clear. Picking a rerouted flight
+ * on the map fills the detail row with its pair; empty map clears it. Then a
+ * margin change makes it stale (amber), and a press stopped mid-run goes
+ * back to that stale result: no done, no failed or unavailable state at any
+ * point, no error line, the worker posts no done for the stopped run, and
+ * demo_used{slaac} stays at one.
+ *
+ * Up to 1200 s for the full run: Playwright's Firefox is ~7x slower than
+ * stock for this model (scripts/slaac/measure/README.md); the run measured
+ * 249 s of worker time on an idle machine, and did not finish inside 600 s
+ * with an unrelated job holding all 20 cores (load ~25, 2026-10-01).
+ *
+ * Proved to bite (2026-10-01), each against a production build:
+ *  - the summary rendering `summary.affected` in the "flights checked" cell
+ *    failed with "summary checked reads "80", expected "373"";
+ *  - `stop()` no longer putting the previous result back failed with "after
+ *    stop the figure reads idle, not the previous (stale) result".
+ */
+async function checkSlaacAllFlights(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.clock.setFixedTime(SLAAC_DATE);
+    await page.addInitScript(slaacWorkerSpy);
+    const errors = [];
+    page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await openReroute(page);
+
+    const C = SLAAC_COPY;
+    const total = SLAAC_ROUTES.pairs.reduce((n, p) => n + p.routes.length, 0);
+    const flights = SLAAC_ROUTES.pairs.flatMap((p) => p.routes.map((r, k) => ({ id: `${p.origin}-${p.dest}-${k + 1}`, nominal: r.fixes })));
+    const polys = loadSua(SLAAC_LAUNCH.sites.flatMap((s) => s.polys.map((p) => p.ring)));
+    const meta = JSON.parse(readFileSync(new URL("../public/slaac/meta.json", import.meta.url), "utf8"));
+    const opts = rerouteOpts(meta, 25, false, null);
+    const want = uniqueArcCount(planArcs(flights.filter((f) => mayConflict(f.nominal, polys, opts)), polys, opts));
+    const goState = () => page.locator("[data-reroute-go]").getAttribute("data-reroute-go-state");
+    const goText = () => page.locator("[data-reroute-go]").textContent();
+
+    let st = await rerouteStatus(page);
+    const option = await page.locator("[data-reroute-pair] option:checked").textContent();
+    if (st.mode !== "all") throw new Error(`Figure 3 opened in mode ${st.mode}, not all`);
+    if (option !== `${C.controls.allFlightsPre}${total}${C.controls.allFlightsPost}`) throw new Error(`picker reads ${JSON.stringify(option)}`);
+    if (!st.launchOn) throw new Error("the launch sites aren't on by default");
+    if ((await goState()) !== "idle-stale") throw new Error(`button is ${await goState()} before any press, not amber`);
+    await page.waitForFunction(() => JSON.parse(document.querySelector("[data-reroute-status]").dataset.rerouteStatus).arcsPlanned !== null, null, { timeout: 15000 });
+    st = await rerouteStatus(page);
+    if (st.arcsPlanned !== want) throw new Error(`the page plans ${st.arcsPlanned} arcs, this script's planner ${want}`);
+    const plannedText = await page.locator("[data-reroute-planned]").textContent();
+    if (plannedText !== `${C.toSamplePre}${want}${want === 1 ? C.toSampleMidOne : C.toSampleMid}`) throw new Error(`planned line ${JSON.stringify(plannedText)}`);
+
+    await page.evaluate(() => {
+      window.__rerouteStates = [];
+      const el = document.querySelector("[data-reroute-status]");
+      new MutationObserver(() => window.__rerouteStates.push(JSON.parse(el.dataset.rerouteStatus).state)).observe(el, {
+        attributes: true,
+        attributeFilter: ["data-reroute-status"],
+      });
+    });
+    await page.locator("[data-reroute-go]").click();
+    await page.waitForFunction(() => {
+      const s = JSON.parse(document.querySelector("[data-reroute-status]").dataset.rerouteStatus);
+      return s.state === "running" && s.arcsTotal !== null;
+    }, null, { timeout: 120000 });
+    st = await rerouteStatus(page);
+    if ((await goState()) !== "running" || (await goText()) !== C.controls.stop) {
+      throw new Error(`mid-run the button is ${await goState()} "${await goText()}", not "${C.controls.stop}"`);
+    }
+    if (st.arcsTotal !== want) throw new Error(`progress counts ${st.arcsTotal} arcs, planned ${want}`);
+    const readout = await page.locator("[data-reroute-figure] [role=status]").textContent();
+    if (readout !== `${C.running} ${st.arcsDone}/${want}${C.runningArcs}`) throw new Error(`running readout ${JSON.stringify(readout)}`);
+
+    await waitRerouteState(page, ["done", "failed", "unavailable"], 1200000);
+    st = await rerouteStatus(page);
+    if (st.state !== "done") throw new Error(`all flights ended ${st.state}`);
+    if (st.flights.length !== total) throw new Error(`${st.flights.length} flights in the status, ${total} in the library`);
+    if (st.arcs !== want) throw new Error(`the worker sampled ${st.arcs} unique arcs, the planner said ${want}`);
+    const sum = summarizeFlights(st.flights, 25);
+    const fl = (x) => `${(Math.floor(x * 10) / 10).toFixed(1)} nm`;
+    const read = Object.fromEntries(await page.locator("[data-summary]").evaluateAll((els) => els.map((e) => [e.dataset.summary, e.textContent])));
+    const expect = {
+      checked: String(sum.checked),
+      affected: String(sum.affected),
+      rerouted: String(sum.rerouted),
+      cannotClear: String(sum.cannotClear),
+      lowestClearance: sum.minClearanceNm === null ? "-" : fl(sum.minClearanceNm),
+    };
+    for (const [k, v] of Object.entries(expect)) if (read[k] !== v) throw new Error(`summary ${k} reads ${JSON.stringify(read[k])}, expected ${JSON.stringify(v)}`);
+    const nm = (x) => Math.abs(Math.round(x));
+    if (sum.medianAddedNm !== null && !read.medianAdded.includes(`${nm(sum.medianAddedNm)} nm`)) throw new Error(`median added reads ${read.medianAdded}, expected ${nm(sum.medianAddedNm)} nm`);
+    if (sum.maxAddedNm !== null && !read.worstAdded.includes(`${nm(sum.maxAddedNm)} nm`)) throw new Error(`most added reads ${read.worstAdded}, expected ${nm(sum.maxAddedNm)} nm`);
+    if (sum.checked !== total || sum.affected < 1) throw new Error(`summary counts ${JSON.stringify(sum)}`);
+    const green = (await goState()) === "ok";
+    if (green !== (sum.cannotClear === 0)) throw new Error(`button ${await goState()} with ${sum.cannotClear} cannot-clear flight(s)`);
+    if ((await demoEvents(page, "slaac")) !== 1) throw new Error(`demo_used{slaac} ${await demoEvents(page, "slaac")}x after one run`);
+
+    // Pick a rerouted flight at the middle of the leg into its first deviation fix.
+    const done = await page.evaluate(() => window.__slaac.lastDone);
+    const target = done.flights.find((f) => f.status === "ok" && f.roles.includes("deviation"));
+    const di = target.roles.indexOf("deviation");
+    const a = target.plan[di - 1], b = target.plan[di];
+    await page.evaluate(() => document.querySelector("[data-reroute-figure] canvas").scrollIntoView({ block: "center" }));
+    await page.waitForTimeout(400);
+    await rerouteAt(page, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
+    await page.waitForTimeout(200);
+    st = await rerouteStatus(page);
+    if (!st.picked) throw new Error("a click on a rerouted plan picked nothing");
+    const pickedPair = st.picked.split("-").slice(0, 2).join(" → ");
+    const detailPair = await page.locator('[data-reroute-detail] [data-detail="pair"]').textContent();
+    if (detailPair !== pickedPair) throw new Error(`detail row reads ${detailPair}, picked ${st.picked}`);
+    const { box } = await rerouteView(page);
+    await page.mouse.click(box.x + 3, box.y + 3); // an empty corner
+    await page.waitForTimeout(200);
+    if ((await rerouteStatus(page)).picked !== null) throw new Error("a click on empty map didn't clear the pick");
+
+    // Stale, then a stopped press goes back to the stale result.
+    await page.locator("[data-reroute-margin]").fill("30");
+    await waitRerouteState(page, ["stale"], 5000);
+    if ((await goState()) !== "idle-stale") throw new Error(`stale result, button ${await goState()}`);
+    await page.evaluate(() => window.__rerouteStates.splice(0));
+    await page.locator("[data-reroute-go]").click();
+    await page.waitForFunction(() => {
+      const s = JSON.parse(document.querySelector("[data-reroute-status]").dataset.rerouteStatus);
+      return s.state === "running" && (s.step ?? 0) >= 1;
+    }, null, { timeout: 120000 });
+    await page.locator("[data-reroute-go]").click(); // "stop"
+    await page.waitForTimeout(2000); // a done or an error that was coming has had time to land
+    st = await rerouteStatus(page);
+    const states = [...new Set(await page.evaluate(() => window.__rerouteStates))];
+    const bad = states.filter((x) => x === "done" || x === "failed" || x === "unavailable");
+    if (bad.length) throw new Error(`the stopped press passed through ${bad.join(", ")}: ${states.join(" > ")}`);
+    if (st.state !== "stale") throw new Error(`after stop the figure reads ${st.state}, not the previous (stale) result`);
+    if ((await goText()) !== C.controls.go || (await goState()) !== "idle-stale") throw new Error(`after stop the button is ${await goState()} "${await goText()}"`);
+    if ((await page.evaluate(() => window.__slaac.lastDone?.runId)) !== done.runId) throw new Error("a done landed for the stopped press");
+    const [w] = await slaacWorkers(page);
+    if (w.got.some((m) => m.kind === "done" && m.runId > done.runId)) throw new Error("the worker posted done for the stopped run");
+    const line = await page.locator("[data-reroute-figure] [role=status]").textContent();
+    if (line === C.runFailed || line === C.unavailable) throw new Error(`the stop read as a failure: ${line}`);
+    if ((await demoEvents(page, "slaac")) !== 1) throw new Error(`demo_used{slaac} ${await demoEvents(page, "slaac")}x after a stop`);
+    if (errors.length) throw new Error(`console errors: ${errors.join(" | ")}`);
+    return `all flights (${total}) by default, amber, ${want} arcs planned (= this script's planner); one press: ${want} unique arcs in ${(done.ms / 1000).toFixed(1)} s, ${sum.affected} near airspace, ${sum.rerouted} rerouted, ${sum.cannotClear} can't clear, summary = summarizeFlights, button ${green ? "green" : "amber"}; picked ${pickedPair} on the map; margin 30 went stale and a stopped press returned to it (states ${states.join(" > ")}), no done, demo_used once`;
   });
 }
 
@@ -5708,6 +5884,7 @@ const CHECKS = [
   ["slaac-launch-preset", checkSlaacLaunchPreset],
   ["slaac-stargaze-cancel", checkSlaacStargazeCancel],
   ["slaac-400", checkSlaac400],
+  ["slaac-all-flights", checkSlaacAllFlights],
   ["draw-stroke-auto-label", checkDrawAutoLabel],
   ["chess-hint-g3", checkChessHint],
   ["chess-self-play", checkChessSelfPlay],

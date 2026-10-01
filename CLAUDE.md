@@ -82,8 +82,9 @@ honest limit: the main-thread ORT wasm heap never actually shrinks, only the
 chess worker's termination truly frees memory. `window.__sky` and
 `window.__offload` are verify hooks, not UI.
 
-**Verification: `scripts/verify-redesign.mjs`** — 50 named checks on the
-`slaac-demo` branch (45 before the SLAAC round, 2026-09-30, added the five
+**Verification: `scripts/verify-redesign.mjs`** — 51 named checks on the
+`slaac-demo` branch (50 before Task 12c, 2026-10-01, added
+`slaac-all-flights`; 45 before the SLAAC round, 2026-09-30, added the five
 `slaac-*` checks and renamed `flight-video-play-pause` to `lab-flight-video`
 when the video moved to `/lab`; 46 until
 the 2026-09-29 copy pass cut `draw-classify-lead-400` with the line it
@@ -229,7 +230,16 @@ their centroids, all clear with the sites off), **`slaac-stargaze-cancel`**
 `done`, no error and no `demo_used`, no transient `done`/`unavailable` seen,
 a new worker on return), **`slaac-400`** (no horizontal scroll at 400px with
 touch; three taps and a tap on the first corner close a shape, two say it
-needs three corners); a drawn stroke producing a real auto-label,
+needs three corners), **`slaac-all-flights`** (Task 12c, 2026-10-01: opens
+on "all flights (373)", amber, its pre-press arc count equal to the suite's
+own planner; a press reads "stop" with progress in unique arcs; done holds
+every library flight, the worker's unique arcs equal the planned count, every
+summary value equals `summarizeFlights` over the status, green iff no
+cannot-clear; a map click picks a flight into the detail row, empty map
+clears it; after a margin change, a stopped press returns to the stale
+result with no done, no failed/unavailable state, no error and
+`demo_used{slaac}` still one; ~260 s in Playwright's Firefox; every check
+about one pair now selects KJFK-KMIA itself); a drawn stroke producing a real auto-label,
 the chess hint matching vector D (`g3 p=0.236`), **`chess-self-play`** (pinned
 clock, so the seed and the game are fixed: at least one departure, every one
 a near-tie in the top three and within budget, the rule stated while it
@@ -260,13 +270,13 @@ scripts/test-sky-data.mjs scripts/test-sky-math.mjs scripts/test-sky-pan.mjs
 scripts/test-sky-objects.mjs scripts/test-sky-facts.mjs
 scripts/test-sky-iss.mjs scripts/test-sky-images.mjs
 scripts/test-chess-selfplay.mjs scripts/test-resume.mjs`** plus, on the
-`slaac-demo` branch, the rerouter's nine (`test-slaac-arcs` 14,
+`slaac-demo` branch, the rerouter's ten (`test-slaac-arcs` 16,
 `test-slaac-data` 8, `test-slaac-dpm` 3, `test-slaac-geometry` 2,
 `test-slaac-guidance` 4, `test-slaac-reroute` 37, `test-slaac-ring` 7,
-`test-slaac-sampler` 5, `test-slaac-view` 7; `node --test scripts/test-*.mjs`
-runs them all, ~16 s) runs outside
-Playwright, in plain node (180 cases total, 87 of them the rerouter's, which
-the SLAAC section describes; 93 before those, 3 of them the served resume's and
+`test-slaac-sampler` 5, `test-slaac-summary` 5, `test-slaac-view` 8;
+`node --test scripts/test-*.mjs` runs them all, ~16 s) runs outside
+Playwright, in plain node (188 cases total, 95 of them the rerouter's, which
+the SLAAC section describes; 180 before Task 12c; 93 before those, 3 of them the served resume's and
 10 the self-play rule's; 80 before those, 73 before the card
 photographs, 62 before the discoverability round and 47 before the colour
 round): `test-sky-data` pins the committed `sky.json`'s shape (star
@@ -560,8 +570,9 @@ Figure 3; Experience became two NASA rows (SLAAC complete, SHIFT active) per
 the new resume. Measured on this laptop (Task 15): ~2.8 s from a first press
 to done for KJFK-KMIA past the launch sites in stock Firefox, ~6 s for the
 heaviest library case; the batch cap went 16 → 4 on that measurement. The
-DIFFERENCES note says "On my laptop a reroute takes about 2-7 seconds,
-longer with several drawn airspaces" and nothing about phones.
+DIFFERENCES note says "On my laptop one route takes about 2-7 seconds and
+all 373 about 35, longer with several drawn airspaces" (the 35 is Task
+12c's all-flights measurement, 2026-10-01) and nothing about phones.
 Contracts, rulings and numbers: "SLAAC rerouter (Figure 3)" under the demos.
 
 **Open items, roughly in order:**
@@ -580,7 +591,7 @@ The SLAAC round's own, ahead of the list (branch `slaac-demo`):
   button. Until then its routes are precomputed data.
 - d. **The owner's pipeline rewrite** (it was built in 7 weeks and the owner
   wants to redo parts). Any change to `plan_cli.py`, `sua_guidance.py` or the
-  checkpoint means re-running `make_vectors.py`, the nine `test-slaac-*`
+  checkpoint means re-running `make_vectors.py`, the ten `test-slaac-*`
   files and the gate, in that order, and re-exporting the ONNX under a new
   hashed name.
 - e. **The FRD doubling-back bug, upstream** (R13): fix
@@ -2149,8 +2160,9 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   it on the diffusion UNets.
 
 ### SLAAC rerouter (Figure 3) — page 1's NASA box (PREVIEW ONLY, branch `slaac-demo`)
-- What it is: the owner's SLAAC hazard-aware rerouter, live. A visitor picks
-  one of 48 hub pairs, its LM-filed routes draw, they draw an airspace and/or
+- What it is: the owner's SLAAC hazard-aware rerouter, live. The figure
+  opens on all 373 library routes at once (Task 12c), or a visitor picks
+  one of 48 hub pairs; the LM-filed routes draw, they draw an airspace and/or
   turn on all six US launch sites, and the owner's diffusion model
   (`FlightDiffusion`, a diffusers `UNet1DModel`, 5.78M params, 7 channels x
   256 points, v-prediction, CFG 2.0) reroutes every affected flight, then the
@@ -2190,7 +2202,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   `Math.fround` wherever torch rounds; the chord is the one place that is
   load-bearing, and `make_vectors.py` carries pipeline-captured
   `chord_features` cases for it (Task 2 fix round). Re-run the vectors and all
-  nine `test-slaac-*` files after any change to the owner's pipeline.
+  ten `test-slaac-*` files after any change to the owner's pipeline.
 - **The owner's pipeline semantics are kept, even where they look odd**:
   `plan_cli.Sampler` reseeds per arc, so every arc in a press starts from the
   SAME noise (`normalNoise(seed, C*N)`, mulberry32 + Box-Muller, drawn once
@@ -2226,7 +2238,8 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   never in one session at once. ⚠️ Chrome and Safari worker task ordering is
   unmeasured.
 - **Stale-run discipline, three layers, each proved to bite in
-  `slaac-reroute`**: the figure (`busyRef` plus a press generation: three
+  `slaac-reroute`**: the figure (`activeRef`, the in-flight press's
+  generation, plus a press generation: three
   presses in one task start one run); the engine (every run-scoped message
   carries `runId`, and the client drops any but the run it awaits; a newer
   press rejects the old one with `SlaacCancelled`); the worker (`currentRun`,
@@ -2341,6 +2354,41 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   motion); "whole US" returns to the lower-48 fit; the ring tool works at any
   zoom through `fromScreen` of the CURRENT view, mid-ease included; an open
   ring holds the view still until it closes. A finished run re-zooms once.
+- **All flights, the button, stop (Task 12c, owner-approved design,
+  2026-10-01)**: the route picker's first option, "all flights (N)" with N
+  the library's route count, is the default (`pairIdx` -1, flight ids
+  `ORIG-DEST-n`; one pair keeps ids "1".."8" and its per-flight table). One
+  press sends every flight in ONE request; the worker plans, dedupes and
+  batches as for one pair. Before a press the readout counts the arcs it will
+  sample ("43 arcs to sample" at the defaults), computed on the main thread by
+  the same planner and dedupe (`uniqueArcCount`) behind `mayConflict`, an
+  exact bounding-box prefilter (a route whose fixes' box, grown by the widest
+  distance the walk tests, misses every polygon's box can plan no arc;
+  `test-slaac-arcs` pins planArcs over the kept flights equal to planArcs over
+  all 373, both policies, three margins, with and without a drawn box): the
+  full planner over 373 routes took ~0.5 s in node, too slow to run on every
+  settings change. Never a predicted time. Progress reads "rerouting d/N
+  arcs" from `arcsDone`/`arcsTotal` on the worker's progress messages (unique
+  arcs whose chunk finished). All flights answers with a summary
+  (`lib/slaac/summary.ts`, `summarizeFlights`, pinned by
+  `test-slaac-summary`): flights checked, near airspace (not untouched),
+  rerouted, can't clear, median and most added distance over rerouted flights
+  only, lowest clearance over affected flights (floored, red under the run's
+  margin). A click or tap within 8/16 px of a flight's line (plans first, then
+  filed routes, through the current view; `nearestFlight`) picks it into one
+  detail row; empty map clears it; the ring tool wins while drawing. The 373
+  filed routes draw as texture: opaque ink on their own layer, composited
+  once at 0.2, because a 1px line is a Skia hairline and hairlines stack even
+  within one path (measured: 373 routes at 0.14 alpha read up to 229/255 on
+  shared legs). **The reroute button** (`data-reroute-go-state`): amber
+  (`warm`, "idle-stale") unless the result on screen answers the current
+  settings and no flight is cannot-clear, then green (`ok`; a fresh
+  no-conflict press counts); "stop" (`running`) while planning, loading or
+  running. **Stop** bumps the press generation, calls `engine.cancel()`, and
+  hands the figure back at once with the result it showed before the press
+  (stale or not); the abandoned press can't write anything after
+  (`activeRef`); a model still loading keeps loading; no error, no done, no
+  `demo_used`.
 - **Presentation rules**: airspace stamp red, filed routes ink, rerouted plans
   x0 green, numbers warm amber; a plan made stale by a control change is drawn
   faded and only a press re-runs it; cannot-clear plans are dashed with red
@@ -2350,7 +2398,10 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   also a scroll); a tap near the first corner closes (22px touch, 12px mouse).
   `window.__slaac` (`runId`, `loaded`, `lastDone`, `view`) and
   `data-reroute-status` (state, step, arcs, ms, flights, launchSites with
-  centroids, view) are verify hooks, not UI.
+  centroids, view, and since Task 12c `mode`, `arcsPlanned`, `arcsDone`,
+  `arcsTotal`, `picked`), `data-reroute-go-state`, `data-reroute-planned`,
+  `data-reroute-summary` / `data-summary` and `data-reroute-detail` are
+  verify hooks, not UI.
 - **Measured** (Task 15, 2026-09-30, this laptop, production build, headed;
   first press, cold cache; median of 3 [range]): stock Firefox 152 (driven
   over WebDriver BiDi): KJFK-KMIA past all six launch sites, 3 arcs, 2.77 s
@@ -2366,9 +2417,17 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   ~600-850 MB and ~97% CPU (the sky's render floor), no runaway. Playwright's
   Firefox: 15.8 s, see the trap. **Owed**: Chrome proper and the owner's
   iPhone on the preview link; no phone number exists, and the copy quotes
-  only the laptop's "about 2-7 seconds, longer with several drawn
-  airspaces" (medians 2.07-6.54 s across the cases, one 7.89 s Chromium run
-  under load; each extra drawn airspace can add arcs, run in chunks of 4).
+  only the laptop's "one route about 2-7 seconds and all 373 about 35,
+  longer with several drawn airspaces" (medians 2.07-6.54 s across the
+  cases, one 7.89 s Chromium run under load; each extra drawn airspace can
+  add arcs, run in chunks of 4). **All flights** (Task 12c, 2026-10-01,
+  `measure-sysff.mjs all desktop 3`): 43 unique arcs over 373 flights, stock
+  Firefox 152, **34.7 s [33.3-34.8]** press to done, 0.87 s to model loaded,
+  ~146 ms per forward (8 CFG samples), longest gap between progress
+  messages ~0.78 s; measured with an unrelated job holding the machine at
+  load ~3-6 (the same session's KJFK-KMIA read 3.14 s [3.05-4.11] against
+  Task 15's 2.77 s), so if anything high. Playwright's Firefox: 232-249 s
+  for the same press (and over 600 s on a saturated machine).
 
 ### Trajectory viewer (pixel + ascii diffusion) — /lab
 - Both files are real trained output. **The placeholder generator was deleted

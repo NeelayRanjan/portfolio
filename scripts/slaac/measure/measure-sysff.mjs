@@ -1,7 +1,8 @@
 // Task 15: the same Figure 3 timing in a STOCK Firefox (not Playwright's
 // Juggler build), driven over WebDriver BiDi, a fresh profile (cold cache) per
 // run, headed. Hand-run; see README.md here. Usage:
-//   node scripts/slaac/measure/measure-sysff.mjs <a|b|c|d> [desktop|phone] [runs]
+//   node scripts/slaac/measure/measure-sysff.mjs <a|b|c|d|all> [desktop|phone] [runs]
+// "all" (Task 12c): every library route in one press, launch sites on, no drawn box.
 // Scenarios as in measure-slaac.mjs. Env: BASE (default http://localhost:3100),
 // FIREFOX (default /usr/bin/firefox), DISPLAY (default :0), SCRATCH (where the
 // throwaway profiles go, default the OS tmpdir). This is the script behind the
@@ -18,9 +19,10 @@ const FIREFOX = process.env.FIREFOX ?? "/usr/bin/firefox";
 const DISPLAY = process.env.DISPLAY || ":0";
 // Scenario pairs by name, resolved against the served library's own order,
 // so a regenerated routes.json can't silently point a scenario at another pair.
-const PAIR_OF = { a: "KJFK-KMIA", b: "KJFK-KMIA", c: "KJFK-KMIA", d: "KCLT-KSAN" };
+const PAIR_OF = { a: "KJFK-KMIA", b: "KJFK-KMIA", c: "KJFK-KMIA", d: "KCLT-KSAN", all: null };
 const routesLib = JSON.parse(readFileSync(join(REPO, "public/slaac/routes.json"), "utf8"));
 const pairIndex = (name) => {
+  if (name === null) return "-1"; // Task 12c: the picker's "all flights" entry
   const i = routesLib.pairs.findIndex((p) => `${p.origin}-${p.dest}` === name);
   if (i < 0) throw new Error(`${name} is not in public/slaac/routes.json`);
   return String(i);
@@ -122,7 +124,7 @@ async function oneRun(run) {
     await json(`(async () => { const s = document.querySelector("[data-reroute-pair]"); Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(s, ${JSON.stringify(pairIndex(PAIR_OF[scenario]))}); s.dispatchEvent(new Event("change", {bubbles:true})); return true; })()`);
     await sleep(500);
     await json(`(async () => { const c = document.querySelector("[data-reroute-launch]"); if (c.checked !== ${scenario !== "c"}) c.click(); return true; })()`);
-    if (scenario !== "a") {
+    if (scenario !== "a" && scenario !== "all") {
       await json(`(async () => { document.querySelectorAll("[data-reroute-view] button")[1].click(); return true; })()`);
       await sleep(800);
       await json(`(async () => { document.querySelector("[data-reroute-draw]").click(); return true; })()`);

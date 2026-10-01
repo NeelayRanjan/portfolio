@@ -41,8 +41,9 @@ export type Res =
   | { kind: "loaded"; ok: false; reason: string }
   /** At most every 2 forward passes. `step` counts passes across every chunk
    *  (1-based) out of `steps`; `arcs` is the running chunk's arcs, each one's
-   *  x0 estimate as [lat, lon]. */
-  | { kind: "progress"; runId: number; step: number; steps: number; arcs: ProgressArc[] }
+   *  x0 estimate as [lat, lon]. `arcsDone` / `arcsTotal`: unique arcs whose
+   *  chunk has finished, out of the press's unique arcs (Task 12c). */
+  | { kind: "progress"; runId: number; step: number; steps: number; arcs: ProgressArc[]; arcsDone: number; arcsTotal: number }
   /** `arcs`: arcs actually sampled (flights sharing an entry and rejoin share one).
    *  `fallbackArcs`: of those, sampled on demand because planning missed them (R3);
    *  expected 0. */

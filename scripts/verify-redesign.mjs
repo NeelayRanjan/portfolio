@@ -1672,7 +1672,7 @@ async function checkSlaacNothingAtRest(browser) {
     if (pressed !== "false") throw new Error("the Nevada box didn't close (draw mode still on)");
 
     await page.locator("[data-reroute-go]").click();
-    await waitRerouteState(page, ["no-conflict", "done", "unavailable"], 30000);
+    await waitRerouteState(page, ["no-conflict", "done", "unavailable", "failed"], 30000);
     const st = await rerouteStatus(page);
     if (st.state !== "no-conflict") throw new Error(`a box far from every route ran as ${st.state}, not no-conflict`);
     const readout = await page.locator("[data-reroute-figure] [role=status]").textContent();
@@ -1733,7 +1733,7 @@ async function checkSlaacReroute(browser) {
     await page.selectOption("[data-reroute-pair]", String(pairIdx));
     await page.locator("[data-reroute-launch]").check();
     await page.locator("[data-reroute-go]").click();
-    await waitRerouteState(page, ["done", "no-conflict", "unavailable"], 120000);
+    await waitRerouteState(page, ["done", "no-conflict", "unavailable", "failed"], 120000);
     const st = await rerouteStatus(page);
     if (st.state !== "done") throw new Error(`${pair.origin}-${pair.dest} with the launch sites on ended ${st.state}, not done`);
     if (st.flights.length !== pair.routes.length) throw new Error(`${st.flights.length} flights in the status, ${pair.routes.length} routes in the pair`);
@@ -1780,12 +1780,12 @@ async function checkSlaacReroute(browser) {
       });
     });
     const nextDone = async () => {
-      await page.waitForFunction(() => window.__rerouteStates.some((s) => s === "done" || s === "unavailable"), null, {
+      await page.waitForFunction(() => window.__rerouteStates.some((s) => s === "done" || s === "unavailable" || s === "failed"), null, {
         timeout: 180000,
       });
       const states = await page.evaluate(() => window.__rerouteStates.splice(0));
       const dones = states.filter((s, i) => s === "done" && states[i - 1] !== "done").length;
-      if (states.includes("unavailable")) throw new Error(`a run ended unavailable: ${states.join(" > ")}`);
+      if (states.includes("unavailable") || states.includes("failed")) throw new Error(`a run ended unavailable or failed: ${states.join(" > ")}`);
       return { states, dones };
     };
 
@@ -1985,12 +1985,12 @@ async function checkSlaacStargazeCancel(browser) {
     const offload = await page.evaluate(() => window.__offload.slaac);
     const lastDone = await page.evaluate(() => window.__slaac.lastDone);
     const states = [...new Set(await page.evaluate(() => window.__rerouteStates))];
-    const transient = states.filter((x) => x === "done" || x === "unavailable");
+    const transient = states.filter((x) => x === "done" || x === "unavailable" || x === "failed");
     if (transient.length) throw new Error(`the status passed through ${transient.join(", ")} across the cancel and restore: ${states.join(" > ")}`);
     if (st.state !== "idle") throw new Error(`after stargaze the figure reads ${st.state}, not idle`);
     if (lastDone) throw new Error("a done landed for the run stargaze cancelled");
     if (workers.some((w) => w.got.some((m) => m.kind === "done"))) throw new Error("a worker posted done for the cancelled run");
-    if (readout === SLAAC_COPY.unavailable) throw new Error("the cancelled run was reported as unavailable");
+    if (readout === SLAAC_COPY.unavailable || readout === SLAAC_COPY.runFailed) throw new Error("the cancelled run was reported as a failure");
     if (readout) throw new Error(`the readout still says ${JSON.stringify(readout)} after the cancel`);
     if ((await demoEvents(page, "slaac")) !== 0) throw new Error("a cancelled reroute queued demo_used{slaac}");
     if (offload !== 1) throw new Error(`window.__offload.slaac is ${offload}, expected exactly 1`);

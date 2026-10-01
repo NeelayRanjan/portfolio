@@ -248,16 +248,31 @@ function pathLL(ctx: CanvasRenderingContext2D, v: MapView, pts: LL[], close = fa
 
 const fixLL = (f: Fix): LL => [f[1], f[2]];
 
+/** The model's own arc under a snapped plan: 1px dotted, well below the plan. */
+const DENSE_UNDER = 0.4;
+
 /**
  * One flight's result. A stale run draws faded (the table dims to match). A
  * cannot-clear plan never looks like a success: it draws dashed and faint,
- * and the legs that still cross go over it in the airspace red.
+ * and the legs that still cross go over it in the airspace red. In snapped
+ * display the model's continuous arc (`dense`) draws first, thin, dotted and
+ * faint, so the sampled path and the plan snapped from it both show; it
+ * takes the same stale and cannot-clear fades as the plan above it.
  */
 function drawPlan(ctx: CanvasRenderingContext2D, v: MapView, r: MapResult, c: MapColours, display: MapState["display"], width: number, fresh: boolean) {
   const failed = r.status === "cannot-clear";
   const fade = fresh ? 1 : 0.35;
   const green = toward(c.ok, c.panel, fade * (failed ? 0.5 : 1));
   ctx.save();
+  if (display !== "continuous" && r.roles.some((role) => role !== "filed")) {
+    ctx.strokeStyle = rgba(toward(c.ok, c.panel, fade * (failed ? 0.5 : 1) * DENSE_UNDER), 1);
+    ctx.lineWidth = 1;
+    ctx.setLineDash([1, 3]);
+    ctx.beginPath();
+    pathLL(ctx, v, r.dense);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
   ctx.strokeStyle = rgba(green, 1);
   ctx.lineWidth = width;
   if (display === "continuous" || failed) ctx.setLineDash(display === "continuous" ? [5, 3] : [3, 3]);

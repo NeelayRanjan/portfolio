@@ -70,7 +70,9 @@ import {
 type Done = Extract<Res, { kind: "done" }>;
 /** "planning" covers the planner import and the arc plan, before any model:
  *  the controls are already disabled then, so a pair change can't slip in. */
-type RunState = "idle" | "planning" | "loading" | "running" | "unavailable";
+/** "unavailable": the data or the model never loaded (nothing can run).
+ *  "failed": both had loaded and a run threw; the next press can try again. */
+type RunState = "idle" | "planning" | "loading" | "running" | "unavailable" | "failed";
 /** Every outcome carries the pair it was run on (a different pair never
  *  draws or tabulates it) and the margin it was run at (the clearance column
  *  is judged against that, not the slider's current value). */
@@ -123,7 +125,13 @@ function resolveFont(): string {
   return `10px ${fam || "ui-monospace"}, monospace`;
 }
 
-const fmtSigned = (n: number, digits: number) => `${n >= 0 ? "+" : ""}${n.toFixed(digits)}`;
+/** Signed to `digits`, with anything that rounds to zero printed as a bare
+ *  zero: -0.004 must not read "-0.0" (nor +0.004 "+0.0"). */
+const fmtSigned = (n: number, digits: number) => {
+  const s = n.toFixed(digits);
+  if (Number(s) === 0) return (0).toFixed(digits);
+  return n > 0 ? `+${s}` : s;
+};
 
 export function RerouteFigure() {
   const t = copy.research.figReroute;
@@ -333,8 +341,12 @@ export function RerouteFigure() {
     if (last && sameView(last.view, targetView)) return;
     // An open ring holds the view still, so its vertices don't move under the
     // pointer; it eases once the ring closes (or is cleared). The visitor's
-    // own focus/whole-US press still goes through.
-    if (pending.length > 0 && last && last.mode === viewMode) return;
+    // own focus/whole-US press still goes through, and so does a change of
+    // canvas size: the canvas has already been resized, and a held view would
+    // draw it at the old w/h/dpr. The ring's vertices are lat/lon, so they
+    // land in the right place under the re-fitted view.
+    const sameSize = last !== null && last.view.w === targetView.w && last.view.h === targetView.h && last.view.dpr === targetView.dpr;
+    if (pending.length > 0 && last && last.mode === viewMode && sameSize) return;
     lastTargetRef.current = { view: targetView, mode: viewMode };
     cancelAnimationFrame(easeRafRef.current);
     easeRafRef.current = 0;
@@ -493,6 +505,10 @@ export function RerouteFigure() {
     setOutcome(null);
     setArcs([]);
     setProgress(null);
+    /** "load" while the planner chunk or the engine is still loading (a failure
+     *  there means nothing can run); "run" once both are in hand (a failure
+     *  there is this run's, and the next press may well succeed). */
+    let phase: "load" | "run" = "load";
     try {
       // Plan first, on this thread: a press with nothing to reroute never
       // loads the model.
@@ -501,6 +517,7 @@ export function RerouteFigure() {
         import("@/lib/slaac/run"),
       ]);
       if (isStargazing() || !current()) return;
+      phase = "run";
       const polys = loadSua(rings);
       const jobs = planArcs(flights, polys, rerouteOpts(data.meta, margin, hug, null));
       if (jobs.length === 0) {
@@ -508,11 +525,13 @@ export function RerouteFigure() {
         return;
       }
       setRunState("loading");
+      phase = "load";
       const engine = engineRef.current ?? (await startLoad());
       if (!engine) {
         setRunState("unavailable");
         return;
       }
+      phase = "run";
       setRunState("running");
       const isPhone = window.matchMedia("(max-width: 879px)").matches;
       const done = await engine.reroute(
@@ -551,7 +570,7 @@ export function RerouteFigure() {
         return;
       }
       console.error(err);
-      setRunState("unavailable");
+      setRunState(phase === "run" ? "failed" : "unavailable");
     } finally {
       busyRef.current = false;
       setArcs([]);
@@ -568,7 +587,9 @@ export function RerouteFigure() {
       ? "data-loading"
       : data === null || runState === "unavailable"
         ? "unavailable"
-        : busy
+        : runState === "failed"
+          ? "failed"
+          : busy
           ? runState
           : shown?.kind === "done"
             ? fresh ? "done" : "stale"
@@ -609,7 +630,7 @@ export function RerouteFigure() {
       : runState === "running"
         ? `${t.running}${progress ? ` ${progress.step}/${progress.steps}` : ""}`
         : stateName === "done" && done
-          ? `${t.runtimePre}${done.arcs}${t.runtimeMid}${(done.ms / 1000).toFixed(1)}${t.runtimePost}`
+          ? `${t.runtimePre}${done.arcs}${done.arcs === 1 ? t.runtimeMidOne : t.runtimeMid}${(done.ms / 1000).toFixed(1)}${t.runtimePost}`
           : stateName === "stale"
             ? t.stale
             : stateName === "no-conflict"
@@ -650,6 +671,7 @@ export function RerouteFigure() {
                 pressGenRef.current++; // a press still landing belongs to the old pair
                 setPairIdx(Number(e.target.value));
                 setOutcome(null);
+                setRunState((st) => (st === "failed" ? "idle" : st)); // the error was the old pair's run
                 setHover(null);
               }}
               className="border border-rule bg-panel px-1.5 py-1 text-ink disabled:opacity-40"
@@ -812,7 +834,7 @@ export function RerouteFigure() {
             <p className="text-mut">{t.drawHint}</p>
           ) : null}
           <p className="text-warm" role="status">
-            {runState === "unavailable" ? t.unavailable : readout}
+            {runState === "unavailable" ? t.unavailable : runState === "failed" ? t.runFailed : readout}
           </p>
         </div>
 

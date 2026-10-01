@@ -401,14 +401,22 @@ export const copy = {
      *  caption's three table caveats are measured behaviour (task-13
      *  facts): clearance under the margin happens (the gate's 85-95%),
      *  added distance can be negative where a reroute straightens an LM
-     *  bend, and a flight with an airport or filed fix inside the airspace
-     *  can't clear and draws dashed. Colours: filed routes are ink at 0.45
-     *  (grey), plans green, hollow dots BENDs (reroute-map.ts). Runtime
-     *  line is pre + arcs + mid + seconds + post. */
+     *  bend, and a flight whose AIRPORT (first or last fix) sits inside the
+     *  airspace can't clear and draws dashed: the walk pins both airports,
+     *  while an interior filed fix inside is dropped (wide) or skipped (hug),
+     *  so a box over the middle of a route clears. The other way to end
+     *  cannot-clear is rare: a snapped leg the repair budget can't pull back
+     *  out (the gate's two failures). Colours: filed routes are ink at 0.45
+     *  (grey), plans green, the model's own arc a faint dotted green under
+     *  its snapped plan, hollow dots BENDs (reroute-map.ts). Runtime line is
+     *  pre + arcs + mid (runtimeMidOne for a single arc) + seconds + post.
+     *  `unavailable` is for a load that failed; `runFailed` for a run that
+     *  threw after the data and model had loaded. */
     figReroute: {
       caption:
-        "Pick a route, draw an airspace or turn on the launch sites, and press reroute. My flight-plan model wrote the filed routes (grey) ahead of time; on your device, my diffusion model samples an arc around each conflict and snaps it onto named fixes (green; a hollow dot is a bend with no fix close enough). In the table, clearance turns red under the margin, added distance goes negative where a reroute straightens a bend in the filed route, and a flight with an airport or filed fix inside the airspace can’t clear and draws dashed.",
+        "Pick a route, draw an airspace or turn on the launch sites, and press reroute. My flight-plan model wrote the filed routes (grey) ahead of time; on your device, my diffusion model samples an arc around each conflict and snaps it onto named fixes (green; the faint dotted line is the arc before snapping, and a hollow dot is a bend with no fix close enough). In the table, clearance turns red under the margin, added distance goes negative where a reroute straightens a bend in the filed route, and a flight whose airport sits inside the airspace can’t clear and draws dashed, as does the rare plan whose snapped leg still crosses.",
       unavailable: "The rerouter’s data or model didn’t load, so there’s nothing to run.",
+      runFailed: "The reroute stopped with an error. Try again.",
       ringTooFew: "A shape needs at least three corners.",
       ringSelfCrossing: "That shape crosses itself. Draw it again.",
       ringDegenerate: "That shape has no area. Draw it again.",
@@ -420,6 +428,7 @@ export const copy = {
       running: "rerouting",
       runtimePre: "",
       runtimeMid: " arcs in ",
+      runtimeMidOne: " arc in ",
       runtimePost: " s",
       drawHint: "Click or tap to add corners, then the first corner again to close the shape.",
       controls: {
@@ -808,6 +817,16 @@ export const copy = {
     /** Figure S2 — MAE vs I-JEPA representation comparison. Carried over
      *  wholesale from v1's `jepa` namespace (`copy.jepa.*` →
      *  `copy.lab.jepa.*`); every leaf key name is unchanged. */
+    /** Figure S3's heading and lede (2026-10-01, final review): the same
+     *  treatment S1 and S2 get, rendered inside FlightFigure. The 222M and
+     *  "too big for a browser" are CLAUDE.md's SLAAC facts; the caption keeps
+     *  the 44,000 flights and the waypoint story, so the lede doesn't repeat it. */
+    flight: {
+      heading: "A language model that writes flight plans",
+      lede:
+        "The filed routes in Figure 3 on the first page come from this model. At 222M parameters it’s too big to run in a browser, so what plays here is a video of one day it wrote.",
+    },
+
     jepa: {
       statusLoading: "loading atlas…",
       heading: "Predicting pixels, or predicting representations",

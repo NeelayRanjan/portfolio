@@ -2383,7 +2383,14 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   only, lowest clearance over affected flights (floored, red under the run's
   margin). A click or tap within 8/16 px of a flight's line (plans first, then
   filed routes, through the current view; `nearestFlight`) picks it into one
-  detail row; empty map clears it; the ring tool wins while drawing. The 373
+  detail row; empty map clears it; the ring tool wins while drawing. **A
+  pick's look (Task 12f, owner)**: every other flight's plan, dense arc and
+  crossing legs drop to the filed routes' texture grey; the picked flight's
+  filed route draws solid in the airspace red and its plan (stale fade and
+  cannot-clear dashes kept) in green on top; an untouched pick is the red
+  line alone. `slaac-all-flights` samples the red on filed legs clear of the
+  plan, its dense arc, the outlines and the labels (`window.__slaacLabels`,
+  the last paint's label boxes, a verify hook). The 373
   filed routes draw as texture: opaque ink on their own layer, composited
   once at 0.2, because a 1px line is a Skia hairline and hairlines stack even
   within one path (measured: 373 routes at 0.14 alpha read up to 229/255 on

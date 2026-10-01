@@ -358,7 +358,8 @@ export function RerouteFigure() {
       results: done ? done.done.flights.map((f) => ({ ...f, crossingLegs: done.crossing[f.id] ?? [] })) : null,
       fresh,
       display,
-      hover: isAll ? picked : hover,
+      hover: isAll ? null : hover,
+      pick: isAll ? picked : null,
     };
   };
 
@@ -438,8 +439,12 @@ export function RerouteFigure() {
     const s = mapState();
     const view = viewRef.current;
     if (!ctx || !view || !s) return;
-    const out = drawMap(ctx, view, s, coloursRef.current, fontRef.current).labelled.join(",");
+    const drawn = drawMap(ctx, view, s, coloursRef.current, fontRef.current);
+    const out = drawn.labelled.join(",");
     setLabelled((prev) => (prev === out ? prev : out));
+    // Verify hook, not UI: the label boxes (CSS px, backing included) the last
+    // paint placed, so a pixel check can keep its samples off the labels.
+    (window as Window & { __slaacLabels?: unknown }).__slaacLabels = drawn.labelBoxes;
   };
 
   // Every render repaints once, coalesced: state changes are rare except

@@ -52,6 +52,9 @@ export type MapState = {
   display: "snapped" | "continuous";
   /** A flight id to draw on top, brighter (the table row under the pointer). */
   hover: string | null;
+  /** All flights: the flight picked on the map (Task 12f). Its filed route
+   *  draws red and its plan green; every other flight goes grey. */
+  pick?: string | null;
 };
 /** "r, g, b" triples, so each layer can pick its own alpha. */
 export type MapColours = { rule: string; ink: string; mut: string; red: string; ok: string; panel: string };
@@ -287,13 +290,17 @@ const DENSE_UNDER = 0.4;
  * faint, so the sampled path and the plan snapped from it both show; it
  * takes the same stale and cannot-clear fades as the plan above it.
  */
-function drawPlan(ctx: CanvasRenderingContext2D, v: MapView, r: MapResult, c: MapColours, display: MapState["display"], width: number, fresh: boolean) {
+function drawPlan(ctx: CanvasRenderingContext2D, v: MapView, r: MapResult, c: MapColours, display: MapState["display"], width: number, fresh: boolean,
+  grey: string | null = null) {
   const failed = r.status === "cannot-clear";
   const fade = fresh ? 1 : 0.35;
-  const green = toward(c.ok, c.panel, fade * (failed ? 0.5 : 1));
+  // `grey`: the flight is subordinate to a picked one (Task 12f). Everything
+  // it draws, plan, dense arc, crossing legs, takes the filed routes' texture
+  // grey, one flat opaque tone, so a pick reads as the only thing in colour.
+  const green = grey ?? toward(c.ok, c.panel, fade * (failed ? 0.5 : 1));
   ctx.save();
   if (display !== "continuous" && r.roles.some((role) => role !== "filed")) {
-    ctx.strokeStyle = rgba(toward(c.ok, c.panel, fade * (failed ? 0.5 : 1) * DENSE_UNDER), 1);
+    ctx.strokeStyle = rgba(grey ?? toward(c.ok, c.panel, fade * (failed ? 0.5 : 1) * DENSE_UNDER), 1);
     ctx.lineWidth = 1;
     ctx.setLineDash([1, 3]);
     ctx.beginPath();
@@ -328,7 +335,7 @@ function drawPlan(ctx: CanvasRenderingContext2D, v: MapView, r: MapResult, c: Ma
     });
   }
   if (failed && r.crossingLegs?.length) {
-    ctx.strokeStyle = rgba(toward(c.red, c.panel, fade), 1);
+    ctx.strokeStyle = rgba(grey ?? toward(c.red, c.panel, fade), 1);
     ctx.lineWidth = Math.max(2, width);
     for (const i of r.crossingLegs) {
       ctx.beginPath();
@@ -350,7 +357,7 @@ function routeLayer(ctx: CanvasRenderingContext2D, w: number, h: number): HTMLCa
   return routeCanvas;
 }
 
-export function drawMap(ctx: CanvasRenderingContext2D, v: MapView, s: MapState, colours: MapColours, font: string): { labelled: string[] } {
+export function drawMap(ctx: CanvasRenderingContext2D, v: MapView, s: MapState, colours: MapColours, font: string): { labelled: string[]; labelBoxes: { x: number; y: number; w: number; h: number }[] } {
   const c = colours;
   ctx.setTransform(v.dpr, 0, 0, v.dpr, 0, 0);
   ctx.clearRect(0, 0, v.w, v.h);
@@ -463,8 +470,30 @@ export function drawMap(ctx: CanvasRenderingContext2D, v: MapView, s: MapState, 
   }
 
   // 6. Finished plans. A flight nothing touched keeps its filed line alone.
+  // With a flight picked (all flights, Task 12f) every other plan drops to
+  // the filed routes' texture grey.
+  const texture = toward(c.ink, c.panel, s.routeAlpha ?? 0.45);
   if (s.results) {
-    for (const r of s.results) if (r.status !== "untouched") drawPlan(ctx, v, r, c, s.display, 2, s.fresh);
+    for (const r of s.results) {
+      if (r.status === "untouched" || r.id === s.pick) continue;
+      drawPlan(ctx, v, r, c, s.display, 2, s.fresh, s.pick ? texture : null);
+    }
+  }
+
+  // 6b. The picked flight, on top: its filed route in the airspace red, solid,
+  // then (if it was rerouted) its plan in green with its usual stale and
+  // cannot-clear styling. An untouched flight shows the red line alone.
+  if (s.pick) {
+    const route = s.routes.find((r) => r.id === s.pick);
+    const res = s.results?.find((r) => r.id === s.pick);
+    if (route) {
+      ctx.strokeStyle = rgba(c.red, 1);
+      ctx.lineWidth = 1.75;
+      ctx.beginPath();
+      pathLL(ctx, v, route.fixes.map(fixLL));
+      ctx.stroke();
+    }
+    if (res && res.status !== "untouched") drawPlan(ctx, v, res, c, s.display, 2.5, s.fresh);
   }
 
   // 7. Hover: one flight, on top.
@@ -521,5 +550,5 @@ export function drawMap(ctx: CanvasRenderingContext2D, v: MapView, s: MapState, 
     put(site.name, x, y, rgba(c.red, 1));
     labelled.push(site.id);
   }
-  return { labelled };
+  return { labelled, labelBoxes: placed };
 }

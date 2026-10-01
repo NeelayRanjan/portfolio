@@ -2087,7 +2087,10 @@ async function checkSlaac400(browser) {
  * worker's own unique-arc count equal to the planned one, and a summary whose
  * every value equals summarizeFlights over the status's flights. The button
  * is green exactly when no flight is cannot-clear. Picking a rerouted flight
- * on the map fills the detail row with its pair; empty map clears it. Then a
+ * on the map fills the detail row with its pair and draws its filed route in
+ * the airspace red (Task 12f: sampled on filed legs clear of its plan, its
+ * dense arc, the airspace outlines and the labels, `window.__slaacLabels`);
+ * empty map clears the pick and the red. Then a
  * margin change makes it stale (amber), and a press stopped mid-run goes
  * back to that stale result: no done, no failed or unavailable state at any
  * point, no error line, the worker posts no done for the stopped run, and
@@ -2184,24 +2187,91 @@ async function checkSlaacAllFlights(browser) {
     if (green !== (sum.cannotClear === 0)) throw new Error(`button ${await goState()} with ${sum.cannotClear} cannot-clear flight(s)`);
     if ((await demoEvents(page, "slaac")) !== 1) throw new Error(`demo_used{slaac} ${await demoEvents(page, "slaac")}x after one run`);
 
-    // Pick a rerouted flight at the middle of the leg into its first deviation fix.
+    // Pick a rerouted flight, and check the pick's look (Task 12f): the
+    // picked flight's FILED route draws in the airspace red. Sample points on
+    // its filed legs that sit clear of its own plan (green on top there) and
+    // of every launch polygon's outline (red anyway); each must read opaque
+    // red in a 3x3 neighbourhood while picked, and none once an empty click
+    // clears the pick. A flight's plan keeps its filed fixes outside the
+    // detour, so the target is the rerouted flight with the most such points,
+    // clicked ON one of them.
     const done = await page.evaluate(() => window.__slaac.lastDone);
-    const target = done.flights.find((f) => f.status === "ok" && f.roles.includes("deviation"));
-    const di = target.roles.indexOf("deviation");
-    const a = target.plan[di - 1], b = target.plan[di];
     await page.evaluate(() => document.querySelector("[data-reroute-figure] canvas").scrollIntoView({ block: "center" }));
     await page.waitForTimeout(400);
-    await rerouteAt(page, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
+    const { box, view: pv } = await rerouteView(page);
+    const scr = (lat, lon) => toScreen(pv, lat, lon);
+    const segDist = (p, a, b) => {
+      const abx = b[0] - a[0], aby = b[1] - a[1];
+      const t = Math.min(1, Math.max(0, ((p[0] - a[0]) * abx + (p[1] - a[1]) * aby) / (abx * abx + aby * aby + 1e-12)));
+      return Math.hypot(p[0] - a[0] - t * abx, p[1] - a[1] - t * aby);
+    };
+    const outlines = SLAAC_LAUNCH.sites.flatMap((s) => s.polys.map((p) => [...p.ring, p.ring[0]].map(([la, lo]) => scr(la, lo))));
+    const filedOf = (id) => {
+      const m = /^(.+)-(.+)-(\d+)$/.exec(id);
+      const p = SLAAC_ROUTES.pairs.find((q) => q.origin === m[1] && q.dest === m[2]);
+      return p.routes[Number(m[3]) - 1].fixes;
+    };
+    const labelBoxes = await page.evaluate(() => window.__slaacLabels ?? []);
+    const offLabels = (p) => labelBoxes.every((b) => p[0] < b.x - 4 || p[0] > b.x + b.w + 4 || p[1] < b.y - 4 || p[1] > b.y + b.h + 4);
+    const samplesFor = (id) => {
+      const f = done.flights.find((x) => x.id === id);
+      const plan = f.plan.map((q) => scr(q[1], q[2]));
+      const dense = f.dense.map(([la, lo]) => scr(la, lo)); // the faint dotted arc draws green on top too
+      const clear = (p) => offLabels(p) && [plan, dense, ...outlines].every((L) => L.slice(1).every((b, i) => segDist(p, L[i], b) > 7));
+      const fixes = filedOf(id);
+      const out = [];
+      for (let i = 0; i + 1 < fixes.length && out.length < 5; i++) {
+        for (let k = 1; k <= 9 && out.length < 5; k += 2) {
+          // On the leg as drawn: a straight line between the projected fixes
+          // (interpolating lat/lon instead lands px off a long leg).
+          const a = scr(fixes[i][1], fixes[i][2]), b = scr(fixes[i + 1][1], fixes[i + 1][2]);
+          const p = [a[0] + ((b[0] - a[0]) * k) / 10, a[1] + ((b[1] - a[1]) * k) / 10];
+          if (p[0] < 6 || p[1] < 6 || p[0] > pv.w - 6 || p[1] > pv.h - 6 || !clear(p)) continue;
+          if (out.some((q) => Math.hypot(q[0] - p[0], q[1] - p[1]) < 15)) continue;
+          out.push(p);
+        }
+      }
+      return out;
+    };
+    const target = done.flights
+      .filter((f) => f.status === "ok" && f.roles.includes("deviation"))
+      .map((f) => ({ id: f.id, pts: samplesFor(f.id) }))
+      .sort((x, y) => y.pts.length - x.pts.length)[0];
+    if (!target || target.pts.length < 3) throw new Error(`no rerouted flight has 3 filed-route points clear of its plan and the airspace (best ${target?.id}: ${target?.pts.length})`);
+    await page.mouse.click(box.x + target.pts[0][0], box.y + target.pts[0][1]);
     await page.waitForTimeout(200);
     st = await rerouteStatus(page);
-    if (!st.picked) throw new Error("a click on a rerouted plan picked nothing");
+    if (!st.picked) throw new Error("a click on a flight's filed route picked nothing");
     const pickedPair = st.picked.split("-").slice(0, 2).join(" → ");
     const detailPair = await page.locator('[data-reroute-detail] [data-detail="pair"]').textContent();
     if (detailPair !== pickedPair) throw new Error(`detail row reads ${detailPair}, picked ${st.picked}`);
-    const { box } = await rerouteView(page);
+    // Whatever the click picked (a sibling route can share the clicked leg),
+    // sample that flight's own filed route.
+    const samples = st.picked === target.id ? target.pts : samplesFor(st.picked);
+    if (samples.length < 3) throw new Error(`picked ${st.picked}: only ${samples.length} filed-route points clear of its plan and the airspace to sample`);
+    const redAt = (pts) =>
+      page.evaluate((pts) => {
+        const c = document.querySelector("[data-reroute-figure] canvas");
+        const k = c.width / c.getBoundingClientRect().width;
+        const ctx = c.getContext("2d");
+        return pts.map(([x, y]) => {
+          const d = ctx.getImageData(Math.round(x * k) - 1, Math.round(y * k) - 1, 3, 3).data;
+          // Opaque-ish red: a 1.75 px line's best pixel on a diagonal measured
+          // alpha 181; the airspace fill is 46, the grey texture never red.
+          for (let i = 0; i < d.length; i += 4) if (d[i + 3] >= 150 && d[i] >= 180 && d[i + 1] <= 90 && d[i + 2] <= 90) return true;
+          return false;
+        });
+      }, pts);
+    const redPicked = await redAt(samples);
+    if (redPicked.filter(Boolean).length < samples.length) {
+      throw new Error(`picked ${st.picked}: its filed route isn't red (${redPicked.filter(Boolean).length} of ${samples.length} points red)`);
+    }
     await page.mouse.click(box.x + 3, box.y + 3); // an empty corner
     await page.waitForTimeout(200);
     if ((await rerouteStatus(page)).picked !== null) throw new Error("a click on empty map didn't clear the pick");
+    await page.waitForTimeout(100); // the repaint is one coalesced rAF
+    const redCleared = await redAt(samples);
+    if (redCleared.some(Boolean)) throw new Error(`the pick was cleared but ${redCleared.filter(Boolean).length} of its filed-route points still read red`);
 
     // Stale, then a stopped press goes back to the stale result.
     await page.locator("[data-reroute-margin]").fill("30");
@@ -2243,7 +2313,8 @@ async function checkSlaacAllFlights(browser) {
     if ((await demoEvents(page, "slaac")) !== 1) throw new Error(`demo_used{slaac} ${await demoEvents(page, "slaac")}x after a stop`);
     if (errors.length) throw new Error(`console errors: ${errors.join(" | ")}`);
     const stopNote = `stop sent cancel for run ${stoppedRun}, its progress ${p0} then ${p1} after 3 s`;
-    return `${stopNote}; all flights (${total}) by default, amber, ${want} arcs planned (= this script's planner); one press: ${want} unique arcs in ${(done.ms / 1000).toFixed(1)} s, ${sum.affected} near airspace, ${sum.rerouted} rerouted, ${sum.cannotClear} can't clear, summary = summarizeFlights, button ${green ? "green" : "amber"}; picked ${pickedPair} on the map; margin 30 went stale and a stopped press returned to it (states ${states.join(" > ")}), no done, demo_used once`;
+    const pickNote = `pick: ${redPicked.filter(Boolean).length}/${samples.length} filed-route points red, 0 after clearing`;
+    return `${pickNote}; ${stopNote}; all flights (${total}) by default, amber, ${want} arcs planned (= this script's planner); one press: ${want} unique arcs in ${(done.ms / 1000).toFixed(1)} s, ${sum.affected} near airspace, ${sum.rerouted} rerouted, ${sum.cannotClear} can't clear, summary = summarizeFlights, button ${green ? "green" : "amber"}; picked ${pickedPair} on the map; margin 30 went stale and a stopped press returned to it (states ${states.join(" > ")}), no done, demo_used once`;
   });
 }
 

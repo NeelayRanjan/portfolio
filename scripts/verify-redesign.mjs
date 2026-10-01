@@ -910,6 +910,9 @@ async function checkOrtRuntimeBuild(browser) {
     if (bad.length) {
       throw new Error(`an asyncify/jsep/jspi runtime was fetched: ${[...new Set(bad)].join(", ")}`);
     }
+    // Requests, not distinct files: each leg is its own fetch of the same URL
+    // (a worker's runtime is its own instance), so the count per leg is what
+    // says that leg fetched it. The detail lists the distinct files.
     const plainWasm = (list) => list.filter((u) => u.endsWith("/ort-wasm-simd-threaded.wasm")).length;
     if (plainWasm(workerOrt) < 1) {
       throw new Error(`the chess worker did not fetch the plain runtime; its /ort/ requests: ${JSON.stringify(workerOrt)}`);
@@ -1510,6 +1513,10 @@ const FLORIDA = new Set(["KMIA", "KFLL", "KMCO", "KTPA"]);
 /** Every slaac check runs at this instant: the press seeds its noise from
  *  Date.now(), so a pinned clock makes a run's arcs the same on every run. */
 const SLAAC_DATE = new Date("2026-09-30T18:00:00.000Z");
+/** A superseded run stops at its next per-forward yield (R16), before its
+ *  first progress message (posted every 2 forwards) in practice; 2 allows a
+ *  slow dispatch. A full KJFK-KMIA run posts 10. */
+const SLAAC_STALE_PROGRESS_MAX = 2;
 
 function rerouteStatus(page) {
   return page.evaluate(() => JSON.parse(document.querySelector("[data-reroute-status]").dataset.rerouteStatus));
@@ -1642,7 +1649,7 @@ async function checkSlaacNothingAtRest(browser) {
     const urls = [];
     page.on("request", (req) => urls.push(`${req.method()} ${req.url()}`));
     const loaded = async () => {
-      const model = urls.filter((u) => /\/models\/flightdiff-/.test(u));
+      const model = [...new Set(urls.filter((u) => /\/models\/flightdiff-/.test(u)).map((u) => u.split(" ")[1]))];
       const workers = (await slaacWorkers(page)).length;
       const hook = await page.evaluate(() => window.__slaac?.loaded ?? null);
       return model.length || workers || hook ? `model requests ${JSON.stringify(model)}, rerouter workers ${workers}, __slaac.loaded ${hook}` : null;
@@ -1650,7 +1657,7 @@ async function checkSlaacNothingAtRest(browser) {
     await page.goto(BASE, { waitUntil: "networkidle" });
     await openReroute(page);
     await page.waitForTimeout(2000); // anything a mount effect or an idle callback might start has started
-    const data = urls.filter((u) => SLAAC_DATA_RE.test(u)).length;
+    const data = new Set(urls.filter((u) => SLAAC_DATA_RE.test(u)).map((u) => u.split(" ")[1])).size;
     if (data < 6) throw new Error(`Figure 3 mounted but fetched ${data} of its 6 JSON files`);
     let bad = await loaded();
     if (bad) throw new Error(`the rerouter loaded at rest: ${bad}`);
@@ -1673,7 +1680,8 @@ async function checkSlaacNothingAtRest(browser) {
     await page.waitForTimeout(1000);
     bad = await loaded();
     if (bad) throw new Error(`a no-conflict press loaded the rerouter: ${bad}`);
-    return `scrolled in: ${data} JSON files, no model, no rerouter worker; a Nevada box with launch sites off read "no conflict" and still loaded nothing`;
+    const ortFiles = [...new Set(urls.filter((u) => /\/ort\//.test(u)).map((u) => new URL(u.split(" ")[1]).pathname))];
+    return `scrolled in: ${data} JSON files, no model, no rerouter worker (distinct /ort/ files on the page, all the chess figure's: ${ortFiles.join(", ") || "none"}); a Nevada box with launch sites off read "no conflict" and still loaded nothing`;
   });
 }
 
@@ -1682,32 +1690,36 @@ async function checkSlaacNothingAtRest(browser) {
  * every launch site on, at a pinned instant. Crossings are recomputed here,
  * in node, from each plan the page received and the served launch rings
  * (lib/slaac/geometry.ts's own leg test), rather than read off the status
- * label the same numbers produced. Then the stale-run rule, at the two layers
- * that can actually see a stale run:
+ * label the same numbers produced: 0 for every `ok` and every `untouched`
+ * flight, more than 0 for any `cannot-clear` one. Then the stale-run rule, at
+ * each of its three layers:
  *
  *  - the figure: three presses in ONE task, before React re-renders (so the
  *    disabled attribute can't be what stops the second and third; the
  *    figure's busy guard has to), start exactly one run and land one `done`;
- *  - the engine (lib/slaac-engine.ts's runId filter): the figure's own
- *    request is replayed straight into the live worker as run 1001, and the
- *    figure is pressed while the worker is still busy with it. 1001's
- *    progress and `done` reach the engine while it awaits its own run, and
- *    must be dropped: the figure's `done` is its own run's, and the worker
- *    is seen answering 1001 first, so the case really happened.
+ *  - the engine (lib/slaac-engine.ts's runId filter): while the figure's
+ *    run 3 is in flight, a reply for run 999 (run 2's real `done` and a
+ *    progress, relabelled) is dispatched on the worker object as if the
+ *    worker had posted it. The engine must drop both: the figure ends on
+ *    run 3's `done`, landed once. Dispatched rather than produced, because
+ *    since R16 the worker itself can't post for a run it has moved past;
+ *  - the worker (lib/slaac-worker.ts, R16's per-forward yield plus `post`'s
+ *    filter): the figure's own request, sent straight to the live worker as
+ *    runs 1001 and 1002 back to back. 1001 must stop at its first yield:
+ *    at most SLAAC_STALE_PROGRESS_MAX progress messages and no `done` for
+ *    it (a full run posts 10 progress messages here), nothing for it after
+ *    1002's first message, and 1002 finishes.
  *
- * ⚠️ Not asserted, because it can't fire: the worker's own filter
- * (lib/slaac-worker.ts's `post`). A run never yields to the worker's message
- * queue (ORT's wasm session.run resolves without a macrotask), so a newer
- * request is only read once the older run has finished and posted all of its
- * messages while still current. Measured: two requests posted back to back
- * came back as ten progress messages and a `done` for the first, THEN the
- * second; the brief's bite (dropping that filter) can't change anything.
- * The engine filter carries the rule; see the Task 14 report.
- *
- * Proved to bite (2026-09-30), two ways: dropping the engine's runId test
- * (`if (!a) return;`) failed with "the figure took run 1001's done while
- * awaiting run 3"; dropping `busyRef.current` from the press's guard failed
- * with "three presses in one task started 3 runs, expected 1".
+ * Proved to bite (2026-09-30), four ways:
+ *  - dropping `busyRef.current` from the press's guard → "three presses in
+ *    one task started 3 runs, expected 1";
+ *  - dropping the engine's runId test (`if (!a) return;`) → "the figure took run 999's done while
+ *    awaiting run 3";
+ *  - removing `beforeForward: yieldToQueue` from lib/slaac-worker.ts (R16's
+ *    yield) → "superseded run 1001 ran to its done (10 progress
+ *    messages, a full run posts 10)";
+ *  - (before R16, the engine bite against a worker-side replay, now
+ *    replaced) "the figure took run 1001's done while awaiting run 3".
  */
 async function checkSlaacReroute(browser) {
   return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
@@ -1735,10 +1747,15 @@ async function checkSlaacReroute(browser) {
       return n;
     };
     let rerouted = 0;
+    let untouched = 0;
     for (const f of done.flights) {
       const s = st.flights.find((x) => x.id === f.id);
-      if (s.status === "untouched") continue;
       const legs = crossingsOf(f.plan);
+      if (s.status === "untouched") {
+        if (legs !== 0) throw new Error(`flight ${f.id} marked untouched but its plan crosses airspace on ${legs} leg(s)`);
+        untouched++;
+        continue;
+      }
       if (s.status === "cannot-clear") {
         if (legs === 0) throw new Error(`flight ${f.id} marked cannot-clear but its plan crosses no airspace`);
         continue;
@@ -1795,31 +1812,49 @@ async function checkSlaacReroute(browser) {
     if ((await page.evaluate(() => window.__slaac.lastDone?.runId)) !== 2) throw new Error("the figure doesn't hold run 2's done");
     if ((await used()) !== 1) throw new Error(`demo_used{slaac} queued ${await used()}x after two runs, expected 1`);
 
-    // The engine: a run it never asked for, busy in the worker, while it
-    // awaits its own.
+    // The engine: a reply for run 999 lands while it awaits run 3.
+    await page.locator("[data-reroute-go]").click();
+    await waitRerouteState(page, ["running"], 60000);
+    await page.evaluate(() => {
+      const worker = window.__workers.find((x) => x.__slaac && !x.__terminated);
+      const stale = { ...window.__slaac.lastDone, runId: 999 };
+      worker.dispatchEvent(new MessageEvent("message", { data: { kind: "progress", runId: 999, step: 1, steps: 20, arcs: [] } }));
+      worker.dispatchEvent(new MessageEvent("message", { data: stale }));
+    });
+    const engine = await nextDone();
+    const held = await page.evaluate(() => window.__slaac.lastDone?.runId);
+    if (held !== 3) throw new Error(`the figure took run ${held}'s done while awaiting run 3`);
+    if (engine.dones !== 1) throw new Error(`${engine.dones} done states landed for one press: ${engine.states.join(" > ")}`);
+
+    // The worker: runs 1001 and 1002 back to back, straight in.
     await page.evaluate(() => {
       const worker = window.__workers.find((x) => x.__slaac && !x.__terminated);
       worker.postMessage({ ...window.__lastRerouteReq, runId: 1001 });
+      worker.postMessage({ ...window.__lastRerouteReq, runId: 1002 });
     });
-    await page.locator("[data-reroute-go]").click();
-    const replay = await nextDone();
-    // The figure may have settled early on a reply it shouldn't have taken;
-    // wait for the worker's own answer to run 3 either way.
     await page.waitForFunction(
-      () => window.__workers.find((x) => x.__slaac && !x.__terminated).__got.some((m) => m.kind === "done" && m.runId === 3),
+      () => window.__workers.find((x) => x.__slaac && !x.__terminated).__got.some((m) => m.kind === "done" && m.runId === 1002),
       null,
       { timeout: 180000 },
     );
-    const held = await page.evaluate(() => window.__slaac.lastDone?.runId);
-    if (held !== 3) throw new Error(`the figure took run ${held}'s done while awaiting run 3`);
     [w] = await slaacWorkers(page);
-    const doneOrder = w.got.filter((m) => m.kind === "done").map((m) => m.runId);
-    if (JSON.stringify(doneOrder) !== "[1,2,1001,3]") {
-      throw new Error(`the worker answered done for runs ${JSON.stringify(doneOrder)}, expected [1,2,1001,3]: the overlap this tests didn't happen`);
+    const firstOf1002 = w.got.findIndex((m) => m.runId === 1002);
+    const stale = w.got.map((m, i) => ({ ...m, i })).filter((m) => m.runId === 1001);
+    const staleProgress = stale.filter((m) => m.kind === "progress").length;
+    const fullProgress = w.got.filter((m) => m.kind === "progress" && m.runId === 1002).length;
+    if (stale.some((m) => m.kind === "done")) {
+      throw new Error(`superseded run 1001 ran to its done (${staleProgress} progress messages, a full run posts ${fullProgress})`);
     }
-    if (replay.dones !== 1) throw new Error(`${replay.dones} done states landed for one press: ${replay.states.join(" > ")}`);
+    if (staleProgress > SLAAC_STALE_PROGRESS_MAX) {
+      throw new Error(`superseded run 1001 posted ${staleProgress} progress messages before stopping (max ${SLAAC_STALE_PROGRESS_MAX}, a full run posts ${fullProgress})`);
+    }
+    if (stale.some((m) => m.i > firstOf1002)) throw new Error(`the worker posted for run 1001 after run 1002 began: ${JSON.stringify(stale)}`);
+    // (999 is the engine half's dispatched reply, which the spy hears too.)
+    const doneOrder = w.got.filter((m) => m.kind === "done" && m.runId !== 999).map((m) => m.runId);
+    if (JSON.stringify(doneOrder) !== "[1,2,3,1002]") throw new Error(`the worker answered done for runs ${JSON.stringify(doneOrder)}, expected [1,2,3,1002]`);
+    if ((await page.evaluate(() => window.__slaac.lastDone?.runId)) !== 3) throw new Error("a reply nobody awaited replaced the figure's done");
     if ((await used()) !== 1) throw new Error(`demo_used{slaac} queued ${await used()}x after three runs, expected 1`);
-    return `${pair.origin}-${pair.dest}, all six launch sites: ${rerouted} of ${st.flights.length} flights rerouted, 0 recomputed crossings, ${st.arcs} arcs in ${(st.ms / 1000).toFixed(1)} s; three presses in one task ran one run; run 1001 injected ahead of the figure's run 3 answered first and was dropped by the engine; demo_used{slaac} once`;
+    return `${pair.origin}-${pair.dest}, all six launch sites: ${rerouted} of ${st.flights.length} flights rerouted, ${untouched} untouched, 0 recomputed crossings, ${st.arcs} arcs in ${(st.ms / 1000).toFixed(1)} s; three presses in one task ran one run; a run-999 reply dispatched during run 3 was dropped by the engine; back-to-back runs 1001/1002: 1001 posted ${staleProgress} progress and no done, 1002 finished (${fullProgress} progress); demo_used{slaac} once`;
   });
 }
 
@@ -1884,7 +1919,9 @@ async function checkSlaacLaunchPreset(browser) {
  * Stargaze mid-run (the chess rule, RerouteFigure's subscriber): a reroute
  * in progress, then stargaze. The worker is terminated (the spy sees it),
  * `__offload.slaac` counts exactly one, the run ends in idle with no `done`,
- * no error line and no `demo_used`. On the way back the engine reloads (it
+ * no error line and no `demo_used`, and a MutationObserver on the status
+ * sees neither `done` nor `unavailable` at any point from the press through
+ * the restore. On the way back the engine reloads (it
  * had been loaded), into a NEW worker, and still nothing lands.
  *
  * Proved to bite (2026-09-30): skipping `unloadSlaacEngine()` in the
@@ -1902,6 +1939,17 @@ async function checkSlaacStargazeCancel(browser) {
     await waitStargazeReady(page);
     await openReroute(page);
     await page.locator("[data-reroute-launch]").check();
+    // Every state from the press to the end, so a transient done or
+    // unavailable between the cancel and the restore can't hide behind a
+    // clean final read.
+    await page.evaluate(() => {
+      window.__rerouteStates = [];
+      const el = document.querySelector("[data-reroute-status]");
+      new MutationObserver(() => window.__rerouteStates.push(JSON.parse(el.dataset.rerouteStatus).state)).observe(el, {
+        attributes: true,
+        attributeFilter: ["data-reroute-status"],
+      });
+    });
     await page.locator("[data-reroute-go]").click();
     await page.waitForFunction(
       () => {
@@ -1936,6 +1984,9 @@ async function checkSlaacStargazeCancel(browser) {
     const readout = await page.locator("[data-reroute-figure] [role=status]").textContent();
     const offload = await page.evaluate(() => window.__offload.slaac);
     const lastDone = await page.evaluate(() => window.__slaac.lastDone);
+    const states = [...new Set(await page.evaluate(() => window.__rerouteStates))];
+    const transient = states.filter((x) => x === "done" || x === "unavailable");
+    if (transient.length) throw new Error(`the status passed through ${transient.join(", ")} across the cancel and restore: ${states.join(" > ")}`);
     if (st.state !== "idle") throw new Error(`after stargaze the figure reads ${st.state}, not idle`);
     if (lastDone) throw new Error("a done landed for the run stargaze cancelled");
     if (workers.some((w) => w.got.some((m) => m.kind === "done"))) throw new Error("a worker posted done for the cancelled run");
@@ -1947,7 +1998,7 @@ async function checkSlaacStargazeCancel(browser) {
       throw new Error(`expected the old worker terminated and one live new one: ${JSON.stringify(workers.map((w) => w.terminated))}`);
     }
     if (errors.length) throw new Error(`console errors: ${errors.join(" | ")}`);
-    return `stargaze at step ${step}: worker terminated, __offload.slaac 1, idle, no done, no error line, no demo_used{slaac}; reloaded into a new worker on return`;
+    return `stargaze at step ${step}: worker terminated, __offload.slaac 1, idle, no done, no error line, no demo_used{slaac}; reloaded into a new worker on return; states seen ${states.join(" > ")}`;
   });
 }
 

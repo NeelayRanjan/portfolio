@@ -570,12 +570,14 @@ box went SLAAC-first with a SHIFT paragraph and DATA/DIFFERENCES notes under
 Figure 3; Experience became two NASA rows (SLAAC complete, SHIFT active) per
 the new resume. Measured on this laptop (Task 15): ~2.8 s from a first press
 to done for KJFK-KMIA past the launch sites in stock Firefox, ~6 s for the
-heaviest library case; the batch cap went 16 → 4 on that measurement. The
-DIFFERENCES note says "On my laptop one route takes about 2-7 seconds and
-all 373 about 35, longer with several drawn airspaces" (the 35 is Task
-12c's all-flights measurement, 2026-10-01; the 373 is not typed: app/page.tsx
-counts `public/slaac/routes.json` at build and fills it in) and nothing about
-phones.
+heaviest library case; the batch cap went 16 → 4 on that measurement.
+**The NASA box's written copy carries no numerals since 2026-10-01** (owner:
+"remove the numbers, and just keep the high-level"; heading "NASA Ames
+Research Center", SLAAC as "space launch and air/airspace coordination", no
+mentor or colleague names): the poster note is the poster's result in words,
+and the DIFFERENCES note says only that a reroute "takes seconds on my
+laptop, longer with more airspace or every flight at once" and nothing about
+phones. The numbers behind each phrase are in content/copy.ts's comments.
 Contracts, rulings and numbers: "SLAAC rerouter (Figure 3)" under the demos.
 
 **Open items, roughly in order:**
@@ -600,11 +602,9 @@ The SLAAC round's own, ahead of the list (branch `slaac-demo`):
 - e. **The FRD doubling-back bug, upstream** (R13): fix
   `gen_trx_sua.py`'s `geocode_items` LM-token path in the owner's own repo;
   this site only works around it in `route_library.py`.
-- f. **Two owner questions, non-blocking**: (1) did the `/lab` video come from
-  `route_lm_best.pt` or `route_lm.pt`? Figure S3's caption cut its "the same
-  model wrote Figure 3's routes" clause until it's answered (R15). (2) May
-  the NASA box name Dr. Kapil Sheth, Prachi Panda (new to the site) and
-  Stephen Clarke? The branch's copy names all three.
+- f. **Both owner questions answered (2026-10-01)**: the `/lab` video came
+  from `route_lm_best.pt`, so S3's lede says Figure 3's routes come from
+  that model; and no names in the NASA box ("no name dropping").
 - g. **The FAA chart cycle in `launch-sua.json` expires 2026-10-29**: re-pull
   per the SLAAC section.
 
@@ -850,9 +850,10 @@ not a contradiction. The original drift list, for the record:
   Aeronautics Directorate, Code AF, May 2026 to present; the `slaac-demo`
   branch's NASA box and Experience rows follow it, production still shows the
   older two-engagement arc until that branch merges):
-  **GenAI Applied Research Intern, SLAAC, May-Aug 2026** (space-launch and
-  airspace coordination, Dr. Kapil Sheth, and Prachi Panda on the branch's
-  copy): hazard-aware rerouting with diffusion models learned from FAA radar
+  **GenAI Applied Research Intern, SLAAC, May-Aug 2026** (space launch and
+  air/airspace coordination, the owner's wording since 2026-10-01; mentors on
+  the poster Dr. Kapil Sheth and Prachi Panda, never named in visitor copy):
+  hazard-aware rerouting with diffusion models learned from FAA radar
   tracks, guidance applied mid-sampling, no retraining, "99% of reroutes clear
   the 25 nm hazard buffer at a median +10 nm (1.1%) added distance, within
   1.2% of the geometric optimum"; and the flight-plan LLM, ~44,000 flights a
@@ -862,8 +863,11 @@ not a contradiction. The original drift list, for the record:
   speech-to-text, 17% WER vs 20% for the Whisper ASR in use (30% zero-shot,
   5-fold CV, ~1.5 h of real audio); Kev, a typed decision model parsing
   transcripts into the DTI maneuver ontology, value-match 40% → 80%; a
-  text-to-speech synthetic ATC corpus ~20x the real data. ⚠️ Naming Sheth,
-  Panda and Clarke is an open owner question (Open items, f). **The Summer
+  text-to-speech synthetic ATC corpus ~20x the real data. ⚠️ **No names in
+  visitor copy** (owner, 2026-10-01: "no name dropping"): Sheth, Panda and
+  Clarke are context here only. **The NASA box's text carries no numerals**
+  (owner, 2026-10-01), so these numbers live in this file and copy.ts
+  comments, not on the page. **The Summer
   2027 lunar digital twin is DROPPED** (owner, 2026-09-14: no longer
   pursuing it); never mention it again.
 - **The flight-day transformer (Figure 3 on production; Figure S3 on `/lab`
@@ -2419,9 +2423,9 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   (JavaScriptCore): 8.3 s, ~330 ms per forward, idle afterwards flat at
   ~600-850 MB and ~97% CPU (the sky's render floor), no runaway. Playwright's
   Firefox: 15.8 s, see the trap. **Owed**: Chrome proper and the owner's
-  iPhone on the preview link; no phone number exists, and the copy quotes
-  only the laptop's "one route about 2-7 seconds and all 373 about 35,
-  longer with several drawn airspaces" (medians 2.07-6.54 s across the
+  iPhone on the preview link; no phone number exists, and the copy says only
+  "seconds on my laptop, longer with more airspace or every flight at once"
+  (no numerals since 2026-10-01; behind it: medians 2.07-6.54 s across the
   cases, one 7.89 s Chromium run under load; each extra drawn airspace can
   add arcs, run in chunks of 4). **All flights** (Task 12c, 2026-10-01,
   `measure-sysff.mjs all desktop 3`): 43 unique arcs over 373 flights, stock

@@ -252,53 +252,49 @@ export const copy = {
         tag: "scope",
         body: "The claim is label efficiency, not peak accuracy: given far more than 16 labels, some baselines match it.",
       },
-      /** The poster's two columns, both policies named as the poster names
-       *  them. These are the owner's longer experiments, never the figure's
-       *  own numbers; the "From the SLAAC poster" lead is what says so. The
-       *  poster's "clears the 25 nm buffer" is the final share of reroutes
-       *  whose plan holds the buffer (owner, 2026-10-01): the same measure
-       *  as the DIFFERENCES note's 85-95%, so both use the same words. */
+      /** The poster's result in words (owner, 2026-10-01: "remove the
+       *  numbers, and just keep the high-level"; no numerals anywhere in the
+       *  NASA box). Each clause is one of the poster's columns, cited as the
+       *  poster's (task-13-facts.md): 98% / 99% of final reroutes held the
+       *  25 nm buffer ("nearly every"); +23 nm (3.4%) / +10 nm (1.1%) median
+       *  added ("small detours"); within 2.3% / 1.2% of the geometric optimum
+       *  ("close to"); median waypoints added 0 / -1 ("added no waypoints").
+       *  "Kept every leg the full buffer from the airspace" is the same
+       *  measure, in the same words, as the DIFFERENCES note's. */
       slaac: {
         tag: "slaac",
-        body: "From the SLAAC poster, 1-waypoint / infinite lookahead: 98% / 99% of final reroutes kept every leg at least 25 nm from the airspace; median added distance +23 nm (3.4%) / +10 nm (1.1%); median waypoints added 0 / -1; within 2.3% / 1.2% of the geometric optimum.",
+        body: "From the SLAAC poster: under both lookahead policies, nearly every final reroute kept every leg the full buffer from the airspace, with small detours close to the geometric optimum. The median reroute added no waypoints.",
       },
       /** Owner's intent: data re-sourced from public data where possible,
-       *  with some loss of quality. The cycle is launch-sua.json's own. The
-       *  nav database is the owner's internal one (cleared for publication),
-       *  which is why this says "where I could", not "all public". */
+       *  with some loss of quality. The airspace is the FAA's Special Use
+       *  Airspace layer for one chart cycle (launch-sua.json's `cycle`) plus
+       *  a past launch TFR each for Starbase and Van Horn, which have no
+       *  charted airspace; the dates and the count left the copy with every
+       *  other number (2026-10-01). The nav database is the owner's internal
+       *  one (cleared for publication), which is why this says "where I
+       *  could", not "all public". */
       data: {
         tag: "data",
-        body: "Public where I could, at some loss of quality: the airspace is the FAA’s Special Use Airspace layer for the September 3 to October 29, 2026 chart cycle, plus two past launch TFRs, since NASA’s airspace file isn’t public. With no historical route database, the filed routes are my flight-plan model’s.",
+        body: "Public where I could, at some loss of quality: the airspace is the FAA’s Special Use Airspace layer, plus past launch TFRs for the sites with nothing charted, since NASA’s airspace file isn’t public. With no historical route database, the filed routes are my flight-plan model’s.",
       },
       /** The owner's disclaimer, made concrete (the word "approximation" is
-       *  out by ruling; the owner rewords later). The "about 2-7 seconds" is Task 15's
-       *  measurement (2026-09-30): press to done on the dev laptop, stock
-       *  Firefox 152 and Playwright's Chromium, prod build, first press
-       *  (model download included), medians from 2.07 s (KJFK-KMIA, launch
-       *  sites and a big drawn box) to 6.11-6.54 s (the library's heaviest
-       *  launch-sites-plus-box case, 8 arcs); one Chromium run of that case
-       *  read 7.89 s under machine load. More drawn airspaces mean more
-       *  arcs, run in chunks of 4, hence "longer with several". A laptop
-       *  number only: no phone has been timed, so the copy names none.
-       *  "all <N> about 35" is Task 12c's (2026-10-01; N is the route count
-       *  read from routes.json at build, 373 when measured): the all-flights
-       *  default, 43 unique arcs, stock Firefox 152 over BiDi, prod build,
-       *  first press, median 34.7 s [33.3-34.8] of 3, measured with an
-       *  unrelated job holding the machine at load ~3-6 (the same session's
-       *  KJFK-KMIA read 3.14 s against Task 15's 2.77 s, so if anything high).
-       *  The 99.3-99.6% / 85-95% / ~65% rates are the Task 10
-       *  gate's (legs never crossing / every leg at the full margin), at
-       *  20 steps and the 25 nm margin, on snapped plans; R10 rules the copy
-       *  must not imply the full buffer is always held. */
+       *  out by ruling; the owner rewords later). No numerals since
+       *  2026-10-01 (owner: "remove the numbers, and just keep the
+       *  high-level"); every limitation stays as a plain statement. What each
+       *  clause stands on: "fewer steps" is 20 against the pipeline's 40
+       *  (Task 10, R10); "seconds on my laptop" is Task 15's medians of
+       *  2.07-6.54 s for one route, "longer ... every flight at once" Task
+       *  12c's 34.7 s for all of them (stock Firefox 152, prod build, first
+       *  press), and no phone has been timed, so none is named; "fewer final
+       *  reroutes keep every leg the full buffer" is the gate's 85-95% (about
+       *  65% near launch sites) against the poster's 98-99%, the same measure
+       *  as the SLAAC note's, and "almost none cross" is its 99.3-99.6% with
+       *  no leg crossing (20 steps, 25 nm margin, snapped plans; R10 rules
+       *  the copy must not imply the full buffer is always held). The route
+       *  count that app/page.tsx used to inject left with the numbers. */
       disclaimer: {
         tag: "differences",
-        /** Rendered lead + (allPre + the library's route count + allPost,
-         *  when app/page.tsx can count routes.json) + tail: the count is
-         *  read from the data at build, never typed here. */
-        lead: "My SLAAC models are integrated into the simulation software NASA and the FAA use to evaluate future air traffic management strategies. Here the diffusion model has the same weights, sampled in 20 steps where my pipeline uses 40, on public airspace and routes written ahead of time. On my laptop one route takes about 2-7 seconds",
-        allPre: " and all ",
-        allPost: " about 35",
-        tail: ", longer with several drawn airspaces. Measured the poster’s way on this demo’s test cases, 85-95% of final reroutes kept every leg at least 25 nm from the airspace (about 65% near launch sites), and 99.3-99.6% had no leg crossing it.",
+        body: "My SLAAC models are integrated into the simulation software NASA and the FAA use to evaluate future air traffic management strategies. This demo keeps the diffusion model’s weights but samples in fewer steps than my pipeline does, on public airspace and routes written ahead of time. A reroute takes seconds on my laptop, longer with more airspace or every flight at once. On this demo’s test cases, fewer final reroutes keep every leg the full buffer from the airspace than the poster reports, though almost none cross it.",
       },
     },
     /**
@@ -392,18 +388,23 @@ export const copy = {
       citation:
         "F. Perez, J. Morisaki, H. Kanakri, M. Rizkalla, et al. (incl. N. Ranjan), “Helical Antenna for Electromagnetic Field Stimulation in Alzheimer’s Disease Therapy,” IEEE MWSCAS 2026 (oral).",
     },
-    /** The NASA box's heading (2026-09-30). */
-    nasaHeading: "NASA Ames",
+    /** The NASA box's heading (2026-09-30; the full name since 2026-10-01,
+     *  owner's call). */
+    nasaHeading: "NASA Ames Research Center",
     /** The NASA box's prose, one paragraph per role, SLAAC first (the
      *  figure under it is SLAAC's). Framing paraphrases the SLAAC poster
-     *  ("hazards are applied online, no retraining"; "a reroute must come
-     *  back as an ordered list of named fixes a controller will accept";
-     *  "the policy is the operator's dial"). Roles, dates and the WER are
-     *  the 2026-09-30 resume's. No names: mentors and colleagues are
-     *  omitted by the owner's call (2026-10-01, "no name dropping"). */
+     *  ("structure is learned offline, hazards are applied online, no
+     *  retraining"; "a reroute must come back as an ordered list of named
+     *  fixes a controller will accept"; "the policy is the operator's
+     *  dial"). "Space launch and air/airspace coordination" is the owner's
+     *  wording (2026-10-01). No numerals (owner, 2026-10-01: "remove the
+     *  numbers, and just keep the high-level"): the dates live in the
+     *  Experience rows, and "fewer errors than the Whisper system in use" is
+     *  the resume's 17% WER against 20%. No names: mentors and colleagues
+     *  are omitted by the owner's call (2026-10-01, "no name dropping"). */
     nasaProse: [
-      "In summer 2026 I worked on SLAAC, space launch and airspace coordination. I trained a diffusion model on FAA radar tracks to reroute flights around closed airspace. It learns what routes look like offline, and the airspace is applied while it samples, so a new closure needs no retraining. A reroute has to come back as an ordered list of named fixes a controller will accept. The lookahead policy, one waypoint or infinite, is left to the operator; Figure 3 has both.",
-      "Since August I’ve been on SHIFT: speech-to-text for air traffic control (17% word error rate, against 20% for the Whisper system in use) and a typed parser that turns the transcripts into a maneuver database.",
+      "On SLAAC, space launch and air/airspace coordination, I trained a diffusion model on FAA radar tracks to reroute flights around closed airspace. It learns what routes look like offline and applies the airspace while it samples, so a new closure needs no retraining. A reroute comes back as an ordered list of named fixes a controller will accept, and the operator chooses how far ahead it may look; the figure below has both settings.",
+      "Since August I’ve been on SHIFT: speech-to-text for air traffic control that makes fewer errors than the Whisper system in use, and a typed parser that turns the transcripts into a maneuver database.",
     ],
     /** Figure S3 on /lab since the SLAAC round (2026-09-30): the flight-plan
      *  LM's synthesized day. Was Figure 3 on page 1; the key stays under

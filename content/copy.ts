@@ -251,10 +251,13 @@ export const copy = {
       },
       /** The poster's two columns, both policies named as the poster names
        *  them. These are the owner's longer experiments, never the figure's
-       *  own numbers; the "From the SLAAC poster" lead is what says so. */
+       *  own numbers; the "From the SLAAC poster" lead is what says so. The
+       *  poster's "clears the 25 nm buffer" is the final share of reroutes
+       *  whose plan holds the buffer (owner, 2026-10-01): the same measure
+       *  as the DIFFERENCES note's 85-95%, so both use the same words. */
       slaac: {
         tag: "slaac",
-        body: "From the SLAAC poster, 1-waypoint / infinite lookahead: 98% / 99% of reroutes clear the 25 nm buffer; median added distance +23 nm (3.4%) / +10 nm (1.1%); median waypoints added 0 / -1; within 2.3% / 1.2% of the geometric optimum.",
+        body: "From the SLAAC poster, 1-waypoint / infinite lookahead: 98% / 99% of final reroutes kept every leg at least 25 nm from the airspace; median added distance +23 nm (3.4%) / +10 nm (1.1%); median waypoints added 0 / -1; within 2.3% / 1.2% of the geometric optimum.",
       },
       /** Owner's intent: data re-sourced from public data where possible,
        *  with some loss of quality. The cycle is launch-sua.json's own. The
@@ -279,7 +282,7 @@ export const copy = {
        *  must not imply the full buffer is always held. */
       disclaimer: {
         tag: "differences",
-        body: "My SLAAC models are integrated into the simulation software NASA and the FAA use to evaluate future air traffic management strategies. Here the diffusion model has the same weights, sampled in 20 steps where my pipeline uses 40, on public airspace and routes written ahead of time. On my laptop a reroute takes about 2-7 seconds, longer with several drawn airspaces. On my test cases, snapped legs never crossed the airspace in 99.3-99.6% of plans, but only 85-95% kept every leg the full 25 nm away (about 65% near launch sites).",
+        body: "My SLAAC models are integrated into the simulation software NASA and the FAA use to evaluate future air traffic management strategies. Here the diffusion model has the same weights, sampled in 20 steps where my pipeline uses 40, on public airspace and routes written ahead of time. On my laptop a reroute takes about 2-7 seconds, longer with several drawn airspaces. Measured the poster’s way on this demo’s test cases, 85-95% of final reroutes kept every leg at least 25 nm from the airspace (about 65% near launch sites), and 99.3-99.6% had no leg crossing it.",
       },
     },
     /**
@@ -380,11 +383,11 @@ export const copy = {
      *  ("hazards are applied online, no retraining"; "a reroute must come
      *  back as an ordered list of named fixes a controller will accept";
      *  "the policy is the operator's dial"). Roles, dates and the WER are
-     *  the 2026-09-30 resume's; Sheth and Panda are the poster's mentors,
-     *  Clarke is CLAUDE.md's content fact for the fall engagement. */
+     *  the 2026-09-30 resume's. No names: mentors and colleagues are
+     *  omitted by the owner's call (2026-10-01, "no name dropping"). */
     nasaProse: [
-      "In summer 2026 I worked on SLAAC, space launch and airspace coordination, with Dr. Kapil Sheth and Prachi Panda. I trained a diffusion model on FAA radar tracks to reroute flights around closed airspace. It learns what routes look like offline, and the airspace is applied while it samples, so a new closure needs no retraining. A reroute has to come back as an ordered list of named fixes a controller will accept. The lookahead policy, one waypoint or infinite, is left to the operator; Figure 3 has both.",
-      "Since August I’ve been on SHIFT with Stephen Clarke: speech-to-text for air traffic control (17% word error rate, against 20% for the Whisper system in use) and a typed parser that turns the transcripts into a maneuver database.",
+      "In summer 2026 I worked on SLAAC, space launch and airspace coordination. I trained a diffusion model on FAA radar tracks to reroute flights around closed airspace. It learns what routes look like offline, and the airspace is applied while it samples, so a new closure needs no retraining. A reroute has to come back as an ordered list of named fixes a controller will accept. The lookahead policy, one waypoint or infinite, is left to the operator; Figure 3 has both.",
+      "Since August I’ve been on SHIFT: speech-to-text for air traffic control (17% word error rate, against 20% for the Whisper system in use) and a typed parser that turns the transcripts into a maneuver database.",
     ],
     /** Figure S3 on /lab since the SLAAC round (2026-09-30): the flight-plan
      *  LM's synthesized day. Was Figure 3 on page 1; the key stays under
@@ -820,7 +823,9 @@ export const copy = {
     /** Figure S3's heading and lede (2026-10-01, final review): the same
      *  treatment S1 and S2 get, rendered inside FlightFigure. The 222M and
      *  "too big for a browser" are CLAUDE.md's SLAAC facts; the caption keeps
-     *  the 44,000 flights and the waypoint story, so the lede doesn't repeat it. */
+     *  the 44,000 flights and the waypoint story, so the lede doesn't repeat it.
+     *  The first sentence is confirmed by the owner (2026-10-01): the video
+     *  came from route_lm_best.pt, the same LM that wrote Figure 3's routes. */
     flight: {
       heading: "A language model that writes flight plans",
       lede:

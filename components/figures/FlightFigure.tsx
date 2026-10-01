@@ -23,8 +23,12 @@ import { useStargazing } from "@/lib/stargaze";
  * no controls) on first paint and flips state after mount — no hydration
  * mismatch, just a state update after commit, same pattern any client-only
  * media query needs.
+ *
+ * `heading` and `lede` are optional, rendered inside the figure the way S1
+ * and S2 render theirs (an h2 and one paragraph above the media), so on /lab
+ * they mount and gate with the figure, never stranded on the page.
  */
-export function FlightFigure({ n }: { n: string }) {
+export function FlightFigure({ n, id, heading, lede }: { n: string; id?: string; heading?: string; lede?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [reducedMotion, setReducedMotion] = useState(false);
   const stargazing = useStargazing();
@@ -64,7 +68,9 @@ export function FlightFigure({ n }: { n: string }) {
   }, [reducedMotion, stargazing]);
 
   return (
-    <InstrumentFigure n={n} caption={copy.research.figFlight.caption}>
+    <InstrumentFigure n={n} id={id} caption={copy.research.figFlight.caption}>
+      {heading ? <h2 className="mt-1 mb-2 text-[22px] font-semibold text-ink">{heading}</h2> : null}
+      {lede ? <p className="mb-5 max-w-2xl text-[15px] leading-relaxed text-mut">{lede}</p> : null}
       {/* The source video is a light-background matplotlib map — the one
           light-mode object on a dark page. Treatment (owner call: seamless
           against the panel): full invert + hue-rotate flips the ground to

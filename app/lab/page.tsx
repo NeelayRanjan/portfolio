@@ -61,7 +61,7 @@ export default function LabPage() {
         </DeferredMount>
 
         <DeferredMount>
-          <FlightFigure n="S3" />
+          <FlightFigure n="S3" id="flight" heading={copy.lab.flight.heading} lede={copy.lab.flight.lede} />
         </DeferredMount>
 
         <StargazeFooterEntry />

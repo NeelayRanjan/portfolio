@@ -170,7 +170,7 @@ test("routes", () => {
     }
   }
   console.log(`routes doubling back >10 nm along the chord: ${back} of ${total}`);
-  assert.ok(back <= 40, `${back} routes double back`);
+  assert.ok(back <= 20, `${back} routes double back`);
 });
 
 test("validators reject non-objects", () => {

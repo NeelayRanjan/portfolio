@@ -30,7 +30,11 @@ def frd_rewrite(items):
     AND appends the FRD point NAV+brg+dist, so a route flies over NAV and then up to ~100 nm
     back to the FRD point (the doubling-back the owner noticed). The owner's FP_ROUTE path
     (`rdp`) emits only the FRD point, which is what an FRD in a filed route means. An `rd` not
-    preceded by a fix is left as is. The owner's file is not edited; this runs before it."""
+    preceded by a fix is left as is. The owner's file is not edited; this runs before it.
+
+    Side effect, also the owner's own FP_ROUTE behaviour: geocode_items resolves all `fix` names
+    together first and the `rdp` parent navaids afterwards, so after this rewrite each FRD parent
+    is disambiguated after the plain fixes, not in route order."""
     out = []
     for it in items:
         if it[0] == "rd" and out and out[-1][0] == "fix":
@@ -43,7 +47,10 @@ def frd_rewrite(items):
 GEOCODE_NOTE = ("Fixes come from gen_trx_sua.geocode_items after rewriting each 'NAV <Rbbb> <Dddd>' token "
                 "triple into a single FRD point (rdp). The owner's LM-token path would also keep NAV as a "
                 "waypoint, sending the route over NAV and then back to the FRD point; filed-route (FP_ROUTE) "
-                "semantics emit only the FRD point. Tokens are unchanged; only the geocoding differs.")
+                "semantics emit only the FRD point. As in the owner's FP_ROUTE path, geocode_items "
+                "resolves the plain fixes first and each FRD's parent navaid afterwards, so a parent is "
+                "disambiguated after the plain fixes rather than in route order. "
+                "Tokens are unchanged; only the geocoding differs.")
 
 
 def main():

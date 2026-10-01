@@ -25,12 +25,13 @@ const demosSeen = new Set<string>();
 
 /**
  * A demo produced real output: a sampled headshot, a generated digit, a chess
- * move the engine answered, or a visitor entering stargaze mode. Once per demo
+ * move the engine answered, a completed reroute, or a visitor entering
+ * stargaze mode. Once per demo
  * per page load — the question is "did they use it", and a visitor scrubbing a
  * slider must not burn quota. Call only AFTER the work succeeds, never on the
  * button press, so a failed model load doesn't count as use.
  */
-export function trackDemoOnce(demo: "headshot" | "draw" | "chess" | "stargaze", via?: StargazeVia) {
+export function trackDemoOnce(demo: "headshot" | "draw" | "chess" | "stargaze" | "slaac", via?: StargazeVia) {
   if (demosSeen.has(demo)) return;
   demosSeen.add(demo);
   track("demo_used", via ? { demo, via } : { demo });

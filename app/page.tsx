@@ -6,6 +6,7 @@ import { DeferredMount } from "@/components/manuscript/DeferredMount";
 import { StatBand } from "@/components/manuscript/StatBand";
 import { MissionRows } from "@/components/manuscript/MissionRows";
 import { References } from "@/components/manuscript/References";
+import { Colophon } from "@/components/manuscript/Colophon";
 import { StargazeFooterEntry } from "@/components/manuscript/StargazeFooterEntry";
 import { TrackedLink } from "@/components/manuscript/TrackedLink";
 import { LabelEfficiencyFigure } from "@/components/figures/LabelEfficiencyFigure";
@@ -223,6 +224,7 @@ export default function Home() {
 
         <References />
         <StargazeFooterEntry />
+        <Colophon />
       </Sheet>
 
       <WarmKick />

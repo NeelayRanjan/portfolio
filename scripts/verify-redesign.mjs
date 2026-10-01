@@ -5421,13 +5421,14 @@ async function checkStargazeDoors(browser) {
       const btn = document.querySelector("[data-stargaze-footer-enter]");
       const p = btn.closest("[data-stargaze-footer]");
       const prev = p.previousElementSibling;
-      return { tag: btn.tagName, type: btn.getAttribute("type"), text: btn.textContent.trim(), lead: p.textContent.trim(), prevHeading: prev?.querySelector("h2")?.textContent ?? null, inSheet: !!p.closest("[data-sheet]"), mark: btn.querySelector("svg[data-star-mark]")?.getAttribute("aria-hidden") };
+      return { next: p.nextElementSibling?.hasAttribute("data-colophon") && p.nextElementSibling === p.parentElement.lastElementChild, tag: btn.tagName, type: btn.getAttribute("type"), text: btn.textContent.trim(), lead: p.textContent.trim(), prevHeading: prev?.querySelector("h2")?.textContent ?? null, inSheet: !!p.closest("[data-sheet]"), mark: btn.querySelector("svg[data-star-mark]")?.getAttribute("aria-hidden") };
     });
     if (shape.tag !== "BUTTON" || shape.type !== "button") throw new Error(`footer entry is <${shape.tag} type=${shape.type}>, not a button`);
     if (shape.text !== t.enter) throw new Error(`footer button reads ${JSON.stringify(shape.text)}, copy.stargaze.enter is ${JSON.stringify(t.enter)}`);
     if (!shape.lead.startsWith(t.footerLead)) throw new Error(`footer line reads ${JSON.stringify(shape.lead)}, expected it to open with footerLead`);
     if (shape.prevHeading !== copy.references.heading || !shape.inSheet) throw new Error(`footer entry follows ${JSON.stringify(shape.prevHeading)} (inSheet ${shape.inSheet}), expected References inside the sheet`);
     if (shape.mark !== "true") throw new Error("footer button has no aria-hidden mark");
+    if (!shape.next) throw new Error("on /, the footer door is not followed only by the colophon as the sheet's last child");
 
     await footer.click();
     await waitStargaze(page, true);
@@ -5471,9 +5472,9 @@ async function checkStargazeDoors(browser) {
     const shape = await page.evaluate(() => {
       const p = document.querySelector("[data-stargaze-footer]");
       const sheet = document.querySelector("[data-sheet]");
-      return p ? { last: sheet?.lastElementChild === p, btn: p.querySelector("button[data-stargaze-footer-enter]")?.textContent.trim() } : null;
+      return p ? { last: !!sheet && p.nextElementSibling === sheet.lastElementChild && sheet.lastElementChild.hasAttribute("data-colophon"), btn: p.querySelector("button[data-stargaze-footer-enter]")?.textContent.trim() } : null;
     });
-    if (!shape?.last || shape.btn !== t.enter) throw new Error(`/lab footer entry ${JSON.stringify(shape)}; expected the sheet's last child with a "${t.enter}" button`);
+    if (!shape?.last || shape.btn !== t.enter) throw new Error(`/lab footer entry ${JSON.stringify(shape)}; expected the door followed only by the colophon, with a "${t.enter}" button`);
     const footer = page.locator("[data-stargaze-footer-enter]");
     await footer.scrollIntoViewIfNeeded();
     await page.waitForSelector("[data-stargaze-footer][data-ready]", { timeout: 5000 });
@@ -5483,9 +5484,48 @@ async function checkStargazeDoors(browser) {
     await waitStargaze(page, true);
     const events = await stargazeEvents(page);
     if (events.length !== 1 || events[0].via !== "footer") throw new Error(`/lab footer queued ${JSON.stringify(events)}, expected one via "footer"`);
-    notes.push("/lab at 400px: footer door is the sheet's last child, on screen, queued via footer");
+    notes.push("/lab at 400px: footer door is followed only by the colophon, on screen, queued via footer");
   });
   return notes.join("; ");
+}
+
+/**
+ * The colophon (Task 12d): the last line of the sheet on / and /lab, the
+ * copyright, a mailto to the owner and the resume, wrapping inside 400px.
+ */
+async function checkColophon(browser) {
+  const t = copy.colophon;
+  const notes = [];
+  for (const [route, width] of [["/", 1280], ["/lab", 1280], ["/", 400], ["/lab", 400]]) {
+    await withPage(browser, { viewport: { width, height: 800 } }, async (page) => {
+      await page.goto(`${BASE}${route}`, { waitUntil: "networkidle" });
+      const c = await page.evaluate(() => {
+        const el = document.querySelector("[data-colophon]");
+        const sheet = document.querySelector("[data-sheet]");
+        if (!el) return null;
+        const link = (l) => el.querySelector(`a[data-track-label="${l}"]`)?.getAttribute("href") ?? null;
+        const r = el.getBoundingClientRect();
+        return {
+          text: el.textContent.replace(/\s+/g, " ").trim(),
+          last: sheet?.lastElementChild === el,
+          email: link("Email"),
+          resume: link("Resume"),
+          right: r.right,
+          scrollW: document.documentElement.scrollWidth,
+          clientW: document.documentElement.clientWidth,
+        };
+      });
+      if (!c) throw new Error(`${route}: no [data-colophon]`);
+      if (!c.text.startsWith("© 2026 Neelay Ranjan")) throw new Error(`${route}: colophon reads ${JSON.stringify(c.text)}`);
+      if (!c.last) throw new Error(`${route}: the colophon is not the sheet's last child`);
+      if (c.email !== t.links[0].href || c.email !== "mailto:neelay.ranjan@outlook.com") throw new Error(`${route}: email link is ${c.email}`);
+      if (c.resume !== "/resume.pdf") throw new Error(`${route}: Resume link is ${c.resume}`);
+      if (c.scrollW > c.clientW) throw new Error(`${route} at ${width}px scrolls horizontally (${c.scrollW} > ${c.clientW})`);
+      if (c.right > width) throw new Error(`${route} at ${width}px: colophon right edge ${c.right}`);
+      notes.push(`${route}@${width}`);
+    });
+  }
+  return `colophon on ${notes.join(", ")}: © line, mailto, /resume.pdf, last in the sheet, no horizontal scroll`;
 }
 
 /**
@@ -5927,6 +5967,7 @@ const CHECKS = [
   ["stargaze-browse-400", checkStargazeBrowse400],
   ["sky-iss", checkSkyIss],
   ["stargaze-doors", checkStargazeDoors],
+  ["colophon", checkColophon],
   ["sky-invite", checkSkyInvite],
   ["stargaze-chrome", checkStargazeChrome],
 ];

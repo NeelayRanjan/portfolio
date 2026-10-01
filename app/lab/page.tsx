@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Colophon } from "@/components/manuscript/Colophon";
 import { StargazeFooterEntry } from "@/components/manuscript/StargazeFooterEntry";
 import { Sheet } from "@/components/manuscript/Sheet";
 import { DeferredMount } from "@/components/manuscript/DeferredMount";
@@ -65,6 +66,7 @@ export default function LabPage() {
         </DeferredMount>
 
         <StargazeFooterEntry />
+        <Colophon />
       </Sheet>
     </main>
   );

@@ -62,6 +62,9 @@
  * wipe's component and strings are gone (the wipe ASSETS stay in
  * `public/research/`, unrendered).
  */
+/** One address, shared by the masthead, References and the colophon. */
+const EMAIL = "neelay.ranjan@outlook.com";
+
 export const copy = {
   /** <title>, meta description, and the share-card (OG/Twitter) text. */
   meta: {
@@ -192,7 +195,7 @@ export const copy = {
       // URL is in CLAUDE.md's links; restore it here and in references.items.
       { label: "GitHub", href: "https://github.com/NeelayRanjan" },
       { label: "ORCID", href: "https://orcid.org/0009-0008-9482-0160" },
-      { label: "Email", href: "mailto:neelay.ranjan@outlook.com" },
+      { label: "Email", href: `mailto:${EMAIL}` },
     ],
   },
 
@@ -800,7 +803,7 @@ export const copy = {
       { label: "GitHub", href: "https://github.com/NeelayRanjan" },
       { label: "ORCID", href: "https://orcid.org/0009-0008-9482-0160" },
       { label: "LinkedIn", href: "https://linkedin.com/in/neelayranjan" },
-      { label: "Email", href: "mailto:neelay.ranjan@outlook.com" },
+      { label: "Email", href: `mailto:${EMAIL}` },
       { label: "Supplementary material", href: "/lab" },
     ],
   },
@@ -921,6 +924,15 @@ export const copy = {
    *  second trim (2026-09-16); if one ever does again, it must match
    *  SKY_SPEEDUP in lib/sky-math.ts (180) and stay out of `creditStill`. The
    *  ISS card's `issClock` still states it, and must match too. */
+  /** The line at the foot of every page (components/manuscript/Colophon.tsx). */
+  colophon: {
+    rights: "© 2026 Neelay Ranjan",
+    links: [
+      { label: "Email", text: EMAIL, href: `mailto:${EMAIL}` },
+      { label: "Resume", text: "Resume", href: "/resume.pdf" },
+    ],
+  },
+
   stargaze: {
     enter: "stargaze for a bit?",
     exit: "back to the page",

@@ -22,7 +22,7 @@ live-sampled author photo, the paper-status stamp (IN PREPARATION; UNDER REVIEW 
 door to `/lab`, identity links) → Table 1 → Research
 (Figure 1 label-efficiency sweep, Figure 2 Dice CDF, Figure 3 flight map) →
 the live demos as Figures 4–5 (chess, then draw — swapped 2026-09-13 at the owner's call, the `n` props swapped with them) → Experience as Figure 6 (NASA and Regenstrief
-lamps green/active) → References → the footer's stargaze door. `/lab` holds S1–S2 (S3 cut 2026-09-29). Same-day post-launch
+lamps green/active) → References → the footer's stargaze door → the colophon (`© 2026 Neelay Ranjan · email · Resume`, `Colophon.tsx`, the sheet's last child on `/` and `/lab`; its Resume link carries `data-track-label="Resume"`). `/lab` holds S1–S2 (S3 cut 2026-09-29). Same-day post-launch
 passes: Figure 2 rebuilt from a budget ladder into the paper's pannable Dice
 CDF; the flight video's dark-map treatment; the owner's STIX-N favicon set;
 headshots presented last-class-first (photo 2 is the default face). The wipe
@@ -171,7 +171,7 @@ through a clock-jumped turn and a 2s refresh, refreshed on close; at 400px the d
 size, and phone names clearing a hint bar the check grows by 110px, which
 caught a content-box ResizeObserver ignoring padding), **`stargaze-doors`**
 (the mark is SSR'd and `aria-hidden`; the footer door follows References on
-`/` and ends the sheet on `/lab`; each door queues exactly one `demo_used`
+`/` and ends the sheet on `/lab`; the colophon follows the door as the sheet's last child, each door queues exactly one `demo_used`
 with its own `via`, whichever door comes second adds nothing; exit returns
 focus to the door used), **`sky-invite`** (nothing at rest; the first sky
 entry shows it at the same instant the colour target goes to 1; once per
@@ -184,6 +184,7 @@ backing's alpha measured per lit pixel behind a pill, median 0.86 against a
 once the chrome's pointer-events are forced off; no name box at 400px meets
 the bar or credit; credit contrast over the band, backed, at or above its
 pre-colour-round paper value: 3.68/3.69:1 at 400px against 3.49:1),
+**`colophon`** (present on `/` and `/lab` at 1280 and 400: `© 2026 Neelay Ranjan`, a mailto to the owner, `/resume.pdf`, last in the sheet, no horizontal scroll; proved to bite by dropping it from `/lab`),
 **`resume-pdf`** (2026-09-22: every `[data-track-label="Resume"]` points at
 `/resume.pdf`, nothing on the page links Drive, the file serves 200 as
 `application/pdf` starting `%PDF-`, carries `X-Robots-Tag: noindex` and is

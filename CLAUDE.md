@@ -1897,14 +1897,22 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   means only the generator's own `crop`). An entry with `artwork` is
   credited "Image:" (`imageCreditArtwork`) instead of "Photograph:", its
   citation is tagged " [Image]", and the credit ends with the work's name
-  and `imageArtworkNote`, "An artwork, not a photograph of the sky." Nudity
-  calls, made for a portfolio admissions committees read: Leda (the usual
-  Cygnus subject), Rubens' and Goltzius' Juno pictures, a Collaert Arion and
-  the nude Hercules statues were passed over for clothed alternatives;
-  Urania's Mirror's Cassiopeia (one bare breast) and Burne-Jones' small
-  stylised Chrysaor on Pegasus' card were kept as the best fit, and are the
-  owner's to veto. The generator's Commons lookup is batched at 50 titles
-  (the API's limit, passed when the list reached 72 picks). ~2.0 MB added.
+  and `imageArtworkNote`, "An artwork, not a photograph of the sky." A pick
+  may also carry `artworkSource`, a maintainer-only provenance note for an
+  `artwork` line that departs from Commons' own fields (never published:
+  Aquila's date is the Web Gallery of Art's 1531-32, not Commons' 1520-1540
+  range that runs past Correggio's death in 1534; Hercules' tapestry reads
+  "after Lambert Lombard" because its maker is anonymous). **Nudity: the
+  owner ruled (2026-10-01) that nudity in these famous artworks is fine**;
+  Cassiopeia's Urania's Mirror plate and Burne-Jones' Chrysaor stay.
+  **Framing (fix round 1)**: every pick was audited in both the 4:3 desktop
+  and the 2:1 phone frame for "is the card's subject the clear focus"; where
+  not, a generator `crop` (so `cropped` stays truthful) and/or `focus` fixed
+  it, and Leo moved from a black-figure amphora, unreadable at card size, to
+  Zurbarán's *Hercules Fighting the Nemean Lion* (1634). Re-run the audit's
+  contact sheets after any pick change. The Commons lookup is batched at 50
+  titles (the API's limit, passed when the list reached 72 picks). ~2.0 MB
+  added.
 - **The stargaze keyboard list** (NightSky, portalled into
   `[data-sky-list-slot]`, which `StargazeToggle` renders right after the exit
   control): the canvas is `aria-hidden`, so this `sr-only` group of buttons,

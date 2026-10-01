@@ -174,6 +174,10 @@ for (const pick of selected) {
     // names it ("Bacchus and Ariadne, Titian, 1520-1523"), typed in the pick
     // list from the Commons description page; the card prints it after the
     // credit and says the image is an artwork.
+    // `artworkSource` in a pick is the provenance of a hand-typed `artwork`
+    // line wherever it departs from Commons' own fields (fix round 1: Aql's
+    // date, Her's "after Lambert Lombard"). JSON carries no comments, so the
+    // note lives in its own field; it is for maintainers and never published.
     ...(pick.artwork ? { artwork: pick.artwork } : {}),
     ...(pick.focus ? { focus: pick.focus } : {}),
   };

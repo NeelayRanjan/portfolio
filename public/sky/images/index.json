@@ -463,7 +463,7 @@
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Antonio_Allegri,_called_Correggio_-_The_Abduction_of_Ganymede_-_Google_Art_Project.jpg",
       "sha1": "a42fe04095ac7cb2a1cdfefa26936385cbf02bdf",
       "cropped": true,
-      "artwork": "The Abduction of Ganymede, Correggio, 1520-1540",
+      "artwork": "The Abduction of Ganymede, Correggio, about 1531-1532",
       "focus": "50% 25%"
     },
     "Aqr": {
@@ -481,8 +481,8 @@
     },
     "Ara": {
       "src": "/sky/images/Ara.webp",
-      "width": 538,
-      "height": 552,
+      "width": 640,
+      "height": 476,
       "alt": "A pale engraving from Bayer's star atlas: a carved altar with flames rising from it, its stars marked.",
       "author": "Johann Bayer",
       "license": "Public domain",
@@ -492,7 +492,7 @@
       "sha1": "48eddd19f32280c13215a30212b12af382e51e5a",
       "cropped": true,
       "artwork": "Ara, from Johann Bayer's star atlas Uranometria, 1603",
-      "focus": "50% 40%"
+      "focus": "50% 30%"
     },
     "Ari": {
       "src": "/sky/images/Ari.webp",
@@ -506,7 +506,7 @@
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Erasmus_Quellinus_(II)-_Jason_with_the_Golden_Fleece,_1630.jpg",
       "sha1": "67df17195a6f86edcd2fb2cf873d310f84fe704e",
       "artwork": "Jason with the Golden Fleece, Erasmus Quellinus II, 1630",
-      "focus": "50% 10%"
+      "focus": "40% 5%"
     },
     "Aur": {
       "src": "/sky/images/Aur.webp",
@@ -564,8 +564,8 @@
     },
     "Cen": {
       "src": "/sky/images/Cen.webp",
-      "width": 528,
-      "height": 640,
+      "width": 640,
+      "height": 518,
       "alt": "Batoni's painting: the centaur Chiron teaches the young Achilles to play the lyre beneath a tree.",
       "author": "Pompeo Batoni",
       "license": "Public domain",
@@ -573,6 +573,7 @@
       "sourceTitle": "Pompeo Batoni - Achilles and the Centaur Chiron - WGA1498.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Pompeo_Batoni_-_Achilles_and_the_Centaur_Chiron_-_WGA1498.jpg",
       "sha1": "a82e86862f1a975a1520772892a5924e94b39565",
+      "cropped": true,
       "artwork": "Achilles and the Centaur Chiron, Pompeo Batoni, 1746",
       "focus": "50% 25%"
     },
@@ -641,7 +642,8 @@
       "sourceTitle": "Titian - Bacchus and Ariadne - Google Art Project.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Titian_-_Bacchus_and_Ariadne_-_Google_Art_Project.jpg",
       "sha1": "2dfc876ded782aa9de263fb912a0b93022536411",
-      "artwork": "Bacchus and Ariadne, Titian, 1520-1523"
+      "artwork": "Bacchus and Ariadne, Titian, 1520-1523",
+      "focus": "50% 15%"
     },
     "Crt": {
       "src": "/sky/images/Crt.webp",
@@ -728,7 +730,7 @@
     },
     "Her": {
       "src": "/sky/images/Her.webp",
-      "width": 578,
+      "width": 562,
       "height": 640,
       "alt": "A tapestry with a border of flowers: Hercules in a blue tunic swings his club at a dragon in a garden of fruit trees.",
       "author": "Lambert Lombard",
@@ -737,13 +739,14 @@
       "sourceTitle": "Anonieme meester,Hercules doodt de draak voor de tuin der Hesperiden, KBS-FRB.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Anonieme_meester,Hercules_doodt_de_draak_voor_de_tuin_der_Hesperiden,_KBS-FRB.jpg",
       "sha1": "9aa672a8cc557cab661356478d1bbd7baa0bcaf7",
-      "artwork": "Hercules killing the dragon in the garden of the Hesperides, Lambert Lombard, before 1550",
-      "focus": "50% 30%"
+      "cropped": true,
+      "artwork": "Hercules killing the dragon in the garden of the Hesperides, after Lambert Lombard, before 1550",
+      "focus": "40% 20%"
     },
     "Hya": {
       "src": "/sky/images/Hya.webp",
       "width": 640,
-      "height": 480,
+      "height": 348,
       "alt": "A black-figure vase: Herakles grips the many snake heads of the Hydra and raises his club, a crab at his heel.",
       "author": "J. Paul Getty Museum",
       "license": "CC0",
@@ -751,21 +754,22 @@
       "sourceTitle": "Caeretan hydria by Eagle Painter, detail of Herakles - Getty Museum (83.AE.346).jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Caeretan_hydria_by_Eagle_Painter,_detail_of_Herakles_-_Getty_Museum_(83.AE.346).jpg",
       "sha1": "d0aead80758987301c9d52f4126a1cf4fd9e6422",
+      "cropped": true,
       "artwork": "Herakles and Iolaos slaying the Hydra, a Caeretan hydria by the Eagle Painter"
     },
     "Leo": {
       "src": "/sky/images/Leo.webp",
       "width": 640,
-      "height": 414,
-      "alt": "A black-figure amphora: Herakles wrestles the Nemean lion to the ground between Iolaos and Athena.",
-      "author": "Painter of Boulogne 441",
+      "height": 524,
+      "alt": "Zurbarán's painting: Hercules, seen from behind, locks his arms around the neck of the rearing Nemean lion among rocks.",
+      "author": "Francisco de Zurbarán",
       "license": "Public domain",
       "licenseUrl": "",
-      "sourceTitle": "Herakles lion Staatliche Antikensammlungen 1557.jpg",
-      "sourceUrl": "https://commons.wikimedia.org/wiki/File:Herakles_lion_Staatliche_Antikensammlungen_1557.jpg",
-      "sha1": "0c97a71f124fc89a53b922ed9850ef897d3beb2f",
-      "cropped": true,
-      "artwork": "Herakles strangling the Nemean lion, an Attic amphora by the Painter of Boulogne 441, 520-510 BC"
+      "sourceTitle": "Hércules lucha con el león de Nemea, por Zurbarán.jpg",
+      "sourceUrl": "https://commons.wikimedia.org/wiki/File:H%C3%A9rcules_lucha_con_el_le%C3%B3n_de_Nemea,_por_Zurbar%C3%A1n.jpg",
+      "sha1": "ff758565c10d554da0247fcb4a1a5ac1bbad6518",
+      "artwork": "Hercules Fighting the Nemean Lion, Francisco de Zurbarán, 1634",
+      "focus": "35% 0%"
     },
     "Lep": {
       "src": "/sky/images/Lep.webp",
@@ -823,8 +827,8 @@
     },
     "Pav": {
       "src": "/sky/images/Pav.webp",
-      "width": 640,
-      "height": 398,
+      "width": 562,
+      "height": 478,
       "alt": "Burbarini's painting: Juno and her attendants, seated by the fallen watchman Argus, set his eyes into a peacock's tail.",
       "author": "Deifebo Burbarini",
       "license": "Public domain",
@@ -832,12 +836,13 @@
       "sourceTitle": "Deifobo Burbarini - Juno placing the eyes of Argus on the tail of a peacock.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Deifobo_Burbarini_-_Juno_placing_the_eyes_of_Argus_on_the_tail_of_a_peacock.jpg",
       "sha1": "cdf037a27840eea1585c8c08c14137eca86d9b2d",
+      "cropped": true,
       "artwork": "Juno placing the eyes of Argus on the tail of a peacock, Deifebo Burbarini, 17th century"
     },
     "Peg": {
       "src": "/sky/images/Peg.webp",
-      "width": 600,
-      "height": 640,
+      "width": 640,
+      "height": 516,
       "alt": "Burne-Jones's painting: the winged horse Pegasus rears up from Medusa's fallen body as Perseus, in armor, holds her head.",
       "author": "Edward Burne-Jones",
       "license": "Public domain",
@@ -845,13 +850,14 @@
       "sourceTitle": "Edward Burne-Jones - The Death of Medusa I, 1882.jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Edward_Burne-Jones_-_The_Death_of_Medusa_I,_1882.jpg",
       "sha1": "3775cb592557dda82ff3c5a9f8451ff7cd691571",
+      "cropped": true,
       "artwork": "The Death of Medusa I, Edward Burne-Jones, 1882",
-      "focus": "50% 20%"
+      "focus": "50% 0%"
     },
     "Per": {
       "src": "/sky/images/Per.webp",
-      "width": 530,
-      "height": 640,
+      "width": 640,
+      "height": 558,
       "alt": "Burne-Jones's painting: Perseus, in armor, shows Andromeda the reflection of Medusa's head in a well.",
       "author": "Edward Burne-Jones",
       "license": "Public domain",
@@ -859,8 +865,9 @@
       "sourceTitle": "The Baleful Head by Edward Burne-Jones (1885).jpg",
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:The_Baleful_Head_by_Edward_Burne-Jones_(1885).jpg",
       "sha1": "6fe7f27895da3ddd3351cfb1b89bc9af389972a9",
+      "cropped": true,
       "artwork": "The Baleful Head, Edward Burne-Jones, 1885",
-      "focus": "50% 25%"
+      "focus": "50% 20%"
     },
     "Phe": {
       "src": "/sky/images/Phe.webp",
@@ -919,7 +926,7 @@
     },
     "Tau": {
       "src": "/sky/images/Tau.webp",
-      "width": 640,
+      "width": 538,
       "height": 380,
       "alt": "Rembrandt's painting: Europa clings to a white bull as it carries her into the water, her companions crying out on the shore.",
       "author": "Rembrandt",
@@ -929,8 +936,7 @@
       "sourceUrl": "https://commons.wikimedia.org/wiki/File:Rembrandt_Abduction_of_Europa.jpg",
       "sha1": "04defa10f6b1629a111456262a2e1f4fa1ee5813",
       "cropped": true,
-      "artwork": "The Abduction of Europa, Rembrandt, 1632",
-      "focus": "30% 50%"
+      "artwork": "The Abduction of Europa, Rembrandt, 1632"
     },
     "Vir": {
       "src": "/sky/images/Vir.webp",

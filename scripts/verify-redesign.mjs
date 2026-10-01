@@ -4686,8 +4686,8 @@ async function checkStargazeMythImage(browser) {
       throw new Error(`${where}: ${id} has no Commons citation tagged "${t.imageSourceSuffixArtwork.trim()}": ${JSON.stringify(c.commons)}`);
     }
     if (entry.focus) {
-      const want = entry.focus.split(" ").join(" ");
-      if (c.objectPosition !== want) throw new Error(`${where}: ${id}'s object-position is ${c.objectPosition}, its focus is ${entry.focus}`);
+      // The pick's focus is already the computed-style form ("50% 30%").
+      if (c.objectPosition !== entry.focus) throw new Error(`${where}: ${id}'s object-position is ${c.objectPosition}, its focus is ${entry.focus}`);
     }
   };
   const assertNone = (id, c, where) => {

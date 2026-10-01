@@ -82,8 +82,10 @@ honest limit: the main-thread ORT wasm heap never actually shrinks, only the
 chess worker's termination truly frees memory. `window.__sky` and
 `window.__offload` are verify hooks, not UI.
 
-**Verification: `scripts/verify-redesign.mjs`** — 51 named checks on the
-`slaac-demo` branch (50 before Task 12c, 2026-10-01, added
+**Verification: `scripts/verify-redesign.mjs`** — 53 named checks on the
+`slaac-demo` branch (52 before Task 17, 2026-10-01, added
+`stargaze-secret-door`; the count read 51 here though `colophon` made it 52;
+50 before Task 12c, 2026-10-01, added
 `slaac-all-flights`; 45 before the SLAAC round, 2026-09-30, added the five
 `slaac-*` checks and renamed `flight-video-play-pause` to `lab-flight-video`
 when the video moved to `/lab`; 46 until
@@ -184,7 +186,15 @@ backing's alpha measured per lit pixel behind a pill, median 0.86 against a
 once the chrome's pointer-events are forced off; no name box at 400px meets
 the bar or credit; credit contrast over the band, backed, at or above its
 pre-colour-round paper value: 3.68/3.69:1 at 400px against 3.49:1),
-**`colophon`** (present on `/` and `/lab` at 1280 and 400: `© 2026 Neelay Ranjan`, a mailto to the owner, `/resume.pdf`, last in the sheet, no horizontal scroll; proved to bite by dropping it from `/lab`),
+**`stargaze-secret-door`** (Task 17, pinned to `SKY_HOVER_INSTANT`: a
+click on UMa's lines in the left margin enters stargaze `via: "sky"`, main
+inert at once with the 600ms fade, UMa still lit; the caption's exact text
+fades in centred below the bar, `pointer-events: none`, a polite status,
+gone after ~6s with its text cleared; a click on an object symbol and an 80px
+drag across the same lines do nothing; the toggle shows no caption; Escape
+mid-caption removes it; one event per load; reduced motion: no fades; a
+touch tap is the door too; proved to bite by letting any hit be the door and
+by dropping `secret.show()`), **`colophon`** (present on `/` and `/lab` at 1280 and 400: `© 2026 Neelay Ranjan`, a mailto to the owner, `/resume.pdf`, last in the sheet, no horizontal scroll; proved to bite by dropping it from `/lab`),
 **`resume-pdf`** (2026-09-22: every `[data-track-label="Resume"]` points at
 `/resume.pdf`, nothing on the page links Drive, the file serves 200 as
 `application/pdf` starting `%PDF-`, carries `X-Robots-Tag: noindex` and is
@@ -270,13 +280,14 @@ change touching a demo, a figure, or the page shell.
 scripts/test-sky-data.mjs scripts/test-sky-math.mjs scripts/test-sky-pan.mjs
 scripts/test-sky-objects.mjs scripts/test-sky-facts.mjs
 scripts/test-sky-iss.mjs scripts/test-sky-images.mjs
-scripts/test-chess-selfplay.mjs scripts/test-resume.mjs`** plus, on the
+scripts/test-chess-selfplay.mjs scripts/test-resume.mjs
+scripts/test-sky-secret.mjs`** (the last, Task 17's door rule, 4 cases) plus, on the
 `slaac-demo` branch, the rerouter's ten (`test-slaac-arcs` 16,
 `test-slaac-data` 8, `test-slaac-dpm` 3, `test-slaac-geometry` 2,
 `test-slaac-guidance` 4, `test-slaac-reroute` 37, `test-slaac-ring` 7,
 `test-slaac-sampler` 5, `test-slaac-summary` 5, `test-slaac-view` 8;
 `node --test scripts/test-*.mjs` runs them all, ~16 s) runs outside
-Playwright, in plain node (188 cases total, 95 of them the rerouter's, which
+Playwright, in plain node (192 cases total, 188 before Task 17; 95 of them the rerouter's, which
 the SLAAC section describes; 180 before Task 12c; 93 before those, 3 of them the served resume's and
 10 the self-play rule's; 80 before those, 73 before the card
 photographs, 62 before the discoverability round and 47 before the colour
@@ -1845,7 +1856,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   half-drawn digit and the scroll position all survive the round trip
   (`lib/stargaze.ts`, a module-level store, not React context, since loaders
   outside any component tree need to report offloads into it too).
-- **The ways in** (2026-09-16, answering "I have had to tell everyone about
+- **The ways in** (three since Task 17's secret door, 2026-10-01; 2026-09-16, answering "I have had to tell everyone about
   it"; autoplay, modals, pulsing and arrows stay ruled out):
   - **The star mark** (`StarMark.tsx`): an inline four-pointed SVG star,
     `aria-hidden`, `currentColor`, server-rendered, before the label on both
@@ -1876,10 +1887,30 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
     carrying a different name wouldn't read as the same feature. It lives
     inside `main`, so it's inert with the rest while stargazing. Exit returns
     focus to whichever door was used.
+  - **The secret door** (Task 17, owner-approved 2026-10-01): in PAPER mode
+    a still click (under `CLICK_SLOP_PX`) or a still touch tap on the sky
+    that the hover hit test resolves to a CONSTELLATION's lines enters
+    stargaze with `via: "sky"`; a symbol or drawn name that wins `nearestHit`
+    is not it, nor a drag, nor anything in `NOT_SKY` (the sheet, controls,
+    the credit). The rule is `secretDoorTarget` in `lib/sky-secret.ts` (no
+    imports, pinned by `scripts/test-sky-secret.mjs`); the wiring is in
+    `pointer-controller.ts` (a paper-mode touch is only REMEMBERED as `tap`,
+    never a drag, so the margins still scroll). The clicked constellation
+    stays lit after entry. Only this door shows a caption,
+    `copy.stargaze.secretMessage` (the owner's words, verbatim), from
+    `night-sky/secret-door.ts`: fade in 400ms, up 6s, fade out, none under
+    reduced motion, centred at `max(--stargaze-hint-h + 24px, 22vh)` on the
+    chrome's pill, `pointer-events: none`, inside an always-present polite
+    `role="status"` region whose text is written only when it shows (so it is
+    announced once), removed at once on exit. Exit focus goes to the toggle.
+    On a 400px phone the margins are 16px, so the door there is mostly the
+    band above the sheet: findable, not easy. The page's fade into stargaze
+    is 600ms for every door (`globals.css`, was 400ms); `inert` is still
+    immediate.
   - **`demo_used {demo: "stargaze", via}`**: `setStargazing(next, via =
     "toggle")` records the door (`getStargazeEntry()`), and `trackDemoOnce`
-    sends `via: "toggle" | "footer"` for the FIRST entry of the load. Still one
-    event per page load.
+    sends `via: "toggle" | "footer" | "sky"` for the FIRST entry of the load.
+    Still one event per page load.
   - **The chrome's backing pills**: the hint, the exit control and the credit
     body each sit on a desk-toned `#0c0b09` pill at 0.85 with a feathered
     shadow (`data-stargaze-chrome`), so always-on names no longer print
@@ -1928,7 +1959,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   `label`, `labelText`, `suppressedName`, `hits`, `milkyWay`, `radiants`,
   `layers`, `card`, `cardOutOfView`, `iss`, `segmentsFor`, `nameUnderline`,
   `entryRings` (rings drawn this frame), `entryRingsFired`, `inviteShown`,
-  `invite` (its box)), `window.__offload` (a per-kind offload counter) and the
+  `invite` (its box), `secretShown` (the secret door's caption is up)), `window.__offload` (a per-kind offload counter) and the
   one WRITE hook, `window.__skySaturationOverride`, are verify hooks for
   `scripts/verify-redesign.mjs`, not UI. So are the `data-*` attributes the
   checks select on: `data-sheet`, `data-sky-credit`, `data-sky-credit-body`,
@@ -1938,7 +1969,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   `data-stargaze-count-constellations`, `data-stargaze-browse`,
   `data-stargaze-exit`, `data-stargaze-chrome`, `data-sky-list-slot`,
   `data-sky-list-panel`, `data-sky-list`, `data-sky-list-item`,
-  `data-sky-list-close`, `data-sky-invite`, `data-stargaze-footer`,
+  `data-sky-list-close`, `data-sky-invite`, `data-sky-secret`, `data-sky-secret-region`, `data-stargaze-footer`,
   `data-stargaze-footer-enter`, `data-lab-box`, `data-stamp`,
   and the chess panel's `data-chess-self-play`
   (JSON: plies, departures, the move played, the top move, the current

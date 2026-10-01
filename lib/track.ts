@@ -39,11 +39,12 @@ export function trackDemoOnce(demo: "headshot" | "draw" | "chess" | "stargaze" |
 
 /**
  * Which door a visitor used into stargaze (discoverability spec §5): the
- * toggle above the sheet, or the button at the foot of the page. A property
+ * toggle above the sheet, the button at the foot of the page, or (Task 17)
+ * the secret one, a click on a constellation's lines in the sky. A property
  * on the one `demo_used` event, never an event of its own (the quota rule),
  * so it records only the door of the FIRST entry in a page load.
  */
-export type StargazeVia = "toggle" | "footer";
+export type StargazeVia = "toggle" | "footer" | "sky";
 
 let reloadSent = false;
 

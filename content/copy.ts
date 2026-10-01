@@ -968,6 +968,11 @@ export const copy = {
     /** Once per session, near the pointer, the first time it enters the sky
      *  in paper mode (spec §5). Short: it's gone in a few seconds. */
     invite: "the sky over NASA Ames",
+    /** The secret door (Task 17): shown once stargaze is entered by clicking
+     *  a constellation in the sky, never for the toggle or the footer door.
+     *  The owner's words, verbatim (2026-10-01). */
+    secretMessage:
+      "You found my secret escape. Stargaze with me for a bit: this is the sky over NASA Ames, where I work.",
     /** The second way in, at the foot of `/` and `/lab`: this lead line,
      *  then a button labelled with `enter` itself ("stargaze for a bit?"). A
      *  second door to the same feature carries the same name, or visitors

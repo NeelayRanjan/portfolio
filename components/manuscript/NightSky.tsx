@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { copy } from "@/content/copy";
-import { isStargazing, subscribeStargaze } from "@/lib/stargaze";
+import { getStargazeEntry, isStargazing, subscribeStargaze } from "@/lib/stargaze";
 import { countCards, getHintBottom, setCardCounts, setListPanelOpen, subscribeBrowse } from "@/lib/stargaze-browse";
 import { SkyCard, type CardModel } from "./SkyCard";
 import { createCardController } from "./night-sky/card-controller";
@@ -13,6 +13,7 @@ import { SkyKeyboardList, createKeyboardList, useListSlot, type ListActions, typ
 import { loadSkyLayers } from "./night-sky/layer-loaders";
 import { createPainter } from "./night-sky/painter";
 import { createPointerController } from "./night-sky/pointer-controller";
+import { createSecretDoor } from "./night-sky/secret-door";
 import { createSkyState } from "./night-sky/state";
 
 /**
@@ -96,12 +97,17 @@ import { createSkyState } from "./night-sky/state";
  *   doubles as a visible panel (night-sky/keyboard-list.tsx has the panel,
  *   card and Escape rules). Phone names keep clear of the hint bar's
  *   measured height, so the sky repaints when that changes.
+ *
+ * - The secret door (Task 17): in paper mode a click on a constellation's
+ *   lines enters stargaze (`via: "sky"`, pointer-controller.ts), and only
+ *   that door shows a caption (night-sky/secret-door.ts).
  */
 
 export function NightSky() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const cardRef = useRef<HTMLElement>(null);
   const inviteRef = useRef<HTMLParagraphElement>(null);
+  const secretRef = useRef<HTMLParagraphElement>(null);
   /** The effect's own paint, so a freshly committed card gets placed before the browser paints it. */
   const repaintRef = useRef<() => void>(() => {});
   const closeRef = useRef<() => void>(() => {});
@@ -187,6 +193,7 @@ export function NightSky() {
     });
     const { paint, resize, resolveFont } = painter;
     const invite = createInvite(s, inviteRef.current);
+    const secret = createSecretDoor(s, secretRef.current);
     const pointer = createPointerController(s, { cards, paint, onSkyEnter: invite.maybeShow });
     const list = createKeyboardList(s, {
       cards,
@@ -271,6 +278,9 @@ export function NightSky() {
     const unsubStargaze = subscribeStargaze((on) => {
       s.highlight = null;
       if (on) invite.spend();
+      // The caption belongs to the secret door alone; leaving removes it.
+      if (on && getStargazeEntry() === "sky") secret.show();
+      else if (!on) secret.hide(true);
       pointer.clearPointerCursor();
       if (on) {
         tryStartEntryRings();
@@ -316,6 +326,7 @@ export function NightSky() {
       unsubBrowse();
       pointer.detach();
       invite.dispose();
+      secret.dispose();
       list.dispose();
       unsubStargaze();
     };
@@ -340,6 +351,23 @@ export function NightSky() {
       >
         {copy.stargaze.invite}
       </p>
+      {/* The secret door's caption (night-sky/secret-door.ts writes the text
+          in when it shows). The wrapper is a polite live region that is
+          always present, so the caption is announced once; neither takes
+          the pointer. Below the hint bar, under the bar and any card. */}
+      <div
+        role="status"
+        aria-live="polite"
+        data-sky-secret-region
+        className="pointer-events-none fixed inset-x-0 top-[max(calc(var(--stargaze-hint-h,56px)_+_24px),22vh)] z-10 flex justify-center px-4"
+      >
+        <p
+          ref={secretRef}
+          data-sky-secret
+          hidden
+          className="pointer-events-none max-w-[520px] rounded-md bg-desk/85 px-3 py-2 text-center font-mono text-[12px] leading-relaxed text-ink shadow-[0_0_8px_4px_rgb(12_11_9/0.85)] min-[880px]:text-[13px]"
+        />
+      </div>
       {card ? (
         <SkyCard model={card} outOfView={cardOutOfView} cardRef={cardRef} onClose={() => closeRef.current()} />
       ) : null}

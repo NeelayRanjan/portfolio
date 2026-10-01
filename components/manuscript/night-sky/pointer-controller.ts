@@ -1,7 +1,8 @@
 import { hitRadiusFor, nearestConstellation, nearestHit, type Highlight } from "@/lib/sky-render";
 import { CLICK_SLOP_PX, PAN_LIMIT_FRAC, STARGAZE_PAN_LIMIT_FRAC, rubberBand } from "@/lib/sky-pan";
 import { PAPER_SATURATION } from "@/lib/sky-colour";
-import { isStargazing } from "@/lib/stargaze";
+import { secretDoorTarget } from "@/lib/sky-secret";
+import { isStargazing, setStargazing } from "@/lib/stargaze";
 import type { CardController } from "./card-controller";
 import type { SkyState } from "./state";
 
@@ -16,6 +17,12 @@ import type { SkyState } from "./state";
  * 1 while stargazing, 1 in paper mode while the pointer is over the sky
  * itself, PAPER_SATURATION (= PAPER_COLOUR_SHARE) otherwise and always on a device with no hover.
  * The frame loop eases toward it; reduced motion snaps.
+ *
+ * And the secret door (Task 17): in paper mode, a click or a still touch tap
+ * on the sky that the hover hit test resolves to a constellation's lines
+ * enters stargaze tagged `via: "sky"` (lib/sky-secret.ts has the rule), and
+ * the clicked constellation stays lit. NightSky's stargaze subscriber shows
+ * the caption (night-sky/secret-door.ts).
  */
 
 const HOVER_PX = 24;
@@ -42,6 +49,9 @@ export type PointerControllerDeps = {
 export function createPointerController(s: SkyState, deps: PointerControllerDeps) {
   const { cards, paint } = deps;
   let pendingPaint = 0;
+  /** A touch press in paper mode. Never a drag (the 16px phone margins must
+   *  scroll the page), but a still tap on a constellation is the secret door. */
+  let tap: { id: number; x: number; y: number } | null = null;
   /** The pointer cursor is showing (a selectable hit under the pointer in
    *  stargaze). A live drag's `grabbing` always wins over it. */
   let pointerCursor = false;
@@ -123,10 +133,31 @@ export function createPointerController(s: SkyState, deps: PointerControllerDeps
     });
   };
 
+  /** Not the sheet, a control, the credit, or anything else that isn't sky. */
+  const isSkyPoint = (x: number, y: number) =>
+    !document.elementFromPoint(x, y)?.closest(NOT_SKY) && !sheetContains(x, y);
+  /** Paper mode: a click whose hit test lands on a constellation's lines is
+   *  the secret door. The stargaze subscriber clears the highlight on entry,
+   *  so the clicked constellation is lit again right after. */
+  const trySecretDoor = (x: number, y: number, pointerType: string, travelPx: number) => {
+    const picked = pick(x, y, pointerType);
+    const abbr = secretDoorTarget({
+      stargazing: isStargazing(),
+      travelPx,
+      clickSlopPx: CLICK_SLOP_PX,
+      onSky: isSkyPoint(x, y),
+      picked,
+    });
+    if (!abbr || !picked) return;
+    setStargazing(true, "sky");
+    setHighlight(picked);
+  };
+
   // A pointer that never travelled CLICK_SLOP_PX: in stargaze mode, a card
-  // for whatever is under it, or closing the open card on empty sky.
-  const onSkyClick = (x: number, y: number, pointerType: string) => {
-    if (!isStargazing()) return;
+  // for whatever is under it, or closing the open card on empty sky; in
+  // paper mode, possibly the secret door.
+  const onSkyClick = (x: number, y: number, pointerType: string, travelPx: number) => {
+    if (!isStargazing()) return trySecretDoor(x, y, pointerType, travelPx);
     const next = pick(x, y, pointerType);
     if (next) cards.openCard(next);
     else cards.closeCard();
@@ -135,11 +166,16 @@ export function createPointerController(s: SkyState, deps: PointerControllerDeps
   const onPointerDown = (e: PointerEvent) => {
     if (e.button !== 0 || s.drag) return;
     const stargazing = isStargazing();
-    // Normal-mode margins are 16px on a phone: a touch there must scroll the page.
-    if (e.pointerType === "touch" && !stargazing) return;
     const target = e.target instanceof Element ? e.target : null;
     if (target?.closest(PAN_BLOCKERS) || onStargazeChrome(target)) return;
     if (!stargazing && (target?.closest("[data-sheet]") || sheetContains(e.clientX, e.clientY))) return;
+    // Normal-mode margins are 16px on a phone: a touch there must scroll the
+    // page, so it never starts a drag (and nothing is prevented). It is only
+    // remembered, in case it turns out to be a still tap (the secret door).
+    if (e.pointerType === "touch" && !stargazing) {
+      tap = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      return;
+    }
     if (!stargazing) e.preventDefault(); // no text selection starting in the margin
     s.drag = { id: e.pointerId, startX: e.clientX, startY: e.clientY, base: { ...s.offset }, moved: false };
     s.springing = false;
@@ -155,6 +191,7 @@ export function createPointerController(s: SkyState, deps: PointerControllerDeps
     setHighlight(null);
   };
   const onPointerMove = (e: PointerEvent) => {
+    if (tap && e.pointerId === tap.id && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) >= CLICK_SLOP_PX) tap = null;
     const drag = s.drag;
     if (drag && e.pointerId === drag.id) {
       // A mouse whose button is already up: the pointerup went somewhere
@@ -212,8 +249,8 @@ export function createPointerController(s: SkyState, deps: PointerControllerDeps
       s.springLast = 0;
     }
   };
-  /** Ends the drag; `click` is the pointer's final position when it never travelled CLICK_SLOP_PX. */
-  const finishDrag = (click: { x: number; y: number; pointerType: string } | null) => {
+  /** Ends the drag; `click` is the pointer's final position (and its travel) when it never travelled CLICK_SLOP_PX. */
+  const finishDrag = (click: { x: number; y: number; pointerType: string; travel: number } | null) => {
     if (!s.drag) return;
     s.drag = null;
     pointerCursor = false;
@@ -228,11 +265,19 @@ export function createPointerController(s: SkyState, deps: PointerControllerDeps
       settleOffset();
       if (s.reducedQ.matches) paint();
     }
-    if (click) onSkyClick(click.x, click.y, click.pointerType);
+    if (click) onSkyClick(click.x, click.y, click.pointerType, click.travel);
   };
   const endDrag = (e: PointerEvent) => {
+    if (tap && e.pointerId === tap.id) {
+      // A paper-mode touch: a scroll ends it in pointercancel, a still tap in pointerup.
+      const travel = Math.hypot(e.clientX - tap.x, e.clientY - tap.y);
+      tap = null;
+      if (e.type === "pointerup") onSkyClick(e.clientX, e.clientY, e.pointerType, travel);
+      return;
+    }
     if (!s.drag || e.pointerId !== s.drag.id) return;
-    finishDrag(!s.drag.moved && e.type === "pointerup" ? { x: e.clientX, y: e.clientY, pointerType: e.pointerType } : null);
+    const travel = Math.hypot(e.clientX - s.drag.startX, e.clientY - s.drag.startY);
+    finishDrag(!s.drag.moved && e.type === "pointerup" ? { x: e.clientX, y: e.clientY, pointerType: e.pointerType, travel } : null);
   };
   // pointerup fires before lostpointercapture, so a normal release has
   // already ended the drag by now; this catches a capture lost any other way.
@@ -240,6 +285,7 @@ export function createPointerController(s: SkyState, deps: PointerControllerDeps
     if (s.drag && e.pointerId === s.drag.id) finishDrag(null);
   };
   const onBlur = () => {
+    tap = null;
     finishDrag(null);
     setPointerOverSky(false);
   };

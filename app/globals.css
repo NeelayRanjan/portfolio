@@ -26,14 +26,15 @@ html { background: var(--color-desk); color-scheme: dark; }
 body { background: transparent; color: var(--color-ink); }
 :focus-visible { outline: 2px solid var(--color-red-ink); outline-offset: 3px; }
 
-/* Stargaze mode (lib/stargaze.ts). Content fades, then leaves the hit-test
-   and a11y paths (visibility, plus `inert` set from JS); nothing unmounts,
-   so games, drawings and scroll position survive. */
-main { transition: opacity 400ms ease; }
+/* Stargaze mode (lib/stargaze.ts). Content fades over 600ms, by any door
+   (Task 17), then leaves the hit-test and a11y paths (visibility); `inert`
+   is set from JS at once, so only the look is gradual. Nothing unmounts, so
+   games, drawings and scroll position survive. Leaving fades it back in. */
+main { transition: opacity 600ms ease; }
 body[data-stargaze] main {
   opacity: 0;
   visibility: hidden;
-  transition: opacity 400ms ease, visibility 0s linear 400ms;
+  transition: opacity 600ms ease, visibility 0s linear 600ms;
 }
 html:has(body[data-stargaze]) { overflow: hidden; }
 body[data-stargaze] [data-sky-credit] { position: fixed; inset-inline: 0; bottom: 0; pointer-events: none; }

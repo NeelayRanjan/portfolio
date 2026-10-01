@@ -63,6 +63,8 @@ export type SkySnapshot = {
   inviteShown: boolean;
   /** The invite's box while it is up. */
   invite: { x: number; y: number; w: number; h: number } | null;
+  /** The secret door's caption is up (secret-door.ts). */
+  secretShown: boolean;
 };
 
 export type PainterDeps = {
@@ -235,6 +237,7 @@ export function createPainter(
       entryRingsFired: s.entryRingsFired,
       inviteShown: s.inviteShown,
       invite: s.inviteBox,
+      secretShown: s.secretShown,
     };
     if (s.selected) {
       deps.followCard(seen);

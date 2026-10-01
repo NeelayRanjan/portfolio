@@ -3119,7 +3119,7 @@ async function checkStargazeHidesPage(browser) {
 
     await enter.click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
-    await page.waitForTimeout(600); // the 400ms fade has to have finished: elapsed time is the assertion
+    await page.waitForTimeout(800); // the 600ms fade has to have finished: elapsed time is the assertion
     const on = await page.evaluate(() => ({
       inert: [...document.querySelectorAll("main")].every((m) => m.inert),
       visibility: getComputedStyle(document.querySelector("main")).visibility,
@@ -5988,6 +5988,234 @@ async function checkStargazeChrome(browser) {
   return notes.join("; ");
 }
 
+/* ---------------------------------------------------------------------- */
+/* The secret door (Task 17): a click on a constellation enters stargaze   */
+/* ---------------------------------------------------------------------- */
+
+/**
+ * In paper mode, a still click (or touch tap) on a constellation's lines in
+ * the margin enters stargaze tagged `via: "sky"`, the constellation stays
+ * lit, the page fades over 600ms but goes inert at once, and a caption
+ * (`copy.stargaze.secretMessage`) fades in for ~6s, pointer-events none,
+ * centred below the hint bar, announced by a polite live region. A click on
+ * an object symbol or a drag across the same lines does nothing; the toggle
+ * shows no caption; leaving removes it; reduced motion has no fades.
+ *
+ * Pinned to SKY_HOVER_INSTANT (the sky turns from Date.now, so a fixed time
+ * holds every segment still even with motion on; timers keep running).
+ *
+ * Proved to bite (2026-10-01), each a temporary product mutation, rebuilt:
+ * - lib/sky-secret.ts returning `i.picked ? i.picked.id : null` (any hit is
+ *   the door): FAILS "a click on the m.. symbol entered stargaze".
+ * - NightSky's `secret.show()` call removed: FAILS "the secret door's
+ *   caption never appeared".
+ */
+async function findSecretTarget(page) {
+  return page.evaluate(() => {
+    const sheet = document.querySelector("[data-sheet]").getBoundingClientRect();
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+    const hits = window.__sky.hits;
+    const clear = (x, y) =>
+      hits.every((h) => Math.hypot(h.x - x, h.y - y) > 34) &&
+      hits.every((h) => !h.box || x < h.box.x - 8 || x > h.box.x + h.box.w + 8 || y < h.box.y - 8 || y > h.box.y + h.box.h + 8);
+    const inLeftMargin = (x, y) => x > 20 && x < sheet.left - 30 && y > 90 && y < H - 90;
+    let target = null;
+    let object = null;
+    const abbrs = ["UMa", "UMi", "Cas", "Cep", "Dra", "Cyg", "Lyr", "Her", "Boo", "Leo", "Per", "And", "Aur", "Gem", "Ori", "Tau", "Peg", "Cnc", "Lyn", "CVn", "Com", "Cam", "LMi", "Lac", "Vul", "Sge", "Del", "Tri", "Ari", "Psc", "Aql", "Oph", "Ser", "Vir", "CrB", "Hya", "Mon", "CMi"];
+    for (const abbr of abbrs) {
+      for (const [x1, y1, x2, y2] of window.__sky.segmentsFor(abbr)) {
+        if (Math.hypot(x2 - x1, y2 - y1) < 40) continue;
+        for (const f of [0.5, 0.35, 0.65]) {
+          const x = x1 + (x2 - x1) * f;
+          const y = y1 + (y2 - y1) * f;
+          if (inLeftMargin(x, y) && clear(x, y)) {
+            target = { abbr, x, y, dx: (x2 - x1) / Math.hypot(x2 - x1, y2 - y1), dy: (y2 - y1) / Math.hypot(x2 - x1, y2 - y1) };
+            break;
+          }
+        }
+        if (target) break;
+      }
+      if (target) break;
+    }
+    // An object symbol in a margin, not the box-only Milky Way: a click there must not be the door.
+    for (const h of hits) {
+      if (h.id === "milkyway") continue;
+      if ((h.x > 20 && h.x < sheet.left - 20) || (h.x > sheet.right + 20 && h.x < W - 20)) {
+        if (h.y > 90 && h.y < H - 90) {
+          object = { id: h.id, x: h.x, y: h.y };
+          break;
+        }
+      }
+    }
+    return { target, object };
+  });
+}
+
+const readSecret = (page) =>
+  page.evaluate(() => {
+    const el = document.querySelector("[data-sky-secret]");
+    const region = document.querySelector("[data-sky-secret-region]");
+    const r = el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    return {
+      hidden: el.hidden,
+      text: el.textContent,
+      opacity: Number(cs.opacity),
+      transition: cs.transitionDuration,
+      pointerEvents: cs.pointerEvents,
+      regionPointerEvents: getComputedStyle(region).pointerEvents,
+      live: region.getAttribute("aria-live"),
+      role: region.getAttribute("role"),
+      box: { x: r.left, y: r.top, w: r.width, h: r.height },
+      hook: window.__sky.secretShown,
+    };
+  });
+
+async function checkStargazeSecretDoor(browser) {
+  const W = 1440;
+  const H = 900;
+  const notes = [];
+  const msg = copy.stargaze.secretMessage;
+  const load = async (page) => {
+    await page.clock.setFixedTime(SKY_HOVER_INSTANT);
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await waitSkyDrawn(page);
+    await page.waitForFunction(() => window.__sky.layers.objects === "ready" && window.__sky.layers.facts === "ready", null, { timeout: 10000 });
+    await waitStargazeReady(page);
+    const found = await findSecretTarget(page);
+    if (!found.target) throw new Error("no constellation segment clear of every symbol in the left margin at SKY_HOVER_INSTANT; pick another instant");
+    return found;
+  };
+  const isOn = (page) => page.evaluate(() => document.body.hasAttribute("data-stargaze"));
+
+  await withPage(browser, { viewport: { width: W, height: H }, deviceScaleFactor: 1 }, async (page) => {
+    const { target, object } = await load(page);
+    // The hover hit test agrees this point is the constellation's lines.
+    await page.mouse.move(target.x, target.y);
+    await page.waitForFunction((a) => window.__sky.highlight === a, target.abbr, { timeout: 3000 });
+
+    // An object symbol is not the door.
+    if (!object) throw new Error("no object symbol in either margin at SKY_HOVER_INSTANT to click as the negative case");
+    await page.mouse.click(object.x, object.y);
+    await page.waitForTimeout(500);
+    if (await isOn(page)) throw new Error(`a click on the ${object.id} symbol entered stargaze; only constellation lines are the door`);
+    notes.push(`click on ${object.id}'s symbol: nothing`);
+
+    // A drag across the lines is not the door.
+    await dragBy(page, target.x - target.dx * 40, target.y - target.dy * 40, target.dx * 80, target.dy * 80, 10);
+    await page.mouse.up();
+    await page.waitForFunction(() => window.__sky.offset.x === 0 && window.__sky.offset.y === 0, null, { timeout: 2500 });
+    await page.waitForTimeout(300);
+    if (await isOn(page)) throw new Error(`an 80px drag across ${target.abbr} entered stargaze`);
+    if ((await stargazeEvents(page)).length) throw new Error("a drag queued demo_used{stargaze}");
+    notes.push(`80px drag across ${target.abbr}: nothing`);
+
+    // The click.
+    await page.mouse.click(target.x, target.y);
+    await waitStargaze(page, true);
+    const entered = await page.evaluate(() => {
+      const main = document.querySelector("main");
+      const cs = getComputedStyle(main);
+      return { inert: [...document.querySelectorAll("main")].every((m) => m.inert), opacity: Number(cs.opacity), duration: cs.transitionDuration, highlight: window.__sky.highlight };
+    });
+    if (!entered.inert) throw new Error("main is not inert at once after the secret door");
+    if (!entered.duration.split(",").some((d) => d.trim() === "0.6s")) throw new Error(`main's transition is ${entered.duration}, expected the 600ms fade`);
+    if (entered.highlight !== target.abbr) throw new Error(`after entry the highlight is ${entered.highlight}, expected ${target.abbr} to stay lit`);
+    const events = await stargazeEvents(page);
+    if (events.length !== 1 || events[0].via !== "sky") throw new Error(`demo_used{stargaze} queue is ${JSON.stringify(events)}, expected one with via "sky"`);
+    notes.push(`click on ${target.abbr}: stargaze, via sky, inert at once, 600ms fade, ${target.abbr} still lit`);
+
+    const t0 = Date.now();
+    await page.waitForFunction(() => !document.querySelector("[data-sky-secret]").hidden, null, { timeout: 2000 }).catch(() => {
+      throw new Error("the secret door's caption never appeared");
+    });
+    const first = await readSecret(page);
+    await page.waitForFunction(() => Number(getComputedStyle(document.querySelector("[data-sky-secret]")).opacity) > 0.99, null, { timeout: 2000 });
+    const up = await readSecret(page);
+    if (up.text !== msg) throw new Error(`caption reads ${JSON.stringify(up.text)}, expected ${JSON.stringify(msg)}`);
+    if (up.pointerEvents !== "none" || up.regionPointerEvents !== "none") throw new Error(`caption pointer-events ${up.pointerEvents}, region ${up.regionPointerEvents}`);
+    if (up.role !== "status" || up.live !== "polite") throw new Error(`caption region role=${up.role} aria-live=${up.live}, expected a polite status`);
+    if (!up.hook) throw new Error("window.__sky.secretShown is false while the caption is up");
+    if (!(first.opacity < 0.99) || up.transition !== "0.4s") throw new Error(`caption did not fade in (first opacity ${first.opacity}, transition ${up.transition})`);
+    const geo = await page.evaluate(() => {
+      const r = (el) => { const b = el.getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height }; };
+      const bar = document.querySelector("[data-stargaze-bar]").getBoundingClientRect();
+      const c = document.querySelector("[data-sky-secret]").getBoundingClientRect();
+      return { chrome: [...document.querySelectorAll("[data-stargaze-bar] [data-stargaze-chrome]")].map(r), barBottom: bar.bottom, under: document.elementFromPoint(c.left + c.width / 2, c.top + c.height / 2)?.closest("[data-sky-secret-region]") !== null };
+    });
+    const cx = up.box.x + up.box.w / 2;
+    if (Math.abs(cx - W / 2) > 2) throw new Error(`caption centre x ${cx.toFixed(1)}, not centred in ${W}`);
+    if (up.box.y < geo.barBottom || geo.chrome.some((b) => boxesIntersect(b, up.box))) throw new Error(`caption ${JSON.stringify(up.box)} overlaps the hint bar (bottom ${geo.barBottom}) or its chrome`);
+    if (up.box.y + up.box.h > H * 0.5) throw new Error(`caption ${JSON.stringify(up.box)} is not in the upper middle of ${H}`);
+    if (geo.under) throw new Error("the caption takes the pointer (elementFromPoint found it)");
+    notes.push(`caption: exact text, fades in, ${up.box.w.toFixed(0)}x${up.box.h.toFixed(0)} centred at y=${up.box.y.toFixed(0)} below the bar (${geo.barBottom.toFixed(0)}), pointer-events none, polite status`);
+
+    await page.waitForFunction(() => document.querySelector("[data-sky-secret]").hidden, null, { timeout: 9000 }).catch(() => {
+      throw new Error("caption still up 9s after it appeared");
+    });
+    const lasted = Date.now() - t0;
+    if (lasted < 6000) throw new Error(`caption gone after ${lasted}ms, expected ~6s up`);
+    if ((await readSecret(page)).text !== "") throw new Error("hidden caption kept its text in the live region");
+    notes.push(`gone after ~${lasted}ms`);
+
+    await page.keyboard.press("Escape");
+    await waitStargaze(page, false);
+    const toToggle = await page.evaluate(() => !!document.activeElement?.closest("[data-stargaze-toggle]"));
+    if (!toToggle) throw new Error("leaving a sky entry did not return focus to the toggle");
+
+    // The toggle shows no caption.
+    await stargazeToggle(page).click();
+    await waitStargaze(page, true);
+    await page.waitForTimeout(1000);
+    if (!(await readSecret(page)).hidden) throw new Error("entering by the toggle showed the secret caption");
+    await page.keyboard.press("Escape");
+    await waitStargaze(page, false);
+    notes.push("Escape exits, focus to the toggle; the toggle shows no caption");
+
+    // Leaving before it ends removes it. Still one event for the load.
+    await page.waitForTimeout(700); // the page's fade back in, so nothing is mid-transition
+    await page.mouse.click(target.x, target.y);
+    await waitStargaze(page, true);
+    await page.waitForFunction(() => !document.querySelector("[data-sky-secret]").hidden, null, { timeout: 2000 });
+    await page.keyboard.press("Escape");
+    await waitStargaze(page, false);
+    const gone = await readSecret(page);
+    if (!gone.hidden || gone.text !== "") throw new Error(`exiting mid-caption left it ${JSON.stringify(gone)}`);
+    const all = await stargazeEvents(page);
+    if (all.length !== 1 || all[0].via !== "sky") throw new Error(`three entries in one load queued ${JSON.stringify(all)}, expected one via "sky"`);
+    notes.push("exit mid-caption removes it; one event for the load");
+  });
+
+  // Reduced motion: no fades, page or caption.
+  await withPage(browser, { viewport: { width: W, height: H }, deviceScaleFactor: 1, reducedMotion: "reduce" }, async (page) => {
+    const { target } = await load(page);
+    await page.mouse.click(target.x, target.y);
+    await waitStargaze(page, true);
+    const main = await page.evaluate(() => getComputedStyle(document.querySelector("main")).transitionDuration);
+    if (main !== "0s") throw new Error(`reduced motion: main's transition is ${main}`);
+    const up = await readSecret(page);
+    if (up.hidden || up.opacity !== 1 || up.transition !== "0s") throw new Error(`reduced motion: caption at entry ${JSON.stringify({ hidden: up.hidden, opacity: up.opacity, transition: up.transition })}, expected fully up with no transition`);
+    const t0 = Date.now();
+    await page.waitForFunction(() => document.querySelector("[data-sky-secret]").hidden, null, { timeout: 8000 });
+    const lasted = Date.now() - t0;
+    if (lasted < 5500) throw new Error(`reduced motion: caption gone after ${lasted}ms`);
+    notes.push(`reduced motion: up at once with no transition, gone at ~${lasted}ms, page not faded`);
+  });
+
+  // Touch: a still tap on the same lines is the door too.
+  await withPage(browser, { viewport: { width: W, height: H }, deviceScaleFactor: 1, hasTouch: true }, async (page) => {
+    const { target } = await load(page);
+    await page.touchscreen.tap(target.x, target.y);
+    await waitStargaze(page, true);
+    const events = await stargazeEvents(page);
+    if (events.length !== 1 || events[0].via !== "sky") throw new Error(`touch tap queued ${JSON.stringify(events)}`);
+    await page.waitForFunction(() => !document.querySelector("[data-sky-secret]").hidden, null, { timeout: 2000 });
+    notes.push(`touch tap on ${target.abbr}: stargaze via sky, caption up`);
+  });
+  return notes.join("; ");
+}
+
 const CHECKS = [
   ["sky-animates-1280", skyAnimatesAt1280],
   ["sky-static-reduced-motion", skyStaticUnderReducedMotion],
@@ -6041,6 +6269,7 @@ const CHECKS = [
   ["colophon", checkColophon],
   ["sky-invite", checkSkyInvite],
   ["stargaze-chrome", checkStargazeChrome],
+  ["stargaze-secret-door", checkStargazeSecretDoor],
 ];
 
 async function main() {

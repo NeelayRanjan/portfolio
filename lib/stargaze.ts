@@ -53,9 +53,10 @@ export function getStargazeEntry(): StargazeVia {
 }
 
 /**
- * `via` names the door when turning it on (the toggle or the footer button);
- * it rides on `demo_used` and decides where focus returns on exit. Turning
- * it off needs none.
+ * `via` names the door when turning it on (the toggle, the footer button, or
+ * a click on a constellation in the sky); it rides on `demo_used` and decides
+ * where focus returns on exit ("sky" has no door element, so the toggle gets
+ * it). Turning it off needs none.
  */
 export function setStargazing(next: boolean, via: StargazeVia = "toggle"): void {
   if (next === on) return;

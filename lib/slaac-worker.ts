@@ -18,6 +18,7 @@ import type { InferenceSession } from "onnxruntime-web/wasm";
 import { Navaids } from "./slaac/navaids.ts";
 import { RunCancelled, runReroute } from "./slaac/run.ts";
 import type { ModelFn } from "./slaac/sampler.ts";
+import { makeMacrotaskYield } from "./slaac/yield.ts";
 import type { SlaacMeta } from "./slaac/data.ts";
 import type { Req, Res } from "./slaac-protocol.ts";
 
@@ -35,6 +36,11 @@ let currentRun = -1;
  *  last forward when the next press starts, and two runs must never be in
  *  one session at once. */
 let gate: Promise<unknown> = Promise.resolve();
+
+/** One macrotask before every forward (ruling R16): session.run never returns
+ *  to the task queue, so without it a cancel or newer press would only be
+ *  dispatched after the whole old run. */
+const yieldToQueue = makeMacrotaskYield();
 
 const postRaw = (m: Res) => (self as unknown as Worker).postMessage(m);
 /** The stale-reply rule: a run-scoped message for any run but the current one
@@ -94,6 +100,7 @@ async function reroute(msg: Extract<Req, { kind: "reroute" }>): Promise<void> {
     const res = await runReroute(msg, {
       model, meta, wpdb,
       isCurrent: () => currentRun === runId,
+      beforeForward: yieldToQueue,
       onProgress: (p) => post({ kind: "progress", runId, ...p }),
     });
     post({ kind: "done", runId, flights: res.flights, ms: performance.now() - t0, arcs: res.arcs, fallbackArcs: res.fallbackArcs });

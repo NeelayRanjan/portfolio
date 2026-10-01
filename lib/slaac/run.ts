@@ -68,6 +68,11 @@ export type RunDeps = {
   /** False once this run is superseded or cancelled; checked before every forward. */
   isCurrent?: () => boolean;
   onProgress?: (p: RunProgress) => void;
+  /** Awaited before every forward, then isCurrent() is checked. The worker
+   *  passes a macrotask yield (makeMacrotaskYield, ruling R16) so a queued
+   *  cancel or newer press is dispatched between forwards; kept injectable so
+   *  this module owns no timers. */
+  beforeForward?: () => Promise<void>;
   /** Test seam: the arc planner. Defaults to planArcs. */
   planner?: typeof planArcs;
 };
@@ -126,7 +131,9 @@ export async function runReroute(req: RunReq, deps: RunDeps): Promise<RunResult>
   const opts = rerouteOpts(meta, req.marginNm, req.hug, wpdb);
   const noiseOne = normalNoise(req.seed, C * N);
 
-  const guarded: ModelFn = (inp) => {
+  const { beforeForward } = deps;
+  const guarded: ModelFn = async (inp) => {
+    if (beforeForward) await beforeForward();
     if (!isCurrent()) throw new RunCancelled();
     return model(inp);
   };

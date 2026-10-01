@@ -8,6 +8,7 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import * as A from "../lib/slaac/arcs.ts";
 import { runReroute, RunCancelled, rerouteOpts } from "../lib/slaac/run.ts";
+import { makeMacrotaskYield } from "../lib/slaac/yield.ts";
 import * as R from "../lib/slaac/reroute.ts";
 import * as S from "../lib/slaac/sampler.ts";
 import { normalNoise } from "../lib/slaac/rng.ts";
@@ -283,4 +284,80 @@ test("rerouteOpts reads the gate's values from meta.reroute", () => {
   const o = rerouteOpts(meta, 25, true, wpdb);
   assert.deepEqual({ ...o, wpdb: null }, { wpdb: null, lockDistNm: 10, snapTolNm: 100, devSpacingNm: 150, rdpTolNm: 10, hug: true, hugMarginNm: 25, clearMarginNm: 25 });
   assert.throws(() => rerouteOpts({ ...meta, reroute: undefined }, 25, true, wpdb));
+});
+
+// ---- R16: a cancel or a newer press must be seen between forwards ----------
+// ORT-web's session.run settles without returning to the worker's task queue,
+// so without a macrotask yield before each forward a queued cancel is only
+// dispatched after the whole run has posted everything. The worker passes
+// makeMacrotaskYield() as beforeForward; these drive the same pair in node.
+const cancelCase = () => {
+  const cases = V.local_reroute.filter((c) => !c.hug && c.margin === 25);
+  return { flights: flightsOf(cases), rings: ringsOf(cases[0].polys_m), marginNm: 25, hug: false, seed: 1, steps: 20, batchCap: 16, display: "snapped" };
+};
+
+test("R16: a cancel queued as a message after the first forward stops the run within 2 forwards", async () => {
+  for (const withYield of [true, false]) {
+    let token = 1, forwards = 0;
+    const inbox = new MessageChannel(); // stands in for the worker's own message queue
+    inbox.port1.onmessage = () => { token = -1; };
+    const model = async (inp) => {
+      forwards++;
+      if (forwards === 1) inbox.port2.postMessage("cancel");
+      return fakeModel()(inp);
+    };
+    try {
+      const run = runReroute(cancelCase(), { model, meta, wpdb, isCurrent: () => token === 1,
+        beforeForward: withYield ? makeMacrotaskYield() : undefined });
+      if (withYield) {
+        await assert.rejects(run, (e) => e instanceof RunCancelled);
+        console.log(`R16 message cancel, with yield: stopped after ${forwards} forwards`);
+        assert.ok(forwards <= 2, `${forwards} forwards`);
+      } else {
+        // The bug R16 found, kept as a control: with no yield the run never sees the message.
+        await run;
+        console.log(`R16 message cancel, no yield (control): ran all ${forwards} forwards`);
+        assert.equal(forwards, 20);
+      }
+    } finally {
+      inbox.port1.close();
+    }
+  }
+});
+
+test("R16: a cancel flipped by setTimeout(0) after the first forward stops the run within 2 forwards", async () => {
+  let token = 1, forwards = 0;
+  const model = async (inp) => {
+    forwards++;
+    if (forwards === 1) setTimeout(() => { token = -1; }, 0);
+    const t = performance.now();
+    while (performance.now() - t < 3); // a forward takes real time (~100 ms in a browser)
+    return fakeModel()(inp);
+  };
+  await assert.rejects(runReroute(cancelCase(), { model, meta, wpdb, isCurrent: () => token === 1, beforeForward: makeMacrotaskYield() }),
+    (e) => e instanceof RunCancelled);
+  console.log(`R16 setTimeout(0) cancel: stopped after ${forwards} forwards`);
+  assert.ok(forwards <= 2, `${forwards} forwards`);
+});
+
+test("R16: makeMacrotaskYield yields a macrotask, cheaply, and keeps no handle open", async () => {
+  const y = makeMacrotaskYield();
+  let ran = false;
+  const ch = new MessageChannel();
+  try {
+    ch.port1.onmessage = () => { ran = true; };
+    ch.port2.postMessage(0);
+    await Promise.resolve();
+    assert.equal(ran, false);
+    await y();
+    await y();
+    assert.equal(ran, true, "a message queued before the yield is dispatched across it");
+  } finally {
+    ch.port1.close();
+  }
+  const t0 = performance.now();
+  for (let i = 0; i < 200; i++) await y();
+  const per = (performance.now() - t0) / 200;
+  console.log(`macrotask yield: ${(per * 1000).toFixed(0)} us each (node)`);
+  assert.ok(per < 2, `${per} ms`);
 });

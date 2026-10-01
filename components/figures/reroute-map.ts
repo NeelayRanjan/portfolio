@@ -432,6 +432,14 @@ export function drawMap(ctx: CanvasRenderingContext2D, v: MapView, s: MapState, 
     ctx.globalAlpha = s.routeAlpha ?? 0.45;
     ctx.drawImage(layer as CanvasImageSource, 0, 0);
     ctx.restore();
+  } else {
+    // No layer to be had (no document, no 2D context): stroke them straight
+    // on, stacking and all, rather than draw no routes.
+    ctx.strokeStyle = rgba(c.ink, s.routeAlpha ?? 0.45);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (const r of s.routes) pathLL(ctx, v, r.fixes.map(fixLL));
+    ctx.stroke();
   }
 
   // The pair's airports.

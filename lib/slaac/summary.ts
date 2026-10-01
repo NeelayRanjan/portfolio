@@ -29,6 +29,16 @@ export type FlightSummary = {
   belowMargin: boolean;
 };
 
+/** Signed to `digits`, with anything that rounds to zero printed as a bare
+ *  zero: -0.004 must not read "-0.0" (nor +0.004 "+0.0"). The figure's one
+ *  formatter for added distance; the verify suite builds its expected
+ *  strings with it too. */
+export function fmtSigned(n: number, digits: number): string {
+  const s = n.toFixed(digits);
+  if (Number(s) === 0) return (0).toFixed(digits);
+  return n > 0 ? `+${s}` : s;
+}
+
 function median(xs: number[]): number | null {
   if (!xs.length) return null;
   const s = [...xs].sort((a, b) => a - b);

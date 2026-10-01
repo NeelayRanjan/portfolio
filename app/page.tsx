@@ -16,6 +16,24 @@ import { ChessPanel } from "@/components/ChessPanel";
 import { WarmKick } from "@/components/WarmKick";
 import { copy } from "@/content/copy";
 import type { Metadata } from "next";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
+/** The SLAAC route library's size, for the DIFFERENCES note's "all <N>": read
+ *  from the served file at build (this page is prerendered), so a regenerated
+ *  library can't leave a stale number in the copy. Null if the file is absent
+ *  or malformed: the note then names only the one-route time. */
+function slaacRouteCount(): number | null {
+  try {
+    const lib = JSON.parse(readFileSync(path.join(process.cwd(), "public", "slaac", "routes.json"), "utf8")) as {
+      pairs?: { routes?: unknown[] }[];
+    };
+    const n = (lib.pairs ?? []).reduce((k, p) => k + (Array.isArray(p.routes) ? p.routes.length : 0), 0);
+    return n > 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
 
 /** The canonical address of this page, on the one host (lib/site.ts). */
 export const metadata: Metadata = { alternates: { canonical: "/" } };
@@ -35,6 +53,7 @@ export const metadata: Metadata = { alternates: { canonical: "/" } };
 export default function Home() {
   const dataNote = copy.research.dataNote;
   const notes = copy.research.notes;
+  const routeCount = slaacRouteCount();
 
   return (
     <main className="flex-1 px-4 pb-24">
@@ -143,7 +162,11 @@ export default function Home() {
             className="grid gap-6 border-t border-hair pt-3 pb-6 text-[13.5px] min-[880px]:grid-cols-2 min-[880px]:gap-x-12"
           >
             <Note tag={notes.data.tag}>{notes.data.body}</Note>
-            <Note tag={notes.disclaimer.tag}>{notes.disclaimer.body}</Note>
+            <Note tag={notes.disclaimer.tag}>
+              {notes.disclaimer.lead}
+              {routeCount !== null ? `${notes.disclaimer.allPre}${routeCount}${notes.disclaimer.allPost}` : null}
+              {notes.disclaimer.tail}
+            </Note>
           </div>
         </section>
 

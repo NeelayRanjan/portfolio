@@ -45,7 +45,7 @@ import { albers } from "../lib/slaac/albers.ts";
 import { loadSua, segCrossesPoly } from "../lib/slaac/geometry.ts";
 import { planArcs, mayConflict, uniqueArcCount } from "../lib/slaac/arcs.ts";
 import { rerouteOpts } from "../lib/slaac/run.ts";
-import { summarizeFlights } from "../lib/slaac/summary.ts";
+import { fmtSigned, summarizeFlights } from "../lib/slaac/summary.ts";
 
 /**
  * The colour round's `sky-colour` and the card checks read the palette table
@@ -2173,9 +2173,12 @@ async function checkSlaacAllFlights(browser) {
       lowestClearance: sum.minClearanceNm === null ? "-" : fl(sum.minClearanceNm),
     };
     for (const [k, v] of Object.entries(expect)) if (read[k] !== v) throw new Error(`summary ${k} reads ${JSON.stringify(read[k])}, expected ${JSON.stringify(v)}`);
-    const nm = (x) => Math.abs(Math.round(x));
-    if (sum.medianAddedNm !== null && !read.medianAdded.includes(`${nm(sum.medianAddedNm)} nm`)) throw new Error(`median added reads ${read.medianAdded}, expected ${nm(sum.medianAddedNm)} nm`);
-    if (sum.maxAddedNm !== null && !read.worstAdded.includes(`${nm(sum.maxAddedNm)} nm`)) throw new Error(`most added reads ${read.worstAdded}, expected ${nm(sum.maxAddedNm)} nm`);
+    // Built exactly as the figure formats them (the same fmtSigned), sign and all.
+    const added = (n, pct) => (n === null || pct === null ? "-" : `${fmtSigned(n, 0)} nm (${fmtSigned(pct, 1)}%)`);
+    const wantMedian = added(sum.medianAddedNm, sum.medianAddedPct);
+    const wantMost = added(sum.maxAddedNm, sum.maxAddedPct);
+    if (read.medianAdded !== wantMedian) throw new Error(`median added reads ${JSON.stringify(read.medianAdded)}, expected ${JSON.stringify(wantMedian)}`);
+    if (read.worstAdded !== wantMost) throw new Error(`most added reads ${JSON.stringify(read.worstAdded)}, expected ${JSON.stringify(wantMost)}`);
     if (sum.checked !== total || sum.affected < 1) throw new Error(`summary counts ${JSON.stringify(sum)}`);
     const green = (await goState()) === "ok";
     if (green !== (sum.cannotClear === 0)) throw new Error(`button ${await goState()} with ${sum.cannotClear} cannot-clear flight(s)`);
@@ -2210,8 +2213,22 @@ async function checkSlaacAllFlights(browser) {
       const s = JSON.parse(document.querySelector("[data-reroute-status]").dataset.rerouteStatus);
       return s.state === "running" && (s.step ?? 0) >= 1;
     }, null, { timeout: 120000 });
+    const sentRuns = (await slaacWorkers(page))[0].sent.filter((m) => m.kind === "reroute").map((m) => m.runId);
+    const stoppedRun = sentRuns.at(-1);
     await page.locator("[data-reroute-go]").click(); // "stop"
-    await page.waitForTimeout(2000); // a done or an error that was coming has had time to land
+    // The worker really stops: the engine sent it a cancel for that run, and
+    // its progress for that run stops growing (one message already in flight
+    // allowed). A run this size needs ~200 s here, so "no done yet" alone
+    // would prove nothing.
+    const progressOf = async () => (await slaacWorkers(page))[0].got.filter((m) => m.kind === "progress" && m.runId === stoppedRun).length;
+    const p0 = await progressOf();
+    await page.waitForTimeout(3000); // a done, an error or more progress that was coming has had time to land
+    const p1 = await progressOf();
+    const w0 = (await slaacWorkers(page))[0];
+    if (!w0.sent.some((m) => m.kind === "cancel" && m.runId === stoppedRun)) {
+      throw new Error(`stop sent the worker no cancel for run ${stoppedRun}: ${JSON.stringify(w0.sent.slice(-4))}`);
+    }
+    if (p1 - p0 > 1) throw new Error(`the stopped run ${stoppedRun} kept posting progress: ${p0} then ${p1} messages 3 s later`);
     st = await rerouteStatus(page);
     const states = [...new Set(await page.evaluate(() => window.__rerouteStates))];
     const bad = states.filter((x) => x === "done" || x === "failed" || x === "unavailable");
@@ -2225,7 +2242,8 @@ async function checkSlaacAllFlights(browser) {
     if (line === C.runFailed || line === C.unavailable) throw new Error(`the stop read as a failure: ${line}`);
     if ((await demoEvents(page, "slaac")) !== 1) throw new Error(`demo_used{slaac} ${await demoEvents(page, "slaac")}x after a stop`);
     if (errors.length) throw new Error(`console errors: ${errors.join(" | ")}`);
-    return `all flights (${total}) by default, amber, ${want} arcs planned (= this script's planner); one press: ${want} unique arcs in ${(done.ms / 1000).toFixed(1)} s, ${sum.affected} near airspace, ${sum.rerouted} rerouted, ${sum.cannotClear} can't clear, summary = summarizeFlights, button ${green ? "green" : "amber"}; picked ${pickedPair} on the map; margin 30 went stale and a stopped press returned to it (states ${states.join(" > ")}), no done, demo_used once`;
+    const stopNote = `stop sent cancel for run ${stoppedRun}, its progress ${p0} then ${p1} after 3 s`;
+    return `${stopNote}; all flights (${total}) by default, amber, ${want} arcs planned (= this script's planner); one press: ${want} unique arcs in ${(done.ms / 1000).toFixed(1)} s, ${sum.affected} near airspace, ${sum.rerouted} rerouted, ${sum.cannotClear} can't clear, summary = summarizeFlights, button ${green ? "green" : "amber"}; picked ${pickedPair} on the map; margin 30 went stale and a stopped press returned to it (states ${states.join(" > ")}), no done, demo_used once`;
   });
 }
 

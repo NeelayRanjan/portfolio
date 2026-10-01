@@ -572,7 +572,9 @@ to done for KJFK-KMIA past the launch sites in stock Firefox, ~6 s for the
 heaviest library case; the batch cap went 16 → 4 on that measurement. The
 DIFFERENCES note says "On my laptop one route takes about 2-7 seconds and
 all 373 about 35, longer with several drawn airspaces" (the 35 is Task
-12c's all-flights measurement, 2026-10-01) and nothing about phones.
+12c's all-flights measurement, 2026-10-01; the 373 is not typed: app/page.tsx
+counts `public/slaac/routes.json` at build and fills it in) and nothing about
+phones.
 Contracts, rulings and numbers: "SLAAC rerouter (Figure 3)" under the demos.
 
 **Open items, roughly in order:**

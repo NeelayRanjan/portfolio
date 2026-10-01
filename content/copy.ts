@@ -277,7 +277,8 @@ export const copy = {
        *  read 7.89 s under machine load. More drawn airspaces mean more
        *  arcs, run in chunks of 4, hence "longer with several". A laptop
        *  number only: no phone has been timed, so the copy names none.
-       *  "all 373 about 35" is Task 12c's (2026-10-01): the all-flights
+       *  "all <N> about 35" is Task 12c's (2026-10-01; N is the route count
+       *  read from routes.json at build, 373 when measured): the all-flights
        *  default, 43 unique arcs, stock Firefox 152 over BiDi, prod build,
        *  first press, median 34.7 s [33.3-34.8] of 3, measured with an
        *  unrelated job holding the machine at load ~3-6 (the same session's
@@ -288,7 +289,13 @@ export const copy = {
        *  must not imply the full buffer is always held. */
       disclaimer: {
         tag: "differences",
-        body: "My SLAAC models are integrated into the simulation software NASA and the FAA use to evaluate future air traffic management strategies. Here the diffusion model has the same weights, sampled in 20 steps where my pipeline uses 40, on public airspace and routes written ahead of time. On my laptop one route takes about 2-7 seconds and all 373 about 35, longer with several drawn airspaces. Measured the poster’s way on this demo’s test cases, 85-95% of final reroutes kept every leg at least 25 nm from the airspace (about 65% near launch sites), and 99.3-99.6% had no leg crossing it.",
+        /** Rendered lead + (allPre + the library's route count + allPost,
+         *  when app/page.tsx can count routes.json) + tail: the count is
+         *  read from the data at build, never typed here. */
+        lead: "My SLAAC models are integrated into the simulation software NASA and the FAA use to evaluate future air traffic management strategies. Here the diffusion model has the same weights, sampled in 20 steps where my pipeline uses 40, on public airspace and routes written ahead of time. On my laptop one route takes about 2-7 seconds",
+        allPre: " and all ",
+        allPost: " about 35",
+        tail: ", longer with several drawn airspaces. Measured the poster’s way on this demo’s test cases, 85-95% of final reroutes kept every leg at least 25 nm from the airspace (about 65% near launch sites), and 99.3-99.6% had no leg crossing it.",
       },
     },
     /**

@@ -15,7 +15,7 @@ import {
 } from "@/lib/slaac-engine";
 import type { ProgressArc, Res } from "@/lib/slaac-protocol";
 import type { Fix } from "@/lib/slaac/reroute";
-import { summarizeFlights } from "@/lib/slaac/summary";
+import { fmtSigned, summarizeFlights } from "@/lib/slaac/summary";
 import { isStargazing, subscribeStargaze } from "@/lib/stargaze";
 import { trackDemoOnce } from "@/lib/track";
 import { checkRing } from "./ring";
@@ -154,13 +154,6 @@ function resolveFont(): string {
   return `10px ${fam || "ui-monospace"}, monospace`;
 }
 
-/** Signed to `digits`, with anything that rounds to zero printed as a bare
- *  zero: -0.004 must not read "-0.0" (nor +0.004 "+0.0"). */
-const fmtSigned = (n: number, digits: number) => {
-  const s = n.toFixed(digits);
-  if (Number(s) === 0) return (0).toFixed(digits);
-  return n > 0 ? `+${s}` : s;
-};
 
 export function RerouteFigure() {
   const t = copy.research.figReroute;
@@ -607,7 +600,13 @@ export function RerouteFigure() {
       // Plan first, on this thread: a press with nothing to reroute never
       // loads the model.
       const [{ planArcs, mayConflict, BATCH_CAP_DESKTOP, BATCH_CAP_PHONE }, { rerouteOpts }] = await loadPlanner();
-      if (isStargazing() || !current()) return;
+      if (!current()) return;
+      if (isStargazing()) {
+        // Stargaze began during planning: back to the result on screen before
+        // the press, as stop and a stargaze in any later phase do.
+        setOutcome(stashRef.current);
+        return;
+      }
       phase = "run";
       const polys = loadSua(rings);
       const opts = rerouteOpts(data.meta, margin, hug, null);
@@ -774,7 +773,7 @@ export function RerouteFigure() {
   /** Before a press (and while a result is stale): the arcs it would sample. */
   const plannedN = planned && planned.sig === sig ? planned.n : null;
   const plannedLine =
-    plannedN !== null && !busy && stateName !== "done" && stateName !== "no-conflict" && stateName !== "unavailable"
+    plannedN !== null && plannedN > 0 && !busy && stateName !== "done" && stateName !== "no-conflict" && stateName !== "unavailable"
       ? `${t.toSamplePre}${plannedN}${plannedN === 1 ? t.toSampleMidOne : t.toSampleMid}`
       : null;
 

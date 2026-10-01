@@ -23,6 +23,8 @@ export type MapResult = {
   roles: Role[];
   dense: LL[];
   status: "ok" | "untouched" | "cannot-clear";
+  /** Plan leg indices that still cross airspace (cannot-clear flights only). */
+  crossingLegs?: number[];
 };
 export type MapState = {
   /** [lon, lat] with null breaking the line between separate shapes. */
@@ -40,6 +42,8 @@ export type MapState = {
   /** The running chunk's x0 estimates, one per arc. */
   arcs: { flight: string; index: number; xyLL: LL[] }[];
   results: MapResult[] | null;
+  /** False once the settings changed since the run: its plans draw faded. */
+  fresh: boolean;
   display: "snapped" | "continuous";
   /** A flight id to draw on top, brighter (the table row under the pointer). */
   hover: string | null;
@@ -145,6 +149,13 @@ export function siteAnchor(v: MapView, site: MapSite): [number, number] | null {
 }
 
 const rgba = (c: string, a: number) => `rgba(${c}, ${a})`;
+/** c mixed toward the panel by (1 - t), opaque. Fading by colour, not
+ *  globalAlpha: five stale plans on one path would stack back to full
+ *  strength under alpha (measured: 515 of 1,555 bright pixels survived). */
+function toward(c: string, panel: string, t: number): string {
+  const a = c.split(",").map(Number), b = panel.split(",").map(Number);
+  return a.map((x, i) => Math.round(b[i] + (x - b[i]) * t)).join(", ");
+}
 
 function pathLL(ctx: CanvasRenderingContext2D, v: MapView, pts: LL[], close = false) {
   pts.forEach(([la, lo], i) => {
@@ -157,44 +168,54 @@ function pathLL(ctx: CanvasRenderingContext2D, v: MapView, pts: LL[], close = fa
 
 const fixLL = (f: Fix): LL => [f[1], f[2]];
 
-function drawPlan(ctx: CanvasRenderingContext2D, v: MapView, r: MapResult, c: MapColours, display: MapState["display"], width: number) {
-  if (display === "continuous") {
-    ctx.save();
-    ctx.setLineDash([5, 3]);
-    ctx.strokeStyle = rgba(c.ok, 1);
-    ctx.lineWidth = width;
-    ctx.beginPath();
-    pathLL(ctx, v, r.dense);
-    ctx.stroke();
-    ctx.restore();
-    return;
-  }
-  ctx.strokeStyle = rgba(c.ok, 1);
+/**
+ * One flight's result. A stale run draws faded (the table dims to match). A
+ * cannot-clear plan never looks like a success: it draws dashed and faint,
+ * and the legs that still cross go over it in the airspace red.
+ */
+function drawPlan(ctx: CanvasRenderingContext2D, v: MapView, r: MapResult, c: MapColours, display: MapState["display"], width: number, fresh: boolean) {
+  const failed = r.status === "cannot-clear";
+  const fade = fresh ? 1 : 0.35;
+  const green = toward(c.ok, c.panel, fade * (failed ? 0.5 : 1));
+  ctx.save();
+  ctx.strokeStyle = rgba(green, 1);
   ctx.lineWidth = width;
+  if (display === "continuous" || failed) ctx.setLineDash(display === "continuous" ? [5, 3] : [3, 3]);
   ctx.beginPath();
-  pathLL(ctx, v, r.plan.map(fixLL));
+  pathLL(ctx, v, display === "continuous" ? r.dense : r.plan.map(fixLL));
   ctx.stroke();
-  // Deviation fixes: filled dots on a named fix, hollow on a raw BEND.
-  r.plan.forEach((f, i) => {
-    if (r.roles[i] !== "deviation") return;
-    const [x, y] = toScreen(v, f[1], f[2]);
-    ctx.beginPath();
-    ctx.arc(x, y, 3, 0, Math.PI * 2);
-    if (f[0] === "BEND") {
-      ctx.fillStyle = rgba(c.panel, 1); // the panel, so the hollow reads hollow over a route
-      ctx.fill();
-      ctx.lineWidth = 1.25;
+  ctx.setLineDash([]);
+  if (display !== "continuous") {
+    // Deviation fixes: filled dots on a named fix, hollow on a raw BEND.
+    r.plan.forEach((f, i) => {
+      if (r.roles[i] !== "deviation") return;
+      const [x, y] = toScreen(v, f[1], f[2]);
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      if (f[0] === "BEND") {
+        ctx.fillStyle = rgba(c.panel, 1); // the panel, so the hollow reads hollow over a route
+        ctx.fill();
+        ctx.lineWidth = 1.25;
+        ctx.stroke();
+        ctx.lineWidth = width;
+      } else {
+        ctx.fillStyle = rgba(green, 1);
+        ctx.fill();
+      }
+    });
+  }
+  if (failed && r.crossingLegs?.length) {
+    ctx.strokeStyle = rgba(toward(c.red, c.panel, fade), 1);
+    ctx.lineWidth = Math.max(2, width);
+    for (const i of r.crossingLegs) {
+      ctx.beginPath();
+      pathLL(ctx, v, [fixLL(r.plan[i]), fixLL(r.plan[i + 1])]);
       ctx.stroke();
-      ctx.lineWidth = width;
-    } else {
-      ctx.fillStyle = rgba(c.ok, 1);
-      ctx.fill();
     }
-  });
+  }
+  ctx.restore();
 }
 
-/** Returns which launch sites got their name drawn (the rest were dropped
- *  for room), so the figure can report it to the verify suite. */
 export function drawMap(ctx: CanvasRenderingContext2D, v: MapView, s: MapState, colours: MapColours, font: string): { labelled: string[] } {
   const c = colours;
   ctx.setTransform(v.dpr, 0, 0, v.dpr, 0, 0);
@@ -285,7 +306,7 @@ export function drawMap(ctx: CanvasRenderingContext2D, v: MapView, s: MapState, 
 
   // 6. Finished plans. A flight nothing touched keeps its filed line alone.
   if (s.results) {
-    for (const r of s.results) if (r.status !== "untouched") drawPlan(ctx, v, r, c, s.display, 2);
+    for (const r of s.results) if (r.status !== "untouched") drawPlan(ctx, v, r, c, s.display, 2, s.fresh);
   }
 
   // 7. Hover: one flight, on top.
@@ -299,7 +320,7 @@ export function drawMap(ctx: CanvasRenderingContext2D, v: MapView, s: MapState, 
       pathLL(ctx, v, route.fixes.map(fixLL));
       ctx.stroke();
     }
-    if (res && res.status !== "untouched") drawPlan(ctx, v, res, c, s.display, 3);
+    if (res && res.status !== "untouched") drawPlan(ctx, v, res, c, s.display, 3, s.fresh);
   }
 
   // 8. Labels last, on a panel-toned backing so routes passing under them

@@ -30,3 +30,14 @@ test("a closing duplicate is dropped, and the ring is ok", () => {
   // ...and a closed two-point "ring" is still too few once the duplicate goes.
   assert.deepEqual(checkRing([[30, -90], [35, -85], [30, -90]]), { ok: false, reason: "too-few" });
 });
+
+test("a repeated vertex doesn't count: [A, B, B] is too few", () => {
+  assert.deepEqual(checkRing([[30, -90], [35, -85], [35, -85]]), { ok: false, reason: "too-few" });
+  // ...but a real triangle with one doubled click is still a triangle.
+  assert.deepEqual(checkRing([[30, -90], [35, -85], [35, -85], [30, -80]]), { ok: true });
+});
+
+test("three collinear points have no area", () => {
+  // One meridian: a straight line in Albers.
+  assert.deepEqual(checkRing([[30, -90], [35, -90], [40, -90]]), { ok: false, reason: "degenerate" });
+});

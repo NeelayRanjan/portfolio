@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent } from "rea
 import { InstrumentFigure } from "@/components/manuscript/InstrumentFigure";
 import { copy } from "@/content/copy";
 import { loadSlaacData, type SlaacData } from "@/lib/slaac/data";
-import { loadSua } from "@/lib/slaac/geometry";
+import { albers } from "@/lib/slaac/albers";
+import { loadSua, segCrossesPoly } from "@/lib/slaac/geometry";
 import {
   loadSlaacEngine,
   unloadSlaacEngine,
@@ -48,14 +49,24 @@ import { drawMap, fitLower48, fromScreen, siteAnchor, toScreen, type LL, type Ma
  */
 
 type Done = Extract<Res, { kind: "done" }>;
-type RunState = "idle" | "loading" | "running" | "unavailable";
-type Outcome = { kind: "done"; done: Done; sig: string } | { kind: "no-conflict"; sig: string } | null;
+/** "planning" covers the planner import and the arc plan, before any model:
+ *  the controls are already disabled then, so a pair change can't slip in. */
+type RunState = "idle" | "planning" | "loading" | "running" | "unavailable";
+/** Every outcome carries the pair it was run on (a different pair never
+ *  draws or tabulates it) and the margin it was run at (the clearance column
+ *  is judged against that, not the slider's current value). */
+type Outcome =
+  | { kind: "done"; done: Done; sig: string; pairIdx: number; marginNm: number; crossing: Record<string, number[]> }
+  | { kind: "no-conflict"; sig: string; pairIdx: number }
+  | null;
 
 /** Opens on a pair that runs past the Cape, so a first press with the launch
  *  sites on has something to reroute. Falls back to the library's first pair. */
 const DEFAULT_PAIR = "KJFK-KMIA";
 const RING_MSG_MS = 3000;
 const TAP_SLOP_PX = 8;
+/** A click this close to the last vertex is a double click, not a new corner. */
+const DUP_VERTEX_PX = 4;
 
 const FALLBACK_COLOURS: MapColours = {
   rule: "42, 40, 35",
@@ -126,6 +137,10 @@ export function RerouteFigure() {
 
   const busyRef = useRef(false);
   const runIdRef = useRef(0);
+  /** Bumped by every press and every pair change; a press writes its outcome
+   *  only while it is still the current one. Kept apart from runIdRef, which
+   *  counts presses for window.__slaac. */
+  const pressGenRef = useRef(0);
   const engineRef = useRef<SlaacEngine | null>(null);
   const engineStateRef = useRef<"none" | "loading" | "loaded">("none");
   const loadGenRef = useRef(0);
@@ -235,9 +250,12 @@ export function RerouteFigure() {
     return () => ro.disconnect();
   }, []);
 
+  const shown = outcome && outcome.pairIdx === pairIdx ? outcome : null;
+  const fresh = shown !== null && shown.sig === sig;
+
   const mapState = (): MapState | null => {
     if (!data || !pair) return null;
-    const done = outcome?.kind === "done" ? outcome.done : null;
+    const done = shown?.kind === "done" ? shown : null;
     const ap = data.airports.airports;
     return {
       outline: data.outline.lonlat,
@@ -249,7 +267,8 @@ export function RerouteFigure() {
       drawn,
       pending,
       arcs,
-      results: done ? done.flights : null,
+      results: done ? done.done.flights.map((f) => ({ ...f, crossingLegs: done.crossing[f.id] ?? [] })) : null,
+      fresh,
       display,
       hover,
     };
@@ -304,12 +323,12 @@ export function RerouteFigure() {
     } else if (check.reason === "too-few") {
       flashRing(t.ringTooFew);
     } else {
-      flashRing(t.ringSelfCrossing);
+      flashRing(check.reason === "degenerate" ? t.ringDegenerate : t.ringSelfCrossing);
       setPending([]);
     }
   };
 
-  const busy = runState === "loading" || runState === "running";
+  const busy = runState === "planning" || runState === "loading" || runState === "running";
 
   const onPointerDown = (e: PointerEvent<HTMLCanvasElement>) => {
     if (!drawMode || busy) return;
@@ -333,23 +352,37 @@ export function RerouteFigure() {
         return;
       }
     }
+    if (pending.length) {
+      const [lx, ly] = toScreen(view, pending[pending.length - 1][0], pending[pending.length - 1][1]);
+      if (Math.hypot(x - lx, y - ly) <= DUP_VERTEX_PX) return;
+    }
     setPending((p) => [...p, fromScreen(view, x, y)]);
   };
 
   useEffect(() => {
     if (!pending.length) return;
+    // Capture phase, so this runs BEFORE StargazeToggle's bubble-phase exit
+    // handler: an Escape that leaves stargaze still sees isStargazing() true
+    // here and leaves the ring alone. The sky card's and list panel's own
+    // capture handlers stop the event outright when they take it.
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setPending([]);
+      if (e.key !== "Escape" || e.defaultPrevented || isStargazing()) return;
+      setPending([]);
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [pending.length]);
 
   // ---- the press ------------------------------------------------------------
   const reroute = async () => {
     if (busyRef.current || !data || !pair) return;
     busyRef.current = true;
+    setRunState("planning"); // before the first await: the controls lock now
     runIdRef.current++;
+    const gen = ++pressGenRef.current;
+    const current = () => gen === pressGenRef.current;
+    const pressPair = pairIdx;
+    const pressMargin = margin;
     publishHook();
     const pressSig = sig;
     const flights = pair.routes.map((r, i) => ({ id: String(i + 1), nominal: r.fixes }));
@@ -367,10 +400,11 @@ export function RerouteFigure() {
         import("@/lib/slaac/arcs"),
         import("@/lib/slaac/run"),
       ]);
-      if (isStargazing()) return;
-      const jobs = planArcs(flights, loadSua(rings), rerouteOpts(data.meta, margin, hug, null));
+      if (isStargazing() || !current()) return;
+      const polys = loadSua(rings);
+      const jobs = planArcs(flights, polys, rerouteOpts(data.meta, margin, hug, null));
       if (jobs.length === 0) {
-        setOutcome({ kind: "no-conflict", sig: pressSig });
+        setOutcome({ kind: "no-conflict", sig: pressSig, pairIdx: pressPair });
         return;
       }
       setRunState("loading");
@@ -397,9 +431,18 @@ export function RerouteFigure() {
           setProgress({ step: p.step, steps: p.steps });
         },
       );
+      if (!current()) return;
       lastDoneRef.current = done;
       publishHook();
-      setOutcome({ kind: "done", done, sig: pressSig });
+      // Which legs still cross (the pipeline's own leg test), so the map can
+      // draw a cannot-clear plan's crossing in red instead of as a success.
+      const crossing: Record<string, number[]> = {};
+      for (const f of done.flights) {
+        if (f.status !== "cannot-clear") continue;
+        const xy = f.plan.map((q) => albers(q[1], q[2]));
+        crossing[f.id] = xy.slice(0, -1).flatMap((a, i) => (polys.some((P) => segCrossesPoly(a, xy[i + 1], P)) ? [i] : []));
+      }
+      setOutcome({ kind: "done", done, sig: pressSig, pairIdx: pressPair, marginNm: pressMargin, crossing });
       setRunState("idle");
       trackDemoOnce("slaac");
     } catch (err) {
@@ -413,13 +456,13 @@ export function RerouteFigure() {
       busyRef.current = false;
       setArcs([]);
       setProgress(null);
-      setRunState((s) => (s === "loading" || s === "running" ? "idle" : s));
+      setRunState((s) => (s === "planning" || s === "loading" || s === "running" ? "idle" : s));
     }
   };
 
   // ---- render ---------------------------------------------------------------
-  const done = outcome?.kind === "done" ? outcome.done : null;
-  const fresh = outcome !== null && outcome.sig === sig;
+  const doneOut = shown?.kind === "done" ? shown : null;
+  const done = doneOut?.done ?? null;
   const stateName =
     data === undefined
       ? "data-loading"
@@ -427,9 +470,9 @@ export function RerouteFigure() {
         ? "unavailable"
         : busy
           ? runState
-          : outcome?.kind === "done"
+          : shown?.kind === "done"
             ? fresh ? "done" : "stale"
-            : outcome?.kind === "no-conflict" && fresh
+            : shown?.kind === "no-conflict" && fresh
               ? "no-conflict"
               : "idle";
 
@@ -496,6 +539,7 @@ export function RerouteFigure() {
               value={pairIdx}
               disabled={busy || !data}
               onChange={(e) => {
+                pressGenRef.current++; // a press still landing belongs to the old pair
                 setPairIdx(Number(e.target.value));
                 setOutcome(null);
                 setHover(null);
@@ -647,10 +691,10 @@ export function RerouteFigure() {
             <table className="w-full border-collapse font-mono text-[11px] tabular-nums">
               <thead>
                 <tr className="border-b border-rule text-left text-mut">
-                  <th className="py-1 pr-2 font-normal">{t.table.flight}</th>
-                  <th className="py-1 pr-2 font-normal">{t.table.added}</th>
-                  <th className="py-1 pr-2 font-normal">{t.table.addedPct}</th>
-                  <th className="py-1 pr-2 font-normal">{t.table.clearance}</th>
+                  <th className="py-1 pr-1.5 min-[880px]:pr-2 font-normal">{t.table.flight}</th>
+                  <th className="py-1 pr-1.5 min-[880px]:pr-2 font-normal">{t.table.added}</th>
+                  <th className="py-1 pr-1.5 min-[880px]:pr-2 font-normal">{t.table.addedPct}</th>
+                  <th className="py-1 pr-1.5 min-[880px]:pr-2 font-normal">{t.table.clearance}</th>
                   <th className="py-1 font-normal">{t.table.crossings}</th>
                 </tr>
               </thead>
@@ -664,19 +708,26 @@ export function RerouteFigure() {
                       onPointerLeave={() => setHover((h) => (h === f.id ? null : h))}
                       className={`border-b border-hair ${hover === f.id ? "bg-ink/5" : ""}`}
                     >
-                      <td className="py-1 pr-2 text-ink">{f.id}</td>
+                      <td className="py-1 pr-1.5 min-[880px]:pr-2 text-ink">{f.id}</td>
                       {f.status === "untouched" ? (
-                        <td colSpan={2} className="py-1 pr-2 text-mut">
+                        <td colSpan={2} className="py-1 pr-1.5 min-[880px]:pr-2 text-mut">
                           {t.untouched}
                         </td>
                       ) : (
                         <>
-                          <td className="whitespace-nowrap py-1 pr-2 text-warm">{`${fmtSigned(m.addedNm, 0)} nm`}</td>
-                          <td className="whitespace-nowrap py-1 pr-2 text-warm">{`${fmtSigned(m.addedPct, 1)}%`}</td>
+                          <td className="whitespace-nowrap py-1 pr-1.5 min-[880px]:pr-2 text-warm">{`${fmtSigned(m.addedNm, 0)} nm`}</td>
+                          <td className="whitespace-nowrap py-1 pr-1.5 min-[880px]:pr-2 text-warm">{`${fmtSigned(m.addedPct, 1)}%`}</td>
                         </>
                       )}
-                      <td className="whitespace-nowrap py-1 pr-2 text-warm">
-                        {m.minClearanceNm === null ? "-" : `${m.minClearanceNm.toFixed(0)} nm`}
+                      {/* Floored, never rounded up: 24.96 nm against a 25 nm
+                          margin must not print as 25. Red when under the
+                          margin this run was asked for. */}
+                      <td
+                        className={`whitespace-nowrap py-1 pr-1.5 min-[880px]:pr-2 ${
+                          m.minClearanceNm !== null && doneOut && m.minClearanceNm < doneOut.marginNm ? "text-red-ink" : "text-warm"
+                        }`}
+                      >
+                        {m.minClearanceNm === null ? "-" : `${(Math.floor(m.minClearanceNm * 10) / 10).toFixed(1)} nm`}
                       </td>
                       <td className={`whitespace-nowrap py-1 ${f.status === "cannot-clear" ? "text-red-ink" : "text-warm"}`}>
                         {f.status === "cannot-clear" ? `${m.legCrossings} · ${t.cannotClear}` : m.legCrossings}

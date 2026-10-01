@@ -362,6 +362,7 @@ export const copy = {
       unavailable: "The rerouter isn't available right now.",
       ringTooFew: "A shape needs at least three points.",
       ringSelfCrossing: "That shape crosses itself. Draw it again.",
+      ringDegenerate: "That shape has no area. Draw it again.",
       cannotClear: "no clear plan",
       untouched: "unchanged",
       noConflict: "No route comes within the margin of any airspace, so there is nothing to reroute.",

@@ -46,9 +46,10 @@ const NEVER_WITH_IMAGE_SYMBOLS = new Set(["star", "chevron", "field"]);
  * Task 19 (ruling R25): the constellations whose card (content/sky-facts.ts)
  * tells or names a myth get an ARTWORK of that myth (or the constellation's
  * plate from a star atlas when no artwork fits the card's version). Decided
- * by reading each card, listed with reasons in the task-19 report. Every
- * other constellation gets nothing: the modern instruments, the animals
- * with no story, and the cards that tell history rather than myth.
+ * by reading each card, listed with reasons in the task-19 report. Since
+ * task 20 (ruling R27) every other constellation gets its figure from a
+ * historical star atlas instead (Urania's Mirror, Bode, Hevelius, Bayer or
+ * Lacaille), so all 88 have an image.
  */
 const MYTH_CONSTELLATIONS = [
   "And", "Aql", "Aqr", "Ara", "Ari", "Aur", "Boo", "Cap", "Cas", "Cen",
@@ -149,22 +150,26 @@ test("spec §2 coverage: the right subjects have images and the rest don't", () 
   for (const id of FIXED_WITH_IMAGE) assert.ok(ids.has(id), `${id} should have an image`);
 });
 
-test("task 19 coverage: exactly the myth constellations have an image, each an artwork", () => {
+test("every constellation has exactly one image: an artwork of its myth, else an atlas plate (tasks 19-20)", () => {
   const ids = new Set(Object.keys(index.images));
   assert.equal(constellationIds.length, 88);
   for (const id of MYTH_CONSTELLATIONS) assert.ok(constellationIds.includes(id), `${id} is not a constellation id`);
+  // Keys are an object's own, so "exactly one" is "present"; the picks test
+  // above already rejects a duplicate pick id.
   for (const id of constellationIds) {
-    const want = MYTH_CONSTELLATIONS.includes(id);
-    assert.equal(ids.has(id), want, want ? `${id} (myth) should have an artwork` : `${id} (no myth on its card) must not have an image`);
-    if (want) {
-      const im = index.images[id];
-      assert.ok(typeof im.artwork === "string" && im.artwork.length > 10, `${id}: artwork names the work`);
+    assert.ok(ids.has(id), `${id} has no image`);
+    const im = index.images[id];
+    assert.ok(typeof im.artwork === "string" && im.artwork.length > 10, `${id}: artwork names the work`);
+    // Task 20 (R27): a constellation whose card tells no myth gets its figure
+    // from a historical star atlas, and its artwork line says which.
+    if (!MYTH_CONSTELLATIONS.includes(id)) {
+      assert.match(im.artwork, /star card from Urania's Mirror|star atlas|star chart/, `${id}: a non-myth image must be an atlas plate, got ${JSON.stringify(im.artwork)}`);
     }
   }
-  // An artwork is only ever a myth constellation's: a photograph never carries
+  // An artwork is only ever a constellation's: a photograph never carries
   // the "not a photograph of the sky" line, and vice versa.
   for (const [id, im] of Object.entries(index.images)) {
-    if (im.artwork !== undefined) assert.ok(MYTH_CONSTELLATIONS.includes(id), `${id}: artwork on a non-myth entry`);
+    if (im.artwork !== undefined) assert.ok(constellationIds.includes(id), `${id}: artwork on a non-constellation entry`);
   }
 });
 

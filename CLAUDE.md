@@ -232,11 +232,14 @@ card's photograph at most 28% of the viewport and the card at most 60%),
 from the keyboard list, shows its artwork flush on top in the photographs'
 318x238.5 box, credited "Image:" with the index's author, the artwork's name
 plus "An artwork, not a photograph of the sky.", a Commons citation tagged
-"[Image]" and the pick's `focus` as `object-position`; a constellation the
-SERVED index gives no entry opens with no image markup at all; Orion's
-docked 400px card keeps the artwork at most 28% and the card at most 60%;
-proved to bite by dropping `image: imageFor(h.id)` from the constellation
-branch of `buildCard`),
+"[Image]" and the pick's `focus` as `object-position`; since task 20 the
+SERVED index must cover all 88 constellations, and a constellation whose
+card tells no myth (Camelopardalis when listed) shows its atlas plate the
+same way, its artwork line naming the atlas (the myth set is read from
+`MYTH_CONSTELLATIONS` in `test-sky-images.mjs`); Orion's docked 400px card
+keeps the artwork at most 28% and the card at most 60%; proved to bite by
+dropping `image: imageFor(h.id)` from the constellation branch of
+`buildCard`, and (task 20) by deleting Cam's entry from the served index),
 stargaze mode
 (hiding the page with `inert` and firing no page-content fetch; offloading
 the chess worker and the draw/headshot sessions; cancelling a run in flight
@@ -356,10 +359,11 @@ Cluster and the Veil as paired objects, and carry no invented magnitude;
 conversion and the 7-day TLE-staleness gate; `test-sky-images` pins
 `public/sky/images/index.json`'s shape against the pick list (every pick has
 an entry and every entry a pick, every file on disk is indexed, the right
-subjects per spec §2 coverage and no others, and since task 19 exactly the
-37 `MYTH_CONSTELLATIONS` among the 88 with an image, each carrying an
-`artwork` name, and no `artwork` on anything else; proved to bite by
-dropping Tau from the list), the generator's license
+subjects per spec §2 coverage and no others, and since task 20 all 88
+constellations with an image, each carrying an `artwork` name, every one
+outside the 37 `MYTH_CONSTELLATIONS` an atlas plate by its artwork line,
+and no `artwork` on anything but a constellation; proved to bite by
+deleting Cam's entry), the generator's license
 allow-list matching the runtime validator's, and the validator itself
 accepting the committed index and rejecting malformed ones. `SKY_FACTS_PARTIAL=1` in front
 of `test-sky-facts` exists only so facts can be written in batches without
@@ -523,9 +527,10 @@ a Commons citation; the box is CSS-sized (318x238.5 desktop, measuring the
 aside's 320px border-box less its 1px border against the 4:3 aspect; 2:1
 capped at 28dvh on phones, body cap 32dvh so the docked card stays under 60%)
 so the cached card height never goes stale. Stars, showers, the Voyagers
-and the Kepler field get none, on purpose; constellations got none until
-2026-10-01, when the 37 whose card tells a myth gained an artwork (see
-"Card photographs" below).
+and the Kepler field get none, on purpose. Every constellation has one
+since 2026-10-01: an artwork of its myth where its card tells one (37),
+else its figure from a historical star atlas (51; see "Card photographs"
+below).
 
 **2026-09-17: what search engines read, LIVE** (merged to `main` with the
 chess round). The owner
@@ -1883,7 +1888,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   **Myth artworks on constellation cards (task 19, ruling R25,
   2026-10-01)**, owner: "for the constellations named after a myth, display
   an image of the myth, fitting with its description". The rule: a
-  constellation gets an image only if ITS CARD in `content/sky-facts.ts`
+  constellation gets an ARTWORK only if ITS CARD in `content/sky-facts.ts`
   tells or names a myth, decided by reading each card (37 of 88; the
   included and excluded ids with a reason each are in the task-19 report,
   and `MYTH_CONSTELLATIONS` in `test-sky-images.mjs` pins the set). Not on
@@ -1892,7 +1897,8 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   Major and Ursa Minor (their cards quote Homer and Thales, no myth),
   Sagittarius (its card says no Greek myth belongs to it), Columba (a
   biblical story, left to the owner) and the Argo pieces (the brief admits
-  them only if the card tells the Argo myth, and none does). The image is a
+  them only if the card tells the Argo myth, and none does); since task 20
+  each of these gets an atlas plate instead (below). The image is a
   public-domain or allow-listed artwork showing THE CARD'S version of the
   myth where one exists (Titian's *Bacchus and Ariadne* for Corona Borealis,
   with the crown in its sky; the Getty's Caeretan hydria for both Hydra and
@@ -1924,6 +1930,27 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   contact sheets after any pick change. The Commons lookup is batched at 50
   titles (the API's limit, passed when the list reached 72 picks). ~2.0 MB
   added.
+  **Atlas plates on every other constellation (task 20, ruling R27,
+  2026-10-01)**, owner: "it seems a bit off only some have pictures and some
+  don't." The 51 constellations whose card tells no myth (UMa, Sgr, Col,
+  Cru and Sex included) show their own figure from a public-domain star
+  atlas, in this order of preference: Sidney Hall's *Urania's Mirror*
+  (1825; 29 picks, matching the myth set's plates), Bode's *Uranographia*
+  (1801; 17: 15 far-southern figures off his southern sheet XX, plus
+  Eridanus and Microscopium), Lacaille's own 1756 chart for his Norma, Circinus and
+  Octans, Hevelius (1687) for Equuleus, Bayer (1603) for Lupus. Each is
+  cropped onto its own figure (plates are shared: Urania's plate 32 serves
+  Antlia, Sextans, Pyxis and the three Argo pieces) and checked in both the
+  4:3 and 2:1 frames; the artwork line names the atlas ("Lynx, a star card
+  from Urania's Mirror, Sidney Hall, 1825"). The pipeline gained one
+  optional pick field, `thumbPx`: Commons' thumbnailer stops at 3840px
+  whatever is asked (measured), so a pick whose `thumbPx` reaches the
+  original's width fetches the ORIGINAL (Bode's sheets are 11,649px and
+  22 MB), which a small figure cropped off a big plate needs; a run fetches
+  each source once and backs off on HTTP 429. Picks without it fetch
+  exactly as before, so every earlier WebP regenerates byte-identical.
+  ~3.0 MB added (all 123 images ~6.8 MB, still fetched only when a card
+  opens).
 - **The stargaze keyboard list** (NightSky, portalled into
   `[data-sky-list-slot]`, which `StargazeToggle` renders right after the exit
   control): the canvas is `aria-hidden`, so this `sr-only` group of buttons,
@@ -2888,7 +2915,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 | `public/headshot/v2/photos/{0,1,2}.webp` | 18/57/36 KB | the three approved crops, 512², q80, metadata stripped |
 | `public/headshot/v2/photos/{0,1,2}_thumb.webp` | ~2 KB each | 96² derivatives for the 44px face buttons (first paint) |
 | `public/research/*` | ~1.7 MB | prepare-research outputs: `label_efficiency.json` + `eff/` strip (Figure 1), `cdf/` stops + `cdf.json` (Figure 2), flight mp4 + poster, wipe assets (unrendered), `provenance.json` |
-| `public/sky/images/*` | ~3.7 MB | 35 card photographs and (task 19) 37 myth-constellation artworks (640px WebP, metadata stripped) plus `index.json` with author, license, Commons source and pinned sha1; built by `scripts/prepare-sky-images.mjs` from `scripts/sky-image-picks.json` |
+| `public/sky/images/*` | ~6.8 MB | 123 images: 35 card photographs, (task 19) 37 myth-constellation artworks and (task 20) 51 star-atlas plates (640px WebP, metadata stripped) plus `index.json` with author, license, Commons source and pinned sha1; built by `scripts/prepare-sky-images.mjs` from `scripts/sky-image-picks.json` |
 | `public/models/flightdiff-b3463317.onnx` | 23.4 MB | the SLAAC rerouter's diffusion UNet (5.78M params, fp32, opset 17, dynamic batch; ONNX vs torch max abs 3.8e-6); the hash in the name is its sha256's head, and `meta.json` names it |
 | `public/slaac/meta.json` | 1.5 KB | normalization stats, channels, the scheduler config, the sampler (20 steps, from the gate) and reroute settings, the model's name and sha256, `display: "snapped"`, `policies: ["wide", "hug"]` |
 | `public/slaac/routes.json` | 143 KB | the LM route library: 48 pairs, 373 routes, each with its tokens, fixes and seed (`scripts/slaac/route_library.py`) |
@@ -2910,6 +2937,7 @@ plus 96² thumbs); the bundle's `vectors/` and `*_{128,256}.png` training inputs
 stay out of `public/`. Git LFS: settled, not needed (~73.5 MB tracked binaries on `main` since
 the 2026-10-01 merge, measured over the tracked onnx/webp/png/mp4/ico/pdf
 files: the rerouter's 23.4 MB ONNX and task 19's ~2 MB of artworks on top
+(task 20's ~3 MB of atlas plates add to that, ~76.5 MB)
 of the ~48 MB `main` held before it; ~47 MB until the card photographs,
 final-review fix #9, 2026-09-17; every file still under GitHub's 100 MB
 per-file limit). `public/models/flightdiff-*.onnx` and

@@ -4630,12 +4630,21 @@ async function checkStargazeCardImage(browser) {
  * ARTWORK of that myth, flush above the card exactly like the deep-sky
  * photographs, but credited "Image:" (not "Photograph:"), naming the work and
  * saying it is not a photograph of the sky, with a Commons citation tagged
- * "[Image]". Every other constellation still opens with none. Which is which
- * comes from the SERVED index.json (an entry keyed by a constellation id), so
- * a regenerated pick list changes the check with no edit here. Opened through
+ * "[Image]". Since task 20 (ruling R27) every other constellation opens with
+ * its figure from a historical star atlas, credited and cited the same way,
+ * its artwork line naming the atlas; the served index must cover all 88.
+ * Which constellations tell a myth is read from MYTH_CONSTELLATIONS in
+ * scripts/test-sky-images.mjs (one list, not two). Opened through
  * the keyboard list for determinism (constellation hit bands overlap), at
  * desktop and on the docked 400px phone card.
  */
+const MYTH_CONSTELLATIONS = JSON.parse(
+  readFileSync(new URL("./test-sky-images.mjs", import.meta.url), "utf8")
+    .match(/const MYTH_CONSTELLATIONS = (\[[\s\S]*?\]);/)[1]
+    .replace(/,\s*\]/, "]"),
+);
+const ATLAS_PLATE = /star card from Urania's Mirror|star atlas|star chart/;
+
 async function checkStargazeMythImage(browser) {
   const notes = [];
   const t = copy.stargaze.card;
@@ -4690,25 +4699,19 @@ async function checkStargazeMythImage(browser) {
       if (c.objectPosition !== entry.focus) throw new Error(`${where}: ${id}'s object-position is ${c.objectPosition}, its focus is ${entry.focus}`);
     }
   };
-  const assertNone = (id, c, where) => {
-    if (c.figures || c.credit !== null || c.artwork !== null || c.commons.length) {
-      throw new Error(`${where}: ${id} tells no myth on its card, yet it carries image markup: ${JSON.stringify(c)}`);
-    }
-  };
-  const servedSplit = (page) =>
-    page.evaluate(async () => {
+  const servedSplit = (page, mythIds) =>
+    page.evaluate(async (mythIds) => {
       const index = await (await fetch("/sky/images/index.json")).json();
       const sky = await (await fetch("/sky/sky.json")).json();
       const abbrs = Object.keys(sky.constellations);
       const listed = [...document.querySelectorAll("[data-sky-list-item]")].map((b) => b.getAttribute("data-sky-list-item"));
-      const myth = abbrs.filter((a) => index.images[a]);
       return {
-        myth,
-        entries: Object.fromEntries(myth.map((a) => [a, index.images[a]])),
-        listedMyth: listed.filter((x) => myth.includes(x)),
-        listedPlain: listed.filter((x) => abbrs.includes(x) && !myth.includes(x)),
+        missing: abbrs.filter((a) => !index.images[a]),
+        entries: Object.fromEntries(abbrs.filter((a) => index.images[a]).map((a) => [a, index.images[a]])),
+        listedMyth: listed.filter((x) => mythIds.includes(x)),
+        listedPlain: listed.filter((x) => abbrs.includes(x) && !mythIds.includes(x)),
       };
-    });
+    }, mythIds);
 
   // Desktop: Andromeda (the brief's own example) when it is listed, and a
   // constellation with no myth on its card, on the same page.
@@ -4724,10 +4727,10 @@ async function checkStargazeMythImage(browser) {
     await stargazeToggle(page).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
     await page.waitForFunction(() => document.querySelectorAll("[data-sky-list-item]").length > 0, null, { timeout: 5000 });
-    const split = await servedSplit(page);
-    if (split.myth.length < 20) throw new Error(`the served index gives only ${split.myth.length} constellations an artwork`);
+    const split = await servedSplit(page, MYTH_CONSTELLATIONS);
+    if (split.missing.length) throw new Error(`the served index gives ${split.missing.length} constellation(s) no image: ${split.missing.join(", ")}`);
     if (!split.listedMyth.includes("And")) throw new Error(`Andromeda is not in the keyboard list at ${date.toISOString()}; listed myth constellations: ${split.listedMyth.join(", ")}`);
-    if (!split.listedPlain.length) throw new Error(`no constellation without a myth is on screen at ${date.toISOString()}; the "none" side would be untested`);
+    if (!split.listedPlain.length) throw new Error(`no constellation without a myth is on screen at ${date.toISOString()}; the atlas-plate side would be untested`);
 
     const card = await openFromList(page, "And");
     await page.waitForFunction(() => {
@@ -4743,10 +4746,19 @@ async function checkStargazeMythImage(browser) {
     await page.keyboard.press("Escape");
     await card.waitFor({ state: "detached", timeout: 2000 });
 
-    const plainId = split.listedPlain.includes("Tel") ? "Tel" : split.listedPlain[0];
-    const plain = await readCard(await openFromList(page, plainId));
-    assertNone(plainId, plain, "1440");
-    notes.push(`${plainId}: no image (${split.listedPlain.length} plain and ${split.listedMyth.length} myth constellations listed, ${split.myth.length} myth in the index)`);
+    // Task 20: a constellation whose card tells no myth shows its atlas plate.
+    const plainId = split.listedPlain.includes("Cam") ? "Cam" : split.listedPlain[0];
+    const plainCard = await openFromList(page, plainId);
+    await page.waitForFunction((cid) => {
+      const img = document.querySelector(`[data-sky-card="${cid}"] [data-sky-card-image] img`);
+      return img && img.complete && img.naturalWidth > 0;
+    }, plainId, { timeout: 10000 }).catch(() => {
+      throw new Error(`1440: ${plainId} (no myth on its card) shows no loaded atlas plate`);
+    });
+    const plain = await readCard(plainCard);
+    assertMyth(plainId, plain, split.entries[plainId], "1440");
+    if (!ATLAS_PLATE.test(split.entries[plainId].artwork)) throw new Error(`1440: ${plainId}'s image is not an atlas plate: ${JSON.stringify(split.entries[plainId].artwork)}`);
+    notes.push(`${plainId}: atlas plate ${JSON.stringify(plain.artwork)} (${split.listedPlain.length} plain and ${split.listedMyth.length} myth constellations listed; all 88 in the index)`);
   });
 
   // 400px, touch: the docked card for Orion (or the first myth constellation
@@ -4759,7 +4771,7 @@ async function checkStargazeMythImage(browser) {
     await stargazeToggle(page).click();
     await page.waitForFunction(() => document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
     await page.waitForFunction(() => document.querySelectorAll("[data-sky-list-item]").length > 0, null, { timeout: 5000 });
-    const split = await servedSplit(page);
+    const split = await servedSplit(page, MYTH_CONSTELLATIONS);
     const id = split.listedMyth.includes("Ori") ? "Ori" : split.listedMyth[0];
     if (!id) throw new Error(`400: no myth constellation listed at ${ori.date.toISOString()}`);
     const card = await openFromList(page, id);

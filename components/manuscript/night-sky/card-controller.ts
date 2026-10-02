@@ -63,7 +63,8 @@ export function createCardController(s: SkyState, deps: CardControllerDeps) {
   /** The card's photograph, if the index has one for this id (task 2): the
    *  index entry plus its generation date, which the card cites as the
    *  photograph's access date. Showers never call this; constellations do
-   *  since task 19 (R25), and only the myth ones have an entry (an artwork). */
+   *  since task 19 (R25): an artwork of the myth where the card tells one,
+   *  and since task 20 (R27) an atlas plate for every other one. */
   const imageFor = (id: string): CardModel["image"] | undefined => {
     const im = s.images?.images[id];
     return im ? { ...im, accessed: s.images!.generated } : undefined;

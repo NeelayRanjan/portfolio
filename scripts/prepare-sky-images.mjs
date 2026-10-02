@@ -61,19 +61,19 @@ const stripUtm = (u) => u.replace(/\?utm_source=.*$/, "");
 
 // The imageinfo API takes at most 50 titles per request (task 19 took the
 // pick list past 50), so the lookup is batched and merged.
-async function commonsInfo(allTitles) {
+async function commonsInfo(allTitles, width = THUMB_PX) {
   const unique = [...new Set(allTitles)];
   const byTitle = new Map();
-  for (let i = 0; i < unique.length; i += 50) await commonsBatch(unique.slice(i, i + 50), byTitle);
+  for (let i = 0; i < unique.length; i += 50) await commonsBatch(unique.slice(i, i + 50), byTitle, width);
   // The API normalises titles (underscores to spaces); map back by normalised form.
   const norm = (t) => t.replace(/_/g, " ");
   return (t) => byTitle.get(norm(t)) ?? null;
 }
 
-async function commonsBatch(titles, byTitle) {
+async function commonsBatch(titles, byTitle, width) {
   const url =
     "https://commons.wikimedia.org/w/api.php?action=query&format=json&prop=imageinfo" +
-    "&iiprop=url|size|sha1|extmetadata&iiurlwidth=" + THUMB_PX +
+    "&iiprop=url|size|sha1|extmetadata&iiurlwidth=" + width +
     "&iiextmetadatafilter=LicenseShortName|LicenseUrl|Artist" +
     "&titles=" + encodeURIComponent(titles.join("|"));
   const res = await fetch(url, { headers: { "User-Agent": UA } });
@@ -87,6 +87,8 @@ async function commonsBatch(titles, byTitle) {
       title: page.title,
       descriptionUrl: ii.descriptionurl,
       thumbUrl: ii.thumburl ?? ii.url,
+      originalUrl: ii.url,
+      width: ii.width,
       sha1: ii.sha1,
       license: stripHtml(m.LicenseShortName?.value ?? "").trim(),
       licenseUrl: stripHtml(m.LicenseUrl?.value ?? "").trim(),
@@ -114,8 +116,34 @@ function encode(inputPath, outPath, crop) {
   return { width, height };
 }
 
+// Task 20: several picks crop different figures off one plate (Bode's
+// southern sheet serves 15), so a source is fetched once per run, and a 429
+// from upload.wikimedia.org backs off and retries instead of failing the run.
+const sourceCache = new Map();
+async function fetchCached(url) {
+  if (sourceCache.has(url)) return sourceCache.get(url);
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const res = await fetch(url, { headers: { "User-Agent": UA } });
+    if (res.status === 429) { await new Promise((r) => setTimeout(r, 5000 * (attempt + 1))); continue; }
+    if (!res.ok) return res.status;
+    const buf = Buffer.from(await res.arrayBuffer());
+    sourceCache.set(url, buf);
+    return buf;
+  }
+  return 429;
+}
+
 const selected = only.size ? picks.filter((p) => only.has(p.id)) : picks;
-const lookup = await commonsInfo(selected.map((p) => p.file));
+// Task 20: a pick may ask for a larger source than the 1280px default with
+// `thumbPx` (a crop of one small figure off a 3,600-11,700px atlas plate
+// would otherwise come out a few hundred pixels wide). Commons answers a
+// width it doesn't scale to with the original file, which is fine: the
+// encode step still caps the output at 640px. Picks without it fetch exactly
+// what they always did, so their WebPs regenerate byte-identical.
+const widths = [...new Set(selected.map((p) => p.thumbPx ?? THUMB_PX))];
+const lookups = new Map();
+for (const w of widths) lookups.set(w, await commonsInfo(selected.filter((p) => (p.thumbPx ?? THUMB_PX) === w).map((p) => p.file), w));
+const lookup = (pick) => lookups.get(pick.thumbPx ?? THUMB_PX)(pick.file);
 const images = { ...previous.images };
 const failures = [];
 // Fix round #6: encode into a staging path per pick and rename into place
@@ -126,7 +154,8 @@ const failures = [];
 const staged = [];
 
 for (const pick of selected) {
-  const info = lookup(pick.file);
+  if (pick.thumbPx !== undefined && !(Number.isInteger(pick.thumbPx) && pick.thumbPx >= THUMB_PX && pick.thumbPx <= 12000)) { failures.push(`${pick.id}: thumbPx ${pick.thumbPx} out of range`); continue; }
+  const info = lookup(pick);
   if (!info) { failures.push(`${pick.id}: ${pick.file} is missing on Commons`); continue; }
   if (!ALLOWED_LICENSES.includes(info.license)) { failures.push(`${pick.id}: license ${JSON.stringify(info.license)} is not allowed`); continue; }
   if (!info.author) { failures.push(`${pick.id}: no Artist on Commons`); continue; }
@@ -141,9 +170,14 @@ for (const pick of selected) {
   const stage = join(OUT_DIR, `.${pick.id}.webp.stage`);
   let dims;
   try {
-    const res = await fetch(info.thumbUrl, { headers: { "User-Agent": UA } });
-    if (!res.ok) { failures.push(`${pick.id}: thumbnail fetch ${res.status}`); continue; }
-    writeFileSync(tmp, Buffer.from(await res.arrayBuffer()));
+    // Task 20: Commons' thumbnailer stops at 3840px whatever width is asked
+    // for (measured: a 7680 request for an 11,649px Bode plate served 3840),
+    // so a pick whose `thumbPx` reaches the original's own width fetches the
+    // original instead. Same bytes the sha1 pins.
+    const url = pick.thumbPx !== undefined && pick.thumbPx >= info.width ? info.originalUrl : info.thumbUrl;
+    const bytes = await fetchCached(url);
+    if (typeof bytes === "number") { failures.push(`${pick.id}: source fetch ${bytes}`); continue; }
+    writeFileSync(tmp, bytes);
     dims = encode(tmp, stage, pick.crop);
   } catch (err) {
     failures.push(`${pick.id}: ${err.message}`);

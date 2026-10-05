@@ -402,10 +402,13 @@ export const copy = {
      *  numbers, and just keep the high-level"): the dates live in the
      *  Experience rows, and "fewer errors than the Whisper system in use" is
      *  the resume's 17% WER against 20%. No names: mentors and colleagues
-     *  are omitted by the owner's call (2026-10-01, "no name dropping"). */
+     *  are omitted by the owner's call (2026-10-01, "no name dropping").
+     *  The AIAA line (owner, 2026-10-05) is the resume's "Extended abstract
+     *  for AIAA AVIATION 2027, in preparation", year dropped here for the
+     *  no-numerals rule; the References entry carries the full citation. */
     nasaProse: [
       "On SLAAC, space launch and air/airspace coordination, I trained a diffusion model on FAA radar tracks to reroute flights around closed airspace. It learns what routes look like offline and applies the airspace while it samples, so a new closure needs no retraining. A reroute has to come back as an ordered list of named fixes a controller would accept, and the operator chooses how far ahead it may look; the figure below has both settings.",
-      "Since August I’ve been on SHIFT: speech-to-text for air traffic control that makes fewer errors than the Whisper system in use, and a typed parser that turns the transcripts into a maneuver database.",
+      "Since August I’ve been on SHIFT: speech-to-text for air traffic control that makes fewer errors than the Whisper system in use, and a generate-and-rank parser that turns the transcripts into a maneuver database. I’m writing the parser up with NASA as an extended abstract for AIAA AVIATION.",
     ],
     /** Figure S3 on /lab since the SLAAC round (2026-09-30): the flight-plan
      *  LM's synthesized day. Was Figure 3 on page 1; the key stays under
@@ -740,7 +743,7 @@ export const copy = {
       {
         when: "since Aug 2026",
         who: "NASA Ames · SHIFT",
-        what: "Speech-to-text for air traffic control, a typed parser from transcripts to maneuvers, and a synthetic speech corpus that grows the recorded data about 20x.",
+        what: "Speech-to-text for air traffic control, a generate-and-rank parser from transcripts to maneuvers, and a synthetic speech corpus that grows the recorded data about 20x.",
         status: "active",
       },
       {
@@ -793,6 +796,16 @@ export const copy = {
       {
         label:
           "Bootstrapping surgeon labeling campaigns with x0-diffusion (in preparation)",
+        href: "",
+      },
+      /** The SHIFT paper (owner, 2026-10-05; resume commit "AIAA"). Both
+       *  names by the owner's call, though the NASA prose names no one: a
+       *  citation lists its authors. Status ladder, owner-set: "in
+       *  preparation" until the abstract goes in (due Nov 2026), then
+       *  "submitted", and nothing stronger until it is accepted. */
+      {
+        label:
+          "N. Ranjan, S. Clarke, et al., “Generate-and-rank extraction of air traffic control clearances into an en route ontology,” extended abstract for AIAA AVIATION 2027 (in preparation)",
         href: "",
       },
       {

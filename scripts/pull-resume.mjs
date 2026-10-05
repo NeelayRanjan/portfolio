@@ -5,8 +5,13 @@
  * to a private repo). Its output is committed, same rule as every other
  * generator here.
  *
- *   node scripts/pull-resume.mjs            # the designed resume -> public/resume.pdf
- *   node scripts/pull-resume.mjs --ats      # the plain one       -> public/resume-ats.pdf
+ *   node scripts/pull-resume.mjs              # the ATS resume      -> public/resume.pdf
+ *   node scripts/pull-resume.mjs --designed   # the designed one    -> public/resume-designed.pdf
+ *
+ * The served /resume.pdf is the ATS variant since 2026-10-05 (owner call;
+ * it was the designed altacv one until then). The URL stayed the same, since
+ * it is the one pasted into applications. The designed variant can still be
+ * pulled, deliberately unlinked.
  *
  * WHY the site hosts its own copy (owner call, 2026-09-22): the resume now
  * lives in `NeelayRanjan/SAVE`, which is PRIVATE, so the site cannot link it
@@ -42,11 +47,13 @@ const REPO = "NeelayRanjan/SAVE";
 /** Which resume goes where. The served name is deliberately plain and stable:
  *  it is the URL people paste into applications. */
 const VARIANTS = {
-  public: { file: "Resume/NeelayRanjan_Resume_Public.pdf", out: "public/resume.pdf" },
-  ats: { file: "Resume/NeelayRanjan_Resume_ATS.pdf", out: "public/resume-ats.pdf" },
+  public: { file: "Resume/NeelayRanjan_Resume_ATS.pdf", out: "public/resume.pdf" },
+  designed: { file: "Resume/NeelayRanjan_Resume_Public.pdf", out: "public/resume-designed.pdf" },
 };
 
-const which = process.argv.includes("--ats") ? "ats" : "public";
+/** `public` is the record key for whatever /resume.pdf serves (the node test
+ *  reads it by that name), not the repo's `_Public` filename. */
+const which = process.argv.includes("--designed") ? "designed" : "public";
 const { file, out } = VARIANTS[which];
 
 let raw;

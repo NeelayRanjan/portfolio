@@ -63,7 +63,7 @@ const nextConfig: NextConfig = {
         headers: [{ key: "X-Robots-Tag", value: "noindex" }],
       },
       {
-        source: "/resume-ats.pdf",
+        source: "/resume-designed.pdf",
         headers: [{ key: "X-Robots-Tag", value: "noindex" }],
       },
       {

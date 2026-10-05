@@ -863,10 +863,12 @@ correction-time speedup, Regenstrief from Feb 2024, and both first-author
 manuscripts by name, all matching this file. **The NASA gap is RESOLVED
 (2026-09-30)**: the resume now lists NASA as two roles, SLAAC and SHIFT, and
 the site's copy follows it since the 2026-10-01 merge (see the NASA bullet
-below). **One
-gap is still open and is the owner's call**: the resume lists TWO first-author manuscripts in preparation (the second,
-"Modular SAM-prior diffusion refinement for real-world angiogram and
-seven-shot moyamoya MRA vessel segmentation"), while the site names one.
+below). **The manuscript gap CLOSED (2026-10-02)**: the resume had listed
+TWO first-author manuscripts in preparation (the second, "Modular SAM-prior
+diffusion refinement for real-world angiogram and seven-shot moyamoya MRA
+vessel segmentation") while the site named one; the owner's "AIAA" resume
+commit dropped the second (its moyamoya result stays an experience bullet)
+and added the SHIFT paper (see the NASA bullet below).
 Davinci Wearables is on the site and not on the resume, which is a superset,
 not a contradiction. The original drift list, for the record:
   - **NASA is one role on the resume, not the two-engagement arc**:
@@ -935,10 +937,22 @@ not a contradiction. The original drift list, for the record:
   (Stephen Clarke): Qwen3-Omni-30B fine-tuned with QLoRA for ATC
   speech-to-text, 17% WER vs 20% for the Whisper ASR in use (30% zero-shot,
   5-fold CV, ~1.5 h of real audio); Kev, a typed decision model parsing
-  transcripts into the DTI maneuver ontology, value-match 40% → 80%; a
+  transcripts into the DTI maneuver ontology, value-match 40% → 80% (since
+  2026-10-02 the resume frames it as a GENERATE-AND-RANK parser: a text
+  model and rules propose 16-32 candidate values per field, Kev picks one;
+  the site says "generate-and-rank parser" in the NASA prose and the
+  Experience row); a
   text-to-speech synthetic ATC corpus ~20x the real data. ⚠️ **No names in
   visitor copy** (owner, 2026-10-01: "no name dropping"): Sheth, Panda and
-  Clarke are context here only. **The NASA box's text carries no numerals**
+  Clarke are context here only, EXCEPT as a citation's authors: **the SHIFT
+  paper** (owner, 2026-10-05), N. Ranjan, S. Clarke, et al., "Generate-and-rank
+  extraction of air traffic control clearances into an en route ontology",
+  extended abstract for AIAA AVIATION 2027 (abstract due Nov 2026), is in
+  References with both names (owner's call) and in the SHIFT paragraph
+  without the year (no numerals there). Status ladder, owner-set: "in
+  preparation" until the abstract goes in, then "submitted", nothing
+  stronger until accepted. The owner judged no extra NASA review needed for
+  it (2026-10-05). **The NASA box's text carries no numerals**
   (owner, 2026-10-01), so these numbers live in this file and copy.ts
   comments, not on the page. **The Summer
   2027 lunar digital twin is DROPPED** (owner, 2026-09-14: no longer
@@ -970,13 +984,15 @@ not a contradiction. The original drift list, for the record:
   **Raspberry Pi Zero 2 W**, not "Pi 4".
 - **Links** (footer set is data-driven; Google Scholar joins after the preprint):
   - Resume: **`/resume.pdf`, served by this site** (owner call, 2026-09-22).
-    `scripts/pull-resume.mjs` copies the designed PDF out of the private
+    `scripts/pull-resume.mjs` copies the ATS PDF (owner call, 2026-10-05;
+    the designed altacv one until then, same URL) out of the private
     `NeelayRanjan/SAVE` repo into `public/`; the Drive URL below is retired as
     the public copy and nothing on the site links Drive any more. Re-run the
     script whenever the owner updates the resume, or the site keeps serving
-    the old one. The ATS variant can be pulled with `--ats` to
-    `/resume-ats.pdf`; it is deliberately NOT linked (one Resume link, and the
-    designed one is what a human should open).
+    the old one. The designed variant can be pulled with `--designed` to
+    `/resume-designed.pdf` (noindex like the served one); it is deliberately
+    NOT linked (one Resume link). The ATS PDF is ~150 KB against the
+    designed one's ~61 KB, and prints the same phone number.
   - Retired Drive resume (kept only as history): https://docs.google.com/document/d/1Du0NEDaov2tRzY-tWbuN0wrO6xk6SFDi/preview
   - CV (HIDDEN from the site since 2026-09-14, owner call; restore on request): https://docs.google.com/document/d/1mzXEobC6bxIV_SqX761EVrDTmsYtrbsA/preview
   - Always the `/preview` form of a Drive URL, never `/edit?usp=sharing&ouid=…`

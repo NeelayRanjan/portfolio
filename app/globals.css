@@ -26,6 +26,21 @@ html { background: var(--color-desk); color-scheme: dark; }
 body { background: transparent; color: var(--color-ink); }
 :focus-visible { outline: 2px solid var(--color-red-ink); outline-offset: 3px; }
 
+/* Paper grain on the sheet (Sheet.tsx). An opaque 256px tile of fractal
+   noise whose every channel is the paper token plus 0.1 x (noise - 0.5), so
+   the sheet's MEAN tone stays exactly --color-paper (measured: mean 18.15 vs
+   18, std ~3 levels, range 7-29 on the red channel) and only the texture is
+   new. color-interpolation-filters="sRGB" is load-bearing: in the default
+   linearRGB the matrix's offsets land in the wrong space and the sheet turns
+   mid-grey. Opaque on purpose, so nothing behind the sheet shows through.
+   The figure panels (bg-panel) cover it: the paper is grainy, the
+   instruments are not. If --color-paper changes, re-derive the offsets
+   (paper/255 - 0.05 per channel). The bg-paper colour stays as the fallback. */
+[data-sheet] {
+  background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="256" height="256"%3E%3Cfilter id="g" x="0" y="0" color-interpolation-filters="sRGB"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/%3E%3CfeColorMatrix values="0.1 0 0 0 0.0206 0.1 0 0 0 0.0167 0.1 0 0 0 0.0088 0 0 0 0 1"/%3E%3C/filter%3E%3Crect width="256" height="256" filter="url(%23g)"/%3E%3C/svg%3E');
+  background-size: 256px 256px;
+}
+
 /* Stargaze mode (lib/stargaze.ts). Content fades over 600ms, by any door
    (Task 17), then leaves the hit-test and a11y paths (visibility); `inert`
    is set from JS at once, so only the look is gradual. Nothing unmounts, so

@@ -652,6 +652,13 @@ against 2.82-2.92 ms for the pre-task tree measured in the same session
 (A/B), budget 5.92. Contracts under "Night sky + stargaze": "A denser sky,
 star colour, and the band's gradient".
 
+**2026-10-13: paper grain on the sheet** (owner request). `[data-sheet]` in
+`app/globals.css` carries an opaque 256px SVG fractal-noise tile whose every
+channel is the paper token plus 0.1 x (noise - 0.5), so the sheet's mean tone
+stays `--color-paper` (measured on the build: mean 18.15 vs 18, std ~3 levels)
+and only the texture is new; figure panels (`bg-panel`) cover it. Its filter
+needs `color-interpolation-filters="sRGB"` (linearRGB turned the sheet grey).
+
 **Open items, roughly in order:**
 
 The SLAAC round's own, ahead of the list (LIVE on `main` since 2026-10-01):

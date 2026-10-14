@@ -60,21 +60,28 @@ export function MissionRows({
           key={i}
           className="grid grid-cols-[14px_1fr_auto] items-baseline gap-x-3 gap-y-1 border-t border-rule py-3.5 text-[15px] first:border-t-0 min-[880px]:grid-cols-[14px_116px_200px_1fr_auto] min-[880px]:items-baseline min-[880px]:gap-x-3.5 min-[880px]:gap-y-0"
         >
+          {/* Desktop: the lamp, `when`, `who` and the status word centre
+              between the row's dividers (owner call, 2026-10-13); the
+              description keeps the top. Phone: the lamp sits on the name's FIRST
+              line, a one-line-tall box (1lh, the row's own 15px line) with
+              the dot centred in it, so a wrapped name doesn't pull it down. */}
           <span
             aria-hidden
-            className={`col-start-1 row-start-1 inline-block h-2 w-2 self-center rounded-full min-[880px]:col-start-1 min-[880px]:row-start-1 ${LAMP_CLASS[row.status]}`}
-          />
-          <span className="col-start-2 col-span-2 row-start-2 font-mono text-[11px] text-mut min-[880px]:col-start-2 min-[880px]:col-span-1 min-[880px]:row-start-1">
+            className="col-start-1 row-start-1 flex h-[1lh] items-center self-start min-[880px]:col-start-1 min-[880px]:row-start-1 min-[880px]:self-center"
+          >
+            <span className={`block h-2 w-2 rounded-full ${LAMP_CLASS[row.status]}`} />
+          </span>
+          <span className="col-start-2 col-span-2 row-start-2 font-mono text-[11px] text-mut min-[880px]:col-start-2 min-[880px]:col-span-1 min-[880px]:row-start-1 min-[880px]:self-center">
             {row.when}
           </span>
-          <span className="col-start-2 row-start-1 font-semibold text-ink min-[880px]:col-start-3 min-[880px]:row-start-1">
+          <span className="col-start-2 row-start-1 font-semibold text-ink min-[880px]:col-start-3 min-[880px]:row-start-1 min-[880px]:self-center">
             {row.who}
           </span>
           <span className="col-start-2 col-span-2 row-start-3 text-mut min-[880px]:col-start-4 min-[880px]:col-span-1 min-[880px]:row-start-1">
             {row.what}
           </span>
           <span
-            className={`col-start-3 row-start-1 justify-self-end font-mono text-[11px] min-[880px]:col-start-5 min-[880px]:row-start-1 min-[880px]:justify-self-auto ${STATUS_TEXT_CLASS[row.status]}`}
+            className={`col-start-3 row-start-1 justify-self-end font-mono text-[11px] min-[880px]:col-start-5 min-[880px]:row-start-1 min-[880px]:justify-self-auto min-[880px]:self-center ${STATUS_TEXT_CLASS[row.status]}`}
           >
             {row.status}
           </span>

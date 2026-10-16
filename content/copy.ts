@@ -172,7 +172,7 @@ export const copy = {
     stamp: "IN PREPARATION",
     /** The /lab box under the stamp. Two lines:
      *    "Supplementary material →"   (the arrow is the box's decoration)
-     *    "diffusion trajectories · MAE vs I-JEPA · a day of synthesized flight plans"
+     *    "diffusion trajectories · MAE vs I-JEPA · a day of synthesized flight plans · SDEdit on MNIST"
      *  The contents line is a teaser, deliberately NOT composed from the /lab
      *  section headings: those are written for their own context
      *  ("Predicting pixels, or predicting representations") and run four
@@ -180,7 +180,7 @@ export const copy = {
      *  section is added, removed or renamed, update this line with it. */
     supplementLabel: "Supplementary material",
     supplementContents:
-      "diffusion trajectories · MAE vs I-JEPA · a day of synthesized flight plans",
+      "diffusion trajectories · MAE vs I-JEPA · a day of synthesized flight plans · SDEdit on MNIST",
     date: "September 2026",
     links: [
       {
@@ -525,14 +525,38 @@ export const copy = {
     },
   },
 
-  /** §2 Live systems: the two demos that stay on page 1. */
+  /** §2 Live systems: the two demos on page 1 (chess, and since 2026-10-15
+   *  the Titan lander; the draw demo's copy below now renders on /lab). */
   systems: {
     /** The section's `<h2>`, added for Task 8's page assembly. */
     heading: "Live systems",
     intro:
       "Both demos below run the trained models in your browser.",
 
-    /** Figure 5 (was 4 until the 2026-09-13 order swap) — live SDEdit draw-a-digit. Carried over wholesale from v1's
+    /** The Titan lander, Figure 5 since 2026-10-15 (components/LanderFigure.tsx).
+     *  ⚠️ PREVIEW: drafted from lunar_lander's titan-copy-notes.preview.md,
+     *  not yet approved by the owner, and the module still draws its own
+     *  testing UI with its own strings (lander.js, outside this file and
+     *  outside check-voice). Sources for every fact below, from the copy
+     *  notes: "shaped like" because Dragonfly contributes only its looks
+     *  (owner, 2026-10-15; the game does use its 875 kg and 3.85 m); the
+     *  dream samples the next 3 s from the last 1 s of flight and a plan of
+     *  rotor commands; the game's link is 1 s each way (2 s round trip);
+     *  67-92 minutes is the one-way light time from NASA's Saturn fact sheet
+     *  (1,205.5-1,658.6 million km); in manual flight the main craft is the
+     *  dream's average prediction of where the craft is when the newest
+     *  command arrives (a required line). No build-specific number (the
+     *  autopilot's landing rates, the parameter count) until the release
+     *  build, whose numbers will differ. */
+    lander: {
+      figureCaption:
+        "An autopilot flies a rotorcraft shaped like NASA’s Dragonfly over Titan’s dunes, planning each hop inside a diffusion model of its own flight. From the last second of flight and a plan of rotor commands, the model samples the next three seconds; the faint trails are those samples. Take the controls and your commands cross a 2 s round-trip link to Earth (light takes 67-92 minutes each way), so the craft you see is the model’s average prediction of where it will be when your command arrives.",
+      loadFailed: "The lander didn’t load. Reload the page to try again.",
+    },
+
+    /** Figure S4 on /lab since 2026-10-15 (page 1's Figure 5 until the Titan
+     *  lander took that slot; the namespace stays `systems.draw` so the verify
+     *  suite and DrawDigit keep their keys). Was Figure 4 until the 2026-09-13 order swap — live SDEdit draw-a-digit. Carried over wholesale from v1's
      *  `sdedit` namespace (`copy.sdedit.*` → `copy.systems.draw.*`); every
      *  leaf key name is unchanged. */
     draw: {
@@ -823,13 +847,14 @@ export const copy = {
     ],
   },
 
-  /** /lab — "Supplementary material": the three demos that left page 1. */
+  /** /lab — "Supplementary material": the demos that left page 1 (S4, the
+   *  draw demo, since 2026-10-15). */
   lab: {
     /** Above the heading, a link back to the main page. */
     backLink: "← back to the paper",
     heading: "Supplementary material",
     intro:
-      "All three panels replay output from trained models.",
+      "S1-S3 replay output from trained models. S4 runs its model live.",
 
     /** Figure S1 — the diffusion trajectory viewer. Carried over wholesale
      *  from v1's `diffusion` namespace (`copy.diffusion.*` →

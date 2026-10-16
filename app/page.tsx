@@ -12,7 +12,7 @@ import { TrackedLink } from "@/components/manuscript/TrackedLink";
 import { LabelEfficiencyFigure } from "@/components/figures/LabelEfficiencyFigure";
 import { DiceCdfFigure } from "@/components/figures/DiceCdfFigure";
 import { RerouteFigure } from "@/components/figures/RerouteFigure";
-import { DrawDigit } from "@/components/DrawDigit";
+import { LanderFigure } from "@/components/LanderFigure";
 import { ChessPanel } from "@/components/ChessPanel";
 import { WarmKick } from "@/components/WarmKick";
 import { copy } from "@/content/copy";
@@ -22,9 +22,10 @@ import type { Metadata } from "next";
 export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 // The real page-one assembly (replaces Task 3's smoke content). Figures 4 (the
-// chess engine) and 5 (the draw demo) both mount here behind `DeferredMount`.
-// Each owns its own `InstrumentFigure`, and with it its `id` (`fig-draw`,
-// `fig-chess`), so there are no placeholders here to fill. Figure numbering,
+// chess engine) and 5 (the Titan lander, since 2026-10-15; the draw demo held
+// that slot until then and is /lab's S4) both mount here behind
+// `DeferredMount`. Each owns its own `InstrumentFigure`, and with it its `id`
+// (`fig-chess`, `fig-lander`), so there are no placeholders here to fill. Figure numbering,
 // ruled: 1 (the label-efficiency sweep), 2 (the Dice CDF), 3 (the SLAAC
 // rerouter, in the NASA box) sit in Research; 4-5 are the live demos; 6 is the
 // Experience mission-row figure. The flight-day video is /lab's S3.
@@ -163,15 +164,16 @@ export default function Home() {
         {/*
          * SINGLE COLUMN, and that is a measurement, not a preference. These two
          * figures were briefed as a `md:grid-cols-2` pair; at half the sheet's
-         * width the draw demo's three 280px canvases wrap to one per row and the
-         * chess board loses its move list to a stack. Full-width rows let both
-         * lay out as designed. Stacked rows also stay trivially appendable: a
-         * third figure is one more child, no layout work.
+         * width the draw demo's three 280px canvases wrapped to one per row and
+         * the chess board loses its move list to a stack. Full-width rows let
+         * both lay out as designed (the lander wants the sheet's full width at
+         * 4:3). Stacked rows also stay trivially appendable: a third figure is
+         * one more child, no layout work.
          *
-         * Each mounts on scroll-in rather than at page load. The draw demo pulls
-         * a 26MB ONNX model on first stroke, the chess panel a 553KB model plus
-         * the ~24MB wasm runtime, and both ship their own client bundle, so
-         * `DeferredMount` keeps all of it out of first paint. It replaces v1's
+         * Each mounts on scroll-in rather than at page load. The chess panel
+         * pulls a 553KB model plus the wasm runtime, the lander its own runtime
+         * and ~11.6 MB of models once it is on screen, and both ship their own
+         * client code, so `DeferredMount` keeps all of it out of first paint. It replaces v1's
          * boot-log gate, which carried the same job under the typing theatre.
          */}
         {/* Chess before draw (owner call, 2026-09-13; the figure numbers in
@@ -182,7 +184,7 @@ export default function Home() {
             <ChessPanel />
           </DeferredMount>
           <DeferredMount>
-            <DrawDigit />
+            <LanderFigure />
           </DeferredMount>
         </div>
 

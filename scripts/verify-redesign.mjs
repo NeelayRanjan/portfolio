@@ -853,7 +853,11 @@ async function checkNoEarlyHeavyPayload(browser) {
 /* not the asyncify one, is what catches it here.                         */
 /* ---------------------------------------------------------------------- */
 
-const ORT_PATH_RE = /\/ort\/[^?#]+/;
+// The ROOT /ort/ only (2026-10-15): the Titan lander ships its own ORT
+// under /lander/v1/ort/, and on a browser with a WebGPU adapter it
+// legitimately fetches that copy's asyncify build (its worker picks /wasm on
+// WebKit). Its runtime is the `lander-*` checks' business, not this one's.
+const ORT_PATH_RE = /^https?:\/\/[^/]+(\/ort\/[^?#]+)/;
 const ORT_BAD_BUILD_RE = /\.(asyncify|jsep|jspi)\./;
 
 async function checkOrtRuntimeBuild(browser) {
@@ -877,17 +881,9 @@ async function checkOrtRuntimeBuild(browser) {
     );
     const afterWorker = urls.length;
 
-    // The main thread's runtime: the first stroke starts the draw model, and
-    // the fit scores prove a session ran on it.
-    await scrollUntilAttached(page, "#fig-draw");
-    await drawStroke(page);
-    await waitDrawFits(page);
-
-    const afterMain = urls.length;
-
-    // The rerouter's worker (SLAAC round): last, so the chess worker and the
-    // draw session have finished every runtime fetch of their own and
-    // whatever /ort/ request follows is the rerouter's. A press on
+    // The rerouter's worker (SLAAC round), still on page 1: after the chess
+    // worker has finished its runtime fetches, so whatever /ort/ request
+    // follows is the rerouter's. A press on
     // KJFK-KMIA (past the Cape) has arcs to sample, so it loads the
     // model and the runtime; `window.__slaac.loaded` turns true once the
     // worker's session exists. The run itself is left to finish unobserved.
@@ -904,11 +900,20 @@ async function checkOrtRuntimeBuild(browser) {
       null,
       { timeout: 120000 },
     );
+    const afterSlaac = urls.length;
 
-    const ortOf = (list) => list.map((u) => (u.match(ORT_PATH_RE) || [])[0]).filter(Boolean);
+    // The main thread's runtime, on /lab since 2026-10-15 (the draw demo is
+    // S4 there): the first stroke starts the draw model, and the fit scores
+    // prove a session ran on it.
+    await page.goto(`${BASE}/lab`, { waitUntil: "networkidle" });
+    await scrollUntilAttached(page, "#fig-draw");
+    await drawStroke(page);
+    await waitDrawFits(page);
+
+    const ortOf = (list) => list.map((u) => (u.match(ORT_PATH_RE) || [])[1]).filter(Boolean);
     const workerOrt = ortOf(urls.slice(0, afterWorker));
-    const mainOrt = ortOf(urls.slice(afterWorker, afterMain));
-    const slaacOrt = ortOf(urls.slice(afterMain));
+    const slaacOrt = ortOf(urls.slice(afterWorker, afterSlaac));
+    const mainOrt = ortOf(urls.slice(afterSlaac));
     const all = [...workerOrt, ...mainOrt, ...slaacOrt];
     const bad = all.filter((u) => ORT_BAD_BUILD_RE.test(u));
     if (bad.length) {
@@ -941,7 +946,7 @@ async function checkOrtRuntimeBuild(browser) {
 
 async function checkDrawInkSurvivesHeightResize(browser) {
   return withPage(browser, { viewport: { width: 400, height: 800 } }, async (page) => {
-    await page.goto(BASE, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/lab`, { waitUntil: "networkidle" }); // the draw demo is /lab's S4 since 2026-10-15
     await scrollUntilAttached(page, "#fig-draw");
     await drawStroke(page);
     const inkPixels = () =>
@@ -2325,7 +2330,7 @@ async function checkSlaacAllFlights(browser) {
 
 async function checkDrawAutoLabel(browser) {
   return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
-    await page.goto(BASE, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/lab`, { waitUntil: "networkidle" }); // the draw demo is /lab's S4 since 2026-10-15
     await scrollUntilAttached(page, "#fig-draw");
 
     const canvas = page.locator("#fig-draw canvas").first();
@@ -3259,7 +3264,7 @@ function demoEvents(page, demo) {
 
 async function checkStargazeOffloadDraw(browser) {
   return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
-    await page.goto(BASE, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/lab`, { waitUntil: "networkidle" }); // the draw demo is /lab's S4 since 2026-10-15
     await scrollUntilAttached(page, "#fig-draw");
     await drawStroke(page);
     await waitDrawFits(page); // the draw model is loaded and has run
@@ -3284,8 +3289,12 @@ async function checkStargazeOffloadDraw(browser) {
 }
 
 async function checkStargazeCancelsRun(browser) {
+  // Two page loads since 2026-10-15: the draw demo is /lab's S4 and the
+  // headshot stays in page 1's masthead, so the draw half (and its
+  // run-completes-after-return tail) runs on /lab and the headshot half on /.
+  // Each load has its own once-per-load demo_used{stargaze}.
   return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
-    await page.goto(BASE, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/lab`, { waitUntil: "networkidle" });
     await waitStargazeReady(page);
     const enter = stargazeToggle(page);
     const settled = async (sel) => {
@@ -3319,8 +3328,26 @@ async function checkStargazeCancelsRun(browser) {
     await page.waitForFunction(() => (window.__offload?.draw ?? 0) >= 1, null, { timeout: 15000 });
     await page.keyboard.press("Escape");
 
-    // --- headshot: cancel mid-sampling ---
-    await page.evaluate(() => window.scrollTo(0, 0));
+    // --- after returning, a draw run completes normally ---
+    await scrollUntilAttached(page, "#fig-draw");
+    await page.waitForFunction(
+      () => document.querySelector("#fig-draw")?.textContent.includes("hit generate"),
+      null,
+      { timeout: 120000 },
+    );
+    await page.locator("#fig-draw").getByRole("button", { name: "generate", exact: true }).click();
+    await page.waitForFunction(
+      () =>
+        (window.vaq ?? []).some(([k, ev]) => k === "event" && ev?.name === "demo_used" && ev?.data?.demo === "draw"),
+      null,
+      { timeout: 120000 },
+    );
+    const labGazes = await demoEvents(page, "stargaze");
+    if (labGazes !== 1) throw new Error(`/lab: demo_used{stargaze} queued ${labGazes} times, expected 1`);
+
+    // --- headshot: cancel mid-sampling (page 1) ---
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await waitStargazeReady(page);
     await page.getByRole("button", { name: /^Sample photo 1 of \d+ with the diffusion model$/ }).click();
     await page.waitForFunction(
       () => {
@@ -3344,23 +3371,8 @@ async function checkStargazeCancelsRun(browser) {
     await page.keyboard.press("Escape");
 
     const gazes = await demoEvents(page, "stargaze");
-    if (gazes !== 1) throw new Error(`demo_used{stargaze} queued ${gazes} times, expected 1`);
-
-    // --- after returning, a run completes normally ---
-    await scrollUntilAttached(page, "#fig-draw");
-    await page.waitForFunction(
-      () => document.querySelector("#fig-draw")?.textContent.includes("hit generate"),
-      null,
-      { timeout: 120000 },
-    );
-    await page.locator("#fig-draw").getByRole("button", { name: "generate", exact: true }).click();
-    await page.waitForFunction(
-      () =>
-        (window.vaq ?? []).some(([k, ev]) => k === "event" && ev?.name === "demo_used" && ev?.data?.demo === "draw"),
-      null,
-      { timeout: 120000 },
-    );
-    return "draw and headshot runs stopped within a step, no failure shown, no demo_used, both sessions released (offload counters); a later generate completed";
+    if (gazes !== 1) throw new Error(`/: demo_used{stargaze} queued ${gazes} times, expected 1`);
+    return "draw (/lab) and headshot (/) runs stopped within a step, no failure shown, no demo_used, both sessions released (offload counters); a later generate completed";
   });
 }
 
@@ -3385,7 +3397,7 @@ async function checkStargazeCancelsRun(browser) {
  */
 async function checkStargazeDuringDownload(browser) {
   return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
-    await page.goto(BASE, { waitUntil: "networkidle" });
+    await page.goto(`${BASE}/lab`, { waitUntil: "networkidle" }); // the draw demo is /lab's S4 since 2026-10-15
     await waitStargazeReady(page);
     await scrollUntilAttached(page, "#fig-draw");
     await drawStroke(page); // starts the ~26MB download
@@ -6523,6 +6535,214 @@ async function checkStargazeSecretDoor(browser) {
   return notes.join("; ");
 }
 
+/* ---------------------------------------------------------------------- */
+/* 5c. The Titan lander, Figure 5 since 2026-10-15                        */
+/* (components/LanderPanel.tsx, public/lander/v1/: lunar_lander's module, */
+/* copied verbatim; its runtime, worker and models are its own).          */
+/* Playwright's Firefox cannot fly it: a plan takes 5-8 s there against   */
+/* ~0.5 s in Chromium and stock Firefox 152, and the attract autopilot    */
+/* never leaves the pad (measured 2026-10-15). So these assert what the   */
+/* page owns, never a flight: nothing before the panel nears the          */
+/* viewport, the model loads on screen, a non-blank canvas, the sim clock */
+/* frozen off-screen, stargaze unloading (worker terminated) and          */
+/* remounting in a new worker, watching counting as nothing, a visitor's  */
+/* input counting once, navigation terminating every worker, and the      */
+/* module's own runtime never fetching a jsep/jspi build (asyncify only   */
+/* where the browser has WebGPU). Its WebKit rule (/wasm only) is checked  */
+/* by hand: this suite has no WebKit (see CLAUDE.md, the lander section). */
+/* ---------------------------------------------------------------------- */
+
+function landerWorkerSpy() {
+  const Real = window.Worker;
+  window.__landerWorkers = [];
+  window.Worker = class extends Real {
+    constructor(url, ...rest) {
+      super(url, ...rest);
+      this.__terminated = false;
+      if (String(url).includes("/lander/")) window.__landerWorkers.push(this);
+    }
+    terminate() {
+      this.__terminated = true;
+      super.terminate();
+    }
+  };
+}
+
+const LANDER_ORT_PLAIN = new Set(["manifest.json", "ort-wasm-simd-threaded.wasm", "ort-wasm-simd-threaded.mjs"]);
+const LANDER_ORT_ASYNCIFY = new Set(["ort-wasm-simd-threaded.asyncify.wasm", "ort-wasm-simd-threaded.asyncify.mjs"]);
+
+/** Distinct colours and the lit share of the lander's main canvas, as composited. */
+async function landerCanvasPixels(page) {
+  const box = await page.locator('#fig-lander [data-lander="root"] canvas').first().boundingBox();
+  if (!box || box.width < 100) throw new Error(`the lander's canvas has no usable box: ${JSON.stringify(box)}`);
+  const { data } = await screenshotPixels(page, box);
+  const colours = new Set();
+  let lit = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    colours.add((data[i] << 16) | (data[i + 1] << 8) | data[i + 2]);
+    if (data[i] + data[i + 1] + data[i + 2] > 60) lit++;
+  }
+  return { colours: colours.size, lit: lit / (data.length / 4), w: Math.round(box.width), h: Math.round(box.height) };
+}
+
+/** Scroll the panel's host to the viewport's top and wait for the model. */
+async function openLander(page) {
+  await scrollUntilAttached(page, "#fig-lander", { maxScrolls: 40 });
+  await page.locator("#fig-lander [data-lander-host]").scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => window.__lander?.debug()?.model === "ready", null, { timeout: 120000 });
+}
+
+const landerDebug = (page) => page.evaluate(() => window.__lander?.debug() ?? null);
+
+async function checkLanderMounts(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.addInitScript(landerWorkerSpy);
+    const bad = [];
+    const ortFiles = [];
+    const heavy = [];
+    let watchHeavy = false;
+    page.on("response", (r) => {
+      const u = r.url();
+      if (!u.includes("/lander/v1/")) return;
+      if (r.status() >= 400) bad.push(`${r.status()} ${u}`);
+      const m = u.match(/\/lander\/v1\/ort\/([^?#]+)/);
+      if (m) ortFiles.push(m[1]);
+    });
+    page.on("request", (r) => {
+      if (watchHeavy && /\/lander\/v1\/(models|ort)\//.test(r.url())) heavy.push(r.url());
+    });
+    // A HEAD the module aborts once the GET is under way is its presence probe
+    // (the lander's own smoke records the same), not a failure.
+    page.on("requestfailed", (r) => {
+      if (r.url().includes("/lander/v1/") && r.method() !== "HEAD") bad.push(`${r.failure()?.errorText} ${r.url()}`);
+    });
+    const errors = [];
+    page.on("console", (m) => {
+      // Locally /_vercel/* 404s by design (see analytics-queue); a lander 404
+      // is caught by status above, where the URL is known.
+      if (m.type() === "error" && !m.text().startsWith("Failed to load resource")) errors.push(m.text());
+    });
+
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    const early = await page.evaluate(() =>
+      performance.getEntriesByType("resource").map((e) => e.name).filter((n) => n.includes("/lander/")),
+    );
+    if (early.length) throw new Error(`lander files fetched before its slot neared the viewport: ${early.join(", ")}`);
+
+    const t0 = Date.now();
+    await openLander(page);
+    const loadMs = Date.now() - t0;
+    const px = await landerCanvasPixels(page);
+    if (px.colours < 200 || px.lit < 0.5) throw new Error(`the lander's canvas looks blank: ${JSON.stringify(px)}`);
+    if ((await demoEvents(page, "lander")) !== 0) throw new Error("watching the attract flight queued demo_used{lander}");
+
+    // On screen the sim runs; scrolled away it stands still and says the host paused it.
+    const a = (await landerDebug(page)).simTime;
+    await page.waitForTimeout(1500);
+    const b = (await landerDebug(page)).simTime;
+    if (!(b > a)) throw new Error(`the sim clock stood still on screen: ${a} -> ${b}`);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(500);
+    const c = (await landerDebug(page)).simTime;
+    await page.waitForTimeout(1500);
+    const off = await landerDebug(page);
+    if (off.simTime !== c || !off.hostPaused) throw new Error(`scrolled away, the sim moved ${c} -> ${off.simTime} (hostPaused ${off.hostPaused})`);
+    await page.locator("#fig-lander [data-lander-host]").scrollIntoViewIfNeeded();
+    await page.waitForTimeout(1500);
+    const back = await landerDebug(page);
+    if (!(back.simTime > off.simTime) || back.hostPaused) throw new Error(`back on screen the sim did not resume: ${JSON.stringify(back)}`);
+
+    // Stargaze unloads: the worker terminated, the offload counted, nothing
+    // of the lander's fetched while the page is hidden.
+    await waitStargazeReady(page);
+    watchHeavy = true;
+    await stargazeToggle(page).click();
+    await page.waitForFunction(() => (window.__offload?.lander ?? 0) >= 1, null, { timeout: 15000 });
+    const inSky = await page.evaluate(() => ({
+      debug: window.__lander.debug(),
+      workers: window.__landerWorkers.length,
+      terminated: window.__landerWorkers.filter((w) => w.__terminated).length,
+    }));
+    if (inSky.debug !== null) throw new Error("stargaze left a lander mounted");
+    if (inSky.workers < 1 || inSky.terminated !== inSky.workers) throw new Error(`stargaze: ${inSky.terminated} of ${inSky.workers} lander worker(s) terminated`);
+    await page.waitForTimeout(1500);
+    if (heavy.length) throw new Error(`lander runtime or model fetched while stargazing: ${heavy.join(", ")}`);
+    watchHeavy = false;
+
+    // Exit: a fresh mount, the model again (once the panel is back on screen:
+    // entering stargaze from here scrolls the page to the top, a pre-existing
+    // StargazeToggle focus() without preventScroll), in a NEW worker.
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => !document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    const remount = await landerDebug(page);
+    if (!remount || remount.model !== "loading" && remount.model !== "ready") throw new Error(`no lander mounted after stargaze: ${JSON.stringify(remount)}`);
+    await page.locator("#fig-lander [data-lander-host]").scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => window.__lander?.debug()?.model === "ready", null, { timeout: 120000 });
+    const workersAfter = await page.evaluate(() => window.__landerWorkers.length);
+    if (workersAfter !== inSky.workers + 1) throw new Error(`after stargaze ${workersAfter} lander workers exist in all, expected ${inSky.workers + 1}`);
+
+    // A visitor's input (a click on the view takes the controls) counts, once.
+    const canvas = page.locator('#fig-lander [data-lander="root"] canvas').first();
+    await canvas.click();
+    await page.keyboard.down("w");
+    await page.waitForTimeout(600);
+    await page.keyboard.up("w");
+    await page.waitForFunction(
+      () => (window.vaq ?? []).some(([k, ev]) => k === "event" && ev?.name === "demo_used" && ev?.data?.demo === "lander"),
+      null,
+      { timeout: 10000 },
+    );
+    await canvas.click();
+    await page.keyboard.press("w");
+    await page.waitForTimeout(500);
+    if ((await demoEvents(page, "lander")) !== 1) throw new Error(`demo_used{lander} queued ${await demoEvents(page, "lander")} times, expected 1`);
+    await page.keyboard.press("Escape"); // the module's own "release the keys"
+
+    // Leaving the page (the /lab box, a client navigation) unloads it.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.locator("[data-lab-box]").click();
+    await page.waitForURL(`${BASE}/lab`, { timeout: 10000 });
+    await page.waitForFunction(() => window.__landerWorkers.every((w) => w.__terminated), null, { timeout: 10000 });
+
+    const gpu = await page.evaluate(() => !!navigator.gpu);
+    const strange = ortFiles.filter((f) => !LANDER_ORT_PLAIN.has(f) && !(gpu && LANDER_ORT_ASYNCIFY.has(f)));
+    if (strange.length) throw new Error(`the lander fetched an unexpected runtime file (WebGPU ${gpu}): ${[...new Set(strange)].join(", ")}`);
+    if (bad.length) throw new Error(`failed lander request(s): ${bad.join(", ")}`);
+    if (errors.length) throw new Error(`console error(s): ${errors.join(" | ")}`);
+    return `model ready ${loadMs}ms after scrolling to it; canvas ${px.w}x${px.h}, ${px.colours} colours; sim frozen off-screen and while stargazing (worker terminated, nothing fetched), a new worker on return; watching 0 events, input 1; navigation terminated all ${workersAfter}; runtime files ${[...new Set(ortFiles)].join(", ")}`;
+  });
+}
+
+/** 360px, the handoff's phone width: the module flows inside the sheet, no
+ *  horizontal scroll, and nothing it draws reaches past its own box over the
+ *  caption (the guide's fixed 560px box let it paint ~600px past, 2026-10-15). */
+async function checkLander360(browser) {
+  return withPage(browser, { viewport: { width: 360, height: 780 }, hasTouch: true }, async (page) => {
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await openLander(page);
+    const geo = await page.evaluate(() => {
+      const host = document.querySelector("#fig-lander [data-lander-host]");
+      const root = host.querySelector('[data-lander="root"]');
+      const cap = document.querySelector("#fig-lander figcaption");
+      const deepest = [...root.querySelectorAll("*")].reduce((m, e) => Math.max(m, e.getBoundingClientRect().bottom, e.getBoundingClientRect().right > window.innerWidth ? 1e9 : 0), 0);
+      const h = host.getBoundingClientRect();
+      return {
+        scrollW: document.documentElement.scrollWidth,
+        hostBottom: h.bottom,
+        hostRight: h.right,
+        deepest,
+        captionTop: cap.getBoundingClientRect().top,
+      };
+    });
+    if (geo.scrollW > 360) throw new Error(`horizontal scroll at 360px: scrollWidth ${geo.scrollW}`);
+    if (geo.deepest > geo.hostBottom + 0.5) throw new Error(`the lander paints past its box: ${JSON.stringify(geo)}`);
+    if (geo.hostBottom > geo.captionTop + 0.5) throw new Error(`the lander overlaps its caption: ${JSON.stringify(geo)}`);
+    const px = await landerCanvasPixels(page);
+    if (px.colours < 100 || px.lit < 0.5) throw new Error(`the lander's canvas looks blank at 360px: ${JSON.stringify(px)}`);
+    return `no horizontal scroll, the module inside its box (${Math.round(geo.captionTop - geo.hostBottom)}px clear of the caption), canvas ${px.w}x${px.h} with ${px.colours} colours`;
+  });
+}
+
 const CHECKS = [
   ["sky-animates-1280", skyAnimatesAt1280],
   ["sky-static-reduced-motion", skyStaticUnderReducedMotion],
@@ -6552,6 +6772,8 @@ const CHECKS = [
   ["draw-stroke-auto-label", checkDrawAutoLabel],
   ["chess-hint-g3", checkChessHint],
   ["chess-self-play", checkChessSelfPlay],
+  ["lander-mounts", checkLanderMounts],
+  ["lander-360", checkLander360],
   ["ort-runtime-build", checkOrtRuntimeBuild],
   ["draw-ink-survives-height-resize-400", checkDrawInkSurvivesHeightResize],
   ["jepa-seed-query-834", checkJepaSeedQuery834],

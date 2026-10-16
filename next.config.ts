@@ -85,6 +85,17 @@ const nextConfig: NextConfig = {
         source: "/headshot/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
+      {
+        // The Titan lander module (lunar_lander's handoff, copied verbatim to
+        // public/lander/v1/): its entry, worker, chunks, models and its OWN
+        // ORT runtime. Same obligation as /headshot: immutable by convention,
+        // so ANY changed file ships as a new directory (/lander/v2/) with
+        // LANDER_BASE in components/LanderPanel.tsx updated. The COOP/COEP
+        // rule above must keep covering it: under require-corp the worker
+        // script itself needs the header.
+        source: "/lander/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
     ];
   },
 };

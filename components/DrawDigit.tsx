@@ -279,7 +279,9 @@ const FIT_ALPHA = 0.28;
  *  (`--color-ok`), so the model's opinion and your choice stay separable. */
 const FIT_RGB = "217, 164, 91";
 
-export function DrawDigit() {
+/** `n` is the figure number: "S4" on /lab since 2026-10-15 (page 1's
+ *  Figure 5 until the Titan lander took that slot). */
+export function DrawDigit({ n }: { n: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const [hasInk, setHasInk] = useState(false);
@@ -735,7 +737,7 @@ export function DrawDigit() {
 
   return (
     <InstrumentFigure
-      n="5"
+      n={n}
       id="fig-draw"
       caption={copy.systems.draw.figureCaption}
       // The echo outranks the status while it exists: it is the confirmation

@@ -90,7 +90,8 @@ honest limit: the main-thread ORT wasm heap never actually shrinks, only the
 chess worker's termination truly frees memory. `window.__sky` and
 `window.__offload` are verify hooks, not UI.
 
-**Verification: `scripts/verify-redesign.mjs`** — 53 named checks (on `main`
+**Verification: `scripts/verify-redesign.mjs`** — 55 named checks on branch
+`lander-preview` (`lander-mounts`, `lander-360`; see the lander section), 53 named checks (on `main`
 since the 2026-10-01 merge of the `slaac-demo` round; 52 before Task 17, 2026-10-01, added
 `stargaze-secret-door`; the count read 51 here though `colophon` made it 52;
 50 before Task 12c, 2026-10-01, added
@@ -659,6 +660,23 @@ stays `--color-paper` (measured on the build: mean 18.15 vs 18, std ~3 levels)
 and only the texture is new; figure panels (`bg-panel`) cover it. Its filter
 needs `color-interpolation-filters="sRGB"` (linearRGB turned the sheet grey).
 
+**2026-10-15: the Titan lander replaces the draw demo as Figure 5, on branch
+`lander-preview` ONLY (not merged, not deployed; the owner approves every
+outward step).** The owner's lunar_lander project (a Dragonfly-shaped
+rotorcraft on Titan, an autopilot that plans inside a diffusion world model)
+arrived as a PREVIEW handoff
+(`~/Documents/lunar_lander/.claude/worktrees/titan/dist/titan-handoff-preview/`,
+read-only); its module is copied verbatim to `public/lander/v1/` and
+committed (owner call). DrawDigit moved to `/lab` as Figure S4 (owner call),
+its verify checks with it. Owner rulings the same day: the point is
+WATCHING the autopilot land with its predicted trails; the module's own
+controls are a testing UI ("super duper rough") that the site will replace
+with its own, "less buttons"; the models load when the panel is on screen;
+`demo_used` only; Dragonfly contributes only its looks (no NASA review). A
+v2 module ("more reliable") is in training, and the release handoff keeps
+the same layout and `mount()` API. Contracts and measurements: "Titan
+lander (Figure 5)" under the demos.
+
 **Open items, roughly in order:**
 
 The SLAAC round's own, ahead of the list (LIVE on `main` since 2026-10-01):
@@ -795,7 +813,9 @@ and the owner's SOP tell one story.
 
 - **Multi-page, but page 1 delivers ~95% of the experience.** Other pages are
   overflow for the genuinely curious.
-- Page-1 demos: **draw-a-digit and chess**. The trajectory viewer, JEPA and
+- Page-1 demos: **draw-a-digit and chess** (on branch `lander-preview`,
+  2026-10-15: **chess and the Titan lander**, the draw demo moved to `/lab`
+  as S4; this bullet changes on `main` when that branch merges). The trajectory viewer, JEPA and
   sample-space move to **`/lab`** (one page for all of them). Sample-space
   (S3) was then CUT on 2026-09-29 (owner's copy pass): it was the site's one
   hand-built illustration, and it returns only as a real trained 2D model.
@@ -1203,7 +1223,10 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   flight at first paint; each demo's payload loads when its section is reached;
   the 26MB draw model loads on first interaction (and the
   rerouter's 23.4MB model on the first reroute press that has an arc to
-  sample, never in the warm window); ORT+chess (24.4MB) may warm on
+  sample, never in the warm window); the Titan lander (branch
+  `lander-preview`) is the one exception, by owner call: its module fetches
+  its runtime and ~11.6 MB of models when the panel is ON SCREEN, because
+  its attract flight is the demo; ORT+chess (24.4MB) may warm on
   desktop idle, gated by `saveData` / bad `effectiveType` / `deviceMemory < 4` /
   `(max-width: 767px)`, where **absent means unknown, not no** (the connection
   APIs are Chrome-only). All loaders are memoized promises so warm and section
@@ -2222,7 +2245,13 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   hint), `data-chess-self-play-rule` and `data-chess-self-play-took`. The CSS variable `--stargaze-hint-h` is real
   layout, not a hook: the panel and phone names both read it.
 
-### Draw-a-digit (SDEdit, live MNIST diffusion) — page 1
+### Draw-a-digit (SDEdit, live MNIST diffusion) — page 1 (on branch `lander-preview`: /lab, Figure S4)
+- On `lander-preview` (2026-10-15) it renders on `/lab` as S4 (`DrawDigit`
+  takes `n`), its copy still under `copy.systems.draw`, and every draw check
+  starts on `/lab`: `draw-stroke-auto-label`,
+  `draw-ink-survives-height-resize-400`, `stargaze-offload-draw`,
+  `stargaze-during-download`, the draw leg of `ort-runtime-build`, and the
+  draw half of `stargaze-cancels-run` (whose headshot half stays on `/`).
 - Division of labour: all model math lives in `lib/ascii-diffusion.js`, vendored
   from the model repo, pinned against a PyTorch reference (sampler max|Δ| 7.9e-6).
   The site owns canvas, pen, UI, copy. `lib/ascii-diffusion.d.ts` is hand-typed —
@@ -2256,6 +2285,79 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 - **The classifier and generate share one ORT session; running both at once
   corrupts it.** The mutual exclusion runs through `classifyingRef` (synchronous,
   not state). Respect it in any rebuild of this panel.
+
+### Titan lander (Figure 5) — page 1, branch `lander-preview` (PREVIEW, not deployed)
+- **What it is**: the owner's lunar_lander project. A 2D side view of a
+  rotorcraft shaped like NASA's Dragonfly (looks only, owner 2026-10-15)
+  flying hops over generated Titan terrain; a 2.58M-param diffusion model
+  ("the dream") samples the craft's next 3 s from its last 1 s and a plan of
+  rotor commands; the autopilot plans inside it and flies the real physics;
+  the faint trails are sampled futures. A visitor can take the controls
+  through a 2 s round-trip "Earth link", and then the main craft is the
+  dream's average prediction. Facts for copy come only from the handoff's
+  copy notes, for the build being shipped; the preview's numbers (landing
+  rates, the value head's 0.051 ECE, which misses its own < 0.05 gate) do
+  not go on the page.
+- **Pieces**: `public/lander/v1/` (verbatim: `lander.js`, `lander-worker.js`,
+  `chunks/`, `models/`, its OWN `ort/` with both the plain and asyncify
+  pairs, `manifest.json` with every sha256; check a new copy against it);
+  `lib/lander-types.ts` (the module's `lander.d.ts`); `components/LanderPanel.tsx`
+  (client: mount, pause, unload, analytics); `components/LanderFigure.tsx`
+  (server: the figure and caption, `copy.systems.lander`). The module is
+  loaded by an UNBUNDLED dynamic import
+  (`/* webpackIgnore */ /* turbopackIgnore */`, Next 16's lazy-loading doc);
+  verified in the build output as a native `import()` of the template URL.
+  Its worker is created by the module, never by the site.
+- **Versioning**: `/lander/:path*` is immutable for a year (next.config.ts),
+  so ANY changed file ships as `public/lander/v2/` with `LANDER_BASE` moved;
+  `mount` rejects a query string. The COOP/COEP rule must keep covering it:
+  under require-corp the worker script itself needs the header (verified
+  with curl: worker, `.mjs` and `.wasm` all carry COEP, JS and
+  `application/wasm` types). `scripts/sync-ort.mjs` only touches
+  `public/ort/`, so the module's runtime is out of its reach as is.
+- **Its runtime duplicates the site's**: the lander's plain pair is
+  byte-identical (same sha256) to `public/ort/`'s, but at another URL, so a
+  visitor who used chess or the rerouter downloads it again (3.46 MB gz). An
+  `ortBase` option is a request to the lander repo, not a site change: the
+  handoff forbids substituting the site's copies.
+- **Lifecycle**: `DeferredMount` mounts the panel; `lander.js` loads then;
+  the module fetches runtime and models only once on screen. Off-screen
+  (IntersectionObserver, 200px margin) the panel calls `pause()`; the module
+  pauses itself for a hidden tab. **Stargaze unloads it** (owner's default,
+  as chess: only terminating the worker frees memory), and exit remounts it
+  fresh, loading again once on screen. A remount awaits the previous
+  unload. `demo_used {demo: "lander"}` on the module's first
+  `flight_started` (a visitor's input; the attract flight emits nothing, so
+  watching does NOT count, unlike chess self-play). A missing model is the
+  module's business (it flies on a labelled physics predictor); the panel's
+  `failed` line is only a failed import of `lander.js`.
+  `window.__lander` (`debug()`, the module's snapshot or null; `mounts`;
+  `unloads`) and `data-lander-panel`/`data-lander-host` are verify hooks.
+- **⚠️ Its box is AUTO height**, against the handoff guide's 4:3 and phone
+  min-height: the preview module sizes itself to its content (the canvas is
+  16:9 of the width, its controls flow below), and in a fixed box it painted
+  ~430px past the box at 1280 and ~600px at 360, over the caption and the
+  next section (measured 2026-10-15). `lander-360` pins it.
+- **⚠️ Playwright's Firefox cannot fly it** (measured 2026-10-15): a plan
+  round trip takes 5-8 s there against ~0.45-0.55 s in Playwright's Chromium,
+  and the attract autopilot sat on the pad for 2 minutes. Stock Firefox 152
+  (over WebDriver BiDi, headless, wasm path) took off ~4 s after the model
+  was ready and flew, like Chromium. So the autopilot WAITS on the pad when
+  plans are slow; no phone has been measured, and whether a slow phone ever
+  takes off is a question for the lander repo. The verify checks therefore
+  assert lifecycle, never flight.
+- **Checks**: `lander-mounts` (1280: nothing of the lander's before its slot,
+  model ready on screen, non-blank canvas, sim frozen off-screen with
+  `hostPaused`, stargaze unloads with every lander worker terminated and
+  nothing fetched while in, a new worker on return, 0 events from watching
+  and exactly 1 after input, the /lab box's client navigation terminating
+  every worker, runtime files only the plain pair, asyncify only where
+  `navigator.gpu` exists); `lander-360` (touch, 360px: no horizontal scroll,
+  nothing painted past the box, caption clear, non-blank canvas). Proved to
+  bite with one mutant build (no pause; the guide's fixed 560px box): "scrolled
+  away, the sim moved 16.0 -> 17.6 (hostPaused false)" and "the lander paints
+  past its box". The WebKit rule (/wasm only) is checked by hand, since this
+  suite has no WebKit.
 
 ### Headshot diffusion (the author photo) — page 1's masthead
 - The bio's signature piece: the photo is a live sample, not a file. A
@@ -2949,6 +3051,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 | `scripts/slaac-vectors/*.json` | ~2.8 MB | parity vectors from the owner's real modules; never in `public/` |
 | `scripts/slaac-gate/report.{md,json}` | ~240 KB | the gate's decision and per-case table (`rows.jsonl` gitignored) |
 | `public/ort/*` | ~37 MB | onnxruntime-web wasm, vendored, **gitignored**, synced on prebuild |
+| `public/lander/v1/*` | ~49.4 MB | branch `lander-preview`: the Titan lander module, verbatim from lunar_lander's PREVIEW handoff (dream 10.4 MB, value 1.2 MB, its own ORT 1.27.0 runtime 37.8 MB with the asyncify pair, entry and worker ~290 KB); COMMITTED (owner call), so each new version adds a full directory to history |
 
 The JEPA bundle is produced by
 `export.py` in `~/Documents/embedding_jepa/` and copied verbatim; nothing in this
@@ -2968,6 +3071,17 @@ per-file limit). `public/models/flightdiff-*.onnx` and
 torch 2.13 and diffusers 0.38.0, reading the NASA directory by path).
 
 ## Known bugs — open on the live site
+
+0. **Entering stargaze from below the fold scrolls the page to the top**
+   (found 2026-10-15, measured in Playwright Firefox; pre-existing, not
+   fixed). `StargazeToggle.tsx` focuses the exit control on entry with a
+   plain `focus()`, and the toggle sits absolutely at the top of the
+   document, so the page jumps to `scrollY` 0; exit restores focus with
+   `preventScroll`, so the visitor comes back at the top, not where they
+   were. Via the toggle it's invisible (you're at the top to click it); via
+   the footer door or the secret door it loses the reader's place. The
+   Night-sky section's "scroll position survives" is wrong until this is
+   fixed (likely `focus({ preventScroll: true })` on entry, then a check).
 
 Both of v1's draw-demo bugs were fixed on 2026-09-16 (branch
 merged to `main` the same evening); they stay listed until `page_reload`

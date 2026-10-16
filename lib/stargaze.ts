@@ -72,9 +72,9 @@ export function useStargazing(): boolean {
   return useSyncExternalStore(subscribeStargaze, isStargazing, () => false);
 }
 
-export type OffloadKind = "chess" | "draw" | "headshot" | "slaac";
+export type OffloadKind = "chess" | "draw" | "headshot" | "slaac" | "lander";
 
-const offloaded: Record<OffloadKind, number> = { chess: 0, draw: 0, headshot: 0, slaac: 0 };
+const offloaded: Record<OffloadKind, number> = { chess: 0, draw: 0, headshot: 0, slaac: 0, lander: 0 };
 
 /**
  * Called by a loader AFTER it really released a session / terminated a worker.

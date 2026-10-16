@@ -6,6 +6,7 @@ import { DeferredMount } from "@/components/manuscript/DeferredMount";
 import { DiffusionVisualizer } from "@/components/DiffusionVisualizer";
 import { JepaSection } from "@/components/JepaPanel";
 import { FlightFigure } from "@/components/figures/FlightFigure";
+import { DrawDigit } from "@/components/DrawDigit";
 import { copy } from "@/content/copy";
 import type { Metadata } from "next";
 
@@ -15,7 +16,9 @@ export const metadata: Metadata = { alternates: { canonical: "/lab" } };
 // /lab — "Supplementary material": figures that left page 1, re-chromed with
 // logic intact. Figures S1 (trajectory viewer), S2 (JEPA retrieval) and S3
 // (the SLAAC flight-plan LM's synthesized day, Figure 3 on page 1 until the
-// rerouter took that slot, 2026-09-30), each mounting on scroll-in. The old
+// rerouter took that slot, 2026-09-30) and S4 (the live SDEdit draw demo,
+// page 1's Figure 5 until the Titan lander, 2026-10-15), each mounting on
+// scroll-in. The old
 // S3 (the hand-built DDPM vs flow-matching illustration) was cut 2026-09-29
 // at the owner's call; it lives in git history, and comes back only as a real
 // trained 2D model. Adding or removing a figure here means updating
@@ -63,6 +66,13 @@ export default function LabPage() {
 
         <DeferredMount>
           <FlightFigure n="S3" id="flight" heading={copy.lab.flight.heading} lede={copy.lab.flight.lede} />
+        </DeferredMount>
+
+        {/* S4 since 2026-10-15: the live SDEdit draw demo, page 1's Figure 5
+            until the Titan lander took that slot. Unchanged otherwise; its
+            26 MB model still loads on the first stroke. */}
+        <DeferredMount>
+          <DrawDigit n="S4" />
         </DeferredMount>
 
         <StargazeFooterEntry />

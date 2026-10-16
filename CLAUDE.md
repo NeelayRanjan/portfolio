@@ -90,8 +90,10 @@ honest limit: the main-thread ORT wasm heap never actually shrinks, only the
 chess worker's termination truly frees memory. `window.__sky` and
 `window.__offload` are verify hooks, not UI.
 
-**Verification: `scripts/verify-redesign.mjs`** — 55 named checks on branch
-`lander-preview` (`lander-mounts`, `lander-360`; see the lander section), 53 named checks (on `main`
+**Verification: `scripts/verify-redesign.mjs`** — 56 named checks on branch
+`lander-preview` (`lander-mounts`, `lander-360`; see the lander section; all
+56 passed there on 2026-10-15), 54 on `main` (counted from the CHECKS array
+on 2026-10-15; this line read 53, already stale), 53 named checks (on `main`
 since the 2026-10-01 merge of the `slaac-demo` round; 52 before Task 17, 2026-10-01, added
 `stargaze-secret-door`; the count read 51 here though `colophon` made it 52;
 50 before Task 12c, 2026-10-01, added
@@ -2357,7 +2359,20 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   bite with one mutant build (no pause; the guide's fixed 560px box): "scrolled
   away, the sim moved 16.0 -> 17.6 (hostPaused false)" and "the lander paints
   past its box". The WebKit rule (/wasm only) is checked by hand, since this
-  suite has no WebKit.
+  suite has no WebKit. It was run by hand in Playwright 1.63's WebKit, through the
+  lander repo's own route, the Playwright v1.63 container under podman
+  (`mcr.microsoft.com/playwright:v1.63.0-noble`, `--network=host`, that
+  repo's `node_modules` mounted read-only at `/x/node_modules`): at 1280 and
+  360 only the manifest and the plain pair were fetched, no failed request,
+  no console error, and the autopilot climbed to ~35 m (2026-10-15).
+- **A side effect on `slaac-all-flights`** (2026-10-15): the longer /lab
+  teaser made the page above Figure 3 18px taller and moved the canvas
+  0.8px, and the check's pick click, on a leg KJFK-KMIA-1 shares with
+  KJFK-KMIA-2, flipped to the sibling, which had too few clear points (3 of
+  3 runs on the branch; `main` passed with KJFK-KMIA-1). No rerouted flight
+  has a sample point 10px clear of every other line at this density, so the
+  check now clicks candidate points until the figure's own pick is the
+  flight aimed at (2 clicks, measured), then samples as before.
 
 ### Headshot diffusion (the author photo) — page 1's masthead
 - The bio's signature piece: the photo is a live sample, not a file. A

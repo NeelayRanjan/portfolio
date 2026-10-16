@@ -2238,13 +2238,35 @@ async function checkSlaacAllFlights(browser) {
       }
       return out;
     };
-    const target = done.flights
+    // Click until the pick is the flight the click aimed at. Sibling routes
+    // share legs, and on a shared leg the pick is a near-tie that a sub-pixel
+    // layout shift above the figure decides: an 18px taller masthead
+    // (2026-10-15) moved the canvas 0.8px and flipped KJFK-KMIA-1's first
+    // point to KJFK-KMIA-2, which had too few clear points to sample. At this
+    // density no rerouted flight has a point 10px clear of every other line,
+    // so geometry alone can't choose; the figure's own pick is asked instead,
+    // over each candidate's sample points, most points first. If no click
+    // lands on its aim, the last pick stands and the picked-sibling branch
+    // below samples that flight, as before.
+    const candidates = done.flights
       .filter((f) => f.status === "ok" && f.roles.includes("deviation"))
       .map((f) => ({ id: f.id, pts: samplesFor(f.id) }))
-      .sort((x, y) => y.pts.length - x.pts.length)[0];
-    if (!target || target.pts.length < 3) throw new Error(`no rerouted flight has 3 filed-route points clear of its plan and the airspace (best ${target?.id}: ${target?.pts.length})`);
-    await page.mouse.click(box.x + target.pts[0][0], box.y + target.pts[0][1]);
-    await page.waitForTimeout(200);
+      .filter((t) => t.pts.length >= 3)
+      .sort((x, y) => y.pts.length - x.pts.length);
+    if (!candidates.length) throw new Error("no rerouted flight has 3 filed-route points clear of its plan and the airspace");
+    let target = candidates[0];
+    let clicks = 0;
+    aim: for (const t of candidates.slice(0, 6)) {
+      for (const p of t.pts) {
+        await page.mouse.click(box.x + p[0], box.y + p[1]);
+        await page.waitForTimeout(200);
+        clicks++;
+        if ((await rerouteStatus(page)).picked === t.id) {
+          target = t;
+          break aim;
+        }
+      }
+    }
     st = await rerouteStatus(page);
     if (!st.picked) throw new Error("a click on a flight's filed route picked nothing");
     const pickedPair = st.picked.split("-").slice(0, 2).join(" → ");
@@ -2318,7 +2340,7 @@ async function checkSlaacAllFlights(browser) {
     if ((await demoEvents(page, "slaac")) !== 1) throw new Error(`demo_used{slaac} ${await demoEvents(page, "slaac")}x after a stop`);
     if (errors.length) throw new Error(`console errors: ${errors.join(" | ")}`);
     const stopNote = `stop sent cancel for run ${stoppedRun}, its progress ${p0} then ${p1} after 3 s`;
-    const pickNote = `pick: ${redPicked.filter(Boolean).length}/${samples.length} filed-route points red, 0 after clearing`;
+    const pickNote = `pick (${target.id}, ${clicks} click(s) to land on its aim): ${redPicked.filter(Boolean).length}/${samples.length} filed-route points red, 0 after clearing`;
     return `${pickNote}; ${stopNote}; all flights (${total}) by default, amber, ${want} arcs planned (= this script's planner); one press: ${want} unique arcs in ${(done.ms / 1000).toFixed(1)} s, ${sum.affected} near airspace, ${sum.rerouted} rerouted, ${sum.cannotClear} can't clear, summary = summarizeFlights, button ${green ? "green" : "amber"}; picked ${pickedPair} on the map; margin 30 went stale and a stopped press returned to it (states ${states.join(" > ")}), no done, demo_used once`;
   });
 }

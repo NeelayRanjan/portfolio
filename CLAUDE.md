@@ -2323,6 +2323,13 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   fault buttons) are gone from the library build. v1 was replaced IN PLACE
   in `public/lander/v1/` (never deployed, so no visitor cache held it);
   from the first deploy on, a change ships as a new directory.
+- **⚠️ Who owns what (owner call, 2026-10-16): the UI is designed and
+  built HERE, in this repo, not by the lander session.** The lander repo
+  supplies the canvas engine, the models and the `mount()` API; every
+  interface decision (controls, readouts, copy, layout, which options to
+  pass) is this session's to make with the owner. Send the lander session
+  a request only for what the API can't reach (canvas drawing, the
+  camera, the planner, new options), and keep those few and concrete.
 - **The site's UI** (owner rulings, 2026-10-16, "watch first"): the
   attract flight runs on its own; under the canvas a wind segmented control
   (calm / breezy / strong / beyond predicted; picking one flies a fresh hop
@@ -2398,9 +2405,11 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   and 45 s) and REMOUNTS when the breakpoint is crossed (the flight in
   progress is lost; rotating a tablet is the only common way to cross it).
   An amber edge chevron points at an off-screen target (the module's, in
-  the `readout` colour). At 360 the target's label ("interdune organics
-  (illustrative)") runs past the canvas's right edge: the lander repo's to
-  fix, reported 2026-10-16.
+  the `readout` colour). Target labels stay inside the canvas since build
+  99c9a9d (2026-10-16): right of the flag where it fits, else flipped left,
+  else wrapped to two lines; checked at 360 over a whole hop (a wrapped
+  label stacks upward unchecked against the canvas top, which the lander
+  repo flags as rare at these settings).
 - **Lifecycle**: `DeferredMount` mounts the panel; `lander.js` loads then;
   the module fetches runtime and models only once on screen. Off-screen
   (IntersectionObserver, 200px margin) the panel calls `pause()`; the module

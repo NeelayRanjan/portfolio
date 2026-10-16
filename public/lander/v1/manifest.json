@@ -1,7 +1,7 @@
 {
   "name": "titan-lander",
   "version": "0.1.0",
-  "gitSha": "5a2caac18adb23275ecbab63beed1dbbe746bfde",
+  "gitSha": "99c9a9d02d144ccfe5e207cc3ab61e9efe00755e",
   "ortVersion": "1.27.0",
   "models": {
     "dir": "runs/preview-models",
@@ -39,8 +39,8 @@
     },
     {
       "path": "lander.js",
-      "bytes": 163108,
-      "sha256": "14d44d2068c0d38d8a66818ed3e6e26e54b36e08177ea6429a7613a95a1973df"
+      "bytes": 163855,
+      "sha256": "9a2dbf80d1c5285e377121585e0c42a118b3219b3008e98586ca3198e3cf02f5"
     },
     {
       "path": "models/dream.onnx",

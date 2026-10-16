@@ -2411,14 +2411,14 @@ function Ri(e, t, n, r, i) {
 	let l = e.createLinearGradient(0, 0, 0, n);
 	l.addColorStop(0, o.skyTop), l.addColorStop(1, o.skyHorizon), e.fillStyle = l, e.fillRect(0, 0, t, n), e.setTransform(r * c, 0, 0, -r * c, r * (t / 2 - s.cx * c), r * (n / 2 + s.cy * c));
 	let u = s.cx - s.width / 2 - 2, d = s.cx + s.width / 2 + 2, f = s.cy - n / c;
-	Ui(e, i.map, u, d, f, c, o), Wi(e, i, u, d, c, o), Ji(e, i, c, a), i.streaks?.draw(e, i.field, c, o.streak), Ii(e, i.display, {
+	Ui(e, i.map, u, d, f, c, o), Wi(e, i, u, d, c, o), Qi(e, i, c, a, t, n), i.streaks?.draw(e, i.field, c, o.streak), Ii(e, i.display, {
 		sF: i.display.sF,
 		sR: i.display.sR,
 		weak: i.weak,
 		vector: i.vector,
 		scale: c,
 		colors: Pi(o, i.tint ?? "craft")
-	}), Yi(e, i.display.x, u, d, f, s.cy + n / c, o), e.setTransform(r, 0, 0, r, 0, 0);
+	}), $i(e, i.display.x, u, d, f, s.cy + n / c, o), e.setTransform(r, 0, 0, r, 0, 0);
 }
 var X = {
 	x: 8,
@@ -2531,14 +2531,43 @@ function qi(e, t, n, r, i, a = []) {
 	let [o, s] = t.camera.toScreen(t.targetX, P(t.map, t.targetX), n, r), c = Ki(o, s, n, r, a);
 	c && (e.fillStyle = i.target, e.beginPath(), e.moveTo(...c[0]), e.lineTo(...c[1]), e.lineTo(...c[2]), e.closePath(), e.fill());
 }
-function Ji(e, t, n, r) {
-	let i = r.palette, a = H(i.target, Li.targetDim);
-	for (let o of t.map.targets) {
-		let s = Math.abs(o.x - t.targetX) < 1e-6, c = P(t.map, o.x), l = 18 / n + 3;
-		e.strokeStyle = s ? i.target : a, e.fillStyle = s ? i.target : a, e.lineWidth = 1.5 / n, e.beginPath(), e.moveTo(o.x, c), e.lineTo(o.x, c + l), e.stroke(), e.beginPath(), e.moveTo(o.x, c + l), e.lineTo(o.x + 10 / n + 1.5, c + l - 5 / n - .8), e.lineTo(o.x, c + l - 10 / n - 1.6), e.closePath(), e.fill(), s && (e.beginPath(), e.moveTo(o.x - 1, P(t.map, o.x - 1) + .5), e.lineTo(o.x - 1, P(t.map, o.x - 1)), e.lineTo(o.x + 1, P(t.map, o.x + 1)), e.lineTo(o.x + 1, P(t.map, o.x + 1) + .5), e.stroke()), r.text && (e.save(), e.translate(o.x + 2 / n, c + l + 4 / n), e.scale(1 / n, -1 / n), e.font = "11px system-ui, sans-serif", e.fillText(yr(r.text.targetLabel, { label: o.label }), 0, 0), e.restore());
+var Ji = 4, Yi = 2, Xi = 13;
+function Zi(e, t, n, r, i = Ji, a = Yi) {
+	let o = {
+		side: "right",
+		lines: [t],
+		dx: a
+	}, s = r(t);
+	if (!Number.isFinite(s) || !(e >= 0 && e <= n)) return o;
+	let c = n - i - Math.max(e + a, i), l = Math.min(e - a, n - i) - i;
+	return s <= c ? e + a >= i ? o : {
+		...o,
+		dx: i - e
+	} : s <= l ? {
+		side: "left",
+		lines: [t],
+		dx: -a
+	} : c >= l ? {
+		side: "right",
+		lines: Mi(t, c, r),
+		dx: Math.max(a, i - e)
+	} : {
+		side: "left",
+		lines: Mi(t, l, r),
+		dx: -a
+	};
+}
+function Qi(e, t, n, r, i, a) {
+	let o = r.palette, s = H(o.target, Li.targetDim);
+	for (let c of t.map.targets) {
+		let l = Math.abs(c.x - t.targetX) < 1e-6, u = P(t.map, c.x), d = 18 / n + 3;
+		if (e.strokeStyle = l ? o.target : s, e.fillStyle = l ? o.target : s, e.lineWidth = 1.5 / n, e.beginPath(), e.moveTo(c.x, u), e.lineTo(c.x, u + d), e.stroke(), e.beginPath(), e.moveTo(c.x, u + d), e.lineTo(c.x + 10 / n + 1.5, u + d - 5 / n - .8), e.lineTo(c.x, u + d - 10 / n - 1.6), e.closePath(), e.fill(), l && (e.beginPath(), e.moveTo(c.x - 1, P(t.map, c.x - 1) + .5), e.lineTo(c.x - 1, P(t.map, c.x - 1)), e.lineTo(c.x + 1, P(t.map, c.x + 1)), e.lineTo(c.x + 1, P(t.map, c.x + 1) + .5), e.stroke()), !r.text) continue;
+		e.save(), e.font = "11px system-ui, sans-serif";
+		let f = yr(r.text.targetLabel, { label: c.label }), [p] = t.camera.toScreen(c.x, u, i, a), m = Zi(p, f, i, (t) => e.measureText(t).width);
+		e.translate(c.x + m.dx / n, u + d + 4 / n), e.scale(1 / n, -1 / n), m.side === "left" && (e.textAlign = "right"), m.lines.forEach((t, n) => e.fillText(t, 0, (n - (m.lines.length - 1)) * Xi)), e.restore();
 	}
 }
-function Yi(e, t, n, r, i, a, o) {
+function $i(e, t, n, r, i, a, o) {
 	for (let s of [-1, 1]) {
 		let c = e.createLinearGradient(t + s * 100, 0, t + s * 400, 0);
 		c.addColorStop(0, H(o.haze, 0)), c.addColorStop(1, H(o.haze, Li.hazeFar)), e.fillStyle = c;
@@ -2546,7 +2575,7 @@ function Yi(e, t, n, r, i, a, o) {
 		u > l && e.fillRect(l, i, u - l, a - i);
 	}
 }
-var Xi = [2, 6], Zi = 1.5, Qi = class {
+var ea = [2, 6], ta = 1.5, na = class {
 	rng;
 	count;
 	streaks = [];
@@ -2559,7 +2588,7 @@ var Xi = [2, 6], Zi = 1.5, Qi = class {
 			x: n,
 			y: r + Math.max(0, e.top - r) * this.rng.next(),
 			age: 0,
-			life: Xi[0] + (Xi[1] - Xi[0]) * this.rng.next()
+			life: ea[0] + (ea[1] - ea[0]) * this.rng.next()
 		};
 	}
 	reset() {
@@ -2583,11 +2612,11 @@ var Xi = [2, 6], Zi = 1.5, Qi = class {
 			let [i, a] = t(n.x, n.y), o = Math.hypot(i, a);
 			if (o < .001) continue;
 			let s = Math.min(1, n.age / .4, (n.life - n.age) / .4);
-			e.strokeStyle = H(r, Number((Math.max(0, s) * Math.min(.7, .2 + o / 6)).toFixed(3))), e.beginPath(), e.moveTo(n.x, n.y), e.lineTo(n.x - i * Zi, n.y - a * Zi), e.stroke();
+			e.strokeStyle = H(r, Number((Math.max(0, s) * Math.min(.7, .2 + o / 6)).toFixed(3))), e.beginPath(), e.moveTo(n.x, n.y), e.lineTo(n.x - i * ta, n.y - a * ta), e.stroke();
 		}
 	}
 };
-function $i(e, t) {
+function ra(e, t) {
 	let n = new URL(e.assetBase, t).href, r = typeof window < "u" && typeof window.matchMedia == "function" ? window.matchMedia : null;
 	return {
 		...e,
@@ -2597,17 +2626,17 @@ function $i(e, t) {
 		ui: e.ui ?? "full"
 	};
 }
-function ea(e, t) {
+function ia(e, t) {
 	return Cn(e.world, e.link, t);
 }
-function ta(e, t) {
+function aa(e, t) {
 	let n = e.world, r = e.link.downlinkStep(t), i = r < n.records.length ? n.records[r] : null, a = i ? {
 		state: i.state,
 		onGround: i.onGround
 	} : {
 		state: n.state,
 		onGround: n.onGround
-	}, o = i ? i.faultBits : ke(n.faults, n.step), s = yt(n.map, a, o, r, ea(e, t)), c = s[Math.min(s.length - 1, t + 10 - r - 1)].state;
+	}, o = i ? i.faultBits : ke(n.faults, n.step), s = yt(n.map, a, o, r, ia(e, t)), c = s[Math.min(s.length - 1, t + 10 - r - 1)].state;
 	return {
 		x: c.x,
 		y: c.y,
@@ -2620,11 +2649,11 @@ function ta(e, t) {
 		energyEst: c.energyEst
 	};
 }
-function na(e, t) {
+function oa(e, t) {
 	let n = e.world;
 	return e.mode === "autopilot" ? n.knowledge() : Ot(n.revealedAt, n.hazardFrom, e.link.downlinkStep(t));
 }
-function ra(e, t) {
+function sa(e, t) {
 	if (e.mode === "autopilot") return {
 		pose: Sn(e.world, t),
 		source: "onboard",
@@ -2636,13 +2665,13 @@ function ra(e, t) {
 		source: "downlink",
 		age: 0
 	};
-	let r = Math.floor(t), a = t - r, o = ta(e, r);
+	let r = Math.floor(t), a = t - r, o = aa(e, r);
 	if (a < 1e-9) return {
 		pose: o,
 		source: "fallback",
 		age: -10 * i
 	};
-	let s = ta(e, r + 1), c = lt(o, s, a), l = (e, t) => e + (t - e) * a;
+	let s = aa(e, r + 1), c = lt(o, s, a), l = (e, t) => e + (t - e) * a;
 	return {
 		pose: {
 			...c,
@@ -2654,13 +2683,13 @@ function ra(e, t) {
 		age: -10 * i
 	};
 }
-function ia(e) {
+function ca(e) {
 	return e.source === "predicted" ? "model" : e.source === "fallback" ? "baseline" : "craft";
 }
-function aa(e, t) {
-	return new oa(e, t);
+function la(e, t) {
+	return new ua(e, t);
 }
-var oa = class {
+var ua = class {
 	doc;
 	opts;
 	style;
@@ -2678,7 +2707,7 @@ var oa = class {
 		groundY: 0,
 		h: 0
 	};
-	streaks = new Qi(j(87));
+	streaks = new na(j(87));
 	listeners = new AbortController();
 	reasons = /* @__PURE__ */ new Set();
 	chainState = nn(1);
@@ -2719,7 +2748,7 @@ var oa = class {
 		injectFault: (e) => this.afterStart(() => this.injectFault(e))
 	};
 	constructor(e, t) {
-		this.doc = e.ownerDocument, this.opts = $i(t, this.doc.baseURI);
+		this.doc = e.ownerDocument, this.opts = ra(t, this.doc.baseURI);
 		let n = this.opts.theme && Object.keys(this.opts.theme).length > 0 ? this.opts.theme : void 0;
 		this.theme = Object.freeze(n ? _r(n, vr(this.doc)) : {}), this.style = gr(this.theme, this.opts.text === void 0 ? V : this.opts.text, this.opts.inset ?? !0), this.camera = new Bn(this.opts.zoom ?? 1), this.features = [...t.features ?? []];
 		let r = this.doc, i = (e, t, n) => e.addEventListener(t, n, { signal: this.listeners.signal });
@@ -2887,7 +2916,7 @@ var oa = class {
 			liveWind: [],
 			faultRng: () => m.int(2)
 		};
-		this.current = h, this.mode = e.mode, this.input.reset(), this.clock.reset(), this.camera.reset(), this.streaks = new Qi(j(o).fork(87)), this.chrome?.flightStarted({
+		this.current = h, this.mode = e.mode, this.input.reset(), this.clock.reset(), this.camera.reset(), this.streaks = new na(j(o).fork(87)), this.chrome?.flightStarted({
 			hop: i,
 			mode: e.mode,
 			baseLevel: this.chainState.baseLevel
@@ -2898,7 +2927,7 @@ var oa = class {
 	setMode(e) {
 		this.mode = e;
 		let t = this.current;
-		t && t.mode !== e && (t.mode = e, t.knowledge = na(t, t.groundStep), this.chrome?.setMode(e), e === "manual" && (t.attract = !1), this.signal({
+		t && t.mode !== e && (t.mode = e, t.knowledge = oa(t, t.groundStep), this.chrome?.setMode(e), e === "manual" && (t.attract = !1), this.signal({
 			type: "mode",
 			flightId: t.flightId,
 			mode: e
@@ -2973,7 +3002,7 @@ var oa = class {
 			let r = n.displayPose?.(e, t);
 			if (r) return r;
 		}
-		return ra(e, t);
+		return sa(e, t);
 	}
 	addReason(e) {
 		if (this.dead || this.reasons.has(e)) return;
@@ -3026,7 +3055,7 @@ var oa = class {
 			for (let t of this.features) t.afterStep?.(e);
 			this.recordTarget(e), t.done && (e.contactAt = t.step);
 		}
-		e.groundStep++, e.knowledge = na(e, e.groundStep), t.done && e.groundStep >= e.contactAt + (e.mode === "manual" ? 10 : 0) ? this.end(e) : t.done && this.chrome?.setStatus("Touchdown awaiting confirmation…");
+		e.groundStep++, e.knowledge = oa(e, e.groundStep), t.done && e.groundStep >= e.contactAt + (e.mode === "manual" ? 10 : 0) ? this.end(e) : t.done && this.chrome?.setStatus("Touchdown awaiting confirmation…");
 	}
 	recordTarget(e) {
 		let t = e.world;
@@ -3109,7 +3138,7 @@ var oa = class {
 				streaks: this.opts.reducedMotion ? null : this.streaks,
 				field: _,
 				style: this.style,
-				tint: this.featureState(e).planner === "simple-pilot" ? "baseline" : ia(u)
+				tint: this.featureState(e).planner === "simple-pilot" ? "baseline" : ca(u)
 			});
 			let t = {
 				flight: e,
@@ -3202,11 +3231,11 @@ var oa = class {
 		let e = this.current;
 		!this.dead && e && this.opts.onState && this.opts.onState(this.stateOf(e, this.shown(e)));
 	}
-}, sa = /\b(iPhone|iPad|iPod)\b/, ca = /Chrom(e|ium)\//;
-function la(e, t) {
-	return sa.test(e) || /Macintosh/.test(e) && t > 1 ? !0 : /AppleWebKit\//.test(e) ? !ca.test(e) : !1;
+}, da = /\b(iPhone|iPad|iPod)\b/, fa = /Chrom(e|ium)\//;
+function pa(e, t) {
+	return da.test(e) || /Macintosh/.test(e) && t > 1 ? !0 : /AppleWebKit\//.test(e) ? !fa.test(e) : !1;
 }
-function ua(e = globalThis.location?.search ?? "") {
+function ma(e = globalThis.location?.search ?? "") {
 	let t = globalThis.navigator, n = null;
 	try {
 		let t = new URLSearchParams(e).get("backend");
@@ -3221,8 +3250,8 @@ function ua(e = globalThis.location?.search ?? "") {
 		override: n
 	};
 }
-async function da(e = ua()) {
-	if (la(e.ua, e.maxTouchPoints)) return "wasm";
+async function ha(e = ma()) {
+	if (pa(e.ua, e.maxTouchPoints)) return "wasm";
 	if (e.override) return e.override;
 	if (!e.gpu) return "wasm";
 	let t;
@@ -3245,15 +3274,15 @@ function Q(e, t) {
 	let n = e[t];
 	return (typeof n != "number" || !Number.isFinite(n)) && Z(`${t} must be a finite number`), n;
 }
-function fa(e, t, n, r = !1) {
+function ga(e, t, n, r = !1) {
 	(!Array.isArray(e) || e.length !== t) && Z(`${n} must have length ${t}`);
 	for (let t of e) (typeof t != "number" || !Number.isFinite(t)) && Z(`${n} has a non-finite entry`), r && !(t > 0) && Z(`${n} must be > 0`);
 	return e;
 }
-function pa(e, t, n, r, i = !1) {
-	return (!Array.isArray(e) || e.length !== t) && Z(`${r} must have ${t} rows`), e.map((e, t) => fa(e, n, `${r}[${t}]`, i));
+function _a(e, t, n, r, i = !1) {
+	return (!Array.isArray(e) || e.length !== t) && Z(`${r} must have ${t} rows`), e.map((e, t) => ga(e, n, `${r}[${t}]`, i));
 }
-function ma(e) {
+function va(e) {
 	(typeof e != "object" || !e) && Z("windGrid missing");
 	let t = e, n = {
 		nx: 16,
@@ -3266,10 +3295,10 @@ function ma(e) {
 		"dx",
 		"scale"
 	]) Q(t, e) !== n[e] && Z(`windGrid.${e} is ${String(t[e])}, constants.ts says ${n[e]}`);
-	let r = fa(t.dz, n.dz.length, "windGrid.dz");
+	let r = ga(t.dz, n.dz.length, "windGrid.dz");
 	return r.some((e, t) => e !== n.dz[t]) && Z(`windGrid.dz is [${r.join(", ")}], constants.ts says [${n.dz.join(", ")}]`), n;
 }
-function ha(e) {
+function ya(e) {
 	(typeof e != "object" || !e) && Z("not an object");
 	let t = e;
 	t.version !== 1 && Z(`unsupported version ${String(t.version)}`);
@@ -3281,7 +3310,7 @@ function ha(e) {
 		["statDim", 135],
 		["ctxDim", 193]
 	]) Q(t, e) !== n && Z(`${e} is ${String(t[e])}, constants.ts says ${n}`);
-	let n = ma(t.windGrid);
+	let n = va(t.windGrid);
 	Q(t, "e0") !== 2e6 && Z(`e0 is ${String(t.e0)}, constants.ts says ${w} (energyEst is scaled by it)`);
 	let r = t.stepsDefault;
 	r || Z("stepsDefault missing");
@@ -3308,10 +3337,10 @@ function ha(e) {
 		ctxDim: 193,
 		windGrid: n,
 		e0: w,
-		histMean: fa(t.histMean, 10, "histMean"),
-		histStd: fa(t.histStd, 10, "histStd", !0),
-		futMean: pa(t.futMean, 30, 10, "futMean"),
-		futStd: pa(t.futStd, 30, 10, "futStd", !0),
+		histMean: ga(t.histMean, 10, "histMean"),
+		histStd: ga(t.histStd, 10, "histStd", !0),
+		futMean: _a(t.futMean, 30, 10, "futMean"),
+		futStd: _a(t.futStd, 30, 10, "futStd", !0),
 		sigmaMin: i,
 		sigmaMax: a,
 		rho: Q(t, "rho"),
@@ -3330,23 +3359,23 @@ function ha(e) {
 		...s === void 0 ? {} : { skipS0: s }
 	};
 }
-function ga(e) {
+function ba(e) {
 	return (e.headers.get("content-type") ?? "").includes("text/html");
 }
-async function _a(e, t) {
+async function xa(e, t) {
 	try {
 		let n = await t(`${e}dream.onnx`, { method: "HEAD" });
-		if (!n.ok || ga(n)) return {
+		if (!n.ok || ba(n)) return {
 			ok: !1,
 			reason: "missing"
 		};
 		let r = await t(`${e}dream_meta.json`);
-		return !r.ok || ga(r) ? {
+		return !r.ok || ba(r) ? {
 			ok: !1,
 			reason: "missing"
 		} : {
 			ok: !0,
-			ghostSteps: ha(await r.json()).stepsDefault.ghost
+			ghostSteps: ya(await r.json()).stepsDefault.ghost
 		};
 	} catch {
 		return {
@@ -3355,7 +3384,7 @@ async function _a(e, t) {
 		};
 	}
 }
-var va = class {
+var Sa = class {
 	deps;
 	onGhosts = null;
 	onValue = null;
@@ -3456,7 +3485,7 @@ var va = class {
 		}), e.terminate()), this._fail = null, this.set("unloaded");
 	}
 	async doLoad(e, t, n, r, i) {
-		let a = await _a(t.modelsBase, this.deps.fetch);
+		let a = await xa(t.modelsBase, this.deps.fetch);
 		if (e !== this.gen) return null;
 		if (!a.ok) return this.failWith(a.reason), null;
 		let o;
@@ -3628,17 +3657,17 @@ var va = class {
 };
 //#endregion
 //#region src/runtime/session.ts
-function ya() {
+function Ca() {
 	return {
 		fetch: (e, t) => fetch(e, t),
-		selectBackend: () => da()
+		selectBackend: () => ha()
 	};
 }
-function ba(e) {
+function wa(e) {
 	return e === "ready" ? "ready" : e === "failed" || e === "unloaded" ? "absent" : "loading";
 }
-function xa(e, t = ya()) {
-	let n = /* @__PURE__ */ new Set(), r = new va({
+function Ta(e, t = Ca()) {
+	let n = /* @__PURE__ */ new Set(), r = new Sa({
 		createWorker: () => {
 			if (!e) throw Error("dream session: no worker factory (AppOptions.createWorker)");
 			return e();
@@ -3688,7 +3717,7 @@ function xa(e, t = ya()) {
 		}
 	};
 }
-var Sa = class {
+var Ea = class {
 	host;
 	opts;
 	phase = "idle";
@@ -3729,11 +3758,11 @@ var Sa = class {
 };
 //#endregion
 //#region src/ui/attractFeature.ts
-function Ca() {
+function Da() {
 	let e = globalThis.matchMedia;
 	return e ? e("(prefers-reduced-motion: reduce)").matches : !1;
 }
-function wa(e = {}) {
+function Oa(e = {}) {
 	let t = e.now ?? (() => performance.now() / 1e3), n = null, r = null, i = null, a = null, o = !1, s = null, c = !1, l = null, u = () => {
 		let e = l?.flight();
 		n?.phase === "attract" && e && !e.attract && !e.ended && n.takeControls();
@@ -3744,7 +3773,7 @@ function wa(e = {}) {
 	};
 	return {
 		mount(t, s) {
-			l = s, c = s.opts.reducedMotion ?? Ca(), n = new Sa({
+			l = s, c = s.opts.reducedMotion ?? Da(), n = new Ea({
 				startAttract: (e) => {
 					s.startFlight({
 						hop: 1,
@@ -3805,7 +3834,7 @@ function wa(e = {}) {
 }
 //#endregion
 //#region src/ghosts/ghosts.ts
-function Ta(e) {
+function ka(e) {
 	return {
 		x: e.x,
 		y: e.y,
@@ -3818,28 +3847,28 @@ function Ta(e) {
 		energyEst: e.energyEst
 	};
 }
-function Ea(e, t) {
+function Aa(e, t) {
 	return t >= e.step ? e.state : e.records[t].state;
 }
-function Da(e, t) {
+function ja(e, t) {
 	return Ot(e.revealedAt, e.hazardFrom, t);
 }
-function Oa(e, t) {
+function Ma(e, t) {
 	return t < e.step ? e.records[t].faultBits : ke(e.faults, e.step);
 }
-function ka(e, t) {
+function Na(e, t) {
 	if (!e.armed) return !1;
 	let n = Math.min(t, e.step);
-	for (let t = 0; t <= n; t++) if (L(Ea(e, t), e.map) >= 1) return !0;
+	for (let t = 0; t <= n; t++) if (L(Aa(e, t), e.map) >= 1) return !0;
 	return n >= e.step;
 }
-function Aa(e, t, n, r) {
+function Pa(e, t, n, r) {
 	if (t < 9 || t > e.step || t < 10 && !e.records[0]?.onGround) return null;
 	let i = [];
 	for (let n = t - 10 + 1; n <= t; n++) {
 		let t = n === 0 ? null : e.records[n - 1].cmd;
 		i.push({
-			row: Ta(Ea(e, n)),
+			row: ka(Aa(e, n)),
 			cmd: t ? {
 				front: t.front,
 				rear: t.rear
@@ -3849,11 +3878,11 @@ function Aa(e, t, n, r) {
 	return {
 		step: t,
 		hist: i,
-		faultBits: Oa(e, t),
+		faultBits: Ma(e, t),
 		level: e.level,
 		targetX: e.targetX,
-		knowledge: Da(e, t),
-		armed: ka(e, t),
+		knowledge: ja(e, t),
+		armed: Na(e, t),
 		given: n.map((e) => ({
 			front: e.front,
 			rear: e.rear
@@ -3864,19 +3893,19 @@ function Aa(e, t, n, r) {
 		}
 	};
 }
-function ja(e, t) {
-	return Aa(e, e.step, [], t);
+function Fa(e, t) {
+	return Pa(e, e.step, [], t);
 }
-function Ma(e, t) {
+function Ia(e, t) {
 	let n = e.step, r = t.downlinkStep(n);
 	if (r !== n - 10) return null;
 	let i = Cn(e, t, n);
-	return Aa(e, r, i, i[i.length - 1]);
+	return Pa(e, r, i, i[i.length - 1]);
 }
-function Na(e, t) {
+function La(e, t) {
 	return (Math.imul(e ^ 2654435769, 2246822507) ^ Math.imul(t + 1, 3266489909)) >>> 0;
 }
-var Pa = class {
+var Ra = class {
 	req;
 	cfg = null;
 	paused = !1;
@@ -3905,14 +3934,14 @@ var Pa = class {
 	}
 	onStep(e, t, n) {
 		if (e.contact !== null || !this.cfg || this.paused || n !== "manual" || e.step - this.lastStep < 5) return !1;
-		let r = Ma(e, t);
+		let r = Ia(e, t);
 		if (!r) return !1;
 		this.lastStep = e.step;
 		let i = {
 			...r,
 			flightId: this.flightId
 		};
-		return this.req.requestGhosts(i, this.cfg.n, this.cfg.steps, Na(this.seedBase, e.step), this.cfg.k), !0;
+		return this.req.requestGhosts(i, this.cfg.n, this.cfg.steps, La(this.seedBase, e.step), this.cfg.k), !0;
 	}
 	accept(e) {
 		return e.flightId !== this.flightId || this.latest && e.anchorStep < this.latest.anchorStep ? !1 : (this.latest = e, !0);
@@ -3920,13 +3949,13 @@ var Pa = class {
 	get current() {
 		return this.latest;
 	}
-}, Fa = 31;
+}, za = 31;
 //#endregion
 //#region src/planner/plan.ts
-function Ia(e, t, n) {
-	return K(e, t, n, Fa);
+function Ba(e, t, n) {
+	return K(e, t, n, za);
 }
-function La(e) {
+function Va(e) {
 	let t = M(e);
 	return {
 		mean: [[
@@ -3961,25 +3990,25 @@ function La(e) {
 		].fill(_e)]
 	};
 }
-function Ra(e) {
+function Ha(e) {
 	return {
 		mean: [e.mean[0].slice(), e.mean[1].slice()],
 		std: [e.std[0].slice(), e.std[1].slice()]
 	};
 }
-function za(e, t) {
+function Ua(e, t) {
 	let n = Math.floor(t / 5);
 	if (n >= 5) return e[5];
 	if (n < 0) return e[0];
 	let r = (t - n * 5) / 5;
 	return e[n] + (e[n + 1] - e[n]) * r;
 }
-function Ba(e, t) {
+function Wa(e, t) {
 	let n = Math.max(0, Math.round(t)), r = (t) => {
 		let r = [], i = [];
 		for (let a = 0; a < 6; a++) {
 			let o = a * 5 + n;
-			r.push(za(e.mean[t], o)), i.push(o > 25 ? _e : Math.max(za(e.std[t], o), ve));
+			r.push(Ua(e.mean[t], o)), i.push(o > 25 ? _e : Math.max(Ua(e.std[t], o), ve));
 		}
 		return {
 			mean: r,
@@ -3991,7 +4020,7 @@ function Ba(e, t) {
 		std: [i.std, a.std]
 	};
 }
-var Va = [
+var Ga = [
 	{
 		pop: 32,
 		iters: 3,
@@ -4013,11 +4042,11 @@ var Va = [
 		ghosts: 4
 	}
 ];
-function Ha(e) {
+function Ka(e) {
 	return e === "webgpu" ? 0 : 1;
 }
-function Ua(e, t, n) {
-	return Va.slice(Ha(e)).map((r, i) => ({
+function qa(e, t, n) {
+	return Ga.slice(Ka(e)).map((r, i) => ({
 		pop: r.pop,
 		iters: r.iters,
 		elite: 4,
@@ -4027,7 +4056,7 @@ function Ua(e, t, n) {
 		chainK: e === "webgpu" && i === 0 ? Math.max(1, t) : 1
 	}));
 }
-function Wa(e) {
+function Ja(e) {
 	let n = 875 * t / (N(e, 0) + N(e, 1)), r = Math.floor(n / _ + 1e-9) * _;
 	return M({
 		front: r,
@@ -4036,7 +4065,7 @@ function Wa(e) {
 }
 //#endregion
 //#region src/planner/executor.ts
-var Ga = class {
+var Ya = class {
 	ladder;
 	plan = null;
 	heldDist = null;
@@ -4097,7 +4126,7 @@ var Ga = class {
 			base: e,
 			actions: Array.from({ length: 30 }, () => ({ ...n })),
 			result: null
-		}, this.heldDist = La(n), this.pending = null, this.nextRequestStep = e, this.streak = 0, this.expired = 0;
+		}, this.heldDist = Va(n), this.pending = null, this.nextRequestStep = e, this.streak = 0, this.expired = 0;
 	}
 	stop() {
 		this.plan = null, this.pending = null;
@@ -4126,7 +4155,7 @@ var Ga = class {
 		}, this.nextRequestStep = e + 5, {
 			token: t,
 			step: e,
-			warm: this.plan.result ? Ba(this.plan.result.dist, e - this.plan.base) : Ra(this.heldDist),
+			warm: this.plan.result ? Wa(this.plan.result.dist, e - this.plan.base) : Ha(this.heldDist),
 			budget: this.activeBudget,
 			seed: this.rng.int(2147483647)
 		};
@@ -4145,7 +4174,7 @@ var Ga = class {
 };
 //#endregion
 //#region src/pilots/observe.ts
-function Ka(e, t = e.knowledge()) {
+function Xa(e, t = e.knowledge()) {
 	let n = e.state;
 	return {
 		pose: {
@@ -4171,9 +4200,9 @@ function Ka(e, t = e.knowledge()) {
 		records: e.records
 	};
 }
-var qa = .12, Ja = 30 * e, Ya = 3 * e, Xa = (e, t, n) => Math.min(n, Math.max(t, e));
-function Za(e, n = {}) {
-	let r = n.vxCruise ?? 5, i = n.clearance ?? 20, a = e.pose, o = L(a, e.map), s = e.targetX - a.x, c = s >= 0 ? 1 : -1, l = un(e.map, a.x - c * 30, a.x + c * Math.min(200, Math.abs(s) + 30)), u = Math.abs(s) < 8 && Math.abs(a.vx) < .6, d = !u && o < .6 * i && Math.abs(s) > 30, f = u ? "descend" : d ? "climb" : "cruise", p = d ? 0 : c * Math.min(r, Math.sqrt(.3 * Math.abs(s)), .15 * Math.abs(s)), m = u ? -Math.min(4, .8 + qa * Math.max(0, o)) : Xa(.25 * (l + i - a.y), -4, 4), h = Xa(.5 * (p - a.vx), -.5, .5), g = t + Xa(.8 * (m - a.vy), -.6, .8), [_, v] = e.meanWindAt(a.x, a.y), y = a.vx - _, b = a.vy - v, x = h - 2 * Ye(875 * t / 2, y) / 875 + Ke * Math.abs(y) * y / 875, S = g + qe * Math.abs(b) * b / 875, C = o < 3 ? Ya : Ja, w = Xa(Math.atan2(-x, S), -C, C);
+var Za = .12, Qa = 30 * e, $a = 3 * e, eo = (e, t, n) => Math.min(n, Math.max(t, e));
+function to(e, n = {}) {
+	let r = n.vxCruise ?? 5, i = n.clearance ?? 20, a = e.pose, o = L(a, e.map), s = e.targetX - a.x, c = s >= 0 ? 1 : -1, l = un(e.map, a.x - c * 30, a.x + c * Math.min(200, Math.abs(s) + 30)), u = Math.abs(s) < 8 && Math.abs(a.vx) < .6, d = !u && o < .6 * i && Math.abs(s) > 30, f = u ? "descend" : d ? "climb" : "cruise", p = d ? 0 : c * Math.min(r, Math.sqrt(.3 * Math.abs(s)), .15 * Math.abs(s)), m = u ? -Math.min(4, .8 + Za * Math.max(0, o)) : eo(.25 * (l + i - a.y), -4, 4), h = eo(.5 * (p - a.vx), -.5, .5), g = t + eo(.8 * (m - a.vy), -.6, .8), [_, v] = e.meanWindAt(a.x, a.y), y = a.vx - _, b = a.vy - v, x = h - 2 * Ye(875 * t / 2, y) / 875 + Ke * Math.abs(y) * y / 875, S = g + qe * Math.abs(b) * b / 875, C = o < 3 ? $a : Qa, w = eo(Math.atan2(-x, S), -C, C);
 	return {
 		phase: f,
 		vxDes: p,
@@ -4184,18 +4213,18 @@ function Za(e, n = {}) {
 		clearance: o
 	};
 }
-function Qa(e, t, n) {
+function no(e, t, n) {
 	let r = (t - Ge * e) / (We - Ge), i = e - r;
 	return {
 		front: r / N(n, 0),
 		rear: i / N(n, 1)
 	};
 }
-function $a(e, t = {}) {
-	let n = Za(e, t);
-	return Qa(n.force, n.torque, Ae(e.faultBits, e.step));
+function ro(e, t = {}) {
+	let n = to(e, t);
+	return no(n.force, n.torque, Ae(e.faultBits, e.step));
 }
-var eo = class {
+var io = class {
 	noise;
 	id = 0;
 	rng = j(0);
@@ -4206,13 +4235,13 @@ var eo = class {
 		this.rng = j(e).fork(157);
 	}
 	act(e) {
-		let t = $a(e);
+		let t = ro(e);
 		return M({
 			front: t.front + this.noise * this.rng.normal(),
 			rear: t.rear + this.noise * this.rng.normal()
 		});
 	}
-}, to = class {
+}, ao = class {
 	opts;
 	exec;
 	world = null;
@@ -4231,11 +4260,11 @@ var eo = class {
 	switched = !1;
 	bottomNext = !1;
 	engagedAt = -1;
-	pilot = new eo();
+	pilot = new io();
 	now;
 	redesignation = null;
 	constructor(e) {
-		this.opts = e, this.exec = new Ga(Ua(e.backend, e.chainK, 0), e.seed), this.now = e.now ?? (() => performance.now());
+		this.opts = e, this.exec = new Ya(qa(e.backend, e.chainK, 0), e.seed), this.now = e.now ?? (() => performance.now());
 	}
 	get engaged() {
 		return this.exec.active;
@@ -4263,7 +4292,7 @@ var eo = class {
 		let n = e.world;
 		if (this.switched && !this.simple && (this.simple = !0), this.simple) return this.flySimple(n);
 		if (!this.exec.active) {
-			let e = n.onGround ? Wa(n.faults) : n.step === 0 ? He(n.faults) : n.records[n.step - 1].cmd;
+			let e = n.onGround ? Ja(n.faults) : n.step === 0 ? He(n.faults) : n.records[n.step - 1].cmd;
 			this.exec.start(n.step, e), this.engagedAt = n.step, this.last = M(e);
 		}
 		this.steer(n);
@@ -4289,7 +4318,7 @@ var eo = class {
 			from: e.targetX,
 			to: t
 		}, e.setTarget(t));
-		let n = this.pilot.act(Ka(e));
+		let n = this.pilot.act(Xa(e));
 		return this.last = M(n), this.flying = !0, n;
 	}
 	afterStep(e) {
@@ -4326,7 +4355,7 @@ var eo = class {
 		return (e.world !== this.world || e.flightId !== this.flightId) && (this.exec.newFlight(this.bottomNext), this.bottomNext = !1, this.simple = !1, this.switched = !1, this.world = e.world, this.flightId = e.flightId, this.flying = !1, this.target = e.world.targetX, this.redesignation = null), e.mode !== "autopilot" || e.ended || e.world.contact !== null ? (this.flying && e.mode === "manual" && !e.ended && e.world.contact === null && e.link.reset(this.last, e.world.step), this.flying = !1, this.simple &&= (this.switched = !0, !1), this.exec.stop(), this.setHold(!1), !1) : !0;
 	}
 	dispatch(e, t) {
-		let n = ja(t, this.last);
+		let n = Fa(t, this.last);
 		if (!n) return;
 		let r = {
 			...n,
@@ -4346,24 +4375,24 @@ var eo = class {
 			this.world === t && this.flightId === a && this.exec.resolve(i.token, null, t.step);
 		});
 	}
-}, no = {
+}, oo = {
 	rejected: .08,
 	elite: .3,
 	chosen: .85
-}, ro = Array.from({ length: Math.floor(30 * i / 1) }, (e, t) => Math.round((t + 1) / i)).filter((e) => e < 30), io = {
+}, so = Array.from({ length: Math.floor(30 * i / 1) }, (e, t) => Math.round((t + 1) / i)).filter((e) => e < 30), co = {
 	rejected: 0,
 	elite: 1,
 	chosen: 2
 };
-function ao(e) {
+function lo(e) {
 	let t = (t) => t === e.chosen ? "chosen" : e.elite[t] ? "elite" : "rejected";
 	return Array.from({ length: e.n }, (e, n) => ({
 		index: n,
 		tier: t(n),
-		alpha: no[t(n)]
-	})).sort((e, t) => io[e.tier] - io[t.tier] || e.index - t.index);
+		alpha: oo[t(n)]
+	})).sort((e, t) => co[e.tier] - co[t.tier] || e.index - t.index);
 }
-function oo(e) {
+function uo(e) {
 	let t = Math.cos(e.theta), n = Math.sin(e.theta);
 	return [
 		[-1, -1],
@@ -4375,13 +4404,13 @@ function oo(e) {
 		return [e.x + a * t - o * n, e.y + a * n + o * t];
 	});
 }
-var so = (e) => Number.isFinite(e.x) && Number.isFinite(e.y) && Number.isFinite(e.theta);
-function co(e, t) {
-	for (let n of ao(e)) {
+var fo = (e) => Number.isFinite(e.x) && Number.isFinite(e.y) && Number.isFinite(e.theta);
+function po(e, t) {
+	for (let n of lo(e)) {
 		let r = e.touchIndex[n.index] >= 0 ? e.touchIndex[n.index] : 30, i = new Float32Array((r + 1) * 2), a = !0;
 		for (let t = 0; t <= r; t++) {
-			let r = Ia(e.poses, n.index, t);
-			if (!so(r)) {
+			let r = Ba(e.poses, n.index, t);
+			if (!fo(r)) {
 				a = !1;
 				break;
 			}
@@ -4389,21 +4418,21 @@ function co(e, t) {
 		}
 		if (!a) continue;
 		t.path(i, n.alpha, n.tier);
-		for (let i of ro) i < r && t.outline(oo(Ia(e.poses, n.index, i)), n.alpha, n.tier);
+		for (let i of so) i < r && t.outline(uo(Ba(e.poses, n.index, i)), n.alpha, n.tier);
 		let o = e.contacts[n.index];
-		t.outline(oo(o ? o.pose : Ia(e.poses, n.index, r)), n.alpha, n.tier);
+		t.outline(uo(o ? o.pose : Ba(e.poses, n.index, r)), n.alpha, n.tier);
 	}
 }
 //#endregion
 //#region src/ui/autopilotFeature.ts
-var lo = "Dream model not loaded", uo = {
+var mo = "Dream model not loaded", ho = {
 	takeoff: "Autopilot: taking off",
 	transit: "Autopilot: transit at a safe height",
 	scout: "Autopilot: scouting the landing site",
 	approach: "Autopilot: approach",
 	final: "Autopilot: final descent at 1 m/s"
 };
-function fo(e) {
+function go(e) {
 	if (e.advisoryS !== null) {
 		let t = `${Math.ceil(e.advisoryS)} s`;
 		if (e.mode === "autopilot" && e.redesignation) {
@@ -4412,9 +4441,9 @@ function fo(e) {
 		}
 		return `Hazard detected on the landing site: pick another site (${t}).`;
 	}
-	return e.mode === "autopilot" && e.simple ? e.simple : e.mode === "autopilot" && e.phase ? uo[e.phase] : "";
+	return e.mode === "autopilot" && e.simple ? e.simple : e.mode === "autopilot" && e.phase ? ho[e.phase] : "";
 }
-function po(e, t) {
+function _o(e, t) {
 	let n = t.style.palette, r = {
 		rejected: n.planRejected,
 		elite: n.planElite,
@@ -4437,17 +4466,17 @@ function po(e, t) {
 		}
 	};
 }
-function mo(e) {
+function vo(e) {
 	globalThis.__landerPlan = { planStats: () => e.planStats() };
 }
-function ho(e) {
+function yo(e) {
 	let t = null, n = null, r = null, i = null, a = null, o = !1;
 	function s() {
 		let n = e.session.state() === "ready" ? e.session.info() : null;
-		if (!n) return t &&= (t.end(), null), r?.setAutopilotAvailable(!1, lo), null;
+		if (!n) return t &&= (t.end(), null), r?.setAutopilotAvailable(!1, mo), null;
 		if (!t) {
 			let r = e.session.client;
-			t = new to({
+			t = new ao({
 				requester: {
 					request: (e, t, n, i) => r.requestPlan(e, t, n, i),
 					hold: (e) => r.holdBackground?.(e)
@@ -4480,7 +4509,7 @@ function ho(e) {
 			return e.mode === "autopilot" && t?.simplePilot && t.tracks(e) ? [n.simplePilot] : [];
 		},
 		mount(t, o) {
-			n = o, t && (r = t.controlToggle, a = t.root.ownerDocument.createElement("div"), a.className = "autopilot-status", a.setAttribute("aria-live", "polite"), t.stage.append(a)), i = t?.canvas ?? o.canvas ?? null, i?.addEventListener("keydown", l), s(), e.debugHook && mo(u);
+			n = o, t && (r = t.controlToggle, a = t.root.ownerDocument.createElement("div"), a.className = "autopilot-status", a.setAttribute("aria-live", "polite"), t.stage.append(a)), i = t?.canvas ?? o.canvas ?? null, i?.addEventListener("keydown", l), s(), e.debugHook && vo(u);
 		},
 		onFlightStart(e) {
 			r?.set(e.mode);
@@ -4507,9 +4536,9 @@ function ho(e) {
 			let o = s(), c = i.flight;
 			!o && c.mode === "autopilot" && !c.ended && n?.setMode("manual"), r?.set(c.mode);
 			let l = c.mode === "autopilot" ? o?.display ?? null : null;
-			if (l && (e.ghostsOn?.() ?? !0) && co(l, po(t, i)), a) {
+			if (l && (e.ghostsOn?.() ?? !0) && po(l, _o(t, i)), a) {
 				let e = c.ended ? null : xn(c.world.eventLog, c.world.step), t = c.mode === "autopilot" && o?.simplePilot && o.tracks(c) ? (i.style.text ?? V).simplePilot : null;
-				a.textContent = fo({
+				a.textContent = go({
 					mode: c.mode,
 					phase: l?.phase ?? null,
 					advisoryS: e ? e.remainingS : null,
@@ -4519,14 +4548,14 @@ function ho(e) {
 			}
 		},
 		destroy() {
-			delete globalThis.__landerPlan, t?.end(), t = null, i?.removeEventListener("keydown", l), r?.setAutopilotAvailable(!1, lo), a?.remove();
+			delete globalThis.__landerPlan, t?.end(), t = null, i?.removeEventListener("keydown", l), r?.setAutopilotAvailable(!1, mo), a?.remove();
 		}
 	};
 	return u;
 }
 //#endregion
 //#region src/ui/chainFeature.ts
-function go(e, t) {
+function bo(e, t) {
 	return e.results.map((n, r) => {
 		let i = r + 1, a = tn(e.seed, e.baseLevel, i), o = t[r] ?? null;
 		if (!n) return {
@@ -4548,7 +4577,7 @@ function go(e, t) {
 		};
 	});
 }
-function _o(e = {}) {
+function xo(e = {}) {
 	let t = e.randomSeed ?? (() => Math.random() * 2 ** 32 >>> 0), n = null, r = null, i = null, a = null, o = [
 		,
 		,
@@ -4581,7 +4610,7 @@ function _o(e = {}) {
 		let s = e.createElement("h3");
 		s.textContent = `Chain: ${ln(n)} of 5 hops landed`;
 		let c = e.createElement("table");
-		for (let t of go(n, o)) {
+		for (let t of bo(n, o)) {
 			let n = e.createElement("tr");
 			for (let r of [
 				`Hop ${t.hop}`,
@@ -4655,7 +4684,7 @@ function _o(e = {}) {
 		}
 	};
 }
-function vo(e) {
+function So(e) {
 	let t = e.touchdown ? Math.min(30, Math.max(1, Math.ceil(e.touchdown.at))) : 30, n = new Float32Array((t + 1) * 2);
 	for (let r = 0; r <= t; r++) {
 		let t = K(e.mean, 0, r, 31);
@@ -4666,7 +4695,7 @@ function vo(e) {
 		last: t
 	};
 }
-var yo = class {
+var Co = class {
 	preds = [];
 	lastBase = -Infinity;
 	get predictions() {
@@ -4678,7 +4707,7 @@ var yo = class {
 	record(e) {
 		let t = e.touchIndex[e.chosen] >= 0 ? e.touchIndex[e.chosen] : 30, n = new Float32Array((t + 1) * 2);
 		for (let r = 0; r <= t; r++) {
-			let t = Ia(e.poses, e.chosen, r);
+			let t = Ba(e.poses, e.chosen, r);
 			n[2 * r] = t.x, n[2 * r + 1] = t.y;
 		}
 		this.recordPath(e.step, n, t);
@@ -4691,7 +4720,7 @@ var yo = class {
 		}), this.lastBase = e);
 	}
 };
-function bo(e) {
+function wo(e) {
 	let t = e.records.map((e) => ({
 		x: e.state.x,
 		y: e.state.y
@@ -4701,7 +4730,7 @@ function bo(e) {
 		y: e.state.y
 	}), t;
 }
-function xo(e, t) {
+function To(e, t) {
 	let n = null;
 	for (let r of e) for (let e = 1; e <= r.last; e++) {
 		let i = r.base + e;
@@ -4715,10 +4744,10 @@ function xo(e, t) {
 	}
 	return n;
 }
-function So(e) {
+function Eo(e) {
 	return `Largest dream-versus-reality gap: ${e.metres.toFixed(1)} m, ${(e.k / 10).toFixed(1)} s into the plan made at t = ${(e.base / 10).toFixed(1)} s`;
 }
-function Co(e, t, n, r, i) {
+function Do(e, t, n, r, i) {
 	let a = Infinity, o = -Infinity, s = Infinity, c = -Infinity, l = (e, t) => {
 		Number.isFinite(e) && Number.isFinite(t) && (a = Math.min(a, e), o = Math.max(o, e), s = Math.min(s, t), c = Math.max(c, t));
 	};
@@ -4728,8 +4757,8 @@ function Co(e, t, n, r, i) {
 	let u = Math.max(o - a, 1e-6), d = Math.max(c - s, 1e-6), f = Math.min((n - 2 * i) / u, (r - 2 * i) / d), p = (n - 2 * i - u * f) / 2, m = (r - 2 * i - d * f) / 2;
 	return { toScreen: (e, t) => [i + p + (e - a) * f, r - i - m - (t - s) * f] };
 }
-function wo(e, t, n, r, i, a) {
-	let o = Co(r, i, t, n, 10);
+function Oo(e, t, n, r, i, a) {
+	let o = Do(r, i, t, n, 10);
 	e.clearRect(0, 0, t, n), e.save(), e.lineWidth = 1, e.setLineDash([4, 3]), e.strokeStyle = "rgba(159, 211, 255, 0.7)";
 	for (let t of r) {
 		e.beginPath();
@@ -4751,19 +4780,19 @@ function wo(e, t, n, r, i, a) {
 	}
 	e.restore();
 }
-function To(e, t, n) {
+function ko(e, t, n) {
 	if (t.length === 0) return [];
 	let r = e.ownerDocument, i = r.defaultView?.devicePixelRatio ?? 1, a = r.createElement("canvas");
 	a.className = "dvr-overlay", a.width = Math.round(320 * i), a.height = Math.round(160 * i), a.style.width = "320px", a.style.height = "160px", a.setAttribute("role", "img");
-	let o = xo(t, n);
-	a.setAttribute("aria-label", o ? So(o) : "Dream versus reality");
+	let o = To(t, n);
+	a.setAttribute("aria-label", o ? Eo(o) : "Dream versus reality");
 	let s = a.getContext("2d");
-	s && (s.scale(i, i), wo(s, 320, 160, t, n, o));
+	s && (s.scale(i, i), Oo(s, 320, 160, t, n, o));
 	let c = r.createElement("p");
-	return c.className = "dvr-caption", c.textContent = o ? So(o) : "Dream versus reality", e.append(a, c), [a, c];
+	return c.className = "dvr-caption", c.textContent = o ? Eo(o) : "Dream versus reality", e.append(a, c), [a, c];
 }
-function Eo(e = {}) {
-	let t = new yo(), n = null, r = null, i = [], a = null, o = () => {
+function Ao(e = {}) {
+	let t = new Co(), n = null, r = null, i = [], a = null, o = () => {
 		for (let e of i) e.remove();
 		i = [];
 	};
@@ -4779,16 +4808,16 @@ function Eo(e = {}) {
 			let n = e.meanSource?.();
 			n && (n.onMean = (e) => {
 				if (r?.flight()?.mode !== "manual") return;
-				let { xy: n, last: i } = vo(e);
+				let { xy: n, last: i } = So(e);
 				t.recordPath(e.anchorStep, n, i);
 			});
 		},
 		onTouchdown(e) {
-			let r = t.predictions.slice(), s = bo(e.world);
-			if (a = xo(r, s), e.attract || !n) return;
+			let r = t.predictions.slice(), s = wo(e.world);
+			if (a = To(r, s), e.attract || !n) return;
 			let c = n.endcard;
 			queueMicrotask(() => {
-				o(), i = To(c, r, s);
+				o(), i = ko(c, r, s);
 			});
 		},
 		destroy() {
@@ -4798,7 +4827,7 @@ function Eo(e = {}) {
 }
 //#endregion
 //#region src/ui/ghostChrome.ts
-function Do(e) {
+function jo(e) {
 	let t = () => n.onToggle?.(e.checked), n = {
 		onToggle: null,
 		setToggle(t) {
@@ -4810,11 +4839,11 @@ function Do(e) {
 	};
 	return e.addEventListener("change", t), n;
 }
-var Oo = 10;
-function ko(e) {
+var Mo = 10;
+function No(e) {
 	return e.mode === "manual" && !e.attract && !e.ended;
 }
-var Ao = class {
+var Po = class {
 	deps;
 	scheduler;
 	display = new Xr();
@@ -4843,7 +4872,7 @@ var Ao = class {
 		this.replies++, this.ghostMs = e.ms;
 		let t = this.flight;
 		if (!t || e.flightId !== t.flightId || this.floor !== null && e.anchorStep < this.floor || !this.scheduler.accept(e)) return;
-		let n = t.world, r = Kr(e.mean, n.map, Da(n, e.anchorStep), ka(n, e.anchorStep)), i = this.lastT ?? n.step - 1 + 10, a = {
+		let n = t.world, r = Kr(e.mean, n.map, ja(n, e.anchorStep), Na(n, e.anchorStep)), i = this.lastT ?? n.step - 1 + 10, a = {
 			flightId: e.flightId,
 			anchorStep: e.anchorStep,
 			mean: e.mean,
@@ -4854,7 +4883,7 @@ var Ao = class {
 	constructor(e) {
 		this.deps = e;
 		let t = e.session.client;
-		this.scheduler = new Pa({ requestGhosts: (e, n, r, i, a) => {
+		this.scheduler = new Ra({ requestGhosts: (e, n, r, i, a) => {
 			this.requests++, t.requestGhosts(e, n, r, i, a);
 		} }), t.onGhosts = this.onGhosts, this.stopState = e.session.onState(() => this.sync()), e.chrome.onToggle = (e) => this.setEnabled(e), this.sync();
 	}
@@ -4868,8 +4897,8 @@ var Ao = class {
 	onModelStep(e) {
 		if (!this.isCurrent(e) || e.attract) return;
 		let t = e.world;
-		if (this.mode === "autopilot" && e.mode === "manual" && (this.handbackAt = t.step, this.floor = e.link.downlinkStep(t.step), this.display.reset(), this.scheduler.restart(), this.lastBits = Oa(t, e.link.downlinkStep(t.step))), e.mode === "autopilot" && this.mode !== "autopilot" && this.deps.session.client.dropPending(), this.mode = e.mode, e.mode === "autopilot" && this.display.reset(), e.mode !== "manual") return;
-		let n = Oa(t, e.link.downlinkStep(t.step)), r = n & ~this.lastBits;
+		if (this.mode === "autopilot" && e.mode === "manual" && (this.handbackAt = t.step, this.floor = e.link.downlinkStep(t.step), this.display.reset(), this.scheduler.restart(), this.lastBits = Ma(t, e.link.downlinkStep(t.step))), e.mode === "autopilot" && this.mode !== "autopilot" && this.deps.session.client.dropPending(), this.mode = e.mode, e.mode === "autopilot" && this.display.reset(), e.mode !== "manual") return;
+		let n = Ma(t, e.link.downlinkStep(t.step)), r = n & ~this.lastBits;
 		r && (this.faultNotice = {
 			bits: r,
 			until: t.step + 30
@@ -4888,7 +4917,7 @@ var Ao = class {
 		this.isCurrent(e) && (this.lastShown = t.pose, this.shownSource = t.source);
 	}
 	frame(e, t) {
-		let n = this.enabled && this.isCurrent(e) && ko(e) && this.last.show?.source === "predicted" ? this.scheduler.current : null, r = n ? oi(n, t + 10) : null;
+		let n = this.enabled && this.isCurrent(e) && No(e) && this.last.show?.source === "predicted" ? this.scheduler.current : null, r = n ? oi(n, t + 10) : null;
 		return this.drawn = r ? r.ghosts.length : 0, r;
 	}
 	insetFrame(e, t) {
@@ -4909,7 +4938,7 @@ var Ao = class {
 		let e = this.deps.session.client, t = this.deps.session.state(), n = this.display.current, r = this.last.show;
 		return {
 			state: t,
-			modelState: ba(t),
+			modelState: wa(t),
 			failReason: e.failReason,
 			backendRequested: e.requestedBackend,
 			info: e.info,
@@ -4945,7 +4974,7 @@ var Ao = class {
 		};
 		if (!this.isCurrent(e) || e.mode !== "manual" || e.attract) return n;
 		let r = this.deps.session.state();
-		if (r === "idle" || r === "loading") return ko(e) ? {
+		if (r === "idle" || r === "loading") return No(e) ? {
 			show: null,
 			badges: [W.loading],
 			u: null
@@ -4957,7 +4986,7 @@ var Ao = class {
 			badges: [...o, W.confirmed],
 			u: null
 		};
-		if (!ko(e)) return n;
+		if (!No(e)) return n;
 		let s = this.display.at(t + 10);
 		return s ? (s.touchedDown ? o.push(W.awaiting) : s.extrapolated && o.push(W.late), {
 			show: {
@@ -4967,7 +4996,7 @@ var Ao = class {
 			},
 			badges: o,
 			u: s.u
-		}) : this.handbackAt !== null && !this.display.started && a.step - this.handbackAt < Oo ? {
+		}) : this.handbackAt !== null && !this.display.started && a.step - this.handbackAt < Mo ? {
 			show: null,
 			badges: [...o, W.handback],
 			u: null
@@ -4999,25 +5028,25 @@ var Ao = class {
 			enabled: r
 		});
 	}
-}, jo = {
+}, Fo = {
 	onToggle: null,
 	setToggle: () => {},
 	destroy: () => {}
 };
-function Mo() {
+function Io() {
 	return {
-		mountChrome: (e) => Do(e.ghostsToggle),
+		mountChrome: (e) => jo(e.ghostsToggle),
 		mountDisplayChrome: Fr,
 		random: Math.random
 	};
 }
-function No(e, t) {
+function Lo(e, t) {
 	let n = null, r = null, i = null, a = !1;
 	return {
 		controller: () => n,
 		mount(a, o) {
-			let s = t ?? Mo();
-			r = a ? s.mountChrome(a) : { ...jo }, i = a ? s.mountDisplayChrome(a) : null, n = new Ao({
+			let s = t ?? Io();
+			r = a ? s.mountChrome(a) : { ...Fo }, i = a ? s.mountDisplayChrome(a) : null, n = new Po({
 				session: e.session,
 				chrome: r,
 				random: s.random,
@@ -5054,21 +5083,21 @@ function No(e, t) {
 		}
 	};
 }
-function Po(e, t, n) {
+function Ro(e, t, n) {
 	return !e || e.flightId !== n || t - e.atMs > 1500 || !Number.isFinite(e.pSafe) ? null : e;
 }
-var Fo = (e) => `${Math.round(Math.min(1, Math.max(0, e)) * 100)}%`;
-function Io(e) {
-	let t = e.hasValue ? Po(e.value, e.nowMs, e.flightId) : null;
+var zo = (e) => `${Math.round(Math.min(1, Math.max(0, e)) * 100)}%`;
+function Bo(e) {
+	let t = e.hasValue ? Ro(e.value, e.nowMs, e.flightId) : null;
 	if (e.mode === "autopilot") {
 		let n = e.counted;
 		return n && n.n > 0 && Number.isFinite(n.value) ? {
 			label: "Landing probability",
-			value: Fo(n.value),
+			value: zo(n.value),
 			source: `from ${n.n} future${n.n === 1 ? "" : "s"}`
 		} : t ? {
 			label: "Landing probability",
-			value: Fo(t.pSafe),
+			value: zo(t.pSafe),
 			source: "estimated"
 		} : null;
 	}
@@ -5076,11 +5105,11 @@ function Io(e) {
 	let n = e.ageS !== null && Number.isFinite(e.ageS) ? `, ${Math.max(0, e.ageS).toFixed(1)} s old` : "";
 	return {
 		label: "Autopilot could land from here",
-		value: Fo(t.pSafe),
+		value: zo(t.pSafe),
 		source: `estimated from the downlink${n}`
 	};
 }
-function Lo(e) {
+function Vo(e) {
 	let t = e.createElement("div");
 	t.className = "instrument landing-readout", t.setAttribute("aria-live", "polite");
 	let n = e.createElement("span");
@@ -5097,18 +5126,18 @@ function Lo(e) {
 }
 //#endregion
 //#region src/ui/valueSnapshot.ts
-var Ro = {
+var Ho = {
 	front: 0,
 	rear: 0
 };
-function zo(e) {
+function Uo(e) {
 	let t = e.world;
-	return e.mode === "autopilot" ? ja(t, t.step > 0 ? t.records[t.step - 1].cmd : Ro) : Ma(t, e.link);
+	return e.mode === "autopilot" ? Fa(t, t.step > 0 ? t.records[t.step - 1].cmd : Ho) : Ia(t, e.link);
 }
 //#endregion
 //#region src/ui/readoutFeature.ts
-var Bo = 5;
-function Vo(e) {
+var Wo = 5;
+function Go(e) {
 	let t = e.now ?? (() => performance.now()), n = e.session.client, r = null, a = null, o = -1, s = -Infinity, c = !1, l = (e) => {
 		e.flightId === o && (a = {
 			pSafe: e.pSafe,
@@ -5120,7 +5149,7 @@ function Vo(e) {
 	}, u = () => e.session.state() === "ready" && (e.session.info()?.hasValue ?? !1), d = (e) => e.mode === "manual" && a && a.anchorStep > e.link.downlinkStep(e.world.step) ? null : a;
 	return {
 		mount(t) {
-			t && (r = e.createView ? e.createView(t) : Lo(t.root.ownerDocument), t.instruments.append(r.el)), n.onValue = l;
+			t && (r = e.createView ? e.createView(t) : Vo(t.root.ownerDocument), t.instruments.append(r.el)), n.onValue = l;
 		},
 		onFlightStart(e) {
 			o = e.flightId, a = null, s = -Infinity, r?.update(null);
@@ -5128,15 +5157,15 @@ function Vo(e) {
 		afterStep(e) {
 			if (c || e.ended || e.flightId !== o || !u()) return;
 			let t = e.world.step;
-			if (t - s < Bo) return;
-			let r = zo(e);
+			if (t - s < Wo) return;
+			let r = Uo(e);
 			r && (s = t, n.requestValue({
 				...r,
 				flightId: e.flightId
 			}));
 		},
 		reportState(e) {
-			let n = u() ? Po(d(e), t(), e.flightId) : null;
+			let n = u() ? Ro(d(e), t(), e.flightId) : null;
 			return { landing: n ? {
 				pSafe: n.pSafe,
 				tGo: n.tGo
@@ -5144,7 +5173,7 @@ function Vo(e) {
 		},
 		draw(n, a) {
 			let o = a.flight, s = d(o);
-			r?.update(Io({
+			r?.update(Bo({
 				mode: o.mode,
 				hasValue: u(),
 				value: s,
@@ -5168,7 +5197,7 @@ function Vo(e) {
 }
 //#endregion
 //#region src/ui/sessionFeature.ts
-function Ho(e, t) {
+function Ko(e, t) {
 	if (typeof IntersectionObserver > "u") return t(), () => {};
 	let n = !1, r = new IntersectionObserver((e) => {
 		!n && e.some((e) => e.isIntersecting) && (n = !0, r.disconnect(), t());
@@ -5177,24 +5206,24 @@ function Ho(e, t) {
 		n = !0, r.disconnect();
 	};
 }
-function Uo(e, t) {
+function qo(e, t) {
 	let n = new URL(e, t).href;
 	return n.endsWith("/") ? n : `${n}/`;
 }
-function Wo(e, t = {}, n) {
+function Jo(e, t = {}, n) {
 	let r = null, i = null, a = null;
 	return {
 		mount(a, o) {
 			t.onMount?.(a, o);
 			let s = n ?? {
-				observeOnce: Ho,
+				observeOnce: Ko,
 				baseURI: () => document.baseURI
 			}, c = null, l = (e) => {
-				let t = ba(e);
+				let t = wa(e);
 				t !== c && (c = t, o.setModelState(t));
 			};
 			i = e.onState(l), l(e.state());
-			let u = Uo(t.dreamBase ?? o.opts.assetBase, s.baseURI()), { modelsBase: d, ortBase: f, debugPlanDelayMs: p } = o.opts, m = () => {
+			let u = qo(t.dreamBase ?? o.opts.assetBase, s.baseURI()), { modelsBase: d, ortBase: f, debugPlanDelayMs: p } = o.opts, m = () => {
 				e.ensureLoaded(u, {
 					wantValue: t.wantValue ?? !1,
 					...d ? { modelsBase: d } : {},
@@ -5214,26 +5243,26 @@ function Wo(e, t = {}, n) {
 }
 //#endregion
 //#region src/lib/libraryFeatures.ts
-function Go() {
+function Yo() {
 	return {
 		fetch: (e, t) => fetch(e, t),
-		selectBackend: () => da(ua(""))
+		selectBackend: () => ha(ma(""))
 	};
 }
-function Ko(e, t = Go()) {
-	let n = xa(e, t), r = No({ session: n }), i = Eo({ meanSource: () => r.controller() }), a = ho({
+function Xo(e, t = Yo()) {
+	let n = Ta(e, t), r = Lo({ session: n }), i = Ao({ meanSource: () => r.controller() }), a = yo({
 		session: n,
 		ghostsOn: () => r.controller()?.status().enabled ?? !0,
 		onAdopt: i.record
 	});
 	return [
-		Wo(n, { wantValue: !0 }),
+		Jo(n, { wantValue: !0 }),
 		r,
 		a,
-		wa({ session: n }),
+		Oa({ session: n }),
 		i,
-		_o({ gap: i.lastGap }),
-		Vo({
+		xo({ gap: i.lastGap }),
+		Go({
 			session: n,
 			counted: (e) => a.counted(e)
 		})
@@ -5241,18 +5270,18 @@ function Ko(e, t = Go()) {
 }
 //#endregion
 //#region src/lib/debug.ts
-var qo = Symbol.for("lander.debug"), Jo = Symbol.for("lander.debugOptions"), Yo = 6e4;
-function Xo(e) {
-	let t = e[Jo];
+var Zo = Symbol.for("lander.debug"), Qo = Symbol.for("lander.debugOptions"), $o = 6e4;
+function es(e) {
+	let t = e[Qo];
 	if (t === void 0) return {};
 	let n = t?.planDelayMs;
 	if (n === void 0) return {};
-	if (typeof n != "number" || !Number.isFinite(n) || n < 0 || n > 6e4) throw TypeError(`lander: debug planDelayMs must be a number of ms in [0, ${Yo}]`);
+	if (typeof n != "number" || !Number.isFinite(n) || n < 0 || n > 6e4) throw TypeError(`lander: debug planDelayMs must be a number of ms in [0, ${$o}]`);
 	return { planDelayMs: n };
 }
 //#endregion
 //#region src/lib/flightEvents.ts
-var Zo = 16, Qo = class {
+var ts = 16, ns = class {
 	emit;
 	flights = /* @__PURE__ */ new Map();
 	chains = /* @__PURE__ */ new Set();
@@ -5322,13 +5351,13 @@ var Zo = 16, Qo = class {
 		this.closed = !0, this.flights.clear(), this.chains.clear();
 	}
 	prune() {
-		for (; this.flights.size > Zo;) this.flights.delete(Math.min(...this.flights.keys()));
-		for (; this.chains.size > Zo;) this.chains.delete(Math.min(...this.chains));
+		for (; this.flights.size > ts;) this.flights.delete(Math.min(...this.flights.keys()));
+		for (; this.chains.size > ts;) this.chains.delete(Math.min(...this.chains));
 	}
 };
 //#endregion
 //#region src/lib/assetBase.ts
-function $o(e, t, n, r = new URL(n).origin) {
+function rs(e, t, n, r = new URL(n).origin) {
 	if (typeof e != "string" || e.trim() === "") throw TypeError(`lander: opts.${t} must be the URL of a directory${t === "assetBase" ? " holding lander.js" : ""}`);
 	let i = e.trim();
 	if (i.includes("?") || i.includes("#")) throw TypeError(`lander: opts.${t} must not carry a query or fragment; version the directory instead`);
@@ -5343,10 +5372,10 @@ function $o(e, t, n, r = new URL(n).origin) {
 	if (a.origin !== r) throw TypeError(`lander: opts.${t} must be on this page's origin (${r}), not ${a.origin}: a module worker loads only from the page's own origin, so serve dist/lander from the site`);
 	return a.href.replace(/\/+$/, "/");
 }
-var es = (e) => typeof e == "object" && !!e && !Array.isArray(e);
-function ts(e, t, n) {
+var is = (e) => typeof e == "object" && !!e && !Array.isArray(e);
+function as(e, t, n) {
 	if (e === void 0) return {};
-	if (!es(e)) throw TypeError(`lander: opts.${n} must be an object when given`);
+	if (!is(e)) throw TypeError(`lander: opts.${n} must be an object when given`);
 	let r = {};
 	for (let i of t) {
 		let t = e[i];
@@ -5357,36 +5386,36 @@ function ts(e, t, n) {
 	}
 	return r;
 }
-var ns = ["wasm", "webgpu"];
-function rs(e, t, n) {
+var os = ["wasm", "webgpu"];
+function ss(e, t, n) {
 	if (e === void 0) return {
 		wasm: null,
 		webgpu: null
 	};
 	if (typeof e == "string") {
-		let r = $o(e, "ortBase", t, n);
+		let r = rs(e, "ortBase", t, n);
 		return {
 			wasm: r,
 			webgpu: r
 		};
 	}
-	if (!es(e)) throw TypeError("lander: opts.ortBase must be a string or an object { wasm?, webgpu? } when given");
-	let r = Object.keys(e).filter((e) => !ns.includes(e));
+	if (!is(e)) throw TypeError("lander: opts.ortBase must be a string or an object { wasm?, webgpu? } when given");
+	let r = Object.keys(e).filter((e) => !os.includes(e));
 	if (r.length > 0) throw TypeError(`lander: opts.ortBase has unknown key ${r.map((e) => JSON.stringify(e)).join(", ")}; the keys are wasm and webgpu`);
 	let i = {
 		wasm: null,
 		webgpu: null
 	};
-	for (let r of ns) {
+	for (let r of os) {
 		let a = e[r];
 		if (a !== void 0) {
 			if (typeof a != "string") throw TypeError(`lander: opts.ortBase.${r} must be a string when given`);
-			i[r] = $o(a, `ortBase.${r}`, t, n);
+			i[r] = rs(a, `ortBase.${r}`, t, n);
 		}
 	}
 	return i;
 }
-function is(e, t, n) {
+function cs(e, t, n) {
 	if (!e || typeof e != "object") throw TypeError("lander: mount(container, opts) needs an options object");
 	if (e.reducedMotion !== void 0 && typeof e.reducedMotion != "boolean") throw TypeError("lander: opts.reducedMotion must be a boolean when given");
 	if (e.onEvent !== void 0 && typeof e.onEvent != "function") throw TypeError("lander: opts.onEvent must be a function when given");
@@ -5397,10 +5426,10 @@ function is(e, t, n) {
 	if (r !== "fill" && !(typeof r == "number" && Number.isFinite(r) && r > 0)) throw TypeError("lander: opts.aspect must be a positive finite number or 'fill'");
 	let i = e.zoom ?? 1;
 	if (!(typeof i == "number" && Number.isFinite(i) && i >= 1 && i <= 4)) throw TypeError("lander: opts.zoom must be a finite number in [1, 4] when given");
-	let a = $o(e.assetBase, "assetBase", t, n), o = e.modelsBase === void 0 ? `${a}models/` : $o(e.modelsBase, "modelsBase", t, n), s = rs(e.ortBase, t, n), c = ts(e.theme, dr, "theme"), l;
+	let a = rs(e.assetBase, "assetBase", t, n), o = e.modelsBase === void 0 ? `${a}models/` : rs(e.modelsBase, "modelsBase", t, n), s = ss(e.ortBase, t, n), c = as(e.theme, dr, "theme"), l;
 	return l = e.text === !1 ? null : {
 		...V,
-		...ts(e.text, fr, "text")
+		...as(e.text, fr, "text")
 	}, {
 		assetBase: a,
 		modelsBase: o,
@@ -5416,24 +5445,24 @@ function is(e, t, n) {
 		onState: e.onState
 	};
 }
-var as = .001, os = {
+var ls = .001, us = {
 	now: () => performance.now(),
 	setTimer: (e, t) => setTimeout(e, t),
 	clearTimer: (e) => clearTimeout(e)
-}, $ = (e, t) => Math.abs(e - t) <= as;
-function ss(e, t) {
+}, $ = (e, t) => Math.abs(e - t) <= ls;
+function ds(e, t) {
 	if (e.mode !== t.mode || e.attract !== t.attract || e.hop !== t.hop || e.level !== t.level || e.model !== t.model || e.planner !== t.planner || e.display !== t.display || e.outcome !== t.outcome) return !1;
 	let n = e.flight, r = t.flight;
 	return !$(n.agl, r.agl) || !$(n.vx, r.vx) || !$(n.vy, r.vy) || !$(n.tiltDeg, r.tiltDeg) || !$(n.energy, r.energy) || !$(n.windMs, r.windMs) ? !1 : e.landing === null || t.landing === null ? e.landing === t.landing : $(e.landing.pSafe, t.landing.pSafe) && $(e.landing.tGo, t.landing.tGo);
 }
-function cs(e) {
+function fs(e) {
 	return Object.freeze({
 		...e,
 		flight: Object.freeze({ ...e.flight }),
 		landing: e.landing ? Object.freeze({ ...e.landing }) : null
 	});
 }
-var ls = class {
+var ps = class {
 	onState;
 	clock;
 	last = null;
@@ -5441,12 +5470,12 @@ var ls = class {
 	pending = null;
 	timer = null;
 	closed = !1;
-	constructor(e, t = os) {
+	constructor(e, t = us) {
 		this.onState = e, this.clock = t;
 	}
 	push(e) {
 		if (this.closed) return;
-		if (this.last && ss(this.last, e)) {
+		if (this.last && ds(this.last, e)) {
 			this.pending = null;
 			return;
 		}
@@ -5467,26 +5496,26 @@ var ls = class {
 	send(e, t) {
 		this.pending = null, this.last = e, this.lastAt = t;
 		try {
-			this.onState(cs(e));
+			this.onState(fs(e));
 		} catch (e) {
 			console.error("lander: onState threw", e);
 		}
 	}
-}, us = /* @__PURE__ */ new WeakSet();
-function ds(e, t, n) {
+}, ms = /* @__PURE__ */ new WeakSet();
+function hs(e, t, n) {
 	let { doc: r } = n;
 	if (!e || e.nodeType !== 1) throw TypeError("lander: mount(container) needs an HTMLElement");
-	let i = is(t, r.baseURI, r.location?.origin ?? new URL(r.baseURI).origin), a = Xo(t);
-	if (us.has(e)) throw Error("lander: this container already holds a mounted lander; await handle.unload() first");
+	let i = cs(t, r.baseURI, r.location?.origin ?? new URL(r.baseURI).origin), a = es(t);
+	if (ms.has(e)) throw Error("lander: this container already holds a mounted lander; await handle.unload() first");
 	let o = i.assetBase, s = r.createElement("div");
-	s.dataset.lander = "root", s.style.position = "relative", s.style.width = "100%", i.ui === "none" ? (s.style.display = "block", i.aspect === "fill" && (s.style.height = "100%")) : s.style.height = "100%", e.appendChild(s), us.add(e);
-	let c = i.onEvent, l = new Qo((e) => {
+	s.dataset.lander = "root", s.style.position = "relative", s.style.width = "100%", i.ui === "none" ? (s.style.display = "block", i.aspect === "fill" && (s.style.height = "100%")) : s.style.height = "100%", e.appendChild(s), ms.add(e);
+	let c = i.onEvent, l = new ns((e) => {
 		if (c) try {
 			c(e);
 		} catch (e) {
 			console.error("lander: onEvent threw", e);
 		}
-	}), u = i.onState ? new ls(i.onState, n.clock) : null, d;
+	}), u = i.onState ? new ps(i.onState, n.clock) : null, d;
 	try {
 		let e = () => n.createWorker(o);
 		d = n.createApp(s, {
@@ -5508,7 +5537,7 @@ function ds(e, t, n) {
 			features: n.features(e)
 		});
 	} catch (t) {
-		throw l.close(), u?.close(), s.remove(), us.delete(e), t;
+		throw l.close(), u?.close(), s.remove(), ms.delete(e), t;
 	}
 	let f = !1, p = null, m = null, h = {
 		...Object.fromEntries(Nn.map((e) => [e, (...t) => {
@@ -5527,12 +5556,12 @@ function ds(e, t, n) {
 				} catch (e) {
 					console.error("lander: teardown failed", e);
 				} finally {
-					s.remove(), us.delete(e);
+					s.remove(), ms.delete(e);
 				}
 			})(), p);
 		}
 	};
-	return Object.defineProperty(h, qo, {
+	return Object.defineProperty(h, Zo, {
 		enumerable: !1,
 		value: () => ({
 			...m ?? d.debug(),
@@ -5544,19 +5573,19 @@ function ds(e, t, n) {
 }
 //#endregion
 //#region src/lib/workerFactory.ts
-function fs(e) {
+function gs(e) {
 	if (!e.endsWith("/")) throw TypeError("lander: worker base must end in \"/\" (pass a normalized assetBase)");
 	return new Worker(`${e}lander-worker.js`, { type: "module" });
 }
 //#endregion
 //#region src/index.ts
-function ps(e, t) {
-	return ds(e, t, {
-		createApp: aa,
-		createWorker: fs,
-		features: (e) => Ko(e),
+function _s(e, t) {
+	return hs(e, t, {
+		createApp: la,
+		createWorker: gs,
+		features: (e) => Xo(e),
 		doc: e?.ownerDocument ?? document
 	});
 }
 //#endregion
-export { ps as mount };
+export { _s as mount };

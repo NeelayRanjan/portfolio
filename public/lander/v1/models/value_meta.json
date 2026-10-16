@@ -1,0 +1,48 @@
+{
+  "version": 2,
+  "histShape": [
+    10,
+    12
+  ],
+  "statDim": 135,
+  "wideCtxDim": 385,
+  "temperature": 1.7047503223472298,
+  "ece": {
+    "overall": 0.05074332581257452,
+    "bins": 15,
+    "split": "test",
+    "n": 8052,
+    "human": 0.04787790788338206,
+    "panicky": 0.13613162221050343,
+    "autopilotOnly": 0.058305313343884294,
+    "byLevel": {
+      "calm": 0.036579808113415185,
+      "breezy": 0.04300781809478983,
+      "strong": 0.05008572477709415,
+      "beyondPredicted": 0.09461664956708911
+    },
+    "counts": {
+      "overall": 8052,
+      "human": 1921,
+      "panicky": 1353,
+      "autopilotOnly": 3205,
+      "calm": 1062,
+      "breezy": 1837,
+      "strong": 1419,
+      "beyondPredicted": 3734
+    }
+  },
+  "trainedOn": {
+    "rounds": [
+      1
+    ],
+    "windows": {
+      "train": 65647,
+      "calib": 9219,
+      "test": 8052
+    },
+    "gitSha": "f2b4b2ed8eef5206eb80df0f102ccccdadd5b027"
+  },
+  "params": 296194,
+  "tGoMaeS": 11.822394371032715
+}

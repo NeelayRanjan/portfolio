@@ -1,0 +1,14 @@
+{
+  "version": "1.27.0",
+  "glue": "external",
+  "entries": {
+    "wasm": {
+      "wasm": "ort-wasm-simd-threaded.wasm",
+      "mjs": "ort-wasm-simd-threaded.mjs"
+    },
+    "webgpu": {
+      "wasm": "ort-wasm-simd-threaded.asyncify.wasm",
+      "mjs": "ort-wasm-simd-threaded.asyncify.mjs"
+    }
+  }
+}

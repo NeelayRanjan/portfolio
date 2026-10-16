@@ -1,0 +1,91 @@
+{
+  "name": "titan-lander",
+  "version": "0.1.0",
+  "gitSha": "d157478f9a2125082fdc2ed3f88fbee1fdc5468a",
+  "ortVersion": "1.27.0",
+  "models": {
+    "dir": "runs/preview-models",
+    "dreamSha256": "5e16983f5464ca56700d90b8b47808f8d889c40e0eec64906250ca45d0937c9b",
+    "valueSha256": "afe2880ab2fb13951db331bdc5060c48586c4bad3961e850e8358491c508a79c"
+  },
+  "entry": "lander.js",
+  "worker": "lander-worker.js",
+  "types": "lander.d.ts",
+  "files": [
+    {
+      "path": "chunks/chunk-ANN5UYCF.js",
+      "bytes": 265,
+      "sha256": "53457cdbb6153caba9a7d263672db2fa94b2eed2043c3c92d62a42036c072aab"
+    },
+    {
+      "path": "chunks/ort.wasm.min-UBWXXSWX.js",
+      "bytes": 49645,
+      "sha256": "bdf1d051598c6667e6ad9c4f6cdc46088b6acaa6de76df3ffe909f012e972a5a"
+    },
+    {
+      "path": "chunks/ort.webgpu.min-E56NHGLY.js",
+      "bytes": 66731,
+      "sha256": "f2b37bf94fbddfdd6a1665adaab972f959bb9b8808c159ec457cb6af7c47201f"
+    },
+    {
+      "path": "lander-worker.js",
+      "bytes": 33021,
+      "sha256": "ee83d789c2453a65216e82be906890a78744cdda565caac5ba8fd3f3abe188cb"
+    },
+    {
+      "path": "lander.d.ts",
+      "bytes": 1146,
+      "sha256": "666775e0a1aa355479b60d1049f33397353913512a923bae719a5387c24a564d"
+    },
+    {
+      "path": "lander.js",
+      "bytes": 138922,
+      "sha256": "fc8dc0c11eb655e9f34e137408a494330c0798ad15c4173f15c3292d689def57"
+    },
+    {
+      "path": "models/dream.onnx",
+      "bytes": 10412995,
+      "sha256": "5e16983f5464ca56700d90b8b47808f8d889c40e0eec64906250ca45d0937c9b"
+    },
+    {
+      "path": "models/dream_meta.json",
+      "bytes": 18577,
+      "sha256": "7009ee63473277de71e6807a0b1b334e6c162c25b7d9ec7bcb6fbe0d68389079"
+    },
+    {
+      "path": "models/value.onnx",
+      "bytes": 1188286,
+      "sha256": "afe2880ab2fb13951db331bdc5060c48586c4bad3961e850e8358491c508a79c"
+    },
+    {
+      "path": "models/value_meta.json",
+      "bytes": 989,
+      "sha256": "ea6f315ea9884a79728d1938cc054f09ed5b4e0d6d336f92f0b73515eb231765"
+    },
+    {
+      "path": "ort/manifest.json",
+      "bytes": 303,
+      "sha256": "dc73781a2056cdc1ca64be44515c7d4b8dbcdcdf8ae356d7dfd5d8e18a78ecf2"
+    },
+    {
+      "path": "ort/ort-wasm-simd-threaded.asyncify.mjs",
+      "bytes": 47507,
+      "sha256": "7236653b8565da4046e459cd0e274123419a1d9f1f8f18fd36c28058346ca655"
+    },
+    {
+      "path": "ort/ort-wasm-simd-threaded.asyncify.wasm",
+      "bytes": 24254953,
+      "sha256": "7e83cd6cee77e478bc96a7e91b198144fb5e4126287daf1f9b54bb195ebcd55a"
+    },
+    {
+      "path": "ort/ort-wasm-simd-threaded.mjs",
+      "bytes": 24180,
+      "sha256": "0a1e718d99c41b22c21f2520ff4f9e883a6b5533856e398d21816ee8eb8185d3"
+    },
+    {
+      "path": "ort/ort-wasm-simd-threaded.wasm",
+      "bytes": 13479978,
+      "sha256": "d1ab1b94b16a65b29d710d0b587b29e7bed336827577623913479b8afe8113e6"
+    }
+  ]
+}

@@ -3357,7 +3357,17 @@ async function checkStargazeCancelsRun(browser) {
       null,
       { timeout: 120000 },
     );
-    await page.locator("#fig-draw").getByRole("button", { name: "generate", exact: true }).click();
+    // The restore re-classifies the ink (DrawDigit's fitFreshRef rule), and
+    // generate is disabled while it runs; a click that lands then waits out
+    // Playwright's 30 s. On /lab nothing runs between the exit and this
+    // click (the headshot half used to), so wait for the button itself.
+    const gen = page.locator("#fig-draw").getByRole("button", { name: "generate", exact: true });
+    await page.waitForFunction(
+      () => [...document.querySelectorAll("#fig-draw button")].some((b) => b.textContent.trim() === "generate" && !b.disabled),
+      null,
+      { timeout: 120000 },
+    );
+    await gen.click();
     await page.waitForFunction(
       () =>
         (window.vaq ?? []).some(([k, ev]) => k === "event" && ev?.name === "demo_used" && ev?.data?.demo === "draw"),
@@ -6561,17 +6571,22 @@ async function checkStargazeSecretDoor(browser) {
 /* 5c. The Titan lander, Figure 5 since 2026-10-15                        */
 /* (components/LanderPanel.tsx, public/lander/v1/: lunar_lander's module, */
 /* copied verbatim; its runtime, worker and models are its own).          */
-/* Playwright's Firefox cannot fly it: a plan takes 5-8 s there against   */
-/* ~0.5 s in Chromium and stock Firefox 152, and the attract autopilot    */
-/* never leaves the pad (measured 2026-10-15). So these assert what the   */
-/* page owns, never a flight: nothing before the panel nears the          */
-/* viewport, the model loads on screen, a non-blank canvas, the sim clock */
-/* frozen off-screen, stargaze unloading (worker terminated) and          */
-/* remounting in a new worker, watching counting as nothing, a visitor's  */
-/* input counting once, navigation terminating every worker, and the      */
-/* module's own runtime never fetching a jsep/jspi build (asyncify only   */
-/* where the browser has WebGPU). Its WebKit rule (/wasm only) is checked  */
-/* by hand: this suite has no WebKit (see CLAUDE.md, the lander section). */
+/* Since site embedding v2 (2026-10-16) the module draws only the canvas  */
+/* (`ui: 'none'`) and the controls, readout and lines are the site's.     */
+/* Playwright's Firefox plans 5-8 s a plan (~0.5 s in Chromium and stock  */
+/* Firefox 152); the v1 preview never left the pad there, and v2's slow-  */
+/* device ladder does (~7.5 s, measured), which `lander-mounts` asserts.  */
+/* Also: nothing before the panel nears the viewport, the model loads on  */
+/* screen, a non-blank canvas, the sim frozen off-screen, the readout     */
+/* (who, height, a FLOORED "% est." landing chance), each control doing   */
+/* what it says (wind, take the controls / let the autopilot fly, new     */
+/* flight) with the view line naming only the manual view a prediction,   */
+/* watching counting as nothing and a visitor's press counting once,      */
+/* stargaze unloading (worker terminated) and remounting in a new worker, */
+/* navigation terminating every worker, and the module's own runtime      */
+/* never fetching a jsep/jspi build (asyncify only where the browser has  */
+/* WebGPU). Its WebKit rule (/wasm only) is checked by hand: this suite   */
+/* has no WebKit (see CLAUDE.md, the lander section).                     */
 /* ---------------------------------------------------------------------- */
 
 function landerWorkerSpy() {
@@ -6616,6 +6631,21 @@ async function openLander(page) {
 
 const landerDebug = (page) => page.evaluate(() => window.__lander?.debug() ?? null);
 
+/** waitForFunction with the step's name and the lander's state in the error,
+ *  so a timeout says which step it was. */
+async function landerWait(page, step, fn, arg, timeout = 10000) {
+  try {
+    await page.waitForFunction(fn, arg, { timeout });
+  } catch {
+    const s = await page.evaluate(() => {
+      const st = window.__lander?.state;
+      return st ? { mode: st.mode, attract: st.attract, level: st.level, model: st.model, planner: st.planner, display: st.display, outcome: st.outcome } : null;
+    });
+    const view = await page.evaluate(() => document.querySelector("[data-lander-view]")?.textContent ?? null);
+    throw new Error(`${step}: not within ${timeout}ms; state ${JSON.stringify(s)}, view "${view}"`);
+  }
+}
+
 async function checkLanderMounts(browser) {
   return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
     await page.addInitScript(landerWorkerSpy);
@@ -6630,8 +6660,14 @@ async function checkLanderMounts(browser) {
       const m = u.match(/\/lander\/v1\/ort\/([^?#]+)/);
       if (m) ortFiles.push(m[1]);
     });
+    // The root /ort/ is the site's shared runtime (chess loads it too, so a
+    // request there can't be pinned on the lander by URL); only its build
+    // matters: never an asyncify, jsep or jspi file under the root.
+    const rootOrt = [];
     page.on("request", (r) => {
       if (watchHeavy && /\/lander\/v1\/(models|ort)\//.test(r.url())) heavy.push(r.url());
+      const m = r.url().match(/^https?:\/\/[^/]+\/ort\/([^?#]+)/);
+      if (m) rootOrt.push(m[1]);
     });
     // A HEAD the module aborts once the GET is under way is its presence probe
     // (the lander's own smoke records the same), not a failure.
@@ -6657,6 +6693,31 @@ async function checkLanderMounts(browser) {
     const px = await landerCanvasPixels(page);
     if (px.colours < 200 || px.lit < 0.5) throw new Error(`the lander's canvas looks blank: ${JSON.stringify(px)}`);
     if ((await demoEvents(page, "lander")) !== 0) throw new Error("watching the attract flight queued demo_used{lander}");
+
+    // The attract flight leaves the pad on its own, even at Playwright
+    // Firefox's 5-8 s plans (v2's slow-device ladder; v1 sat on the pad).
+    const tFly = Date.now();
+    await page.waitForFunction(() => (window.__lander?.state?.flight?.agl ?? 0) > 1, null, { timeout: 30000 });
+    const flewMs = Date.now() - tFly;
+    const lc = copy.systems.lander;
+    const attract = await page.evaluate(() => ({
+      s: window.__lander.state,
+      readout: document.querySelector("[data-lander-readout]")?.textContent ?? "",
+      view: document.querySelector("[data-lander-view]")?.textContent ?? "",
+    }));
+    if (attract.s.mode !== "autopilot" || !attract.s.attract) throw new Error(`the attract flight is not the autopilot's: ${JSON.stringify(attract.s)}`);
+    if (!attract.readout.startsWith(lc.who.autopilot) && !attract.readout.startsWith(lc.who.simplePilot)) {
+      throw new Error(`readout "${attract.readout}" doesn't name who flies`);
+    }
+    if (/\b100% est/.test(attract.readout) && attract.s.landing?.pSafe < 1) throw new Error(`readout rounds ${attract.s.landing.pSafe} up to 100%: "${attract.readout}"`);
+    if (attract.s.landing && !attract.readout.includes(`${lc.landingPre}${Math.floor(attract.s.landing.pSafe * 100)}${lc.landingPost}`)) {
+      // onState and the readout can be one 100 ms tick apart; re-read once.
+      const again = await page.evaluate(() => ({ s: window.__lander.state, r: document.querySelector("[data-lander-readout]").textContent }));
+      if (again.s.landing && !again.r.includes(`${lc.landingPre}${Math.floor(again.s.landing.pSafe * 100)}${lc.landingPost}`)) {
+        throw new Error(`readout "${again.r}" is not the floored landing chance ${again.s.landing.pSafe}`);
+      }
+    }
+    if (attract.view !== lc.view.onboard) throw new Error(`the autopilot's view line reads "${attract.view}"`);
 
     // On screen the sim runs; scrolled away it stands still and says the host paused it.
     const a = (await landerDebug(page)).simTime;
@@ -6695,7 +6756,7 @@ async function checkLanderMounts(browser) {
     // entering stargaze from here scrolls the page to the top, a pre-existing
     // StargazeToggle focus() without preventScroll), in a NEW worker.
     await page.keyboard.press("Escape");
-    await page.waitForFunction(() => !document.body.hasAttribute("data-stargaze"), null, { timeout: 5000 });
+    await landerWait(page, "leaving stargaze", () => !document.body.hasAttribute("data-stargaze"), null);
     const remount = await landerDebug(page);
     if (!remount || remount.model !== "loading" && remount.model !== "ready") throw new Error(`no lander mounted after stargaze: ${JSON.stringify(remount)}`);
     await page.locator("#fig-lander [data-lander-host]").scrollIntoViewIfNeeded();
@@ -6703,20 +6764,44 @@ async function checkLanderMounts(browser) {
     const workersAfter = await page.evaluate(() => window.__landerWorkers.length);
     if (workersAfter !== inSky.workers + 1) throw new Error(`after stargaze ${workersAfter} lander workers exist in all, expected ${inSky.workers + 1}`);
 
-    // A visitor's input (a click on the view takes the controls) counts, once.
-    const canvas = page.locator('#fig-lander [data-lander="root"] canvas').first();
-    await canvas.click();
-    await page.keyboard.down("w");
-    await page.waitForTimeout(600);
-    await page.keyboard.up("w");
+    // The site's controls. A wind change flies a fresh hop at that level with
+    // the autopilot, and is the visitor's first output: one demo_used.
+    const fig = page.locator("#fig-lander");
+    const st = () => page.evaluate(() => window.__lander.state);
+    const viewLine = () => page.evaluate(() => document.querySelector("[data-lander-view]")?.textContent ?? "");
+    await fig.locator("[data-lander-wind] button", { hasText: lc.levels[2] }).click();
+    await landerWait(page, "a wind press flies a fresh hop at strong", () => window.__lander.state?.level === 2 && !window.__lander.state.attract, null);
+    if ((await st()).mode !== "autopilot") throw new Error(`a wind change left ${JSON.stringify(await st())}, expected the autopilot flying`);
     await page.waitForFunction(
       () => (window.vaq ?? []).some(([k, ev]) => k === "event" && ev?.name === "demo_used" && ev?.data?.demo === "lander"),
       null,
       { timeout: 10000 },
     );
-    await canvas.click();
-    await page.keyboard.press("w");
-    await page.waitForTimeout(500);
+    if (await fig.locator("[data-lander-beyond]").count()) throw new Error("the beyond-predicted note shows at 'strong'");
+    await fig.locator("[data-lander-wind] button", { hasText: lc.levels[3] }).click();
+    await landerWait(page, "beyond predicted picked", () => window.__lander.state?.level === 3, null);
+    if ((await fig.locator("[data-lander-beyond]").textContent()) !== lc.beyondNote) throw new Error("no beyond-predicted note at the fourth level");
+
+    // Take the controls: manual, the canvas focused, the view line now the
+    // prediction (the one view that is), and the keys still fly.
+    const take = fig.locator("[data-lander-take]");
+    await take.click();
+    await landerWait(page, "take the controls goes manual", () => window.__lander.state?.mode === "manual", null);
+    const focused = await page.evaluate(() => document.activeElement?.tagName === "CANVAS" && !!document.activeElement.closest("#fig-lander"));
+    if (!focused) throw new Error("taking the controls didn't focus the lander's canvas");
+    if ((await take.textContent()) !== lc.giveBack) throw new Error(`the button reads "${await take.textContent()}" while flying by hand`);
+    await landerWait(page, "the view line becomes the prediction", (t) => document.querySelector("[data-lander-view]")?.textContent.startsWith(t), lc.view.prediction);
+    if (!(await viewLine()).includes(lc.keys)) throw new Error("no key help while flying by hand at 1280");
+    await page.keyboard.down("w");
+    await page.waitForTimeout(600);
+    await page.keyboard.up("w");
+
+    // Hand it back, then a new flight: the autopilot again, still one event.
+    await take.click();
+    await landerWait(page, "hand back to the autopilot", () => window.__lander.state?.mode === "autopilot", null);
+    await landerWait(page, "the view line returns to onboard", (t) => document.querySelector("[data-lander-view]")?.textContent === t, lc.view.onboard);
+    await fig.locator("[data-lander-new]").click();
+    await landerWait(page, "new flight starts an autopilot hop on the pad", () => window.__lander.state?.mode === "autopilot" && window.__lander.state.flight.agl < 1, null);
     if ((await demoEvents(page, "lander")) !== 1) throw new Error(`demo_used{lander} queued ${await demoEvents(page, "lander")} times, expected 1`);
     await page.keyboard.press("Escape"); // the module's own "release the keys"
 
@@ -6726,18 +6811,29 @@ async function checkLanderMounts(browser) {
     await page.waitForURL(`${BASE}/lab`, { timeout: 10000 });
     await page.waitForFunction(() => window.__landerWorkers.every((w) => w.__terminated), null, { timeout: 10000 });
 
+    // Site embedding v2.1 (2026-10-16): the WASM path shares the site's /ort/
+    // plain pair (`ortBase: { wasm: '/ort' }`). The model loaded, so a
+    // runtime ran; with the bundled plain pair never fetched, it was the
+    // shared one. A bundled plain file here means the sha256 check fell back.
     const gpu = await page.evaluate(() => !!navigator.gpu);
+    const fellBack = ortFiles.filter((f) => f !== "manifest.json" && LANDER_ORT_PLAIN.has(f));
+    if (fellBack.length) throw new Error(`the lander fetched its bundled plain runtime, so the shared /ort/ pair wasn't used: ${[...new Set(fellBack)].join(", ")}`);
+    if (!ortFiles.includes("manifest.json")) throw new Error("the lander never read its own ort/manifest.json");
     const strange = ortFiles.filter((f) => !LANDER_ORT_PLAIN.has(f) && !(gpu && LANDER_ORT_ASYNCIFY.has(f)));
     if (strange.length) throw new Error(`the lander fetched an unexpected runtime file (WebGPU ${gpu}): ${[...new Set(strange)].join(", ")}`);
+    const rootBad = rootOrt.filter((f) => /\.(asyncify|jsep|jspi)\./.test(f));
+    if (rootBad.length) throw new Error(`a non-plain build was requested under the shared /ort/: ${[...new Set(rootBad)].join(", ")}`);
     if (bad.length) throw new Error(`failed lander request(s): ${bad.join(", ")}`);
     if (errors.length) throw new Error(`console error(s): ${errors.join(" | ")}`);
-    return `model ready ${loadMs}ms after scrolling to it; canvas ${px.w}x${px.h}, ${px.colours} colours; sim frozen off-screen and while stargazing (worker terminated, nothing fetched), a new worker on return; watching 0 events, input 1; navigation terminated all ${workersAfter}; runtime files ${[...new Set(ortFiles)].join(", ")}`;
+    return `model ready ${loadMs}ms after scrolling to it; off the pad ${flewMs}ms later; canvas ${px.w}x${px.h}, ${px.colours} colours; sim frozen off-screen and while stargazing (worker terminated, nothing fetched), a new worker on return; watching 0 events; wind, take the controls, hand back and new flight each did their job, 1 event in all; navigation terminated all ${workersAfter}; from /lander/v1/ort/ only ${[...new Set(ortFiles)].join(", ")}, the plain pair shared from /ort/ (${[...new Set(rootOrt)].join(", ")})`;
   });
 }
 
-/** 360px, the handoff's phone width: the module flows inside the sheet, no
- *  horizontal scroll, and nothing it draws reaches past its own box over the
- *  caption (the guide's fixed 560px box let it paint ~600px past, 2026-10-15). */
+/** 360px, the handoff's phone width, with touch: no horizontal scroll, the
+ *  module inside its box (the v1 preview in a fixed box painted ~600px past
+ *  it, 2026-10-15), the heading clear of the readout corner, phones watch
+ *  (no take-the-controls; owner call 2026-10-16) and a tap on the canvas
+ *  leaves the autopilot flying. */
 async function checkLander360(browser) {
   return withPage(browser, { viewport: { width: 360, height: 780 }, hasTouch: true }, async (page) => {
     await page.goto(BASE, { waitUntil: "networkidle" });
@@ -6754,14 +6850,24 @@ async function checkLander360(browser) {
         hostRight: h.right,
         deepest,
         captionTop: cap.getBoundingClientRect().top,
+        headingTop: document.querySelector("#fig-lander h3").getBoundingClientRect().top,
+        readoutBottom: document.querySelector("#fig-lander [data-lander-readout]").getBoundingClientRect().bottom,
+        takeShown: !!document.querySelector("#fig-lander [data-lander-take]")?.offsetParent,
       };
     });
+    if (geo.takeShown) throw new Error("'take the controls' shows at 360px, where there is no keyboard to fly with");
+    if (geo.headingTop < geo.readoutBottom) throw new Error(`the heading runs under the readout: ${JSON.stringify(geo)}`);
+    const box = await page.locator('#fig-lander [data-lander="root"] canvas').first().boundingBox();
+    await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+    await page.waitForTimeout(1500);
+    const afterTap = await page.evaluate(() => window.__lander.state);
+    if (afterTap.mode !== "autopilot" || !afterTap.attract) throw new Error(`a tap on the canvas took the flight: ${JSON.stringify({ mode: afterTap.mode, attract: afterTap.attract })}`);
     if (geo.scrollW > 360) throw new Error(`horizontal scroll at 360px: scrollWidth ${geo.scrollW}`);
     if (geo.deepest > geo.hostBottom + 0.5) throw new Error(`the lander paints past its box: ${JSON.stringify(geo)}`);
     if (geo.hostBottom > geo.captionTop + 0.5) throw new Error(`the lander overlaps its caption: ${JSON.stringify(geo)}`);
     const px = await landerCanvasPixels(page);
     if (px.colours < 100 || px.lit < 0.5) throw new Error(`the lander's canvas looks blank at 360px: ${JSON.stringify(px)}`);
-    return `no horizontal scroll, the module inside its box (${Math.round(geo.captionTop - geo.hostBottom)}px clear of the caption), canvas ${px.w}x${px.h} with ${px.colours} colours`;
+    return `no horizontal scroll, no take-the-controls, a tap left the autopilot flying, heading clear of the readout, the module inside its box (${Math.round(geo.captionTop - geo.hostBottom)}px clear of the caption), canvas ${px.w}x${px.h} with ${px.colours} colours`;
   });
 }
 

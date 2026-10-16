@@ -1,21 +1,14 @@
-import { InstrumentFigure } from "@/components/manuscript/InstrumentFigure";
 import { LanderPanel } from "@/components/LanderPanel";
-import { copy } from "@/content/copy";
 
 /**
  * Figure 5 since 2026-10-15 (the draw demo's slot; DrawDigit moved to /lab as
- * S4). A server component: the figure chrome and caption render with the
- * page, and only the panel inside is client code. Mounted in app/page.tsx
- * behind `DeferredMount`, like chess.
+ * S4). Mounted in app/page.tsx behind `DeferredMount`, like chess. The panel
+ * owns its `InstrumentFigure` (id `fig-lander`), as DrawDigit and ChessPanel
+ * do, because its readout comes from the module's live state.
  *
- * ⚠️ PREVIEW build (lunar_lander's titan-handoff-preview): the module still
- * draws its own testing UI, which the site will replace once the module
- * exposes its state and commands. Not for deploy.
+ * ⚠️ PREVIEW build (lunar_lander's titan-handoff-preview, site embedding v2):
+ * not for deploy until the release handoff.
  */
 export function LanderFigure() {
-  return (
-    <InstrumentFigure n="5" id="fig-lander" caption={copy.systems.lander.figureCaption}>
-      <LanderPanel />
-    </InstrumentFigure>
-  );
+  return <LanderPanel />;
 }

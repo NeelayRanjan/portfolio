@@ -549,9 +549,62 @@ export const copy = {
      *  autopilot's landing rates, the parameter count) until the release
      *  build, whose numbers will differ. */
     lander: {
+      /** The h3 and lede, chess's pattern. The lede says what the autopilot
+       *  does (the copy notes: it plans "by imagining candidate thrust plans
+       *  inside" the dream and flies the real physics); no plan count, since
+       *  the planner's budget varies by device and steps down when slow. */
+      heading: "Planning inside a learned model of the flight",
+      lede: "Every half second the autopilot tries candidate thrust plans inside a diffusion model of its own flight, then flies the best one on the real physics.",
       figureCaption:
-        "An autopilot flies a rotorcraft shaped like NASA’s Dragonfly over Titan’s dunes, planning each hop inside a diffusion model of its own flight. From the last second of flight and a plan of rotor commands, the model samples the next three seconds; the faint trails are those samples. Take the controls and your commands cross a 2 s round-trip link to Earth (light takes 67-92 minutes each way), so the craft you see is the model’s average prediction of where it will be when your command arrives.",
+        "An autopilot flies a rotorcraft shaped like NASA’s Dragonfly over Titan’s dunes. From the last second of flight and a plan of rotor commands, a diffusion model samples the next three seconds; the faint trails are those samples. On a computer you can take the controls: your commands then cross a 2 s round-trip link to Earth (light takes 67-92 minutes each way), and the craft you see is the model’s average prediction of where it will be when your command arrives.",
       loadFailed: "The lander didn’t load. Reload the page to try again.",
+      loading: "loading the model",
+      /** Readout parts (the figure's amber corner): who is flying, height,
+       *  the value head's landing chance. "est." is the owner's call
+       *  (2026-10-16): the preview's value head misses its own calibration
+       *  gate (ECE 0.051 against < 0.05), so the number is labelled an
+       *  estimate rather than hidden. */
+      who: {
+        autopilot: "autopilot",
+        you: "you",
+        simplePilot: "simple pilot",
+        fallback: "physics fallback",
+      },
+      metres: "m",
+      landingPre: "landing ",
+      landingPost: "% est.",
+      landed: "landed",
+      crashed: "crashed",
+      windLabel: "wind",
+      /** Index = ConditionsLevel. The fourth must carry the copy notes'
+       *  required label, which `beyondNote` states in full when it's picked. */
+      levels: ["calm", "breezy", "strong", "beyond predicted"],
+      beyondNote: "Beyond Titan’s predicted near-surface winds: a game setting, not a Dragonfly limit.",
+      takeControls: "take the controls",
+      giveBack: "let the autopilot fly",
+      newFlight: "new flight",
+      /** The module's own key bindings (its old full UI's help line). */
+      keys: "W/S or ↑/↓ lengthen and shorten the thrust, A/D or ←/→ lean it. Esc lets go of the keys.",
+      /** The line under the controls, chosen from the module's `display`,
+       *  `mode` and `outcome` together (guide §4: only the manual view is a
+       *  prediction; the onboard view and a confirmed touchdown are not). */
+      view: {
+        onboard: "The autopilot flies onboard, with no link delay. The faint shapes are the plans it’s weighing.",
+        prediction: "You fly through a 2 s round trip, so the craft is the model’s average prediction of where it will be when your newest command arrives. The faint craft are other sampled futures, and the inset is the downlink, 1 s old.",
+        fallback: "Without the model, a physics predictor that ignores wind draws the craft.",
+        touchdown: "Touchdown confirmed by the downlink.",
+      },
+      /** Words the module draws ON the canvas (LanderOptions.text). The
+       *  terrain label is the copy notes' required wording; `{s}` and
+       *  `{label}` are the module's own placeholders. */
+      canvas: {
+        terrainCaption: "illustrative terrain, generated from Cassini-observed dune and crater statistics",
+        awaitingTouchdown: "touchdown predicted, waiting for the downlink",
+        insetLabel: "downlink, {s} s old",
+        targetLabel: "{label} (illustrative)",
+        simplePilot: "Planner too slow on this device: a simple pilot is flying",
+        noModel: "The model didn’t load: a physics predictor that ignores wind draws the craft",
+      },
     },
 
     /** Figure S4 on /lab since 2026-10-15 (page 1's Figure 5 until the Titan

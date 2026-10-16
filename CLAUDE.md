@@ -676,8 +676,17 @@ controls are a testing UI ("super duper rough") that the site will replace
 with its own, "less buttons"; the models load when the panel is on screen;
 `demo_used` only; Dragonfly contributes only its looks (no NASA review). A
 v2 module ("more reliable") is in training, and the release handoff keeps
-the same layout and `mount()` API. Contracts and measurements: "Titan
-lander (Figure 5)" under the demos.
+the same layout and `mount()` API. **2026-10-16: site embedding v2**, the
+lander repo's answer to the site's eight requests: the module now draws
+only the canvas (`ui: 'none'`) and the site built the "watch first"
+interface around it (wind, take the controls on a computer, new flight, an
+amber readout with the landing chance marked "est."), the slow-device
+planner ladder fixed the stall that kept the autopilot on the pad in
+Playwright's Firefox. **v2.1 the same day** answered the next four
+requests: the WASM path shares the site's `/ort/` plain pair through a
+per-entry `ortBase`, the phone terrain caption fits, and a `zoom` option
+frames the craft (1.5 desktop, 2.25 phone). Contracts and measurements: "Titan lander (Figure 5)" under the
+demos.
 
 **Open items, roughly in order:**
 
@@ -2253,7 +2262,10 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   starts on `/lab`: `draw-stroke-auto-label`,
   `draw-ink-survives-height-resize-400`, `stargaze-offload-draw`,
   `stargaze-during-download`, the draw leg of `ort-runtime-build`, and the
-  draw half of `stargaze-cancels-run` (whose headshot half stays on `/`).
+  draw half of `stargaze-cancels-run` (whose headshot half stays on `/`;
+  on `/lab` nothing runs between the exit and the restore's generate click,
+  so it waits for the button to be ENABLED first: the restore's re-classify
+  disables it, and under load the bare click timed out at 30 s, 3 of 3).
 - Division of labour: all model math lives in `lib/ascii-diffusion.js`, vendored
   from the model repo, pinned against a PyTorch reference (sampler max|Δ| 7.9e-6).
   The site owns canvas, pen, UI, copy. `lib/ascii-diffusion.d.ts` is hand-typed —
@@ -2300,12 +2312,56 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   copy notes, for the build being shipped; the preview's numbers (landing
   rates, the value head's 0.051 ECE, which misses its own < 0.05 gate) do
   not go on the page.
+- **Site embedding v2 (2026-10-16)**: the lander repo answered the site's
+  eight requests with a new preview build (gitSha d54b513, same models and
+  ORT bytes, so only the entry, worker and manifests changed in git). The
+  site now mounts it with `ui: 'none'`: the module draws ONLY the canvas
+  (no DOM text under its root), and every control, readout and line around
+  it is the site's, driven by `onState` (<= 10 Hz, frozen objects) and the
+  handle's commands (`newFlight`, `setLevel`, `setAutopilot`, `setInput`,
+  `injectFault`). The module's dev tools (auto-save downloads, seed label,
+  fault buttons) are gone from the library build. v1 was replaced IN PLACE
+  in `public/lander/v1/` (never deployed, so no visitor cache held it);
+  from the first deploy on, a change ships as a new directory.
+- **The site's UI** (owner rulings, 2026-10-16, "watch first"): the
+  attract flight runs on its own; under the canvas a wind segmented control
+  (calm / breezy / strong / beyond predicted; picking one flies a fresh hop
+  at that level with the autopilot), "take the controls" ⇄ "let the
+  autopilot fly" (computer only: flying is keyboard-only, so it is hidden
+  below 880px and phones watch; a tap on the phone canvas does NOT take the
+  flight, measured) and "new flight" (a fresh autopilot hop). No hop picker,
+  no fault buttons. The figure's amber corner reads who flies (autopilot,
+  you, simple pilot, physics fallback), the height, and the value head's
+  landing chance as "landing N% est.": shown now by owner call although the
+  preview head misses its calibration gate, and FLOORED, because 0.997
+  rounded to a "100%" no model earns. The line under the controls is chosen
+  from `display`, `mode` and `outcome` together (guide §4): only the manual
+  view is called a prediction, never the autopilot's onboard view or a
+  confirmed touchdown; while flying by hand at 880px+ it adds the key help.
+  The fourth level shows `beyondNote` ("Beyond Titan's predicted
+  near-surface winds: a game setting, not a Dragonfly limit."), the copy
+  notes' required label. Every string is `copy.systems.lander`, including
+  the words the module draws ON the canvas (`text`: the terrain caption,
+  the downlink label, target labels marked illustrative, the simple-pilot
+  and no-model lines). The heading and lede follow chess's pattern; the
+  heading starts under the readout corner below 880px (a right pad squeezed
+  it to a word a line at 360).
+- **Palette**: the roles that carry meaning take the site's figure colours
+  (`model` = `--color-ok`, the owner's own model; `baseline` =
+  `--color-red-ink`, the no-model fallback and the simple pilot; `hazard`
+  red; `readout` = `--color-warm`; `craft` = `--color-ink`), resolved with
+  `getComputedStyle` at mount (a canvas can't read var()). The sky, ground,
+  terrain and canvas text keep the module's Titan haze ON PURPOSE: with the
+  site's dark tokens the ground nearly vanished and the dunes and target
+  stopped reading (compared at 1280, 2026-10-16), and Titan's orange is the
+  moon's own colour.
 - **Pieces**: `public/lander/v1/` (verbatim: `lander.js`, `lander-worker.js`,
   `chunks/`, `models/`, its OWN `ort/` with both the plain and asyncify
   pairs, `manifest.json` with every sha256; check a new copy against it);
   `lib/lander-types.ts` (the module's `lander.d.ts`); `components/LanderPanel.tsx`
-  (client: mount, pause, unload, analytics); `components/LanderFigure.tsx`
-  (server: the figure and caption, `copy.systems.lander`). The module is
+  (client: the figure, the UI, mount, pause, unload, analytics);
+  `components/LanderFigure.tsx` (the page's import; the panel owns its
+  `InstrumentFigure` because the readout is live). The module is
   loaded by an UNBUNDLED dynamic import
   (`/* webpackIgnore */ /* turbopackIgnore */`, Next 16's lazy-loading doc);
   verified in the build output as a native `import()` of the template URL.
@@ -2316,12 +2372,35 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   under require-corp the worker script itself needs the header (verified
   with curl: worker, `.mjs` and `.wasm` all carry COEP, JS and
   `application/wasm` types). `scripts/sync-ort.mjs` only touches
-  `public/ort/`, so the module's runtime is out of its reach as is.
-- **Its runtime duplicates the site's**: the lander's plain pair is
-  byte-identical (same sha256) to `public/ort/`'s, but at another URL, so a
-  visitor who used chess or the rerouter downloads it again (3.46 MB gz). An
-  `ortBase` option is a request to the lander repo, not a site change: the
-  handoff forbids substituting the site's copies.
+  `public/ort/`, so the module's runtime is out of its reach as is. The
+  module also takes `modelsBase` (models in their own versioned directory),
+  unused so far.
+- **The runtime is SHARED on the WASM path** (site embedding v2.1,
+  2026-10-16, gitSha 5a2caac): `ortBase: { wasm: '/ort' }`, the owner's
+  "share the plain pair only". The lander's plain pair is byte-identical to
+  `public/ort/`'s, so a visitor who used chess (Figure 4, just above) or the
+  rerouter no longer downloads it twice (3.46 MB gz saved). The worker
+  sha256-checks each shared file against its OWN `ort/manifest.json`
+  (always read from `/lander/v1/ort/`) and falls back to the bundled copy
+  with one warning per worker on a mismatch; the WebGPU path always uses the
+  bundled asyncify pair and never requests anything under `/ort/`, so
+  sync-ort keeps deleting the asyncify pair there and `ort-runtime-build`
+  needs no change. ⚠️ **Upgrading onnxruntime-web means upgrading the
+  lander with it** (both 1.27.0), or every WASM visitor's shared entry
+  falls back and downloads twice; drop `ortBase` if the two must diverge.
+  Measured: Chromium, Playwright's Firefox and WebKit (the container) all
+  fetched only `manifest.json` from `/lander/v1/ort/` and the plain pair
+  from `/ort/`, with no fallback warning.
+- **Zoom** (v2.1): `zoom` tightens the camera near the ground and eases
+  back to the plain view with altitude; read once at mount, so the panel
+  picks it by the same 880px breakpoint as the box's shape (`ZOOM_WIDE`
+  1.5, `ZOOM_NARROW` 2.25, chosen from screenshots of both widths at 9, 22
+  and 45 s) and REMOUNTS when the breakpoint is crossed (the flight in
+  progress is lost; rotating a tablet is the only common way to cross it).
+  An amber edge chevron points at an off-screen target (the module's, in
+  the `readout` colour). At 360 the target's label ("interdune organics
+  (illustrative)") runs past the canvas's right edge: the lander repo's to
+  fix, reported 2026-10-16.
 - **Lifecycle**: `DeferredMount` mounts the panel; `lander.js` loads then;
   the module fetches runtime and models only once on screen. Off-screen
   (IntersectionObserver, 200px margin) the panel calls `pause()`; the module
@@ -2329,42 +2408,78 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   as chess: only terminating the worker frees memory), and exit remounts it
   fresh, loading again once on screen. A remount awaits the previous
   unload. `demo_used {demo: "lander"}` on the module's first
-  `flight_started` (a visitor's input; the attract flight emits nothing, so
-  watching does NOT count, unlike chess self-play). A missing model is the
-  module's business (it flies on a labelled physics predictor); the panel's
-  `failed` line is only a failed import of `lander.js`.
-  `window.__lander` (`debug()`, the module's snapshot or null; `mounts`;
-  `unloads`) and `data-lander-panel`/`data-lander-host` are verify hooks.
-- **⚠️ Its box is AUTO height**, against the handoff guide's 4:3 and phone
-  min-height: the preview module sizes itself to its content (the canvas is
-  16:9 of the width, its controls flow below), and in a fixed box it painted
-  ~430px past the box at 1280 and ~600px at 360, over the caption and the
-  next section (measured 2026-10-15). `lander-360` pins it.
-- **⚠️ Playwright's Firefox cannot fly it** (measured 2026-10-15): a plan
-  round trip takes 5-8 s there against ~0.45-0.55 s in Playwright's Chromium,
-  and the attract autopilot sat on the pad for 2 minutes. Stock Firefox 152
-  (over WebDriver BiDi, headless, wasm path) took off ~4 s after the model
-  was ready and flew, like Chromium. So the autopilot WAITS on the pad when
-  plans are slow; no phone has been measured, and whether a slow phone ever
-  takes off is a question for the lander repo. The verify checks therefore
-  assert lifecycle, never flight.
+  `flight_started`: a visitor's press of wind or new flight, or taking the
+  controls (the attract flight emits nothing, so watching does NOT count,
+  unlike chess self-play). A missing model is the module's business (it
+  flies on a labelled physics predictor and draws `canvas.noModel`); the
+  panel's `failed` line is only a failed import of `lander.js`.
+  `window.__lander` (`debug()`, the module's snapshot or null; `state`, the
+  newest `LanderState`; `mounts`; `unloads`) and `data-lander-panel`,
+  `data-lander-host`, `data-lander-readout`, `data-lander-wind`,
+  `data-lander-take`, `data-lander-new`, `data-lander-beyond` and
+  `data-lander-view` are verify hooks.
+- **Its box**: `aspect: 'fill'` in a box whose `aspect-ratio` gives it a
+  definite height, 4:3 below 880px (taller, where the sheet is narrow) and
+  16:9 from 880px. (The v1 preview sized itself to its own content and, in
+  the guide's fixed box, painted ~430px past it at 1280 and ~600px at 360,
+  over the caption; `lander-360` still pins nothing past the box.) At 360
+  the canvas is ~242x181; since v2.1 the terrain caption is 9px, two lines
+  at that width, top-left over the sky (bottom when the craft climbs near
+  it), and wraps short of the downlink inset.
+- **⚠️ Commands read the newest state from a ref, never the render's**
+  (`stateRef` in `LanderPanel.tsx`, 2026-10-16). React's `state` can trail
+  the module by one onState tick, and right after a stargaze restore a wind
+  press read model "loading" from the last render, skipped `setAutopilot`,
+  and left a hand-flown flight that a phone can't fly (`lander-mounts`
+  failed on it under load, 1 of 3 runs, then 3 of 3 clean after the fix).
+  Render-time values (labels, `disabled`) still come from `state`.
+- **Slow devices** (fixed in v2): Playwright's Firefox plans at 5-8 s a
+  plan against ~0.45-0.55 s in Playwright's Chromium, and the v1 preview's
+  attract autopilot sat on the pad for 2 minutes there (stock Firefox 152
+  flew). v2 steps down a ladder of planner budgets, holds ghost and value
+  requests while plans are late, and hands the flight to a labelled
+  "simple pilot" (`planner: 'simple-pilot'`, red, never called the
+  autopilot) when even the bottom step can't keep up. Measured: off the
+  pad ~7.5-8.6 s after the model was ready in Playwright's Firefox on a quiet
+  machine, 2.3-23 s under a load average of ~20 (the check allows 30 s). No
+  phone has been measured.
 - **Checks**: `lander-mounts` (1280: nothing of the lander's before its slot,
-  model ready on screen, non-blank canvas, sim frozen off-screen with
-  `hostPaused`, stargaze unloads with every lander worker terminated and
-  nothing fetched while in, a new worker on return, 0 events from watching
-  and exactly 1 after input, the /lab box's client navigation terminating
-  every worker, runtime files only the plain pair, asyncify only where
-  `navigator.gpu` exists); `lander-360` (touch, 360px: no horizontal scroll,
-  nothing painted past the box, caption clear, non-blank canvas). Proved to
-  bite with one mutant build (no pause; the guide's fixed 560px box): "scrolled
-  away, the sim moved 16.0 -> 17.6 (hostPaused false)" and "the lander paints
-  past its box". The WebKit rule (/wasm only) is checked by hand, since this
-  suite has no WebKit. It was run by hand in Playwright 1.63's WebKit, through the
-  lander repo's own route, the Playwright v1.63 container under podman
-  (`mcr.microsoft.com/playwright:v1.63.0-noble`, `--network=host`, that
-  repo's `node_modules` mounted read-only at `/x/node_modules`): at 1280 and
-  360 only the manifest and the plain pair were fetched, no failed request,
-  no console error, and the autopilot climbed to ~35 m (2026-10-15).
+  model ready on screen, non-blank canvas, the attract flight off the pad
+  inside 30 s and the autopilot's, the readout naming who flies with the
+  FLOORED "% est." landing chance, the onboard view line, 0 events from
+  watching; sim frozen off-screen with `hostPaused`; stargaze unloads with
+  every lander worker terminated and nothing fetched while in, a new worker
+  on return; then the controls: a wind press flies a fresh autopilot hop at
+  that level and queues the one `demo_used`, the fourth level shows the
+  beyond note, take the controls goes manual, focuses the canvas, relabels
+  itself, switches the line to the prediction with key help, hand back and
+  new flight return the autopilot, still 1 event; the /lab box's client
+  navigation terminating every worker; since v2.1 only `manifest.json`
+  (plus asyncify where `navigator.gpu` exists) from `/lander/v1/ort/`, NO
+  bundled plain file (that would be the shared entry falling back), and no
+  asyncify/jsep/jspi file under the root `/ort/`); `lander-360` (touch, 360px:
+  no horizontal scroll, no take-the-controls, a canvas tap leaves the
+  autopilot flying, the heading below the readout, nothing painted past the
+  box, caption clear, non-blank canvas). Proved to bite: v1's mutant (no
+  pause; the guide's fixed 560px box) failed "scrolled away, the sim moved
+  16.0 -> 17.6 (hostPaused false)" and "the lander paints past its box";
+  v2's two (2026-10-16): no landing chance in the readout plus a visible
+  phone take button failed "readout "autopilot · 1 m" is not the floored
+  landing chance 0.98" and "'take the controls' shows at 360px", and no
+  canvas focus failed "taking the controls didn't focus the lander's
+  canvas"; v2.1's (no `ortBase`) failed "the lander fetched its bundled
+  plain runtime, so the shared /ort/ pair wasn't used". The WebKit rule (/wasm only) is checked by hand, since this
+  suite has no WebKit: Playwright's WebKit can't launch on this machine
+  (missing system libraries), but it runs inside Microsoft's container, the
+  lander repo's own route: `podman run --rm --network=host --userns=keep-id
+  --security-opt label=disable -v
+  ~/Documents/lunar_lander/node_modules:/pw/node_modules:ro -v <dir>:/work
+  -w /work mcr.microsoft.com/playwright:v1.63.0-noble node run.mjs`, the
+  script importing `/pw/node_modules/playwright/index.mjs` (the image and
+  the mounted package must both be 1.63.0). v2, 2026-10-16, at 1280 and
+  360: only the manifest and the plain pair, no failed request, no console
+  error, the autopilot to ~34 m, readout "autopilot · 34 m · landing 99%
+  est.".
 - **A side effect on `slaac-all-flights`** (2026-10-15): the longer /lab
   teaser made the page above Figure 3 18px taller and moved the canvas
   0.8px, and the check's pick click, on a leg KJFK-KMIA-1 shares with

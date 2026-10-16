@@ -10,5 +10,11 @@
       "wasm": "ort-wasm-simd-threaded.asyncify.wasm",
       "mjs": "ort-wasm-simd-threaded.asyncify.mjs"
     }
+  },
+  "sha256": {
+    "ort-wasm-simd-threaded.wasm": "d1ab1b94b16a65b29d710d0b587b29e7bed336827577623913479b8afe8113e6",
+    "ort-wasm-simd-threaded.mjs": "0a1e718d99c41b22c21f2520ff4f9e883a6b5533856e398d21816ee8eb8185d3",
+    "ort-wasm-simd-threaded.asyncify.wasm": "7e83cd6cee77e478bc96a7e91b198144fb5e4126287daf1f9b54bb195ebcd55a",
+    "ort-wasm-simd-threaded.asyncify.mjs": "7236653b8565da4046e459cd0e274123419a1d9f1f8f18fd36c28058346ca655"
   }
 }

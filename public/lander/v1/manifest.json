@@ -1,7 +1,7 @@
 {
   "name": "titan-lander",
   "version": "0.1.0",
-  "gitSha": "d157478f9a2125082fdc2ed3f88fbee1fdc5468a",
+  "gitSha": "5a2caac18adb23275ecbab63beed1dbbe746bfde",
   "ortVersion": "1.27.0",
   "models": {
     "dir": "runs/preview-models",
@@ -29,18 +29,18 @@
     },
     {
       "path": "lander-worker.js",
-      "bytes": 33021,
-      "sha256": "ee83d789c2453a65216e82be906890a78744cdda565caac5ba8fd3f3abe188cb"
+      "bytes": 34378,
+      "sha256": "5208a015909c96af3674b50f4b6bf7f2b6c8f45bff21a57ae1970c8495effc08"
     },
     {
       "path": "lander.d.ts",
-      "bytes": 1146,
-      "sha256": "666775e0a1aa355479b60d1049f33397353913512a923bae719a5387c24a564d"
+      "bytes": 4459,
+      "sha256": "f33acd1050c29f8085dd7f5afc1bad610d77cb6b2ef5e78f021888f02e96bfa5"
     },
     {
       "path": "lander.js",
-      "bytes": 138922,
-      "sha256": "fc8dc0c11eb655e9f34e137408a494330c0798ad15c4173f15c3292d689def57"
+      "bytes": 163108,
+      "sha256": "14d44d2068c0d38d8a66818ed3e6e26e54b36e08177ea6429a7613a95a1973df"
     },
     {
       "path": "models/dream.onnx",
@@ -64,8 +64,8 @@
     },
     {
       "path": "ort/manifest.json",
-      "bytes": 303,
-      "sha256": "dc73781a2056cdc1ca64be44515c7d4b8dbcdcdf8ae356d7dfd5d8e18a78ecf2"
+      "bytes": 749,
+      "sha256": "c3f31d79838d6696073249ab653bfe8c7a5bb5feb2ef5dc31a75f0d20978095b"
     },
     {
       "path": "ort/ort-wasm-simd-threaded.asyncify.mjs",

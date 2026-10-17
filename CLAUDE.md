@@ -90,10 +90,11 @@ honest limit: the main-thread ORT wasm heap never actually shrinks, only the
 chess worker's termination truly frees memory. `window.__sky` and
 `window.__offload` are verify hooks, not UI.
 
-**Verification: `scripts/verify-redesign.mjs`** — 56 named checks on branch
-`lander-preview` (`lander-mounts`, `lander-360`; see the lander section; all
-56 passed there on 2026-10-15), 54 on `main` (counted from the CHECKS array
-on 2026-10-15; this line read 53, already stale), 53 named checks (on `main`
+**Verification: `scripts/verify-redesign.mjs`** — 56 named checks on `main`
+since the lander merge, 2026-10-16 (`lander-mounts`, `lander-360`; see the
+lander section; all 56 passed on the merged build, 2026-10-16), 54 before it
+(counted from the CHECKS array on 2026-10-15; this line read 53, already
+stale), 53 named checks (on `main`
 since the 2026-10-01 merge of the `slaac-demo` round; 52 before Task 17, 2026-10-01, added
 `stargaze-secret-door`; the count read 51 here though `colophon` made it 52;
 50 before Task 12c, 2026-10-01, added
@@ -662,9 +663,15 @@ stays `--color-paper` (measured on the build: mean 18.15 vs 18, std ~3 levels)
 and only the texture is new; figure panels (`bg-panel`) cover it. Its filter
 needs `color-interpolation-filters="sRGB"` (linearRGB turned the sheet grey).
 
-**2026-10-15: the Titan lander replaces the draw demo as Figure 5, on branch
-`lander-preview` ONLY (not merged, not deployed; the owner approves every
-outward step).** The owner's lunar_lander project (a Dragonfly-shaped
+**2026-10-15/16: the Titan lander replaces the draw demo as Figure 5, LIVE
+since 2026-10-16** (built on branch `lander-preview`, fast-forwarded into
+`main` and deployed at the owner's call: "push this to prod for now, looks
+good enough as an initial demo"; the owner still wants the visuals improved).
+⚠️ It shipped the lander's PREVIEW models: the value head misses its own
+calibration gate (the readout says "est."), the handoff said not to deploy,
+and the owner overrode that. ⚠️ `/lander/v1/` is now in visitors' caches
+for a year: every later change, a graphics pass included, ships as
+`public/lander/v2/` (then v3...) with `LANDER_BASE` moved, never in place. The owner's lunar_lander project (a Dragonfly-shaped
 rotorcraft on Titan, an autopilot that plans inside a diffusion world model)
 arrived as a PREVIEW handoff
 (`~/Documents/lunar_lander/.claude/worktrees/titan/dist/titan-handoff-preview/`,
@@ -689,6 +696,20 @@ frames the craft (1.5 desktop, 2.25 phone). Contracts and measurements: "Titan l
 demos.
 
 **Open items, roughly in order:**
+
+The lander's own, ahead of the list (LIVE since 2026-10-16):
+- L1. **The visuals are still rough** (owner, 2026-10-16: "still do want to
+  work on the visuals because its quite rough still"). This session owns
+  them, in the lander repo's `site-graphics` worktree; the next pass ships
+  as `public/lander/v2/`.
+- L2. **Merge `site-graphics` (c50b62f) into the lander repo**: production
+  runs a module built from that branch, which the lander session's own
+  tree doesn't have yet.
+- L3. **The release handoff**: a value head that passes its calibration
+  gate (round 2, on hold) and measured speeds; it ships as a new directory.
+- L4. **A phone has never run the lander.** Measure take-off time and frame
+  rate on the owner's iPhone on production; the slow-device ladder and the
+  simple pilot exist for exactly that case.
 
 The SLAAC round's own, ahead of the list (LIVE on `main` since 2026-10-01):
 - a. ~~Mentor approval of the preview is the merge gate.~~ **DONE
@@ -824,9 +845,8 @@ and the owner's SOP tell one story.
 
 - **Multi-page, but page 1 delivers ~95% of the experience.** Other pages are
   overflow for the genuinely curious.
-- Page-1 demos: **draw-a-digit and chess** (on branch `lander-preview`,
-  2026-10-15: **chess and the Titan lander**, the draw demo moved to `/lab`
-  as S4; this bullet changes on `main` when that branch merges). The trajectory viewer, JEPA and
+- Page-1 demos: **chess and the Titan lander** since 2026-10-16 (draw-a-digit
+  and chess until then; the draw demo is `/lab`'s S4). The trajectory viewer, JEPA and
   sample-space move to **`/lab`** (one page for all of them). Sample-space
   (S3) was then CUT on 2026-09-29 (owner's copy pass): it was the site's one
   hand-built illustration, and it returns only as a real trained 2D model.
@@ -1234,8 +1254,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   flight at first paint; each demo's payload loads when its section is reached;
   the 26MB draw model loads on first interaction (and the
   rerouter's 23.4MB model on the first reroute press that has an arc to
-  sample, never in the warm window); the Titan lander (branch
-  `lander-preview`) is the one exception, by owner call: its module fetches
+  sample, never in the warm window); the Titan lander is the one exception, by owner call: its module fetches
   its runtime and ~11.6 MB of models when the panel is ON SCREEN, because
   its attract flight is the demo; ORT+chess (24.4MB) may warm on
   desktop idle, gated by `saveData` / bad `effectiveType` / `deviceMemory < 4` /
@@ -2256,8 +2275,8 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   hint), `data-chess-self-play-rule` and `data-chess-self-play-took`. The CSS variable `--stargaze-hint-h` is real
   layout, not a hook: the panel and phone names both read it.
 
-### Draw-a-digit (SDEdit, live MNIST diffusion) — page 1 (on branch `lander-preview`: /lab, Figure S4)
-- On `lander-preview` (2026-10-15) it renders on `/lab` as S4 (`DrawDigit`
+### Draw-a-digit (SDEdit, live MNIST diffusion) — /lab, Figure S4 (page 1's Figure 5 until 2026-10-16)
+- Since the lander merge (built 2026-10-15) it renders on `/lab` as S4 (`DrawDigit`
   takes `n`), its copy still under `copy.systems.draw`, and every draw check
   starts on `/lab`: `draw-stroke-auto-label`,
   `draw-ink-survives-height-resize-400`, `stargaze-offload-draw`,
@@ -2300,7 +2319,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   corrupts it.** The mutual exclusion runs through `classifyingRef` (synchronous,
   not state). Respect it in any rebuild of this panel.
 
-### Titan lander (Figure 5) — page 1, branch `lander-preview` (PREVIEW, not deployed)
+### Titan lander (Figure 5) — page 1, LIVE since 2026-10-16 (preview models)
 - **What it is**: the owner's lunar_lander project. A 2D side view of a
   rotorcraft shaped like NASA's Dragonfly (looks only, owner 2026-10-15)
   flying hops over generated Titan terrain; a 2.58M-param diffusion model
@@ -3223,7 +3242,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 | `scripts/slaac-vectors/*.json` | ~2.8 MB | parity vectors from the owner's real modules; never in `public/` |
 | `scripts/slaac-gate/report.{md,json}` | ~240 KB | the gate's decision and per-case table (`rows.jsonl` gitignored) |
 | `public/ort/*` | ~37 MB | onnxruntime-web wasm, vendored, **gitignored**, synced on prebuild |
-| `public/lander/v1/*` | ~49.4 MB | branch `lander-preview`: the Titan lander module, verbatim from lunar_lander's PREVIEW handoff (dream 10.4 MB, value 1.2 MB, its own ORT 1.27.0 runtime 37.8 MB with the asyncify pair, entry and worker ~290 KB); COMMITTED (owner call), so each new version adds a full directory to history |
+| `public/lander/v1/*` | ~49.4 MB | LIVE since 2026-10-16: the Titan lander module, verbatim from lunar_lander's PREVIEW handoff (dream 10.4 MB, value 1.2 MB, its own ORT 1.27.0 runtime 37.8 MB with the asyncify pair, entry and worker ~290 KB); COMMITTED (owner call), so each new version adds a full directory to history |
 
 The JEPA bundle is produced by
 `export.py` in `~/Documents/embedding_jepa/` and copied verbatim; nothing in this

@@ -1,5 +1,5 @@
-// Types for the Titan lander module (public/lander/v1/lander.js), copied from
-// the handoff's lander.d.ts. The module is loaded by URL at run time and never
+// Types for the Titan lander module (public/lander/v2/lander.js), copied from
+// the lander build's lander.d.ts. The module is loaded by URL at run time and never
 // bundled; these only describe what it exports. Re-copy at every new version.
 /** 0 calm, 1 breezy, 2 strong, 3 beyond predicted (spec 4.5; see the copy notes). */
 export type ConditionsLevel = 0 | 1 | 2 | 3;
@@ -46,8 +46,12 @@ export interface LanderOptions {
   modelsBase?: string;
   /** No attract flight and no ghost traffic until the visitor starts a flight. Defaults to prefers-reduced-motion. */
   reducedMotion?: boolean;
+  /** 'diorama': the same 2D flight drawn with depth around its plane (a receding dune plain, the craft's top, a drop line); scenery only. Default 'flat'. */
+  scene?: 'flat' | 'diorama';
   onEvent?: (e: LanderEvent) => void;
   onState?: (s: LanderState) => void;
+  /** Once per adopted plan (autopilot) or futures reply (manual flight): what the dream predicted. */
+  onModel?: (v: LanderModelView) => void;
 }
 export type LanderEvent =
   | { type: 'flight_started'; mode: 'manual' | 'autopilot'; hop: number; level: ConditionsLevel }
@@ -78,5 +82,44 @@ export interface LanderState {
   flight: { agl: number; vx: number; vy: number; tiltDeg: number; energy: number; windMs: number };
   landing: { pSafe: number; tGo: number } | null;
   outcome: null | 'landed' | 'crashed';
+}
+/**
+ * What the dream predicted, and the ground around it. Metres in the anchor's frame: x along the track, y up,
+ * the origin the craft's centre of mass at the anchor (now for a plan; the 1 s old downlink for manual futures).
+ */
+export interface LanderModelView {
+  /** plan: the autopilot's candidate plans; futures: samples of the visitor's flight. */
+  source: 'plan' | 'futures';
+  /** Sim seconds at the anchor. */
+  t: number;
+  /** Seconds between consecutive path points. */
+  dt: number;
+  /** The dream's history (1 s), oldest first, ending at (0, 0): x0, y0, x1, y1, ... */
+  past: Float32Array;
+  paths: ReadonlyArray<LanderModelPath>;
+  ground: {
+    /** The dream's terrain-context offsets (64, 2 m apart). */
+    x: Float32Array;
+    /** Ground height there. */
+    y: Float32Array;
+    /** 1: scanned (or off the map), as the context strip flags it. */
+    scanned: Uint8Array;
+    /** 1: a known hazard (or off the map). */
+    hazard: Uint8Array;
+    /** The dream read this strip: true when some commands were not given (manual futures). A plan gives every command, so its futures never read it; the planner checks them against the real ground and known hazards. */
+    read: boolean;
+  };
+  /** The target, along the track from the anchor. */
+  targetX: number;
+  /** The anchor in world metres (x along the track, y height): lines up views from successive plans. */
+  origin: { x: number; y: number };
+  /** A plan: the seconds of it the autopilot flies before the next plan is due (when replies are on time; a late reply keeps it flying the previous plan longer). Futures: null. */
+  execS: number | null;
+}
+export interface LanderModelPath {
+  /** x0, y0, x1, y1, ... from (0, 0), dt apart, to the contact or the horizon. */
+  xy: Float32Array;
+  tier: 'chosen' | 'elite' | 'rejected' | 'sample';
+  contact: 'safe' | 'crash' | null;
 }
 export declare function mount(container: HTMLElement, opts: LanderOptions): LanderHandle;

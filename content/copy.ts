@@ -555,8 +555,10 @@ export const copy = {
        *  the planner's budget varies by device and steps down when slow. */
       heading: "Planning inside a learned model of the flight",
       lede: "Every half second the autopilot tries candidate thrust plans inside a diffusion model of its own flight, then flies the best one on the real physics.",
+      /** 2026-10-16, the diorama: the flight is 2D and the depth is drawing,
+       *  said once here (the honesty rule for illustrative pieces). */
       figureCaption:
-        "An autopilot flies a rotorcraft shaped like NASA’s Dragonfly over Titan’s dunes. From the last second of flight and a plan of rotor commands, a diffusion model samples the next three seconds; the faint trails are those samples. On a computer you can take the controls: your commands then cross a 2 s round-trip link to Earth (light takes 67-92 minutes each way), and the craft you see is the model’s average prediction of where it will be when your command arrives.",
+        "An autopilot flies a rotorcraft shaped like NASA’s Dragonfly over Titan’s dunes. The flight is two-dimensional; the depth around it is drawing. The chart below the scene is the model’s side: from the last second of flight, a diffusion model predicts the next three seconds for each candidate plan, and the autopilot flies the first half second of the best one, then plans again. On a computer you can take the controls: your commands then cross a 2 s round-trip link to Earth (light takes 67-92 minutes each way), and the craft you see is the model’s average prediction of where it will be when your command arrives.",
       loadFailed: "The lander didn’t load. Reload the page to try again.",
       loading: "loading the model",
       /** Readout parts (the figure's amber corner): who is flying, height,
@@ -580,6 +582,49 @@ export const copy = {
        *  required label, which `beyondNote` states in full when it's picked. */
       levels: ["calm", "breezy", "strong", "beyond predicted"],
       beyondNote: "Beyond Titan’s predicted near-surface winds: a game setting, not a Dragonfly limit.",
+      /** The fault menu (2026-10-16): the four faults the module has, each
+       *  described by what the engine does (lunar_lander src/world/world.ts:
+       *  WEAK_ROTOR_FRAC 0.6, GUST_FRONT 5-12 s, LIDAR_DROPOUT_S 8, hazardField
+       *  on the target). Index order = the menu's. */
+      faultLabel: "fault",
+      faultTitle: "throw a fault at it",
+      faults: [
+        { kind: "weakRotor", name: "weak rotor", what: "one rotor drops to 60% thrust" },
+        { kind: "gustFront", name: "gust front", what: "a wind shift for 5-12 s" },
+        { kind: "lidarDropout", name: "lidar dropout", what: "no new ground scanned for 8 s" },
+        { kind: "hazard", name: "hazard on target", what: "boulders on the landing site" },
+      ],
+      /** The model chart (components/figures/LanderModelChart.tsx). ⚠️ An
+       *  autopilot plan gives the dream every command, so the dream does not
+       *  read the ground for those futures; the planner checks them against
+       *  it. Only manual futures read it. `groundChecked` / `groundRead` say
+       *  which, chosen from the module's own `ground.read` flag. */
+      chart: {
+        labelPlan: "the model’s next 3 s for each candidate plan",
+        labelFutures: "the model’s sampled next 3 s of your flight",
+        groundChecked: "dots: ground the autopilot checks them against",
+        groundRead: "dots: ground the model reads",
+        scanned: "scanned",
+        unscanned: "not yet",
+        hazard: "hazard",
+        craft: "craft",
+        target: "target",
+        waiting: "the model’s first prediction appears here",
+        /** The slow-device ladder's last rung flies without the model, so
+         *  there is nothing to chart while it does. */
+        simplePilot: "the simple pilot flies without the model, so there’s nothing to chart",
+        aria: "The model’s predicted paths for the next three seconds, over the ground around the craft",
+        /** The chunk key and the time panel (2026-10-16, "make chunking
+         *  visible"). `flyingNow` wraps the module's own `execS` (0.5 s). */
+        flyingNowPre: "flying now: the first ",
+        flyingNowPost: " s of the best plan",
+        rest: "the rest, replanned before it’s flown",
+        earlier: "earlier chunks, one per plan",
+        actual: "the actual flight",
+        timeTitle: "height over time, metres",
+        now: "now",
+        timeAria: "Height over time: the chunk of the plan being flown, the rest of the plan, the chunks earlier plans flew, and the actual flight",
+      },
       takeControls: "take the controls",
       giveBack: "let the autopilot fly",
       newFlight: "new flight",

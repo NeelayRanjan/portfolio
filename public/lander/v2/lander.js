@@ -1945,32 +1945,40 @@ var Qr = class {
 	path: .14,
 	sprite: .32,
 	marker: .9
-}, ei = .4, ti = 2.5, ni = s / 2, G = 1 / 2, ri = G + .2, ii = [
+}, ei = .4, ti = 2.5, G = s / 2, K = 1 / 2, ni = .7, ri = [
 	[
-		[-ni, -G],
-		[ni, -G],
-		[ni, G],
-		[-ni, G],
-		[-ni, -G]
+		[-G, -K],
+		[G, -K],
+		[G, K],
+		[-G, K],
+		[-G, -K]
 	],
-	[[c, G], [c, ri]],
-	[[c - l / 2, ri], [c + l / 2, ri]],
-	[[-c, G], [-c, ri]],
-	[[-c - l / 2, ri], [-c + l / 2, ri]],
-	[[-1, -G], [-1, g]],
-	[[1, -G], [1, g]]
-], ai = { painted: 0 };
-function oi(e, t, n) {
+	[[G - .45, K - .22], [c, ni]],
+	[[c - l / 2, ni], [c + l / 2, ni]],
+	[[-G + .45, K - .22], [-c, ni]],
+	[[-c - l / 2, ni], [-c + l / 2, ni]],
+	[
+		[-.55, -K],
+		[-.9, -.62],
+		[-1, g]
+	],
+	[
+		[.55, -K],
+		[.9, -.62],
+		[1, g]
+	]
+], ii = { painted: 0 };
+function ai(e, t, n) {
 	let r = Math.cos(e.theta), i = Math.sin(e.theta), a = t - d, o = n - f;
 	return [e.x + a * r - o * i, e.y + a * i + o * r];
 }
-function si(e, t, n) {
-	for (let r of ii) e.beginPath(), r.forEach(([r, i], a) => {
-		let [o, s] = oi(n, r, i), [c, l] = t.toScreen(o, s);
+function oi(e, t, n) {
+	for (let r of ri) e.beginPath(), r.forEach(([r, i], a) => {
+		let [o, s] = ai(n, r, i), [c, l] = t.toScreen(o, s);
 		a === 0 ? e.moveTo(c, l) : e.lineTo(c, l);
 	}), e.stroke();
 }
-function ci(e, t, n, r = 1) {
+function si(e, t, n, r = 1) {
 	let i = 30 * r;
 	if (!n) return i;
 	let a = Vr(r);
@@ -1980,12 +1988,12 @@ function ci(e, t, n, r = 1) {
 	}
 	return i;
 }
-function li(e, t) {
+function ci(e, t) {
 	let n = e.k, r = Vr(n), i = Math.max(0, t - e.anchorStep);
 	if (i > 30 * n) return null;
 	let a = [];
 	for (let t = 0; t < e.n; t++) {
-		let o = e.contacts[t] ?? null, s = ci(e.poses, t, o, n), c = Math.min(i, s), l = Math.floor(c), u = Math.min(l + 1, s), d = Yr(W(e.poses, t, l, r), W(e.poses, t, u, r), c - l);
+		let o = e.contacts[t] ?? null, s = si(e.poses, t, o, n), c = Math.min(i, s), l = Math.floor(c), u = Math.min(l + 1, s), d = Yr(W(e.poses, t, l, r), W(e.poses, t, u, r), c - l);
 		if (!Ur(d)) continue;
 		let f = [d.x, d.y];
 		for (let n = l + 1; n <= s; n++) {
@@ -2005,8 +2013,8 @@ function li(e, t) {
 		k: i
 	};
 }
-function ui(e, t, n, r = hr) {
-	ai.painted++, e.save(), e.lineWidth = 1, e.lineJoin = "round";
+function li(e, t, n, r = hr) {
+	ii.painted++, e.save(), e.lineWidth = 1, e.lineJoin = "round";
 	for (let i of n.ghosts) {
 		let n = i.contact ? i.contact.safe ? r.ghostSafe : r.ghostCrash : r.ghost;
 		if (i.path.length >= 4) {
@@ -2019,14 +2027,14 @@ function ui(e, t, n, r = hr) {
 			}
 			e.stroke();
 		}
-		if (e.strokeStyle = V(i.landed ? n : r.ghost, $r.sprite), si(e, t, i.pose), i.contact) {
+		if (e.strokeStyle = V(i.landed ? n : r.ghost, $r.sprite), oi(e, t, i.pose), i.contact) {
 			let [r, a] = st(i.contact.pose), o = r[1] <= a[1] ? r : a, [s, c] = t.toScreen(o[0], o[1]);
 			e.fillStyle = V(n, $r.marker), e.beginPath(), e.arc(s, c, Math.max(ti, ei * t.pxPerM), 0, 2 * Math.PI), e.fill();
 		}
 	}
 	e.restore();
 }
-function di(e, t, n) {
+function ui(e, t, n) {
 	return {
 		toScreen: (r, i) => e.toScreen(r, i, t, n),
 		pxPerM: e.scale(t)
@@ -2034,84 +2042,84 @@ function di(e, t, n) {
 }
 //#endregion
 //#region src/ui/layout.ts
-var fi = 16 / 9, pi = "lander: opts.aspect 'fill' needs ui 'none' and a container with a definite height; drawing at 16:9 instead";
-function mi(e) {
+var di = 16 / 9, fi = "lander: opts.aspect 'fill' needs ui 'none' and a container with a definite height; drawing at 16:9 instead";
+function pi(e) {
 	return `display:block;width:100%;${e === "fill" ? "height:100%" : `aspect-ratio:${e}`};touch-action:manipulation`;
 }
-function hi(e, t) {
+function mi(e, t) {
 	let n = t.style.display;
 	t.style.display = "none";
 	let r = e.getBoundingClientRect().height;
 	return t.style.display = n, r > 0;
 }
-var gi = {
+var hi = {
 	w: 176,
 	h: 112,
 	margin: 12
-}, _i = .3;
-function vi(e) {
-	let t = e < 480, n = _i * e, r = t ? n : Math.min(gi.w, Math.max(120, n));
+}, gi = .3;
+function _i(e) {
+	let t = e < 480, n = gi * e, r = t ? n : Math.min(hi.w, Math.max(120, n));
 	return {
 		w: r,
-		h: r * gi.h / gi.w,
+		h: r * hi.h / hi.w,
 		short: t
 	};
 }
-function yi(e, t) {
-	return t ? vi(e).w + gi.margin + 6 : 0;
+function vi(e, t) {
+	return t ? _i(e).w + hi.margin + 6 : 0;
 }
 //#endregion
 //#region src/ui/downlinkInset.ts
-var bi = {
+var yi = {
 	w: 176,
 	h: 112,
 	margin: 12,
 	spanM: 60
-}, xi = { painted: 0 };
-function Si(e) {
-	let t = vi(e);
+}, bi = { painted: 0 };
+function xi(e) {
+	let t = _i(e);
 	return {
-		x: e - t.w - bi.margin,
-		y: bi.margin,
+		x: e - t.w - yi.margin,
+		y: yi.margin,
 		w: t.w,
 		h: t.h
 	};
 }
-function Ci(e, t, n) {
-	return Ei(t, vi(e).short ? wi : n);
+function Si(e, t, n) {
+	return Ti(t, _i(e).short ? Ci : n);
 }
-var wi = "{s} s";
-function Ti(e, t) {
-	let n = e.w / bi.spanM;
+var Ci = "{s} s";
+function wi(e, t) {
+	let n = e.w / yi.spanM;
 	return {
 		toScreen: (r, i) => [e.x + e.w / 2 + (r - t.x) * n, e.y + e.h / 2 - (i - t.y) * n],
 		pxPerM: n
 	};
 }
-function Ei(e, t = B.insetLabel) {
+function Ti(e, t = B.insetLabel) {
 	return br(t, { s: e.toFixed(1) });
 }
-var Di = {
+var Ei = {
 	panel: .78,
 	line: .9,
 	craft: .95,
 	frame: .9,
 	text: .95
 };
-function Oi(e, t, n, r, i = gr) {
-	xi.painted++;
-	let a = i.palette, o = Si(t), s = Ti(o, r.pose);
-	e.save(), e.fillStyle = V(a.panel, Di.panel), e.fillRect(o.x, o.y, o.w, o.h), e.beginPath(), e.rect(o.x, o.y, o.w, o.h), e.clip(), e.lineWidth = 1, e.strokeStyle = V(a.insetTerrain, Di.line), e.beginPath();
-	let c = r.pose.x - bi.spanM / 2;
-	for (let t = 0; t * 2 <= bi.spanM; t++) {
+function Di(e, t, n, r, i = gr) {
+	bi.painted++;
+	let a = i.palette, o = xi(t), s = wi(o, r.pose);
+	e.save(), e.fillStyle = V(a.panel, Ei.panel), e.fillRect(o.x, o.y, o.w, o.h), e.beginPath(), e.rect(o.x, o.y, o.w, o.h), e.clip(), e.lineWidth = 1, e.strokeStyle = V(a.insetTerrain, Ei.line), e.beginPath();
+	let c = r.pose.x - yi.spanM / 2;
+	for (let t = 0; t * 2 <= yi.spanM; t++) {
 		let r = c + t * 2, [i, a] = s.toScreen(r, N(n, r));
 		t === 0 ? e.moveTo(i, a) : e.lineTo(i, a);
 	}
-	e.stroke(), e.strokeStyle = V(a.insetCraft, Di.craft), si(e, s, r.pose), e.restore(), e.save(), e.strokeStyle = V(a.insetFrame, Di.frame), e.strokeRect(o.x, o.y, o.w, o.h), i.text && (e.fillStyle = V(a.insetText, Di.text), e.font = "11px system-ui, sans-serif", e.textBaseline = "top", e.fillText(Ci(t, r.ageS, i.text.insetLabel), o.x + 6, o.y + 5)), e.restore();
+	e.stroke(), e.strokeStyle = V(a.insetCraft, Ei.craft), oi(e, s, r.pose), e.restore(), e.save(), e.strokeStyle = V(a.insetFrame, Ei.frame), e.strokeRect(o.x, o.y, o.w, o.h), i.text && (e.fillStyle = V(a.insetText, Ei.text), e.font = "11px system-ui, sans-serif", e.textBaseline = "top", e.fillText(Si(t, r.ageS, i.text.insetLabel), o.x + 6, o.y + 5)), e.restore();
 }
 //#endregion
 //#region src/ui/input.ts
-function ki(e) {
+function Oi(e) {
 	switch (e) {
 		case "ArrowUp":
 		case "w":
@@ -2128,7 +2136,7 @@ function ki(e) {
 		default: return null;
 	}
 }
-function Ai() {
+function ki() {
 	return {
 		up: !1,
 		down: !1,
@@ -2136,8 +2144,8 @@ function Ai() {
 		right: !1
 	};
 }
-var ji = class {
-	keys = Ai();
+var Ai = class {
+	keys = ki();
 	vector = xt;
 	onFirstInput = null;
 	cleanups = [];
@@ -2146,7 +2154,7 @@ var ji = class {
 		this.firstFired || (this.firstFired = !0, this.onFirstInput?.());
 	}
 	releaseAll() {
-		this.keys = Ai();
+		this.keys = ki();
 	}
 	attach(e) {
 		let t = (e, t, n) => {
@@ -2158,10 +2166,10 @@ var ji = class {
 				e.blur();
 				return;
 			}
-			let n = ki(t.key);
+			let n = Oi(t.key);
 			n && (t.preventDefault(), !t.repeat && (this.keys[n] = !0, this.fireFirst()));
 		}), t(e, "keyup", (e) => {
-			let t = ki(e.key);
+			let t = Oi(e.key);
 			t && (e.preventDefault(), this.keys[t] = !1);
 		}), t(e, "blur", () => this.releaseAll()), t(window, "blur", () => this.releaseAll()), t(document, "visibilitychange", () => {
 			document.hidden && this.releaseAll();
@@ -2175,17 +2183,17 @@ var ji = class {
 		this.vector = St(e), this.fireFirst();
 	}
 	reset(e = xt) {
-		this.keys = Ai(), this.vector = St(e), this.firstFired = !1;
+		this.keys = ki(), this.vector = St(e), this.firstFired = !1;
 	}
 	step(e) {
 		return this.vector = Ct(this.vector, this.keys, e), this.vector;
 	}
-}, Mi = .25, Ni = class {
+}, ji = .25, Mi = class {
 	step;
 	maxFrame;
 	acc = 0;
 	last = null;
-	constructor(e = i, t = Mi) {
+	constructor(e = i, t = ji) {
 		this.step = e, this.maxFrame = t;
 	}
 	tick(e) {
@@ -2201,7 +2209,7 @@ var ji = class {
 	reset() {
 		this.last = null, this.acc = 0;
 	}
-}, Pi = class {
+}, Ni = class {
 	info;
 	cmds = [];
 	targets = [];
@@ -2251,7 +2259,7 @@ var ji = class {
 };
 //#endregion
 //#region src/ui/wrapText.ts
-function Fi(e, t, n) {
+function Pi(e, t, n) {
 	let r = [], i = "";
 	for (let a of e.split(/\s+/).filter(Boolean)) {
 		let e = i ? `${i} ${a}` : a;
@@ -2261,7 +2269,7 @@ function Fi(e, t, n) {
 }
 //#endregion
 //#region src/ui/craft.ts
-var K = {
+var q = {
 	body: {
 		x0: -s / 2,
 		y0: -1 / 2,
@@ -2275,47 +2283,53 @@ var K = {
 		y1: 1 / 2
 	},
 	arms: [[
-		s / 2 - .15,
-		1 / 2 - .05,
+		.8,
+		.28,
 		c,
-		.6
+		.7
 	], [
-		-s / 2 + .15,
-		1 / 2 - .05,
+		-.8,
+		.26,
 		-c,
-		.6
+		.7
 	]],
+	armD: .08,
 	rotors: {
 		x: [c, -c],
 		yLow: .62,
 		yHigh: .78,
 		half: l / 2,
-		hub: .07
+		hub: .13,
+		hubY0: .6,
+		hubY1: .8
 	},
 	skids: {
 		struts: [[
-			.7,
+			.55,
 			-1 / 2,
 			1,
 			g
 		], [
-			-.7,
+			-.55,
 			-1 / 2,
 			-1,
 			g
 		]],
+		knee: [[.9, -.62], [-.9, -.62]],
+		legD: .07,
 		runner: [
-			-1.3,
+			-1.32,
 			g,
-			1.3,
+			1.32,
 			g
-		]
+		],
+		plate: .05
 	},
 	hga: {
-		mastX: .2,
+		mastX: .25,
 		mastY0: 1 / 2,
-		mastY1: .62,
-		cy: .66,
+		mastY1: .6,
+		cy: .63,
 		radius: .435,
 		depth: .09,
 		tilt: .45
@@ -2323,12 +2337,12 @@ var K = {
 	top: g + o,
 	bottom: g,
 	rtg: {
-		x0: -s / 2 - .62,
-		y0: -.3,
-		x1: -s / 2 - .02,
-		y1: .34,
+		x0: -s / 2 - .6,
+		y0: -.02,
+		x1: -s / 2,
+		y1: .42,
 		fins: 5,
-		finReach: .07
+		finReach: .06
 	},
 	com: {
 		x: d,
@@ -2340,18 +2354,27 @@ var K = {
 		.05,
 		.72
 	],
-	belt: -.14,
-	instruments: [{
-		x0: -.95,
-		y0: 1 / 2,
-		x1: -.62,
-		y1: .58
-	}, {
-		x0: .5,
-		y0: 1 / 2,
-		x1: .78,
-		y1: .56
-	}],
+	belt: -.22,
+	ports: [
+		{
+			x: .86,
+			y: -.42,
+			w: .16,
+			h: .11
+		},
+		{
+			x: -1.12,
+			y: -.42,
+			w: .13,
+			h: .11
+		},
+		{
+			x: .3,
+			y: -.42,
+			w: .1,
+			h: .08
+		}
+	],
 	joint: .05,
 	toe: {
 		reach: .16,
@@ -2359,16 +2382,16 @@ var K = {
 	}
 };
 2 * (c + l / 2);
-function Ii(e) {
+function Fi(e) {
 	return .12 + .6 * Math.sqrt(Math.min(1, Math.max(0, e)));
 }
-function Li(e) {
+function Ii(e) {
 	return Math.max(0, 1 - Math.sqrt(Math.min(1, Math.max(0, e))) / .75);
 }
-function Ri(e) {
+function Li(e) {
 	return 2 * Math.PI * (.6 + 9 * Math.sqrt(Math.min(1, Math.max(0, e))));
 }
-function zi(e, t = "craft") {
+function Ri(e, t = "craft") {
 	let n = t === "model" ? e.predictedLine : t === "baseline" ? e.fallbackLine : e.craftLine;
 	return {
 		body: e.craftBody,
@@ -2382,78 +2405,131 @@ function zi(e, t = "craft") {
 		vector: e.vector
 	};
 }
-function Bi(e, t, n, r, i, a, o) {
+var zi = {
+	ox: .22,
+	oy: .3,
+	discRy: .17,
+	farAlpha: .4
+};
+function Bi(e, t) {
+	let n = /^#([0-9a-f]{6})$/i.exec(e.trim()), r = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i.exec(e.trim()), i = n ? [
+		0,
+		8,
+		16
+	].map((e) => Number.parseInt(n[1], 16) >> 16 - e & 255) : r ? [
+		1,
+		2,
+		3
+	].map((e) => Number(r[e])) : null;
+	return i ? `rgb(${i.map((e) => Math.round(e * (1 - t))).join(", ")})` : e;
+}
+function Vi(e, t, n, r, i, a, o) {
 	let s = e.createLinearGradient(0, i, 0, n);
 	s.addColorStop(0, V(a, 0)), s.addColorStop(1, V(a, o)), e.fillStyle = s, e.fillRect(t, n, r - t, i - n);
 }
-function q(e, t) {
+function Hi(e, t) {
 	e.beginPath(), e.moveTo(t[0], t[1]), e.lineTo(t[2], t[3]), e.stroke();
 }
-function Vi(e, t, n) {
-	let r = n.colors ?? zi(hr), i = Math.max(1, 14 / (a * n.scale)), o = 1.4 / (n.scale * i);
-	e.save(), e.translate(t.x, t.y), e.scale(i, i), e.save(), e.rotate(t.theta), e.translate(-d, -f), e.lineWidth = o, e.strokeStyle = r.line, K.rotors.x.forEach((t, i) => {
-		let a = i === 0 ? n.sF : n.sR, s = n.weak?.[i] ?? !1, c = Li(a);
-		[K.rotors.yLow, K.rotors.yHigh].forEach((l, u) => {
-			if (e.fillStyle = V(s ? r.weak : r.rotor, Number(Ii(a).toFixed(3))), e.beginPath(), e.ellipse(t, l, K.rotors.half, .045 + .04 * Math.sqrt(Math.max(0, a)), 0, 0, Math.PI * 2), e.fill(), c > .01) {
-				let s = n.t === void 0 ? .6 : n.t * Ri(a), d = K.rotors.half * Math.abs(Math.cos((u === 0 ? 1 : -1) * s + .9 * i + .5 * u));
-				e.save(), e.strokeStyle = V(r.line, Number((.85 * c).toFixed(3))), e.lineWidth = 2.2 * o, q(e, [
-					t - d,
-					l,
-					t + d,
-					l
+function Ui(e) {
+	let t = q.body;
+	e.moveTo(t.x0 + .06, t.y0), e.lineTo(t.x1 - .08, t.y0), e.quadraticCurveTo(t.x1, t.y0, t.x1, t.y0 + .08), e.lineTo(t.x1, .12), e.bezierCurveTo(t.x1, .42, t.x1 - .17, t.y1, t.x1 - .47, t.y1), e.lineTo(-.15, t.y1), e.bezierCurveTo(-.45, t.y1, -.5, .36, -.8, .36), e.bezierCurveTo(-1.1, .36, t.x0, .3, t.x0, .12), e.lineTo(t.x0, t.y0 + .06), e.quadraticCurveTo(t.x0, t.y0, t.x0 + .06, t.y0), e.closePath();
+}
+function Wi(e, t, n, r, i, a) {
+	e.save(), e.lineCap = "round", e.lineJoin = "round", e.beginPath(), t.forEach(([t, n], r) => r === 0 ? e.moveTo(t, n) : e.lineTo(t, n)), e.strokeStyle = r, e.lineWidth = n + 2 * a, e.stroke(), e.strokeStyle = i, e.lineWidth = n, e.stroke(), e.restore();
+}
+function Gi(e, t, n) {
+	let { lw: r, col: i, dz: a } = n, o = q.rotors, s = Math.max(q.armD, 2.2 * r);
+	for (let t of q.arms) Wi(e, [[t[0], t[1]], [t[2], t[3]]], s, i.line, i.deck, r);
+	o.x.forEach((n, s) => {
+		let c = s === 0 ? t.sF : t.sR, l = t.weak?.[s] ?? !1, u = Ii(c);
+		[o.yLow, o.yHigh].forEach((d, f) => {
+			let p = a ? a.discRy : .045 + .04 * Math.sqrt(Math.max(0, c));
+			if (e.fillStyle = V(l ? i.weak : i.rotor, Number(Fi(c).toFixed(3))), e.beginPath(), e.ellipse(n, d, o.half, p, 0, 0, Math.PI * 2), e.fill(), u > .01) {
+				let l = t.t === void 0 ? .6 : t.t * Li(c), p = (f === 0 ? 1 : -1) * l + .9 * s + .5 * f, m = o.half * Math.cos(p), h = a ? a.discRy * Math.sin(p) : 0;
+				e.save(), e.strokeStyle = V(i.line, Number((.85 * u).toFixed(3))), e.lineCap = "round", e.lineWidth = 2.2 * r, Hi(e, [
+					n - m,
+					d - h,
+					n + m,
+					d + h
 				]), e.restore();
 			}
-		}), e.fillStyle = r.line, e.fillRect(t - K.rotors.hub / 2, K.rotors.yLow - .08, K.rotors.hub, K.rotors.yHigh - K.rotors.yLow + .12);
+		}), e.fillStyle = i.rtg, e.strokeStyle = i.line, e.lineWidth = r, e.beginPath(), qi(e, n - o.hub / 2, o.hubY0, o.hub, o.hubY1 - o.hubY0, .03), e.fill(), e.stroke();
 	});
-	for (let t of K.arms) q(e, t);
-	e.fillStyle = r.line;
-	for (let t of K.skids.struts) {
-		q(e, t);
-		for (let [n, r] of [[t[0], t[1]], [t[2], t[3]]]) e.beginPath(), e.arc(n, r, K.joint, 0, Math.PI * 2), e.fill();
+}
+function Ki(e, t) {
+	let { lw: n, col: r } = t, i = q.skids, a = i.runner, o = a[1] + i.plate, s = Math.max(i.legD, 2 * n);
+	i.struts.forEach((t, a) => {
+		let c = i.knee[a];
+		Wi(e, [
+			[t[0], t[1] + .04],
+			[c[0], c[1]],
+			[t[2], o]
+		], s, r.line, r.deck, n);
+	});
+	let c = q.toe;
+	e.beginPath(), e.moveTo(a[0] - c.reach, o + c.rise), e.quadraticCurveTo(a[0] - c.reach * .2, a[1], a[0] + .08, a[1]), e.lineTo(a[2] - .08, a[3]), e.quadraticCurveTo(a[2] + c.reach * .2, a[3], a[2] + c.reach, o + c.rise), e.lineTo(a[2] + c.reach - .03, o + c.rise + .03), e.quadraticCurveTo(a[2], o, a[2] - .08, o), e.lineTo(a[0] + .08, o), e.quadraticCurveTo(a[0], o, a[0] - c.reach + .03, o + c.rise + .03), e.closePath(), e.fillStyle = r.deck, e.strokeStyle = r.line, e.lineWidth = n, e.lineJoin = "round", e.fill(), e.stroke();
+}
+function qi(e, t, n, r, i, a) {
+	e.moveTo(t + a, n), e.lineTo(t + r - a, n), e.quadraticCurveTo(t + r, n, t + r, n + a), e.lineTo(t + r, n + i - a), e.quadraticCurveTo(t + r, n + i, t + r - a, n + i), e.lineTo(t + a, n + i), e.quadraticCurveTo(t, n + i, t, n + i - a), e.lineTo(t, n + a), e.quadraticCurveTo(t, n, t + a, n), e.closePath();
+}
+function Ji(e, t) {
+	let { lw: n, col: r } = t, i = q.rtg, a = i.x1 + .15;
+	e.fillStyle = r.rtg, e.strokeStyle = r.line, e.lineWidth = n;
+	for (let t = 1; t < i.fins; t++) {
+		let n = i.x0 + (i.x1 - i.x0) * t / i.fins;
+		e.beginPath(), e.rect(n - .025, i.y0 - i.finReach, .05, i.y1 - i.y0 + 2 * i.finReach), e.fill(), e.stroke();
 	}
-	let s = K.skids.runner, c = K.toe;
-	e.beginPath(), e.moveTo(s[0] - c.reach, s[1] + c.rise), e.quadraticCurveTo(s[0] - c.reach * .25, s[1], s[0], s[1]), e.lineTo(s[2], s[3]), e.quadraticCurveTo(s[2] + c.reach * .25, s[3], s[2] + c.reach, s[3] + c.rise), e.stroke();
-	let l = K.rtg;
-	e.fillStyle = r.rtg;
-	for (let t = 1; t < l.fins; t++) {
-		let n = l.x0 + (l.x1 - l.x0) * t / l.fins;
-		e.fillRect(n - .02, l.y0 - l.finReach, .04, l.y1 - l.y0 + 2 * l.finReach), e.strokeRect(n - .02, l.y0 - l.finReach, .04, l.y1 - l.y0 + 2 * l.finReach);
+	e.beginPath(), qi(e, i.x0, i.y0, a - i.x0, i.y1 - i.y0, .05), e.fill(), Vi(e, i.x0, i.y0, a, i.y1, r.line, .3), e.stroke(), e.beginPath(), e.ellipse(i.x0 + .03, (i.y0 + i.y1) / 2, .045, (i.y1 - i.y0) / 2 - .02, 0, 0, Math.PI * 2), e.fillStyle = Bi(r.rtg, .25), e.fill(), e.stroke();
+}
+function Yi(e, t) {
+	let { lw: n, col: r, dz: i } = t, a = q.body;
+	if (i) {
+		e.save(), e.translate(i.ox, i.oy), e.beginPath(), Ui(e), e.fillStyle = r.deck, e.fill(), e.lineWidth = n, e.strokeStyle = r.line, e.stroke(), e.restore(), e.fillStyle = Bi(r.body, .22), e.beginPath(), e.moveTo(a.x1, a.y0 + .08), e.lineTo(a.x1 + i.ox, a.y0 + .08 + i.oy), e.lineTo(a.x1 + i.ox, .12 + i.oy), e.lineTo(a.x1, .12), e.closePath(), e.fill(), e.lineWidth = n, e.strokeStyle = r.line;
+		for (let [t, n] of [
+			[a.x1 - .47, a.y1],
+			[a.x1, .12],
+			[a.x1, a.y0 + .08],
+			[a.x0, .12]
+		]) Hi(e, [
+			t,
+			n,
+			t + i.ox,
+			n + i.oy
+		]);
 	}
-	e.fillRect(l.x0, l.y0, l.x1 - l.x0, l.y1 - l.y0), Bi(e, l.x0, l.y0, l.x1, l.y1, r.line, .3), e.strokeRect(l.x0, l.y0, l.x1 - l.x0, l.y1 - l.y0);
-	let u = K.body;
-	e.fillStyle = r.body, e.fillRect(u.x0, u.y0, u.x1 - u.x0, u.y1 - u.y0), Bi(e, u.x0, u.y0, u.x1, u.y1, r.line, .28), e.save(), e.strokeStyle = V(r.line, .4), e.lineWidth = .6 * o;
-	for (let t of K.seams) q(e, [
-		t,
-		u.y0 + .06,
-		t,
-		K.deck.y0 - .04
+	e.beginPath(), Ui(e), e.fillStyle = r.body, e.fill(), e.save(), e.clip(), Vi(e, a.x0, a.y0, a.x1, a.y1, r.line, .26), e.fillStyle = V(r.line, .12), e.fillRect(a.x0, a.y0, a.x1 - a.x0, q.belt - a.y0), e.strokeStyle = V(r.line, .45), e.lineWidth = .7 * n, Hi(e, [
+		a.x0,
+		q.belt,
+		a.x1,
+		q.belt
 	]);
-	q(e, [
-		u.x0 + .06,
-		K.belt,
-		u.x1 - .06,
-		K.belt
-	]), e.restore(), e.strokeRect(u.x0, u.y0, u.x1 - u.x0, u.y1 - u.y0);
-	let p = K.deck;
-	e.fillStyle = r.deck, e.fillRect(p.x0, p.y0, p.x1 - p.x0, p.y1 - p.y0);
-	for (let t of K.instruments) e.fillRect(t.x0, t.y0, t.x1 - t.x0, t.y1 - t.y0), e.strokeRect(t.x0, t.y0, t.x1 - t.x0, t.y1 - t.y0);
-	let m = K.hga;
-	q(e, [
-		m.mastX,
-		m.mastY0,
-		m.mastX,
-		m.mastY1
-	]), e.beginPath(), e.ellipse(m.mastX, m.cy, m.radius, m.depth, m.tilt, 0, Math.PI), e.closePath(), e.fillStyle = r.body, e.fill(), e.stroke();
-	let h = [
-		m.mastX,
-		m.cy,
-		m.mastX - .2 * Math.sin(m.tilt),
-		m.cy + .2 * Math.cos(m.tilt)
-	];
-	e.save(), e.lineWidth = .7 * o, q(e, h), e.restore();
-	let g = K.com;
-	e.fillStyle = r.comFill, e.beginPath(), e.arc(g.x, g.y, g.r, 0, Math.PI * 2), e.fill(), e.stroke(), e.fillStyle = r.com;
-	for (let t of [0, Math.PI]) e.beginPath(), e.moveTo(g.x, g.y), e.arc(g.x, g.y, g.r, t, t + Math.PI / 2), e.closePath(), e.fill();
+	for (let t of q.seams) Hi(e, [
+		t,
+		q.belt,
+		t,
+		a.y1
+	]);
+	e.fillStyle = Bi(r.rtg, .55);
+	for (let t of q.ports) e.beginPath(), qi(e, t.x, t.y, t.w, t.h, .015), e.fill();
+	e.restore(), e.beginPath(), Ui(e), e.strokeStyle = r.line, e.lineWidth = 1.2 * n, e.lineJoin = "round", e.stroke();
+}
+function Xi(e, t, n) {
+	let r = n.colors ?? Ri(hr), i = Math.max(1, 14 / (a * n.scale)), o = 1.4 / (n.scale * i), s = n.depth ? zi : null, c = {
+		lw: o,
+		col: r,
+		dz: s
+	};
+	e.save(), e.translate(t.x, t.y), e.scale(i, i), e.save(), e.rotate(t.theta), e.translate(-d, -f), e.lineWidth = o, e.strokeStyle = r.line, s && (e.save(), e.globalAlpha = s.farAlpha, e.translate(s.ox, s.oy), Gi(e, n, c), Ki(e, c), e.restore()), Ki(e, c), Ji(e, c), Gi(e, n, c), Yi(e, c);
+	let l = q.hga;
+	e.lineWidth = o, e.strokeStyle = r.line, Wi(e, [[l.mastX, l.mastY0 - .02], [l.mastX, l.cy]], Math.max(.05, 1.8 * o), r.line, r.deck, o), e.beginPath(), e.ellipse(l.mastX, l.cy, l.radius, l.depth, l.tilt, 0, Math.PI * 2), e.fillStyle = r.body, e.fill(), e.stroke(), e.beginPath(), e.ellipse(l.mastX + .01, l.cy + .015, l.radius * .86, l.depth * .55, l.tilt, 0, Math.PI * 2), e.fillStyle = Bi(r.body, .18), e.fill(), e.save(), e.lineWidth = .7 * o, Hi(e, [
+		l.mastX,
+		l.cy,
+		l.mastX - .2 * Math.sin(l.tilt),
+		l.cy + .2 * Math.cos(l.tilt)
+	]), e.restore();
+	let u = q.com;
+	e.fillStyle = r.comFill, e.beginPath(), e.arc(u.x, u.y, u.r, 0, Math.PI * 2), e.fill(), e.stroke(), e.fillStyle = r.com;
+	for (let t of [0, Math.PI]) e.beginPath(), e.moveTo(u.x, u.y), e.arc(u.x, u.y, u.r, t, t + Math.PI / 2), e.closePath(), e.fill();
 	if (e.restore(), n.vector && (n.vector.tx !== 0 || n.vector.ty !== 0)) {
 		let t = n.vector.tx * 4, i = n.vector.ty * 4, a = Math.hypot(t, i), s = t / a, c = i / a, l = Math.min(.6, .4 * a);
 		e.strokeStyle = r.vector, e.fillStyle = r.vector, e.lineWidth = 2 * o, e.beginPath(), e.moveTo(0, 0), e.lineTo(t - s * l, i - c * l), e.stroke(), e.beginPath(), e.moveTo(t, i), e.lineTo(t - s * l - c * l * .5, i - c * l + s * l * .5), e.lineTo(t - s * l + c * l * .5, i - c * l - s * l * .5), e.closePath(), e.fill();
@@ -2462,24 +2538,31 @@ function Vi(e, t, n) {
 }
 //#endregion
 //#region src/ui/render.ts
-var Hi = {
+var Zi = {
 	fog: .18,
 	targetDim: .45,
 	hazeFar: .85
 };
-function Ui(e, t, n, r, i) {
+function Qi(e, t, n, r, i) {
 	let a = i.style ?? gr, o = a.palette, s = i.camera, c = s.scale(t);
-	e.setTransform(r, 0, 0, r, 0, 0), ca(e, t, n, o), ga(e, i.map, s.cx, t, n, s.toScreen(s.cx, N(i.map, s.cx), t, n)[1], o), e.setTransform(r * c, 0, 0, -r * c, r * (t / 2 - s.cx * c), r * (n / 2 + s.cy * c));
-	let l = s.cx - s.width / 2 - 2, u = s.cx + s.width / 2 + 2, d = s.cy - n / c;
-	Ji(e, i.map, l, u, d, c, o), va(e, i.map, l, u, c, o), Yi(e, i, l, u, c, o), xa(e, i.map, i.display, o), ra(e, i, c, a, t, n), i.streaks?.draw(e, i.field, c, o.streak), wa(e, i.map, i.display, i.t, o), Vi(e, i.display, {
+	e.setTransform(r, 0, 0, r, 0, 0);
+	let l = s.toScreen(s.cx, N(i.map, s.cx), t, n)[1];
+	if (i.depth) {
+		let r = Fa(l, n), a = Math.min(n, Ga(l, r, n) + 2);
+		va(e, t, n, o, a), Ea(e, i.map, s.cx, t, n, r, o, a), Ka(e, i.map, s.cx, c, t, n, l, r, o, Ba(o, Math.round(r / n * 32) / 32));
+	} else va(e, t, n, o), Ea(e, i.map, s.cx, t, n, l, o);
+	e.setTransform(r * c, 0, 0, -r * c, r * (t / 2 - s.cx * c), r * (n / 2 + s.cy * c));
+	let u = s.cx - s.width / 2 - 2, d = s.cx + s.width / 2 + 2, f = s.cy - n / c;
+	ra(e, i.map, u, d, f, c, o, i.depth ? Va(o) : void 0), i.depth ? Ja(e, i.map, s.cx, u, d, c, o) : Oa(e, i.map, u, d, c, o), ia(e, i, u, d, c, o), i.depth && Ya(e, i.map, i.display, c, o), ja(e, i.map, i.display, o), fa(e, i, c, a, t, n), i.streaks?.draw(e, i.field, c, o.streak), Pa(e, i.map, i.display, i.t, o), Xi(e, i.display, {
 		sF: i.display.sF,
 		sR: i.display.sR,
 		weak: i.weak,
 		vector: i.vector,
 		scale: c,
-		colors: zi(o, i.tint ?? "craft"),
-		t: i.t
-	}), Ta(e, i.display.x, l, u, d, s.cy + n / c, o), e.setTransform(r, 0, 0, r, 0, 0);
+		colors: Ri(o, i.tint ?? "craft"),
+		t: i.t,
+		depth: i.depth
+	}), Xa(e, i.display.x, u, d, f, s.cy + n / c, o), e.setTransform(r, 0, 0, r, 0, 0);
 }
 var J = {
 	x: 8,
@@ -2489,18 +2572,18 @@ var J = {
 	descent: 3,
 	clearance: 40,
 	font: "11px ui-monospace, monospace"
-}, Wi = {
+}, $i = {
 	line: 11,
 	ascent: 8,
 	descent: 2,
 	font: "9px system-ui, sans-serif"
 };
-function Gi(e, t, n, r, i) {
+function ea(e, t, n, r, i) {
 	return Math.hypot(Math.max(t - e[0], 0, e[0] - n), Math.max(r - e[1], 0, e[1] - i));
 }
-function Ki(e, t, n, r, i, a, o = !1) {
-	let s = o ? Wi : J, c = e.length, l = J.x, u = J.x + Math.max(0, ...t), d = Rr.top + a * Rr.pitch + s.ascent, f = e.map((e, t) => d + t * s.line), p = e.map((e, t) => r - J.bottom - (c - 1 - t) * s.line);
-	return o ? Gi(i, l, u, d - s.ascent, (f[c - 1] ?? d) + s.descent) < J.clearance ? {
+function ta(e, t, n, r, i, a, o = !1) {
+	let s = o ? $i : J, c = e.length, l = J.x, u = J.x + Math.max(0, ...t), d = Rr.top + a * Rr.pitch + s.ascent, f = e.map((e, t) => d + t * s.line), p = e.map((e, t) => r - J.bottom - (c - 1 - t) * s.line);
+	return o ? ea(i, l, u, d - s.ascent, (f[c - 1] ?? d) + s.descent) < J.clearance ? {
 		at: "bottom",
 		lines: e,
 		baselines: p
@@ -2508,7 +2591,7 @@ function Ki(e, t, n, r, i, a, o = !1) {
 		at: "top",
 		lines: e,
 		baselines: f
-	} : Gi(i, l, u, (p[0] ?? r) - s.ascent, r - J.bottom + s.descent) < J.clearance ? {
+	} : ea(i, l, u, (p[0] ?? r) - s.ascent, r - J.bottom + s.descent) < J.clearance ? {
 		at: "top",
 		lines: e,
 		baselines: f
@@ -2518,11 +2601,11 @@ function Ki(e, t, n, r, i, a, o = !1) {
 		baselines: p
 	};
 }
-function qi(e, t, n, r, i, a, o, s = 0) {
+function na(e, t, n, r, i, a, o, s = 0) {
 	e.save(), e.fillStyle = i.text;
-	let c = t < 480, l = c ? Wi : J;
+	let c = t < 480, l = c ? $i : J;
 	e.font = l.font, e.textBaseline = "alphabetic";
-	let u = Fi(r, t - 2 * J.x - (c ? s : 0), (t) => e.measureText(t).width), d = u.map((t) => e.measureText(t).width), f = Ki(u, d, t, n, a, o, c);
+	let u = Pi(r, t - 2 * J.x - (c ? s : 0), (t) => e.measureText(t).width), d = u.map((t) => e.measureText(t).width), f = ta(u, d, t, n, a, o, c);
 	f.lines.forEach((t, n) => e.fillText(t, J.x, f.baselines[n])), e.restore();
 	let p = (f.baselines[0] ?? 0) - l.ascent, m = (f.baselines[f.baselines.length - 1] ?? 0) + l.descent;
 	return {
@@ -2535,19 +2618,19 @@ function qi(e, t, n, r, i, a, o, s = 0) {
 		}
 	};
 }
-function Ji(e, t, n, r, i, a, o) {
-	let s = Math.max(0, Math.ceil(n / 2) * 2), c = Math.min(D, r);
+function ra(e, t, n, r, i, a, o, s) {
+	let c = Math.max(0, Math.ceil(n / 2) * 2), l = Math.min(D, r);
 	e.beginPath(), e.moveTo(n, i), e.lineTo(n, N(t, n));
-	for (let n = s; n <= c; n += 2) e.lineTo(n, N(t, n));
-	e.lineTo(r, N(t, r)), e.lineTo(r, i), e.closePath(), e.fillStyle = o.ground, e.fill(), e.strokeStyle = o.edge, e.lineWidth = 1 / a, e.setLineDash([4 / a, 4 / a]);
+	for (let n = c; n <= l; n += 2) e.lineTo(n, N(t, n));
+	e.lineTo(r, N(t, r)), e.lineTo(r, i), e.closePath(), e.fillStyle = s ?? o.ground, e.fill(), e.strokeStyle = o.edge, e.lineWidth = 1 / a, e.setLineDash([4 / a, 4 / a]);
 	for (let a of [0, D]) a < n || a > r || (e.beginPath(), e.moveTo(a, i), e.lineTo(a, N(t, a) + 2e3), e.stroke());
 	e.setLineDash([]);
 }
-function Yi(e, t, n, r, i, a) {
+function ia(e, t, n, r, i, a) {
 	let o = Math.max(0, P(n)), s = Math.min(k - 1, P(r)), c = 8 / i;
 	for (let n = o; n <= s; n++) {
 		let r = n * 4, o = r + 4, s = N(t.map, r), l = N(t.map, o), u = t.knowledge[n];
-		if (e.strokeStyle = u === 0 ? a.surfaceFog : a.surfaceScanned, e.lineWidth = (u === 0 ? 1 : 2) / i, e.beginPath(), e.moveTo(r, s), e.lineTo(o, l), e.stroke(), u === 0) e.fillStyle = V(a.fog, Hi.fog), e.beginPath(), e.moveTo(r, s), e.lineTo(o, l), e.lineTo(o, l + c), e.lineTo(r, s + c), e.closePath(), e.fill();
+		if (e.strokeStyle = u === 0 ? a.surfaceFog : a.surfaceScanned, e.lineWidth = (u === 0 ? 1 : 2) / i, e.beginPath(), e.moveTo(r, s), e.lineTo(o, l), e.stroke(), u === 0) e.fillStyle = V(a.fog, Zi.fog), e.beginPath(), e.moveTo(r, s), e.lineTo(o, l), e.lineTo(o, l + c), e.lineTo(r, s + c), e.closePath(), e.fill();
 		else if (u === 2) {
 			e.fillStyle = a.hazard, e.strokeStyle = a.hazardEdge, e.lineWidth = 1 / i;
 			for (let i = 0; i < 2; i++) {
@@ -2557,14 +2640,14 @@ function Yi(e, t, n, r, i, a) {
 		}
 	}
 }
-var Xi = {
+var aa = {
 	len: 9,
 	width: 10,
 	inset: 3,
 	gap: 3
 };
-function Zi(e, t, n, r, i = []) {
-	let { len: a, width: o, inset: s, gap: c } = Xi, l = e < 0 || e > n;
+function oa(e, t, n, r, i = []) {
+	let { len: a, width: o, inset: s, gap: c } = aa, l = e < 0 || e > n;
 	if (!l && t >= 0 && t <= r) return null;
 	let u = l ? e > n ? 1 : -1 : t > r ? 1 : -1, d = l ? n : r, f = l ? r : n, p = u > 0 ? d - s : s, m = p - u * a, [h, g] = [Math.min(p, m), Math.max(p, m)], _ = o, v = f - o;
 	for (let e of i) {
@@ -2588,12 +2671,12 @@ function Zi(e, t, n, r, i = []) {
 		b(m, y + o / 2)
 	];
 }
-function Qi(e, t, n, r, i, a = []) {
-	let [o, s] = t.camera.toScreen(t.targetX, N(t.map, t.targetX), n, r), c = Zi(o, s, n, r, a);
+function sa(e, t, n, r, i, a = []) {
+	let [o, s] = t.camera.toScreen(t.targetX, N(t.map, t.targetX), n, r), c = oa(o, s, n, r, a);
 	c && (e.fillStyle = i.target, e.beginPath(), e.moveTo(...c[0]), e.lineTo(...c[1]), e.lineTo(...c[2]), e.closePath(), e.fill());
 }
-var $i = 4, ea = 2, ta = 13;
-function na(e, t, n, r, i = $i, a = ea) {
+var ca = 4, la = 2, ua = 13;
+function da(e, t, n, r, i = ca, a = la) {
 	let o = {
 		side: "right",
 		lines: [t],
@@ -2610,29 +2693,29 @@ function na(e, t, n, r, i = $i, a = ea) {
 		dx: -a
 	} : c >= l ? {
 		side: "right",
-		lines: Fi(t, c, r),
+		lines: Pi(t, c, r),
 		dx: Math.max(a, i - e)
 	} : {
 		side: "left",
-		lines: Fi(t, l, r),
+		lines: Pi(t, l, r),
 		dx: -a
 	};
 }
-function ra(e, t, n, r, i, a) {
-	let o = r.palette, s = V(o.target, Hi.targetDim);
+function fa(e, t, n, r, i, a) {
+	let o = r.palette, s = V(o.target, Zi.targetDim);
 	for (let c of t.map.targets) {
 		let l = Math.abs(c.x - t.targetX) < 1e-6, u = N(t.map, c.x), d = 18 / n + 3;
 		if (e.strokeStyle = l ? o.target : s, e.fillStyle = l ? o.target : s, e.lineWidth = 1.5 / n, e.beginPath(), e.moveTo(c.x, u), e.lineTo(c.x, u + d), e.stroke(), e.beginPath(), e.moveTo(c.x, u + d), e.lineTo(c.x + 10 / n + 1.5, u + d - 5 / n - .8), e.lineTo(c.x, u + d - 10 / n - 1.6), e.closePath(), e.fill(), l && (e.beginPath(), e.moveTo(c.x - 1, N(t.map, c.x - 1) + .5), e.lineTo(c.x - 1, N(t.map, c.x - 1)), e.lineTo(c.x + 1, N(t.map, c.x + 1)), e.lineTo(c.x + 1, N(t.map, c.x + 1) + .5), e.stroke()), !r.text) continue;
 		e.save(), e.font = "11px system-ui, sans-serif";
-		let f = br(r.text.targetLabel, { label: c.label }), [p] = t.camera.toScreen(c.x, u, i, a), m = na(p, f, i, (t) => e.measureText(t).width);
-		e.translate(c.x + m.dx / n, u + d + 4 / n), e.scale(1 / n, -1 / n), m.side === "left" && (e.textAlign = "right"), m.lines.forEach((t, n) => e.fillText(t, 0, (n - (m.lines.length - 1)) * ta)), e.restore();
+		let f = br(r.text.targetLabel, { label: c.label }), [p] = t.camera.toScreen(c.x, u, i, a), m = da(p, f, i, (t) => e.measureText(t).width);
+		e.translate(c.x + m.dx / n, u + d + 4 / n), e.scale(1 / n, -1 / n), m.side === "left" && (e.textAlign = "right"), m.lines.forEach((t, n) => e.fillText(t, 0, (n - (m.lines.length - 1)) * ua)), e.restore();
 	}
 }
 function Y(e) {
 	let t = Math.sin(e * 12.9898 + 78.233) * 43758.5453;
 	return t - Math.floor(t);
 }
-var X = {
+var pa = {
 	x: .74,
 	y: .1,
 	r: .6,
@@ -2641,34 +2724,34 @@ var X = {
 		[.35, .05],
 		[1, 0]
 	]
-}, ia = [160, 90], aa = /* @__PURE__ */ new Map();
-function oa(e, t, n, r) {
+}, ma = [160, 90], ha = /* @__PURE__ */ new Map();
+function ga(e, t, n, r) {
 	let i = e.createLinearGradient(0, 0, 0, n);
 	i.addColorStop(0, r.skyTop), i.addColorStop(1, r.skyHorizon), e.fillStyle = i, e.fillRect(0, 0, t, n);
-	let a = X.r * Math.max(t, n), o = e.createRadialGradient(X.x * t, X.y * n, 0, X.x * t, X.y * n, a);
-	for (let [e, t] of X.stops) o.addColorStop(e, V(r.badgeText, t));
+	let a = pa.r * Math.max(t, n), o = e.createRadialGradient(pa.x * t, pa.y * n, 0, pa.x * t, pa.y * n, a);
+	for (let [e, t] of pa.stops) o.addColorStop(e, V(r.badgeText, t));
 	e.fillStyle = o, e.fillRect(0, 0, t, n);
 }
-function sa(e) {
+function _a(e) {
 	let t = `${e.skyTop}|${e.skyHorizon}|${e.badgeText}`;
-	if (aa.has(t)) return aa.get(t);
-	let [n, r] = ia, i = null;
+	if (ha.has(t)) return ha.get(t);
+	let [n, r] = ma, i = null;
 	try {
 		let t = typeof OffscreenCanvas < "u" ? new OffscreenCanvas(n, r) : typeof document < "u" ? Object.assign(document.createElement("canvas"), {
 			width: n,
 			height: r
 		}) : null, a = t?.getContext("2d");
-		t && a && typeof a.createRadialGradient == "function" && typeof a.fillRect == "function" && (oa(a, n, r, e), i = t);
+		t && a && typeof a.createRadialGradient == "function" && typeof a.fillRect == "function" && (ga(a, n, r, e), i = t);
 	} catch {
 		i = null;
 	}
-	return aa.set(t, i), i;
+	return ha.set(t, i), i;
 }
-function ca(e, t, n, r) {
-	let i = sa(r);
-	i ? e.drawImage(i, 0, 0, t, n) : oa(e, t, n, r);
+function va(e, t, n, r, i = n) {
+	let a = _a(r), o = Math.max(1, Math.min(n, i));
+	a && o < n ? e.drawImage(a, 0, 0, ma[0], ma[1] * o / n, 0, 0, t, o) : a ? e.drawImage(a, 0, 0, t, n) : ga(e, t, n, r);
 }
-var la = [
+var ya = [
 	{
 		p: .12,
 		wavePx: 380,
@@ -2690,43 +2773,43 @@ var la = [
 		liftH: 0,
 		alpha: .3
 	}
-], ua = 2, da = Math.ceil((3 * D + 4096) / ua), fa = /* @__PURE__ */ new WeakMap();
-function pa(e) {
-	let t = fa.get(e);
+], ba = 2, xa = Math.ceil((3 * D + 4096) / ba), Sa = /* @__PURE__ */ new WeakMap();
+function Ca(e) {
+	let t = Sa.get(e);
 	if (!t) {
-		let n = la.map((t, n) => [
+		let n = ya.map((t, n) => [
 			0,
 			1,
 			2
 		].map((t) => 2 * Math.PI * Y(e.seed * 31 + n * 7 + t)));
 		t = {
 			phase: n,
-			table: la.map((e, t) => {
-				let r = new Float32Array(da);
-				for (let e = 0; e < da; e++) r[e] = ha(t, e * ua, n[t]);
+			table: ya.map((e, t) => {
+				let r = new Float32Array(xa);
+				for (let e = 0; e < xa; e++) r[e] = Ta(t, e * ba, n[t]);
 				return r;
 			})
-		}, fa.set(e, t);
+		}, Sa.set(e, t);
 	}
 	return t;
 }
-function ma(e, t) {
-	return e[Math.min(e.length - 1, Math.max(0, Math.round(t / ua)))];
+function wa(e, t) {
+	return e[Math.min(e.length - 1, Math.max(0, Math.round(t / ba)))];
 }
-function ha(e, t, n) {
-	let r = 2 * Math.PI * t / la[e].wavePx;
+function Ta(e, t, n) {
+	let r = 2 * Math.PI * t / ya[e].wavePx;
 	return .5 + .5 * (.55 * Math.sin(r + n[0]) + .3 * Math.sin(2.3 * r + n[1]) + .15 * Math.sin(5.1 * r + n[2]));
 }
-function ga(e, t, n, r, i, a, o) {
-	let { table: s } = pa(t);
-	la.forEach((t, c) => {
-		let l = t.p * Math.max(0, n) * 3;
-		e.beginPath(), e.moveTo(0, i);
-		for (let n = 0; n <= r + 6; n += 6) e.lineTo(n, a - (t.liftH + t.ampH * ma(s[c], n + l)) * i);
-		e.lineTo(r + 6, i), e.closePath(), e.fillStyle = V(o.ground, t.alpha), e.fill();
+function Ea(e, t, n, r, i, a, o, s = i) {
+	let { table: c } = Ca(t);
+	ya.forEach((t, l) => {
+		let u = t.p * Math.max(0, n) * 3;
+		e.beginPath(), e.moveTo(0, s);
+		for (let n = 0; n <= r + 6; n += 6) e.lineTo(n, a - (t.liftH + t.ampH * wa(c[l], n + u)) * i);
+		e.lineTo(r + 6, s), e.closePath(), e.fillStyle = V(o.ground, t.alpha), e.fill();
 	});
 }
-var _a = [
+var Da = [
 	{
 		depthPx: 5,
 		alpha: .24
@@ -2740,11 +2823,11 @@ var _a = [
 		alpha: .08
 	}
 ];
-function va(e, t, n, r, i, a) {
+function Oa(e, t, n, r, i, a) {
 	let o = Math.floor(n / 2) * 2, s = [], c = [];
 	for (let e = o; e <= r + 2; e += 2) s.push(e), c.push(N(t, e));
 	e.lineWidth = 1 / i;
-	for (let t of _a) {
+	for (let t of Da) {
 		let n = t.depthPx / i;
 		e.strokeStyle = V(a.edge, t.alpha), e.beginPath(), e.moveTo(s[0], c[0] - n);
 		for (let t = 1; t < s.length; t++) e.lineTo(s[t], c[t] - n);
@@ -2758,47 +2841,162 @@ function va(e, t, n, r, i, a) {
 	}
 	e.fill();
 }
-var ya = {
+var ka = {
 	fadeM: 30,
 	alpha: .34
 };
-function ba(e, t) {
+function Aa(e, t) {
 	let n = Math.max(0, e.y - t);
 	return {
 		rx: 1.6 + .08 * n,
 		ry: .18 + .012 * n,
-		alpha: ya.alpha * Math.max(0, 1 - n / ya.fadeM)
+		alpha: ka.alpha * Math.max(0, 1 - n / ka.fadeM)
 	};
 }
-function xa(e, t, n, r) {
-	let i = N(t, n.x), a = ba(n, i);
+function ja(e, t, n, r) {
+	let i = N(t, n.x), a = Aa(n, i);
 	a.alpha <= .005 || (e.fillStyle = V(r.panel, a.alpha), e.beginPath(), e.ellipse(n.x, i + .05, a.rx, a.ry, 0, 0, Math.PI * 2), e.fill());
 }
-var Sa = {
+var Ma = {
 	reachM: 6,
 	count: 26
 };
-function Ca(e, t) {
+function Na(e, t) {
 	let n = e.y - f + g - t, r = (Math.max(0, e.sF) + Math.max(0, e.sR)) / 2;
-	return Math.min(1, r) * Math.max(0, 1 - Math.max(0, n) / Sa.reachM);
+	return Math.min(1, r) * Math.max(0, 1 - Math.max(0, n) / Ma.reachM);
 }
-function wa(e, t, n, r, i) {
+function Pa(e, t, n, r, i) {
 	if (r === void 0) return;
-	let a = Ca(n, N(t, n.x));
-	if (!(a < .02)) for (let o = 0; o < Sa.count; o++) {
+	let a = Na(n, N(t, n.x));
+	if (!(a < .02)) for (let o = 0; o < Ma.count; o++) {
 		let s = Y(o * 3 + 1), c = Y(o * 3 + 2), l = Y(o * 3 + 3), u = r * (.5 + .7 * c) + s, d = u - Math.floor(u), f = o % 2 == 0 ? -1 : 1, p = n.x + f * (.8 + (2.5 + 4 * l) * d * (.6 + .4 * a)), m = N(t, p) + .15 + d * (.6 + 1.4 * c) * a, h = .45 * a * (1 - d) ** 1.4;
 		h < .01 || (e.fillStyle = V(i.surfaceScanned, h), e.beginPath(), e.arc(p, m, .2 + .85 * d * (.5 + l), 0, Math.PI * 2), e.fill());
 	}
 }
-function Ta(e, t, n, r, i, a, o) {
+var X = {
+	band: .2,
+	minY: .1,
+	maxY: .55,
+	rows: 6,
+	z0: 14,
+	stepPx: 9,
+	crestMaxF: .6
+};
+function Fa(e, t) {
+	return Math.min(X.maxY * t, Math.max(X.minY * t, e - X.band * t - .12 * Math.max(0, e - .75 * t)));
+}
+function Ia(e) {
+	let t = 3.2 * (e + 1) ** 1.9;
+	return t / (t + X.z0);
+}
+function La(e) {
+	let t = e.trim(), n = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(t);
+	if (n) {
+		let e = n[1].length === 3 ? [...n[1]].map((e) => e + e).join("") : n[1].slice(0, 6), t = Number.parseInt(e, 16);
+		return [
+			t >> 16 & 255,
+			t >> 8 & 255,
+			t & 255
+		];
+	}
+	let r = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i.exec(t);
+	return r ? [
+		Number(r[1]),
+		Number(r[2]),
+		Number(r[3])
+	] : null;
+}
+function Ra(e, t, n) {
+	let r = La(e), i = La(t);
+	if (!r || !i) return e;
+	let a = (e) => Math.round(r[e] + (i[e] - r[e]) * n);
+	return `rgb(${a(0)}, ${a(1)}, ${a(2)})`;
+}
+function za(e) {
+	return Ra(e.ground, e.surfaceScanned, .42);
+}
+function Ba(e, t) {
+	return Ra(e.skyTop, e.skyHorizon, Math.min(1, Math.max(0, t)));
+}
+function Va(e) {
+	return Ra(za(e), e.ground, .35);
+}
+var Ha = /* @__PURE__ */ new Map();
+function Ua(e, t) {
+	let n = `${e.ground}|${e.surfaceScanned}|${t}`, r = Ha.get(n);
+	if (!r) {
+		let i = Array.from({ length: X.rows }, (e, t) => Ia(X.rows - 1 - t));
+		r = {
+			frac: i,
+			fill: i.map((n) => Ra(za(e), t, Math.min(.88, .05 + 1.05 * n)))
+		}, Ha.size > 64 && Ha.clear(), Ha.set(n, r);
+	}
+	return r;
+}
+function Wa(e, t, n, r) {
+	return (2 + 16 * (1 - e) ** 1.5) * Math.min(1.3, Math.max(.6, (t - n) / (.25 * r)));
+}
+function Ga(e, t, n) {
+	let r = Ia(X.rows - 1);
+	return t + (e - t) * (1 - r) - Wa(r, e, t, n);
+}
+function Ka(e, t, n, r, i, a, o, s, c, l) {
+	let u = Ua(c, l), d = X.stepPx, f = new Float32Array(Math.ceil(i / d) + 3), p = (e) => Wa(e, o, s, a);
+	for (let i = 0; i < X.rows; i++) {
+		let l = u.frac[i], m = X.rows - 1 - i, h = s + (o - s) * (1 - l), g = p(l), _ = (90 + 420 * (1 - l)) * (.8 + .4 * Y(t.seed * 23 + m)), v = n * r * (1 - l) * .9, y = i + 1 < X.rows ? s + (o - s) * (1 - u.frac[i + 1]) + p(u.frac[i + 1]) + 1 : a, b = f.length, x = 6.28 * Y(t.seed * 13 + m), S = 6.28 * Y(t.seed * 17 + m + .5), C = 2 * Math.PI / _;
+		for (let e = 0; e < b; e++) {
+			let t = ((e - 1) * d + v) * C;
+			f[e] = h - g * (.5 + .5 * (.7 * Math.sin(t + x) + .3 * Math.sin(2.7 * t + S)));
+		}
+		e.beginPath(), e.moveTo(-d, Math.min(a, y));
+		for (let t = 0; t < b; t++) e.lineTo((t - 1) * d, f[t]);
+		if (e.lineTo((b - 2) * d, Math.min(a, y)), e.closePath(), e.fillStyle = u.fill[i], e.fill(), !(l > X.crestMaxF)) {
+			e.lineWidth = 1, e.strokeStyle = V(c.surfaceScanned, .07 + .26 * (1 - l)), e.beginPath(), e.moveTo(-d, f[0]);
+			for (let t = 1; t < b; t++) e.lineTo((t - 1) * d, f[t]);
+			e.stroke();
+		}
+	}
+}
+var qa = [
+	8,
+	22,
+	46,
+	82,
+	132
+];
+function Ja(e, t, n, r, i, a, o) {
+	let s = N(t, n);
+	e.lineWidth = 1 / a, qa.forEach((n, c) => {
+		let l = Math.max(.15, 1 - c * .2), u = (2 + 3.5 * c) / a, d = (60 + 55 * c) / a, f = 6.28 * Y(t.seed * 19 + c);
+		e.strokeStyle = V(o.edge, .3 - .035 * c), e.beginPath();
+		let p = Math.max(2, 10 / a);
+		for (let o = Math.floor(r / p) * p; o <= i + p; o += p) {
+			let i = N(t, o) * l + s * (1 - l) - n / a + u * Math.sin(2 * Math.PI * o / d + f);
+			o === Math.floor(r / p) * p ? e.moveTo(o, i) : e.lineTo(o, i);
+		}
+		e.stroke();
+	});
+	let c = 9 / a, l = 1.2 / a;
+	e.fillStyle = V(o.panel, .22), e.beginPath();
+	for (let n = Math.floor(r / c); n * c <= i; n++) {
+		let r = n * c + Y(n) * c;
+		e.rect(r, N(t, r) - (3 + 150 * Y(n + .5) ** 1.5) / a, l, l);
+	}
+	e.fill();
+}
+function Ya(e, t, n, r, i) {
+	let a = N(t, n.x);
+	n.y - a < 2 || (e.save(), e.strokeStyle = V(i.surfaceScanned, .35), e.lineWidth = 1 / r, e.setLineDash([3 / r, 4 / r]), e.beginPath(), e.moveTo(n.x, a), e.lineTo(n.x, n.y - 1), e.stroke(), e.restore());
+}
+function Xa(e, t, n, r, i, a, o) {
 	for (let s of [-1, 1]) {
 		let c = e.createLinearGradient(t + s * 100, 0, t + s * 400, 0);
-		c.addColorStop(0, V(o.haze, 0)), c.addColorStop(1, V(o.haze, Hi.hazeFar)), e.fillStyle = c;
+		c.addColorStop(0, V(o.haze, 0)), c.addColorStop(1, V(o.haze, Zi.hazeFar)), e.fillStyle = c;
 		let l = s < 0 ? n : t + 100, u = s < 0 ? t - 100 : r;
 		u > l && e.fillRect(l, i, u - l, a - i);
 	}
 }
-var Ea = [2, 6], Da = 1.5, Oa = class {
+var Za = [2, 6], Qa = 1.5, $a = class {
 	rng;
 	count;
 	streaks = [];
@@ -2811,7 +3009,7 @@ var Ea = [2, 6], Da = 1.5, Oa = class {
 			x: n,
 			y: r + Math.max(0, e.top - r) * this.rng.next(),
 			age: 0,
-			life: Ea[0] + (Ea[1] - Ea[0]) * this.rng.next()
+			life: Za[0] + (Za[1] - Za[0]) * this.rng.next()
 		};
 	}
 	reset() {
@@ -2835,11 +3033,11 @@ var Ea = [2, 6], Da = 1.5, Oa = class {
 			let [i, a] = t(n.x, n.y), o = Math.hypot(i, a);
 			if (o < .001) continue;
 			let s = Math.min(1, n.age / .4, (n.life - n.age) / .4);
-			e.strokeStyle = V(r, Number((Math.max(0, s) * Math.min(.7, .2 + o / 6)).toFixed(3))), e.beginPath(), e.moveTo(n.x, n.y), e.lineTo(n.x - i * Da, n.y - a * Da), e.stroke();
+			e.strokeStyle = V(r, Number((Math.max(0, s) * Math.min(.7, .2 + o / 6)).toFixed(3))), e.beginPath(), e.moveTo(n.x, n.y), e.lineTo(n.x - i * Qa, n.y - a * Qa), e.stroke();
 		}
 	}
 };
-function ka(e, t) {
+function eo(e, t) {
 	let n = new URL(e.assetBase, t).href, r = typeof window < "u" && typeof window.matchMedia == "function" ? window.matchMedia : null;
 	return {
 		...e,
@@ -2849,17 +3047,17 @@ function ka(e, t) {
 		ui: e.ui ?? "full"
 	};
 }
-function Aa(e, t) {
+function to(e, t) {
 	return wn(e.world, e.link, t);
 }
-function ja(e, t) {
+function no(e, t) {
 	let n = e.world, r = e.link.downlinkStep(t), i = r < n.records.length ? n.records[r] : null, a = i ? {
 		state: i.state,
 		onGround: i.onGround
 	} : {
 		state: n.state,
 		onGround: n.onGround
-	}, o = i ? i.faultBits : Ae(n.faults, n.step), s = bt(n.map, a, o, r, Aa(e, t)), c = s[Math.min(s.length - 1, t + 10 - r - 1)].state;
+	}, o = i ? i.faultBits : Ae(n.faults, n.step), s = bt(n.map, a, o, r, to(e, t)), c = s[Math.min(s.length - 1, t + 10 - r - 1)].state;
 	return {
 		x: c.x,
 		y: c.y,
@@ -2872,11 +3070,11 @@ function ja(e, t) {
 		energyEst: c.energyEst
 	};
 }
-function Ma(e, t) {
+function ro(e, t) {
 	let n = e.world;
 	return e.mode === "autopilot" ? n.knowledge() : kt(n.revealedAt, n.hazardFrom, e.link.downlinkStep(t));
 }
-function Na(e, t) {
+function io(e, t) {
 	if (e.mode === "autopilot") return {
 		pose: Cn(e.world, t),
 		source: "onboard",
@@ -2888,13 +3086,13 @@ function Na(e, t) {
 		source: "downlink",
 		age: 0
 	};
-	let r = Math.floor(t), a = t - r, o = ja(e, r);
+	let r = Math.floor(t), a = t - r, o = no(e, r);
 	if (a < 1e-9) return {
 		pose: o,
 		source: "fallback",
 		age: -10 * i
 	};
-	let s = ja(e, r + 1), c = ut(o, s, a), l = (e, t) => e + (t - e) * a;
+	let s = no(e, r + 1), c = ut(o, s, a), l = (e, t) => e + (t - e) * a;
 	return {
 		pose: {
 			...c,
@@ -2906,13 +3104,13 @@ function Na(e, t) {
 		age: -10 * i
 	};
 }
-function Pa(e) {
+function ao(e) {
 	return e.source === "predicted" ? "model" : e.source === "fallback" ? "baseline" : "craft";
 }
-function Fa(e, t) {
-	return new Ia(e, t);
+function oo(e, t) {
+	return new so(e, t);
 }
-var Ia = class {
+var so = class {
 	doc;
 	opts;
 	style;
@@ -2922,15 +3120,15 @@ var Ia = class {
 	ui;
 	root;
 	canvas;
-	input = new ji();
-	clock = new Ni();
+	input = new Ai();
+	clock = new Mi();
 	camera;
 	lastView = {
 		altitude: 0,
 		groundY: 0,
 		h: 0
 	};
-	streaks = new Oa(A(87));
+	streaks = new $a(A(87));
 	listeners = new AbortController();
 	reasons = /* @__PURE__ */ new Set();
 	chainState = rn(1);
@@ -2971,13 +3169,13 @@ var Ia = class {
 		injectFault: (e) => this.afterStart(() => this.injectFault(e))
 	};
 	constructor(e, t) {
-		this.doc = e.ownerDocument, this.opts = ka(t, this.doc.baseURI);
+		this.doc = e.ownerDocument, this.opts = eo(t, this.doc.baseURI);
 		let n = this.opts.theme && Object.keys(this.opts.theme).length > 0 ? this.opts.theme : void 0;
 		this.theme = Object.freeze(n ? vr(n, yr(this.doc)) : {}), this.style = _r(this.theme, this.opts.text === void 0 ? B : this.opts.text, this.opts.inset ?? !0), this.camera = new Vn(this.opts.zoom ?? 1), this.features = [...t.features ?? []];
 		let r = this.doc, i = (e, t, n) => e.addEventListener(t, n, { signal: this.listeners.signal });
 		this.canvas = r.createElement("canvas"), this.canvas.className = "main-canvas", this.canvas.tabIndex = 0, this.canvas.setAttribute("aria-label", "Rotorcraft view. Click to fly; Escape releases the keys.");
 		let a = this.opts.aspect ?? 1.7777777777777777;
-		this.opts.ui === "none" ? (this.canvas.style.cssText = mi(a), this.fillCheck = a === "fill", this.chrome = null, this.root = this.canvas, e.append(this.canvas)) : (this.chrome = Mr(e, {
+		this.opts.ui === "none" ? (this.canvas.style.cssText = pi(a), this.fillCheck = a === "fill", this.chrome = null, this.root = this.canvas, e.append(this.canvas)) : (this.chrome = Mr(e, {
 			canvas: this.canvas,
 			signal: this.listeners.signal,
 			noModelText: this.style.text?.noModel ?? "Dream model isn't loaded: flying on a simple physics predictor that ignores wind.",
@@ -3000,7 +3198,7 @@ var Ia = class {
 				});
 			},
 			setVector: (e) => this.input.setVector(e)
-		}), this.root = this.chrome.ui.root, a === "fill" && console.warn(pi), this.canvas.style.aspectRatio = String(a === "fill" ? fi : a)), this.ui = this.chrome?.ui ?? null, this.input.attach(this.canvas), this.input.onFirstInput = () => this.beginCurrent(), i(this.canvas, "focus", () => this.beginCurrent()), i(this.canvas, "pointerdown", () => {
+		}), this.root = this.chrome.ui.root, a === "fill" && console.warn(fi), this.canvas.style.aspectRatio = String(a === "fill" ? di : a)), this.ui = this.chrome?.ui ?? null, this.input.attach(this.canvas), this.input.onFirstInput = () => this.beginCurrent(), i(this.canvas, "focus", () => this.beginCurrent()), i(this.canvas, "pointerdown", () => {
 			this.focusedBeforeClick = r.activeElement === this.canvas;
 		}), i(this.canvas, "click", (e) => {
 			let t = this.current;
@@ -3114,7 +3312,7 @@ var Ia = class {
 			chainSeed: this.chainState.seed,
 			start: d,
 			startPatch: t,
-			recorder: new Pi({
+			recorder: new Ni({
 				mapSeed: a.mapSeed,
 				tier: a.tier,
 				startPatch: t,
@@ -3139,7 +3337,7 @@ var Ia = class {
 			liveWind: [],
 			faultRng: () => m.int(2)
 		};
-		this.current = h, this.mode = e.mode, this.input.reset(), this.clock.reset(), this.camera.reset(), this.streaks = new Oa(A(o).fork(87)), this.chrome?.flightStarted({
+		this.current = h, this.mode = e.mode, this.input.reset(), this.clock.reset(), this.camera.reset(), this.streaks = new $a(A(o).fork(87)), this.chrome?.flightStarted({
 			hop: i,
 			mode: e.mode,
 			baseLevel: this.chainState.baseLevel
@@ -3150,7 +3348,7 @@ var Ia = class {
 	setMode(e) {
 		this.mode = e;
 		let t = this.current;
-		t && t.mode !== e && (t.mode = e, t.knowledge = Ma(t, t.groundStep), this.chrome?.setMode(e), e === "manual" && (t.attract = !1), this.signal({
+		t && t.mode !== e && (t.mode = e, t.knowledge = ro(t, t.groundStep), this.chrome?.setMode(e), e === "manual" && (t.attract = !1), this.signal({
 			type: "mode",
 			flightId: t.flightId,
 			mode: e
@@ -3225,7 +3423,7 @@ var Ia = class {
 			let r = n.displayPose?.(e, t);
 			if (r) return r;
 		}
-		return Na(e, t);
+		return io(e, t);
 	}
 	addReason(e) {
 		if (this.dead || this.reasons.has(e)) return;
@@ -3278,7 +3476,7 @@ var Ia = class {
 			for (let t of this.features) t.afterStep?.(e);
 			this.recordTarget(e), t.done && (e.contactAt = t.step);
 		}
-		e.groundStep++, e.knowledge = Ma(e, e.groundStep), t.done && e.groundStep >= e.contactAt + (e.mode === "manual" ? 10 : 0) ? this.end(e) : t.done && this.chrome?.setStatus("Touchdown awaiting confirmation…");
+		e.groundStep++, e.knowledge = ro(e, e.groundStep), t.done && e.groundStep >= e.contactAt + (e.mode === "manual" ? 10 : 0) ? this.end(e) : t.done && this.chrome?.setStatus("Touchdown awaiting confirmation…");
 	}
 	recordTarget(e) {
 		let t = e.world;
@@ -3331,7 +3529,7 @@ var Ia = class {
 		if (this.fillCheck) {
 			this.fillCheck = !1;
 			let e = this.canvas.parentElement;
-			(!e || !hi(e, this.canvas)) && (console.warn(pi), this.canvas.style.height = "", this.canvas.style.aspectRatio = String(fi));
+			(!e || !mi(e, this.canvas)) && (console.warn(fi), this.canvas.style.height = "", this.canvas.style.aspectRatio = String(di));
 		}
 		let n = window.devicePixelRatio || 1, r = this.canvas.getBoundingClientRect(), a = Math.max(1, r.width), o = Math.max(1, r.height);
 		(this.canvas.width !== Math.round(a * n) || this.canvas.height !== Math.round(o * n)) && (this.canvas.width = Math.round(a * n), this.canvas.height = Math.round(o * n));
@@ -3350,7 +3548,7 @@ var Ia = class {
 		this.opts.reducedMotion || this.streaks.update(t, _, v, (e) => N(s.map, e));
 		let y = this.canvas.getContext("2d");
 		if (y) {
-			Ui(y, a, o, n, {
+			Qi(y, a, o, n, {
 				map: s.map,
 				knowledge: e.knowledge,
 				targetX: s.targetX,
@@ -3361,8 +3559,9 @@ var Ia = class {
 				streaks: this.opts.reducedMotion ? null : this.streaks,
 				field: _,
 				style: this.style,
-				tint: this.featureState(e).planner === "simple-pilot" ? "baseline" : Pa(u),
-				t: this.opts.reducedMotion ? void 0 : l * i
+				tint: this.featureState(e).planner === "simple-pilot" ? "baseline" : ao(u),
+				t: this.opts.reducedMotion ? void 0 : l * i,
+				depth: this.opts.scene === "diorama"
 			});
 			let t = {
 				flight: e,
@@ -3375,14 +3574,14 @@ var Ia = class {
 				style: this.style
 			};
 			for (let e of this.features) e.draw && (y.save(), y.setTransform(n, 0, 0, n, 0, 0), e.draw(y, t), y.restore());
-			let r = this.style.inset && this.features.some((e) => e.insetDrawn?.() === !0), c = r ? [Si(a)] : [], d = this.style.text;
+			let r = this.style.inset && this.features.some((e) => e.insetDrawn?.() === !0), c = r ? [xi(a)] : [], d = this.style.text;
 			if (d) {
 				let t = this.features.flatMap((t) => t.badges?.(e, d) ?? []);
 				!this.chrome && this.model === "absent" && t.unshift(d.noModel), y.save(), y.setTransform(n, 0, 0, n, 0, 0), zr(y, t, this.style.palette);
 				let i = this.camera.toScreen(h.x, h.y, a, o);
-				c.push(qi(y, a, o, d.terrainCaption, this.style.palette, i, t.length, yi(a, r)).box), y.restore();
+				c.push(na(y, a, o, d.terrainCaption, this.style.palette, i, t.length, vi(a, r)).box), y.restore();
 			}
-			y.save(), y.setTransform(n, 0, 0, n, 0, 0), Qi(y, {
+			y.save(), y.setTransform(n, 0, 0, n, 0, 0), sa(y, {
 				camera: this.camera,
 				map: s.map,
 				targetX: s.targetX
@@ -3455,11 +3654,11 @@ var Ia = class {
 		let e = this.current;
 		!this.dead && e && this.opts.onState && this.opts.onState(this.stateOf(e, this.shown(e)));
 	}
-}, La = /\b(iPhone|iPad|iPod)\b/, Ra = /Chrom(e|ium)\//;
-function za(e, t) {
-	return La.test(e) || /Macintosh/.test(e) && t > 1 ? !0 : /AppleWebKit\//.test(e) ? !Ra.test(e) : !1;
+}, co = /\b(iPhone|iPad|iPod)\b/, lo = /Chrom(e|ium)\//;
+function uo(e, t) {
+	return co.test(e) || /Macintosh/.test(e) && t > 1 ? !0 : /AppleWebKit\//.test(e) ? !lo.test(e) : !1;
 }
-function Ba(e = globalThis.location?.search ?? "") {
+function fo(e = globalThis.location?.search ?? "") {
 	let t = globalThis.navigator, n = null;
 	try {
 		let t = new URLSearchParams(e).get("backend");
@@ -3474,8 +3673,8 @@ function Ba(e = globalThis.location?.search ?? "") {
 		override: n
 	};
 }
-async function Va(e = Ba()) {
-	if (za(e.ua, e.maxTouchPoints)) return "wasm";
+async function po(e = fo()) {
+	if (uo(e.ua, e.maxTouchPoints)) return "wasm";
 	if (e.override) return e.override;
 	if (!e.gpu) return "wasm";
 	let t;
@@ -3498,15 +3697,15 @@ function Q(e, t) {
 	let n = e[t];
 	return (typeof n != "number" || !Number.isFinite(n)) && Z(`${t} must be a finite number`), n;
 }
-function Ha(e, t, n, r = !1) {
+function mo(e, t, n, r = !1) {
 	(!Array.isArray(e) || e.length !== t) && Z(`${n} must have length ${t}`);
 	for (let t of e) (typeof t != "number" || !Number.isFinite(t)) && Z(`${n} has a non-finite entry`), r && !(t > 0) && Z(`${n} must be > 0`);
 	return e;
 }
-function Ua(e, t, n, r, i = !1) {
-	return (!Array.isArray(e) || e.length !== t) && Z(`${r} must have ${t} rows`), e.map((e, t) => Ha(e, n, `${r}[${t}]`, i));
+function ho(e, t, n, r, i = !1) {
+	return (!Array.isArray(e) || e.length !== t) && Z(`${r} must have ${t} rows`), e.map((e, t) => mo(e, n, `${r}[${t}]`, i));
 }
-function Wa(e) {
+function go(e) {
 	(typeof e != "object" || !e) && Z("windGrid missing");
 	let t = e, n = {
 		nx: 16,
@@ -3519,10 +3718,10 @@ function Wa(e) {
 		"dx",
 		"scale"
 	]) Q(t, e) !== n[e] && Z(`windGrid.${e} is ${String(t[e])}, constants.ts says ${n[e]}`);
-	let r = Ha(t.dz, n.dz.length, "windGrid.dz");
+	let r = mo(t.dz, n.dz.length, "windGrid.dz");
 	return r.some((e, t) => e !== n.dz[t]) && Z(`windGrid.dz is [${r.join(", ")}], constants.ts says [${n.dz.join(", ")}]`), n;
 }
-function Ga(e) {
+function _o(e) {
 	(typeof e != "object" || !e) && Z("not an object");
 	let t = e;
 	t.version !== 1 && Z(`unsupported version ${String(t.version)}`);
@@ -3534,7 +3733,7 @@ function Ga(e) {
 		["statDim", 135],
 		["ctxDim", 193]
 	]) Q(t, e) !== n && Z(`${e} is ${String(t[e])}, constants.ts says ${n}`);
-	let n = Wa(t.windGrid);
+	let n = go(t.windGrid);
 	Q(t, "e0") !== 2e6 && Z(`e0 is ${String(t.e0)}, constants.ts says ${w} (energyEst is scaled by it)`);
 	let r = t.stepsDefault;
 	r || Z("stepsDefault missing");
@@ -3561,10 +3760,10 @@ function Ga(e) {
 		ctxDim: 193,
 		windGrid: n,
 		e0: w,
-		histMean: Ha(t.histMean, 10, "histMean"),
-		histStd: Ha(t.histStd, 10, "histStd", !0),
-		futMean: Ua(t.futMean, 30, 10, "futMean"),
-		futStd: Ua(t.futStd, 30, 10, "futStd", !0),
+		histMean: mo(t.histMean, 10, "histMean"),
+		histStd: mo(t.histStd, 10, "histStd", !0),
+		futMean: ho(t.futMean, 30, 10, "futMean"),
+		futStd: ho(t.futStd, 30, 10, "futStd", !0),
 		sigmaMin: i,
 		sigmaMax: a,
 		rho: Q(t, "rho"),
@@ -3583,23 +3782,23 @@ function Ga(e) {
 		...s === void 0 ? {} : { skipS0: s }
 	};
 }
-function Ka(e) {
+function vo(e) {
 	return (e.headers.get("content-type") ?? "").includes("text/html");
 }
-async function qa(e, t) {
+async function yo(e, t) {
 	try {
 		let n = await t(`${e}dream.onnx`, { method: "HEAD" });
-		if (!n.ok || Ka(n)) return {
+		if (!n.ok || vo(n)) return {
 			ok: !1,
 			reason: "missing"
 		};
 		let r = await t(`${e}dream_meta.json`);
-		return !r.ok || Ka(r) ? {
+		return !r.ok || vo(r) ? {
 			ok: !1,
 			reason: "missing"
 		} : {
 			ok: !0,
-			ghostSteps: Ga(await r.json()).stepsDefault.ghost
+			ghostSteps: _o(await r.json()).stepsDefault.ghost
 		};
 	} catch {
 		return {
@@ -3608,7 +3807,7 @@ async function qa(e, t) {
 		};
 	}
 }
-var Ja = class {
+var bo = class {
 	deps;
 	onGhosts = null;
 	onValue = null;
@@ -3709,7 +3908,7 @@ var Ja = class {
 		}), e.terminate()), this._fail = null, this.set("unloaded");
 	}
 	async doLoad(e, t, n, r, i) {
-		let a = await qa(t.modelsBase, this.deps.fetch);
+		let a = await yo(t.modelsBase, this.deps.fetch);
 		if (e !== this.gen) return null;
 		if (!a.ok) return this.failWith(a.reason), null;
 		let o;
@@ -3881,17 +4080,17 @@ var Ja = class {
 };
 //#endregion
 //#region src/runtime/session.ts
-function Ya() {
+function xo() {
 	return {
 		fetch: (e, t) => fetch(e, t),
-		selectBackend: () => Va()
+		selectBackend: () => po()
 	};
 }
-function Xa(e) {
+function So(e) {
 	return e === "ready" ? "ready" : e === "failed" || e === "unloaded" ? "absent" : "loading";
 }
-function Za(e, t = Ya()) {
-	let n = /* @__PURE__ */ new Set(), r = new Ja({
+function Co(e, t = xo()) {
+	let n = /* @__PURE__ */ new Set(), r = new bo({
 		createWorker: () => {
 			if (!e) throw Error("dream session: no worker factory (AppOptions.createWorker)");
 			return e();
@@ -3941,7 +4140,7 @@ function Za(e, t = Ya()) {
 		}
 	};
 }
-var Qa = class {
+var wo = class {
 	host;
 	opts;
 	phase = "idle";
@@ -3982,11 +4181,11 @@ var Qa = class {
 };
 //#endregion
 //#region src/ui/attractFeature.ts
-function $a() {
+function To() {
 	let e = globalThis.matchMedia;
 	return e ? e("(prefers-reduced-motion: reduce)").matches : !1;
 }
-function eo(e = {}) {
+function Eo(e = {}) {
 	let t = e.now ?? (() => performance.now() / 1e3), n = null, r = null, i = null, a = null, o = !1, s = null, c = !1, l = null, u = () => {
 		let e = l?.flight();
 		n?.phase === "attract" && e && !e.attract && !e.ended && n.takeControls();
@@ -3997,7 +4196,7 @@ function eo(e = {}) {
 	};
 	return {
 		mount(t, s) {
-			l = s, c = s.opts.reducedMotion ?? $a(), n = new Qa({
+			l = s, c = s.opts.reducedMotion ?? To(), n = new wo({
 				startAttract: (e) => {
 					s.startFlight({
 						hop: 1,
@@ -4058,7 +4257,7 @@ function eo(e = {}) {
 }
 //#endregion
 //#region src/ghosts/ghosts.ts
-function to(e) {
+function Do(e) {
 	return {
 		x: e.x,
 		y: e.y,
@@ -4071,28 +4270,28 @@ function to(e) {
 		energyEst: e.energyEst
 	};
 }
-function no(e, t) {
+function Oo(e, t) {
 	return t >= e.step ? e.state : e.records[t].state;
 }
-function ro(e, t) {
+function ko(e, t) {
 	return kt(e.revealedAt, e.hazardFrom, t);
 }
-function io(e, t) {
+function Ao(e, t) {
 	return t < e.step ? e.records[t].faultBits : Ae(e.faults, e.step);
 }
-function ao(e, t) {
+function jo(e, t) {
 	if (!e.armed) return !1;
 	let n = Math.min(t, e.step);
-	for (let t = 0; t <= n; t++) if (I(no(e, t), e.map) >= 1) return !0;
+	for (let t = 0; t <= n; t++) if (I(Oo(e, t), e.map) >= 1) return !0;
 	return n >= e.step;
 }
-function oo(e, t, n, r) {
+function Mo(e, t, n, r) {
 	if (t < 9 || t > e.step || t < 10 && !e.records[0]?.onGround) return null;
 	let i = [];
 	for (let n = t - 10 + 1; n <= t; n++) {
 		let t = n === 0 ? null : e.records[n - 1].cmd;
 		i.push({
-			row: to(no(e, n)),
+			row: Do(Oo(e, n)),
 			cmd: t ? {
 				front: t.front,
 				rear: t.rear
@@ -4102,11 +4301,11 @@ function oo(e, t, n, r) {
 	return {
 		step: t,
 		hist: i,
-		faultBits: io(e, t),
+		faultBits: Ao(e, t),
 		level: e.level,
 		targetX: e.targetX,
-		knowledge: ro(e, t),
-		armed: ao(e, t),
+		knowledge: ko(e, t),
+		armed: jo(e, t),
 		given: n.map((e) => ({
 			front: e.front,
 			rear: e.rear
@@ -4117,19 +4316,19 @@ function oo(e, t, n, r) {
 		}
 	};
 }
-function so(e, t) {
-	return oo(e, e.step, [], t);
+function No(e, t) {
+	return Mo(e, e.step, [], t);
 }
-function co(e, t) {
+function Po(e, t) {
 	let n = e.step, r = t.downlinkStep(n);
 	if (r !== n - 10) return null;
 	let i = wn(e, t, n);
-	return oo(e, r, i, i[i.length - 1]);
+	return Mo(e, r, i, i[i.length - 1]);
 }
-function lo(e, t) {
+function Fo(e, t) {
 	return (Math.imul(e ^ 2654435769, 2246822507) ^ Math.imul(t + 1, 3266489909)) >>> 0;
 }
-var uo = class {
+var Io = class {
 	req;
 	cfg = null;
 	paused = !1;
@@ -4158,14 +4357,14 @@ var uo = class {
 	}
 	onStep(e, t, n) {
 		if (e.contact !== null || !this.cfg || this.paused || n !== "manual" || e.step - this.lastStep < 5) return !1;
-		let r = co(e, t);
+		let r = Po(e, t);
 		if (!r) return !1;
 		this.lastStep = e.step;
 		let i = {
 			...r,
 			flightId: this.flightId
 		};
-		return this.req.requestGhosts(i, this.cfg.n, this.cfg.steps, lo(this.seedBase, e.step), this.cfg.k), !0;
+		return this.req.requestGhosts(i, this.cfg.n, this.cfg.steps, Fo(this.seedBase, e.step), this.cfg.k), !0;
 	}
 	accept(e) {
 		return e.flightId !== this.flightId || this.latest && e.anchorStep < this.latest.anchorStep ? !1 : (this.latest = e, !0);
@@ -4173,13 +4372,33 @@ var uo = class {
 	get current() {
 		return this.latest;
 	}
-}, fo = 31;
+};
+//#endregion
+//#region src/model/context.ts
+function Lo(e, t) {
+	return Array.from({ length: e }, (n, r) => (r - (e - 1) / 2) * t);
+}
+function Ro(e, t, n, r, i, a, o) {
+	let s = new Float32Array(1 + 3 * a);
+	return s[0] = (n - e) / 500, Lo(a, o).forEach((n, o) => {
+		let c = e + n;
+		s[1 + o] = (N(r, c) - t) / 50;
+		let l = P(c), u = l < 0 || l >= 1e3;
+		s[1 + a + o] = u || i[l] !== 0 ? 1 : 0, s[1 + 2 * a + o] = u || i[l] === 2 ? 1 : 0;
+	}), s;
+}
+function zo(e, t, n, r, i) {
+	return Ro(e, t, n, r, i, 64, 2);
+}
+//#endregion
+//#region src/ghosts/dreamIO.ts
+var Bo = 31;
 //#endregion
 //#region src/planner/plan.ts
-function po(e, t, n) {
-	return W(e, t, n, fo);
+function Vo(e, t, n) {
+	return W(e, t, n, Bo);
 }
-function mo(e) {
+function Ho(e) {
 	let t = j(e);
 	return {
 		mean: [[
@@ -4214,25 +4433,25 @@ function mo(e) {
 		].fill(ve)]
 	};
 }
-function ho(e) {
+function Uo(e) {
 	return {
 		mean: [e.mean[0].slice(), e.mean[1].slice()],
 		std: [e.std[0].slice(), e.std[1].slice()]
 	};
 }
-function go(e, t) {
+function Wo(e, t) {
 	let n = Math.floor(t / 5);
 	if (n >= 5) return e[5];
 	if (n < 0) return e[0];
 	let r = (t - n * 5) / 5;
 	return e[n] + (e[n + 1] - e[n]) * r;
 }
-function _o(e, t) {
+function Go(e, t) {
 	let n = Math.max(0, Math.round(t)), r = (t) => {
 		let r = [], i = [];
 		for (let a = 0; a < 6; a++) {
 			let o = a * 5 + n;
-			r.push(go(e.mean[t], o)), i.push(o > 25 ? ve : Math.max(go(e.std[t], o), ye));
+			r.push(Wo(e.mean[t], o)), i.push(o > 25 ? ve : Math.max(Wo(e.std[t], o), ye));
 		}
 		return {
 			mean: r,
@@ -4244,7 +4463,7 @@ function _o(e, t) {
 		std: [i.std, a.std]
 	};
 }
-var vo = [
+var Ko = [
 	{
 		pop: 32,
 		iters: 3,
@@ -4266,11 +4485,11 @@ var vo = [
 		ghosts: 4
 	}
 ];
-function yo(e) {
+function qo(e) {
 	return e === "webgpu" ? 0 : 1;
 }
-function bo(e, t, n) {
-	return vo.slice(yo(e)).map((r, i) => ({
+function Jo(e, t, n) {
+	return Ko.slice(qo(e)).map((r, i) => ({
 		pop: r.pop,
 		iters: r.iters,
 		elite: 4,
@@ -4280,7 +4499,7 @@ function bo(e, t, n) {
 		chainK: e === "webgpu" && i === 0 ? Math.max(1, t) : 1
 	}));
 }
-function xo(e) {
+function Yo(e) {
 	let n = 875 * t / (M(e, 0) + M(e, 1)), r = Math.floor(n / _ + 1e-9) * _;
 	return j({
 		front: r,
@@ -4289,7 +4508,7 @@ function xo(e) {
 }
 //#endregion
 //#region src/planner/executor.ts
-var So = class {
+var Xo = class {
 	ladder;
 	plan = null;
 	heldDist = null;
@@ -4350,7 +4569,7 @@ var So = class {
 			base: e,
 			actions: Array.from({ length: 30 }, () => ({ ...n })),
 			result: null
-		}, this.heldDist = mo(n), this.pending = null, this.nextRequestStep = e, this.streak = 0, this.expired = 0;
+		}, this.heldDist = Ho(n), this.pending = null, this.nextRequestStep = e, this.streak = 0, this.expired = 0;
 	}
 	stop() {
 		this.plan = null, this.pending = null;
@@ -4379,7 +4598,7 @@ var So = class {
 		}, this.nextRequestStep = e + 5, {
 			token: t,
 			step: e,
-			warm: this.plan.result ? _o(this.plan.result.dist, e - this.plan.base) : ho(this.heldDist),
+			warm: this.plan.result ? Go(this.plan.result.dist, e - this.plan.base) : Uo(this.heldDist),
 			budget: this.activeBudget,
 			seed: this.rng.int(2147483647)
 		};
@@ -4398,7 +4617,7 @@ var So = class {
 };
 //#endregion
 //#region src/pilots/observe.ts
-function Co(e, t = e.knowledge()) {
+function Zo(e, t = e.knowledge()) {
 	let n = e.state;
 	return {
 		pose: {
@@ -4424,9 +4643,9 @@ function Co(e, t = e.knowledge()) {
 		records: e.records
 	};
 }
-var wo = .12, To = 30 * e, Eo = 3 * e, Do = (e, t, n) => Math.min(n, Math.max(t, e));
-function Oo(e, n = {}) {
-	let r = n.vxCruise ?? 5, i = n.clearance ?? 20, a = e.pose, o = I(a, e.map), s = e.targetX - a.x, c = s >= 0 ? 1 : -1, l = dn(e.map, a.x - c * 30, a.x + c * Math.min(200, Math.abs(s) + 30)), u = Math.abs(s) < 8 && Math.abs(a.vx) < .6, d = !u && o < .6 * i && Math.abs(s) > 30, f = u ? "descend" : d ? "climb" : "cruise", p = d ? 0 : c * Math.min(r, Math.sqrt(.3 * Math.abs(s)), .15 * Math.abs(s)), m = u ? -Math.min(4, .8 + wo * Math.max(0, o)) : Do(.25 * (l + i - a.y), -4, 4), h = Do(.5 * (p - a.vx), -.5, .5), g = t + Do(.8 * (m - a.vy), -.6, .8), [_, v] = e.meanWindAt(a.x, a.y), y = a.vx - _, b = a.vy - v, x = h - 2 * Xe(875 * t / 2, y) / 875 + qe * Math.abs(y) * y / 875, S = g + Je * Math.abs(b) * b / 875, C = o < 3 ? Eo : To, w = Do(Math.atan2(-x, S), -C, C);
+var Qo = .12, $o = 30 * e, es = 3 * e, ts = (e, t, n) => Math.min(n, Math.max(t, e));
+function ns(e, n = {}) {
+	let r = n.vxCruise ?? 5, i = n.clearance ?? 20, a = e.pose, o = I(a, e.map), s = e.targetX - a.x, c = s >= 0 ? 1 : -1, l = dn(e.map, a.x - c * 30, a.x + c * Math.min(200, Math.abs(s) + 30)), u = Math.abs(s) < 8 && Math.abs(a.vx) < .6, d = !u && o < .6 * i && Math.abs(s) > 30, f = u ? "descend" : d ? "climb" : "cruise", p = d ? 0 : c * Math.min(r, Math.sqrt(.3 * Math.abs(s)), .15 * Math.abs(s)), m = u ? -Math.min(4, .8 + Qo * Math.max(0, o)) : ts(.25 * (l + i - a.y), -4, 4), h = ts(.5 * (p - a.vx), -.5, .5), g = t + ts(.8 * (m - a.vy), -.6, .8), [_, v] = e.meanWindAt(a.x, a.y), y = a.vx - _, b = a.vy - v, x = h - 2 * Xe(875 * t / 2, y) / 875 + qe * Math.abs(y) * y / 875, S = g + Je * Math.abs(b) * b / 875, C = o < 3 ? es : $o, w = ts(Math.atan2(-x, S), -C, C);
 	return {
 		phase: f,
 		vxDes: p,
@@ -4437,18 +4656,18 @@ function Oo(e, n = {}) {
 		clearance: o
 	};
 }
-function ko(e, t, n) {
+function rs(e, t, n) {
 	let r = (t - Ke * e) / (Ge - Ke), i = e - r;
 	return {
 		front: r / M(n, 0),
 		rear: i / M(n, 1)
 	};
 }
-function Ao(e, t = {}) {
-	let n = Oo(e, t);
-	return ko(n.force, n.torque, je(e.faultBits, e.step));
+function is(e, t = {}) {
+	let n = ns(e, t);
+	return rs(n.force, n.torque, je(e.faultBits, e.step));
 }
-var jo = class {
+var as = class {
 	noise;
 	id = 0;
 	rng = A(0);
@@ -4459,13 +4678,13 @@ var jo = class {
 		this.rng = A(e).fork(157);
 	}
 	act(e) {
-		let t = Ao(e);
+		let t = is(e);
 		return j({
 			front: t.front + this.noise * this.rng.normal(),
 			rear: t.rear + this.noise * this.rng.normal()
 		});
 	}
-}, Mo = class {
+}, os = class {
 	opts;
 	exec;
 	world = null;
@@ -4484,11 +4703,11 @@ var jo = class {
 	switched = !1;
 	bottomNext = !1;
 	engagedAt = -1;
-	pilot = new jo();
+	pilot = new as();
 	now;
 	redesignation = null;
 	constructor(e) {
-		this.opts = e, this.exec = new So(bo(e.backend, e.chainK, 0), e.seed), this.now = e.now ?? (() => performance.now());
+		this.opts = e, this.exec = new Xo(Jo(e.backend, e.chainK, 0), e.seed), this.now = e.now ?? (() => performance.now());
 	}
 	get engaged() {
 		return this.exec.active;
@@ -4516,7 +4735,7 @@ var jo = class {
 		let n = e.world;
 		if (this.switched && !this.simple && (this.simple = !0), this.simple) return this.flySimple(n);
 		if (!this.exec.active) {
-			let e = n.onGround ? xo(n.faults) : n.step === 0 ? Ue(n.faults) : n.records[n.step - 1].cmd;
+			let e = n.onGround ? Yo(n.faults) : n.step === 0 ? Ue(n.faults) : n.records[n.step - 1].cmd;
 			this.exec.start(n.step, e), this.engagedAt = n.step, this.last = j(e);
 		}
 		this.steer(n);
@@ -4542,7 +4761,7 @@ var jo = class {
 			from: e.targetX,
 			to: t
 		}, e.setTarget(t));
-		let n = this.pilot.act(Co(e));
+		let n = this.pilot.act(Zo(e));
 		return this.last = j(n), this.flying = !0, n;
 	}
 	afterStep(e) {
@@ -4579,7 +4798,7 @@ var jo = class {
 		return (e.world !== this.world || e.flightId !== this.flightId) && (this.exec.newFlight(this.bottomNext), this.bottomNext = !1, this.simple = !1, this.switched = !1, this.world = e.world, this.flightId = e.flightId, this.flying = !1, this.target = e.world.targetX, this.redesignation = null), e.mode !== "autopilot" || e.ended || e.world.contact !== null ? (this.flying && e.mode === "manual" && !e.ended && e.world.contact === null && e.link.reset(this.last, e.world.step), this.flying = !1, this.simple &&= (this.switched = !0, !1), this.exec.stop(), this.setHold(!1), !1) : !0;
 	}
 	dispatch(e, t) {
-		let n = so(t, this.last);
+		let n = No(t, this.last);
 		if (!n) return;
 		let r = {
 			...n,
@@ -4599,24 +4818,24 @@ var jo = class {
 			this.world === t && this.flightId === a && this.exec.resolve(i.token, null, t.step);
 		});
 	}
-}, No = {
+}, ss = {
 	rejected: .08,
 	elite: .3,
 	chosen: .85
-}, Po = Array.from({ length: Math.floor(30 * i / 1) }, (e, t) => Math.round((t + 1) / i)).filter((e) => e < 30), Fo = {
+}, cs = Array.from({ length: Math.floor(30 * i / 1) }, (e, t) => Math.round((t + 1) / i)).filter((e) => e < 30), ls = {
 	rejected: 0,
 	elite: 1,
 	chosen: 2
 };
-function Io(e) {
+function us(e) {
 	let t = (t) => t === e.chosen ? "chosen" : e.elite[t] ? "elite" : "rejected";
 	return Array.from({ length: e.n }, (e, n) => ({
 		index: n,
 		tier: t(n),
-		alpha: No[t(n)]
-	})).sort((e, t) => Fo[e.tier] - Fo[t.tier] || e.index - t.index);
+		alpha: ss[t(n)]
+	})).sort((e, t) => ls[e.tier] - ls[t.tier] || e.index - t.index);
 }
-function Lo(e) {
+function ds(e) {
 	let t = Math.cos(e.theta), n = Math.sin(e.theta);
 	return [
 		[-1, -1],
@@ -4628,13 +4847,13 @@ function Lo(e) {
 		return [e.x + a * t - o * n, e.y + a * n + o * t];
 	});
 }
-var Ro = (e) => Number.isFinite(e.x) && Number.isFinite(e.y) && Number.isFinite(e.theta);
-function zo(e, t) {
-	for (let n of Io(e)) {
+var fs = (e) => Number.isFinite(e.x) && Number.isFinite(e.y) && Number.isFinite(e.theta);
+function ps(e, t) {
+	for (let n of us(e)) {
 		let r = e.touchIndex[n.index] >= 0 ? e.touchIndex[n.index] : 30, i = new Float32Array((r + 1) * 2), a = !0;
 		for (let t = 0; t <= r; t++) {
-			let r = po(e.poses, n.index, t);
-			if (!Ro(r)) {
+			let r = Vo(e.poses, n.index, t);
+			if (!fs(r)) {
 				a = !1;
 				break;
 			}
@@ -4642,21 +4861,21 @@ function zo(e, t) {
 		}
 		if (!a) continue;
 		t.path(i, n.alpha, n.tier);
-		for (let i of Po) i < r && t.outline(Lo(po(e.poses, n.index, i)), n.alpha, n.tier);
+		for (let i of cs) i < r && t.outline(ds(Vo(e.poses, n.index, i)), n.alpha, n.tier);
 		let o = e.contacts[n.index];
-		t.outline(Lo(o ? o.pose : po(e.poses, n.index, r)), n.alpha, n.tier);
+		t.outline(ds(o ? o.pose : Vo(e.poses, n.index, r)), n.alpha, n.tier);
 	}
 }
 //#endregion
 //#region src/ui/autopilotFeature.ts
-var Bo = "Dream model not loaded", Vo = {
+var ms = "Dream model not loaded", hs = {
 	takeoff: "Autopilot: taking off",
 	transit: "Autopilot: transit at a safe height",
 	scout: "Autopilot: scouting the landing site",
 	approach: "Autopilot: approach",
 	final: "Autopilot: final descent at 1 m/s"
 };
-function Ho(e) {
+function gs(e) {
 	if (e.advisoryS !== null) {
 		let t = `${Math.ceil(e.advisoryS)} s`;
 		if (e.mode === "autopilot" && e.redesignation) {
@@ -4665,9 +4884,9 @@ function Ho(e) {
 		}
 		return `Hazard detected on the landing site: pick another site (${t}).`;
 	}
-	return e.mode === "autopilot" && e.simple ? e.simple : e.mode === "autopilot" && e.phase ? Vo[e.phase] : "";
+	return e.mode === "autopilot" && e.simple ? e.simple : e.mode === "autopilot" && e.phase ? hs[e.phase] : "";
 }
-function Uo(e, t) {
+function _s(e, t) {
 	let n = t.style.palette, r = {
 		rejected: n.planRejected,
 		elite: n.planElite,
@@ -4690,17 +4909,17 @@ function Uo(e, t) {
 		}
 	};
 }
-function Wo(e) {
+function vs(e) {
 	globalThis.__landerPlan = { planStats: () => e.planStats() };
 }
-function Go(e) {
+function ys(e) {
 	let t = null, n = null, r = null, i = null, a = null, o = !1;
 	function s() {
 		let n = e.session.state() === "ready" ? e.session.info() : null;
-		if (!n) return t &&= (t.end(), null), r?.setAutopilotAvailable(!1, Bo), null;
+		if (!n) return t &&= (t.end(), null), r?.setAutopilotAvailable(!1, ms), null;
 		if (!t) {
 			let r = e.session.client;
-			t = new Mo({
+			t = new os({
 				requester: {
 					request: (e, t, n, i) => r.requestPlan(e, t, n, i),
 					hold: (e) => r.holdBackground?.(e)
@@ -4733,7 +4952,7 @@ function Go(e) {
 			return e.mode === "autopilot" && t?.simplePilot && t.tracks(e) ? [n.simplePilot] : [];
 		},
 		mount(t, o) {
-			n = o, t && (r = t.controlToggle, a = t.root.ownerDocument.createElement("div"), a.className = "autopilot-status", a.setAttribute("aria-live", "polite"), t.stage.append(a)), i = t?.canvas ?? o.canvas ?? null, i?.addEventListener("keydown", l), s(), e.debugHook && Wo(u);
+			n = o, t && (r = t.controlToggle, a = t.root.ownerDocument.createElement("div"), a.className = "autopilot-status", a.setAttribute("aria-live", "polite"), t.stage.append(a)), i = t?.canvas ?? o.canvas ?? null, i?.addEventListener("keydown", l), s(), e.debugHook && vs(u);
 		},
 		onFlightStart(e) {
 			r?.set(e.mode);
@@ -4760,9 +4979,9 @@ function Go(e) {
 			let o = s(), c = i.flight;
 			!o && c.mode === "autopilot" && !c.ended && n?.setMode("manual"), r?.set(c.mode);
 			let l = c.mode === "autopilot" ? o?.display ?? null : null;
-			if (l && (e.ghostsOn?.() ?? !0) && zo(l, Uo(t, i)), a) {
+			if (l && (e.ghostsOn?.() ?? !0) && ps(l, _s(t, i)), a) {
 				let e = c.ended ? null : Sn(c.world.eventLog, c.world.step), t = c.mode === "autopilot" && o?.simplePilot && o.tracks(c) ? (i.style.text ?? B).simplePilot : null;
-				a.textContent = Ho({
+				a.textContent = gs({
 					mode: c.mode,
 					phase: l?.phase ?? null,
 					advisoryS: e ? e.remainingS : null,
@@ -4772,14 +4991,14 @@ function Go(e) {
 			}
 		},
 		destroy() {
-			delete globalThis.__landerPlan, t?.end(), t = null, i?.removeEventListener("keydown", l), r?.setAutopilotAvailable(!1, Bo), a?.remove();
+			delete globalThis.__landerPlan, t?.end(), t = null, i?.removeEventListener("keydown", l), r?.setAutopilotAvailable(!1, ms), a?.remove();
 		}
 	};
 	return u;
 }
 //#endregion
 //#region src/ui/chainFeature.ts
-function Ko(e, t) {
+function bs(e, t) {
 	return e.results.map((n, r) => {
 		let i = r + 1, a = nn(e.seed, e.baseLevel, i), o = t[r] ?? null;
 		if (!n) return {
@@ -4801,7 +5020,7 @@ function Ko(e, t) {
 		};
 	});
 }
-function qo(e = {}) {
+function xs(e = {}) {
 	let t = e.randomSeed ?? (() => Math.random() * 2 ** 32 >>> 0), n = null, r = null, i = null, a = null, o = [
 		,
 		,
@@ -4834,7 +5053,7 @@ function qo(e = {}) {
 		let s = e.createElement("h3");
 		s.textContent = `Chain: ${un(n)} of 5 hops landed`;
 		let c = e.createElement("table");
-		for (let t of Ko(n, o)) {
+		for (let t of bs(n, o)) {
 			let n = e.createElement("tr");
 			for (let r of [
 				`Hop ${t.hop}`,
@@ -4908,7 +5127,7 @@ function qo(e = {}) {
 		}
 	};
 }
-function Jo(e) {
+function Ss(e) {
 	let t = e.touchdown ? Math.min(30, Math.max(1, Math.ceil(e.touchdown.at))) : 30, n = new Float32Array((t + 1) * 2);
 	for (let r = 0; r <= t; r++) {
 		let t = W(e.mean, 0, r, 31);
@@ -4919,7 +5138,7 @@ function Jo(e) {
 		last: t
 	};
 }
-var Yo = class {
+var Cs = class {
 	preds = [];
 	lastBase = -Infinity;
 	get predictions() {
@@ -4931,7 +5150,7 @@ var Yo = class {
 	record(e) {
 		let t = e.touchIndex[e.chosen] >= 0 ? e.touchIndex[e.chosen] : 30, n = new Float32Array((t + 1) * 2);
 		for (let r = 0; r <= t; r++) {
-			let t = po(e.poses, e.chosen, r);
+			let t = Vo(e.poses, e.chosen, r);
 			n[2 * r] = t.x, n[2 * r + 1] = t.y;
 		}
 		this.recordPath(e.step, n, t);
@@ -4944,7 +5163,7 @@ var Yo = class {
 		}), this.lastBase = e);
 	}
 };
-function Xo(e) {
+function ws(e) {
 	let t = e.records.map((e) => ({
 		x: e.state.x,
 		y: e.state.y
@@ -4954,7 +5173,7 @@ function Xo(e) {
 		y: e.state.y
 	}), t;
 }
-function Zo(e, t) {
+function Ts(e, t) {
 	let n = null;
 	for (let r of e) for (let e = 1; e <= r.last; e++) {
 		let i = r.base + e;
@@ -4968,10 +5187,10 @@ function Zo(e, t) {
 	}
 	return n;
 }
-function Qo(e) {
+function Es(e) {
 	return `Largest dream-versus-reality gap: ${e.metres.toFixed(1)} m, ${(e.k / 10).toFixed(1)} s into the plan made at t = ${(e.base / 10).toFixed(1)} s`;
 }
-function $o(e, t, n, r, i) {
+function Ds(e, t, n, r, i) {
 	let a = Infinity, o = -Infinity, s = Infinity, c = -Infinity, l = (e, t) => {
 		Number.isFinite(e) && Number.isFinite(t) && (a = Math.min(a, e), o = Math.max(o, e), s = Math.min(s, t), c = Math.max(c, t));
 	};
@@ -4981,8 +5200,8 @@ function $o(e, t, n, r, i) {
 	let u = Math.max(o - a, 1e-6), d = Math.max(c - s, 1e-6), f = Math.min((n - 2 * i) / u, (r - 2 * i) / d), p = (n - 2 * i - u * f) / 2, m = (r - 2 * i - d * f) / 2;
 	return { toScreen: (e, t) => [i + p + (e - a) * f, r - i - m - (t - s) * f] };
 }
-function es(e, t, n, r, i, a) {
-	let o = $o(r, i, t, n, 10);
+function Os(e, t, n, r, i, a) {
+	let o = Ds(r, i, t, n, 10);
 	e.clearRect(0, 0, t, n), e.save(), e.lineWidth = 1, e.setLineDash([4, 3]), e.strokeStyle = "rgba(159, 211, 255, 0.7)";
 	for (let t of r) {
 		e.beginPath();
@@ -5004,19 +5223,19 @@ function es(e, t, n, r, i, a) {
 	}
 	e.restore();
 }
-function ts(e, t, n) {
+function ks(e, t, n) {
 	if (t.length === 0) return [];
 	let r = e.ownerDocument, i = r.defaultView?.devicePixelRatio ?? 1, a = r.createElement("canvas");
 	a.className = "dvr-overlay", a.width = Math.round(320 * i), a.height = Math.round(160 * i), a.style.width = "320px", a.style.height = "160px", a.setAttribute("role", "img");
-	let o = Zo(t, n);
-	a.setAttribute("aria-label", o ? Qo(o) : "Dream versus reality");
+	let o = Ts(t, n);
+	a.setAttribute("aria-label", o ? Es(o) : "Dream versus reality");
 	let s = a.getContext("2d");
-	s && (s.scale(i, i), es(s, 320, 160, t, n, o));
+	s && (s.scale(i, i), Os(s, 320, 160, t, n, o));
 	let c = r.createElement("p");
-	return c.className = "dvr-caption", c.textContent = o ? Qo(o) : "Dream versus reality", e.append(a, c), [a, c];
+	return c.className = "dvr-caption", c.textContent = o ? Es(o) : "Dream versus reality", e.append(a, c), [a, c];
 }
-function ns(e = {}) {
-	let t = new Yo(), n = null, r = null, i = [], a = null, o = () => {
+function As(e = {}) {
+	let t = new Cs(), n = null, r = null, i = [], a = null, o = () => {
 		for (let e of i) e.remove();
 		i = [];
 	};
@@ -5032,16 +5251,16 @@ function ns(e = {}) {
 			let n = e.meanSource?.();
 			n && (n.onMean = (e) => {
 				if (r?.flight()?.mode !== "manual") return;
-				let { xy: n, last: i } = Jo(e);
+				let { xy: n, last: i } = Ss(e);
 				t.recordPath(e.anchorStep, n, i);
 			});
 		},
 		onTouchdown(e) {
-			let r = t.predictions.slice(), s = Xo(e.world);
-			if (a = Zo(r, s), e.attract || !n) return;
+			let r = t.predictions.slice(), s = ws(e.world);
+			if (a = Ts(r, s), e.attract || !n) return;
 			let c = n.endcard;
 			queueMicrotask(() => {
-				o(), i = ts(c, r, s);
+				o(), i = ks(c, r, s);
 			});
 		},
 		destroy() {
@@ -5051,7 +5270,7 @@ function ns(e = {}) {
 }
 //#endregion
 //#region src/ui/ghostChrome.ts
-function rs(e) {
+function js(e) {
 	let t = () => n.onToggle?.(e.checked), n = {
 		onToggle: null,
 		setToggle(t) {
@@ -5063,11 +5282,11 @@ function rs(e) {
 	};
 	return e.addEventListener("change", t), n;
 }
-var is = 10;
-function as(e) {
+var Ms = 10;
+function Ns(e) {
 	return e.mode === "manual" && !e.attract && !e.ended;
 }
-var os = class {
+var Ps = class {
 	deps;
 	scheduler;
 	display = new Qr();
@@ -5096,7 +5315,7 @@ var os = class {
 		this.replies++, this.ghostMs = e.ms;
 		let t = this.flight;
 		if (!t || e.flightId !== t.flightId || this.floor !== null && e.anchorStep < this.floor || !this.scheduler.accept(e)) return;
-		let n = t.world, r = Jr(e.mean, n.map, ro(n, e.anchorStep), ao(n, e.anchorStep)), i = this.lastT ?? n.step - 1 + 10, a = {
+		let n = t.world, r = Jr(e.mean, n.map, ko(n, e.anchorStep), jo(n, e.anchorStep)), i = this.lastT ?? n.step - 1 + 10, a = {
 			flightId: e.flightId,
 			anchorStep: e.anchorStep,
 			mean: e.mean,
@@ -5107,7 +5326,7 @@ var os = class {
 	constructor(e) {
 		this.deps = e;
 		let t = e.session.client;
-		this.scheduler = new uo({ requestGhosts: (e, n, r, i, a) => {
+		this.scheduler = new Io({ requestGhosts: (e, n, r, i, a) => {
 			this.requests++, t.requestGhosts(e, n, r, i, a);
 		} }), t.onGhosts = this.onGhosts, this.stopState = e.session.onState(() => this.sync()), e.chrome.onToggle = (e) => this.setEnabled(e), this.sync();
 	}
@@ -5121,8 +5340,8 @@ var os = class {
 	onModelStep(e) {
 		if (!this.isCurrent(e) || e.attract) return;
 		let t = e.world;
-		if (this.mode === "autopilot" && e.mode === "manual" && (this.handbackAt = t.step, this.floor = e.link.downlinkStep(t.step), this.display.reset(), this.scheduler.restart(), this.lastBits = io(t, e.link.downlinkStep(t.step))), e.mode === "autopilot" && this.mode !== "autopilot" && this.deps.session.client.dropPending(), this.mode = e.mode, e.mode === "autopilot" && this.display.reset(), e.mode !== "manual") return;
-		let n = io(t, e.link.downlinkStep(t.step)), r = n & ~this.lastBits;
+		if (this.mode === "autopilot" && e.mode === "manual" && (this.handbackAt = t.step, this.floor = e.link.downlinkStep(t.step), this.display.reset(), this.scheduler.restart(), this.lastBits = Ao(t, e.link.downlinkStep(t.step))), e.mode === "autopilot" && this.mode !== "autopilot" && this.deps.session.client.dropPending(), this.mode = e.mode, e.mode === "autopilot" && this.display.reset(), e.mode !== "manual") return;
+		let n = Ao(t, e.link.downlinkStep(t.step)), r = n & ~this.lastBits;
 		r && (this.faultNotice = {
 			bits: r,
 			until: t.step + 30
@@ -5141,7 +5360,7 @@ var os = class {
 		this.isCurrent(e) && (this.lastShown = t.pose, this.shownSource = t.source);
 	}
 	frame(e, t) {
-		let n = this.enabled && this.isCurrent(e) && as(e) && this.last.show?.source === "predicted" ? this.scheduler.current : null, r = n ? li(n, t + 10) : null;
+		let n = this.enabled && this.isCurrent(e) && Ns(e) && this.last.show?.source === "predicted" ? this.scheduler.current : null, r = n ? ci(n, t + 10) : null;
 		return this.drawn = r ? r.ghosts.length : 0, r;
 	}
 	insetFrame(e, t) {
@@ -5151,6 +5370,9 @@ var os = class {
 			pose: Cn(e.world, n),
 			ageS: (t - n) * i
 		};
+	}
+	get latest() {
+		return this.scheduler.current;
 	}
 	badges() {
 		return this.last.badges;
@@ -5162,13 +5384,13 @@ var os = class {
 		let e = this.deps.session.client, t = this.deps.session.state(), n = this.display.current, r = this.last.show;
 		return {
 			state: t,
-			modelState: Xa(t),
+			modelState: So(t),
 			failReason: e.failReason,
 			backendRequested: e.requestedBackend,
 			info: e.info,
 			enabled: this.enabled,
 			drawnGhosts: this.drawn,
-			painted: ai.painted,
+			painted: ii.painted,
 			requests: this.requests,
 			replies: this.replies,
 			flightId: this.flight?.flightId ?? 0,
@@ -5181,7 +5403,7 @@ var os = class {
 				anchorStep: n?.anchorStep ?? null,
 				u: this.last.u,
 				rotor: r ? [r.pose.sF, r.pose.sR] : null,
-				insetPainted: xi.painted
+				insetPainted: bi.painted
 			}
 		};
 	}
@@ -5198,7 +5420,7 @@ var os = class {
 		};
 		if (!this.isCurrent(e) || e.mode !== "manual" || e.attract) return n;
 		let r = this.deps.session.state();
-		if (r === "idle" || r === "loading") return as(e) ? {
+		if (r === "idle" || r === "loading") return Ns(e) ? {
 			show: null,
 			badges: [U.loading],
 			u: null
@@ -5210,7 +5432,7 @@ var os = class {
 			badges: [...o, U.confirmed],
 			u: null
 		};
-		if (!as(e)) return n;
+		if (!Ns(e)) return n;
 		let s = this.display.at(t + 10);
 		return s ? (s.touchedDown ? o.push(U.awaiting) : s.extrapolated && o.push(U.late), {
 			show: {
@@ -5220,7 +5442,7 @@ var os = class {
 			},
 			badges: o,
 			u: s.u
-		}) : this.handbackAt !== null && !this.display.started && a.step - this.handbackAt < is ? {
+		}) : this.handbackAt !== null && !this.display.started && a.step - this.handbackAt < Ms ? {
 			show: null,
 			badges: [...o, U.handback],
 			u: null
@@ -5252,25 +5474,25 @@ var os = class {
 			enabled: r
 		});
 	}
-}, ss = {
+}, Fs = {
 	onToggle: null,
 	setToggle: () => {},
 	destroy: () => {}
 };
-function cs() {
+function Is() {
 	return {
-		mountChrome: (e) => rs(e.ghostsToggle),
+		mountChrome: (e) => js(e.ghostsToggle),
 		mountDisplayChrome: Ir,
 		random: Math.random
 	};
 }
-function ls(e, t) {
+function Ls(e, t) {
 	let n = null, r = null, i = null, a = !1;
 	return {
 		controller: () => n,
 		mount(a, o) {
-			let s = t ?? cs();
-			r = a ? s.mountChrome(a) : { ...ss }, i = a ? s.mountDisplayChrome(a) : null, n = new os({
+			let s = t ?? Is();
+			r = a ? s.mountChrome(a) : { ...Fs }, i = a ? s.mountDisplayChrome(a) : null, n = new Ps({
 				session: e.session,
 				chrome: r,
 				random: s.random,
@@ -5290,7 +5512,7 @@ function ls(e, t) {
 			if (a = !1, !n) return;
 			n.noteShown(t.flight, t.display);
 			let r = n.frame(t.flight, t.displayStep), o = n.insetFrame(t.flight, t.displayStep);
-			i?.setPredicting(n.showing === "predicted"), e.save(), e.setTransform(t.dpr, 0, 0, t.dpr, 0, 0), r && ui(e, di(t.camera, t.w, t.h), r, t.style.palette), o && t.style.inset && (Oi(e, t.w, t.flight.world.map, o, t.style), a = !0), e.restore();
+			i?.setPredicting(n.showing === "predicted"), e.save(), e.setTransform(t.dpr, 0, 0, t.dpr, 0, 0), r && li(e, ui(t.camera, t.w, t.h), r, t.style.palette), o && t.style.inset && (Di(e, t.w, t.flight.world.map, o, t.style), a = !0), e.restore();
 		},
 		insetDrawn: () => a,
 		badges(e, t) {
@@ -5307,21 +5529,133 @@ function ls(e, t) {
 		}
 	};
 }
-function us(e, t, n) {
+//#endregion
+//#region src/ui/modelView.ts
+function Rs(e, t, n, r, i, a) {
+	let o = zo(n, r, i, e.map, ko(e, t)), s = new Float32Array(Lo(64, 2)), c = /* @__PURE__ */ new Float32Array(64), l = /* @__PURE__ */ new Uint8Array(64), u = /* @__PURE__ */ new Uint8Array(64);
+	for (let e = 0; e < 64; e++) c[e] = o[1 + e] * 50, l[e] = o[65 + e], u[e] = o[129 + e];
+	return {
+		x: s,
+		y: c,
+		scanned: l,
+		hazard: u,
+		read: a,
+		targetX: o[0] * 500
+	};
+}
+function zs(e, t) {
+	let n = Cn(e, t), r = Math.max(0, t - 10 + 1), i = new Float32Array((t - r + 1) * 2);
+	for (let a = r; a <= t; a++) {
+		let t = Cn(e, a);
+		i[2 * (a - r)] = t.x - n.x, i[2 * (a - r) + 1] = t.y - n.y;
+	}
+	return i;
+}
+var Bs = (e) => e ? e.safe ? "safe" : "crash" : null;
+function Vs(e, t, n, r) {
+	let i = new Float32Array((e + 1) * 2);
+	for (let a = 0; a <= e; a++) {
+		let e = t(a);
+		if (!Number.isFinite(e.x) || !Number.isFinite(e.y)) return null;
+		i[2 * a] = e.x - n, i[2 * a + 1] = e.y - r;
+	}
+	return i;
+}
+function Hs(e, t) {
+	let n = Vo(t.poses, t.chosen, 0), r = [];
+	for (let e = 0; e < t.n; e++) {
+		let i = Vs(t.touchIndex[e] >= 0 ? t.touchIndex[e] : 30, (n) => Vo(t.poses, e, n), n.x, n.y);
+		i && r.push({
+			xy: i,
+			tier: e === t.chosen ? "chosen" : t.elite[e] ? "elite" : "rejected",
+			contact: Bs(t.contacts[e])
+		});
+	}
+	let { targetX: a, ...o } = Rs(e, t.step, n.x, n.y, t.aimX, !1);
+	return {
+		source: "plan",
+		t: t.step * i,
+		dt: i,
+		past: zs(e, t.step),
+		paths: r,
+		ground: o,
+		targetX: a,
+		origin: {
+			x: n.x,
+			y: n.y
+		},
+		execS: 5 * i
+	};
+}
+function Us(e, t) {
+	let n = Vr(t.k), r = W(t.poses, 0, 0, n), a = [];
+	for (let e = 0; e < t.n; e++) {
+		let i = t.contacts[e] ?? null, o = Vs(si(t.poses, e, i, t.k), (r) => W(t.poses, e, r, n), r.x, r.y);
+		o && a.push({
+			xy: o,
+			tier: "sample",
+			contact: Bs(i)
+		});
+	}
+	let { targetX: o, ...s } = Rs(e, t.anchorStep, r.x, r.y, e.targetX, !0);
+	return {
+		source: "futures",
+		t: t.anchorStep * i,
+		dt: i,
+		past: zs(e, t.anchorStep),
+		paths: a,
+		ground: s,
+		targetX: o,
+		origin: {
+			x: r.x,
+			y: r.y
+		},
+		execS: null
+	};
+}
+function Ws(e) {
+	let t = null, n = null, r = null;
+	return {
+		mount(e, n) {
+			t = n;
+		},
+		onFlightStart() {
+			n = null, r = null;
+		},
+		afterStep(i) {
+			let a = t?.opts.onModel;
+			if (a) {
+				if (i.mode === "autopilot") {
+					let t = e.plan(i);
+					if (!t || t === n) return;
+					n = t, a(Hs(i.world, t));
+				} else {
+					let t = e.futures(i);
+					if (!t || t === r || t.flightId !== i.flightId) return;
+					r = t, a(Us(i.world, t));
+				}
+			}
+		},
+		destroy() {
+			t = null;
+		}
+	};
+}
+function Gs(e, t, n) {
 	return !e || e.flightId !== n || t - e.atMs > 1500 || !Number.isFinite(e.pSafe) ? null : e;
 }
-var ds = (e) => `${Math.round(Math.min(1, Math.max(0, e)) * 100)}%`;
-function fs(e) {
-	let t = e.hasValue ? us(e.value, e.nowMs, e.flightId) : null;
+var Ks = (e) => `${Math.round(Math.min(1, Math.max(0, e)) * 100)}%`;
+function qs(e) {
+	let t = e.hasValue ? Gs(e.value, e.nowMs, e.flightId) : null;
 	if (e.mode === "autopilot") {
 		let n = e.counted;
 		return n && n.n > 0 && Number.isFinite(n.value) ? {
 			label: "Landing probability",
-			value: ds(n.value),
+			value: Ks(n.value),
 			source: `from ${n.n} future${n.n === 1 ? "" : "s"}`
 		} : t ? {
 			label: "Landing probability",
-			value: ds(t.pSafe),
+			value: Ks(t.pSafe),
 			source: "estimated"
 		} : null;
 	}
@@ -5329,11 +5663,11 @@ function fs(e) {
 	let n = e.ageS !== null && Number.isFinite(e.ageS) ? `, ${Math.max(0, e.ageS).toFixed(1)} s old` : "";
 	return {
 		label: "Autopilot could land from here",
-		value: ds(t.pSafe),
+		value: Ks(t.pSafe),
 		source: `estimated from the downlink${n}`
 	};
 }
-function ps(e) {
+function Js(e) {
 	let t = e.createElement("div");
 	t.className = "instrument landing-readout", t.setAttribute("aria-live", "polite");
 	let n = e.createElement("span");
@@ -5350,18 +5684,18 @@ function ps(e) {
 }
 //#endregion
 //#region src/ui/valueSnapshot.ts
-var ms = {
+var Ys = {
 	front: 0,
 	rear: 0
 };
-function hs(e) {
+function Xs(e) {
 	let t = e.world;
-	return e.mode === "autopilot" ? so(t, t.step > 0 ? t.records[t.step - 1].cmd : ms) : co(t, e.link);
+	return e.mode === "autopilot" ? No(t, t.step > 0 ? t.records[t.step - 1].cmd : Ys) : Po(t, e.link);
 }
 //#endregion
 //#region src/ui/readoutFeature.ts
-var gs = 5;
-function _s(e) {
+var Zs = 5;
+function Qs(e) {
 	let t = e.now ?? (() => performance.now()), n = e.session.client, r = null, a = null, o = -1, s = -Infinity, c = !1, l = (e) => {
 		e.flightId === o && (a = {
 			pSafe: e.pSafe,
@@ -5373,7 +5707,7 @@ function _s(e) {
 	}, u = () => e.session.state() === "ready" && (e.session.info()?.hasValue ?? !1), d = (e) => e.mode === "manual" && a && a.anchorStep > e.link.downlinkStep(e.world.step) ? null : a;
 	return {
 		mount(t) {
-			t && (r = e.createView ? e.createView(t) : ps(t.root.ownerDocument), t.instruments.append(r.el)), n.onValue = l;
+			t && (r = e.createView ? e.createView(t) : Js(t.root.ownerDocument), t.instruments.append(r.el)), n.onValue = l;
 		},
 		onFlightStart(e) {
 			o = e.flightId, a = null, s = -Infinity, r?.update(null);
@@ -5381,15 +5715,15 @@ function _s(e) {
 		afterStep(e) {
 			if (c || e.ended || e.flightId !== o || !u()) return;
 			let t = e.world.step;
-			if (t - s < gs) return;
-			let r = hs(e);
+			if (t - s < Zs) return;
+			let r = Xs(e);
 			r && (s = t, n.requestValue({
 				...r,
 				flightId: e.flightId
 			}));
 		},
 		reportState(e) {
-			let n = u() ? us(d(e), t(), e.flightId) : null;
+			let n = u() ? Gs(d(e), t(), e.flightId) : null;
 			return { landing: n ? {
 				pSafe: n.pSafe,
 				tGo: n.tGo
@@ -5397,7 +5731,7 @@ function _s(e) {
 		},
 		draw(n, a) {
 			let o = a.flight, s = d(o);
-			r?.update(fs({
+			r?.update(qs({
 				mode: o.mode,
 				hasValue: u(),
 				value: s,
@@ -5421,7 +5755,7 @@ function _s(e) {
 }
 //#endregion
 //#region src/ui/sessionFeature.ts
-function vs(e, t) {
+function $s(e, t) {
 	if (typeof IntersectionObserver > "u") return t(), () => {};
 	let n = !1, r = new IntersectionObserver((e) => {
 		!n && e.some((e) => e.isIntersecting) && (n = !0, r.disconnect(), t());
@@ -5430,24 +5764,24 @@ function vs(e, t) {
 		n = !0, r.disconnect();
 	};
 }
-function ys(e, t) {
+function ec(e, t) {
 	let n = new URL(e, t).href;
 	return n.endsWith("/") ? n : `${n}/`;
 }
-function bs(e, t = {}, n) {
+function tc(e, t = {}, n) {
 	let r = null, i = null, a = null;
 	return {
 		mount(a, o) {
 			t.onMount?.(a, o);
 			let s = n ?? {
-				observeOnce: vs,
+				observeOnce: $s,
 				baseURI: () => document.baseURI
 			}, c = null, l = (e) => {
-				let t = Xa(e);
+				let t = So(e);
 				t !== c && (c = t, o.setModelState(t));
 			};
 			i = e.onState(l), l(e.state());
-			let u = ys(t.dreamBase ?? o.opts.assetBase, s.baseURI()), { modelsBase: d, ortBase: f, debugPlanDelayMs: p } = o.opts, m = () => {
+			let u = ec(t.dreamBase ?? o.opts.assetBase, s.baseURI()), { modelsBase: d, ortBase: f, debugPlanDelayMs: p } = o.opts, m = () => {
 				e.ensureLoaded(u, {
 					wantValue: t.wantValue ?? !1,
 					...d ? { modelsBase: d } : {},
@@ -5467,45 +5801,52 @@ function bs(e, t = {}, n) {
 }
 //#endregion
 //#region src/lib/libraryFeatures.ts
-function xs() {
+function nc() {
 	return {
 		fetch: (e, t) => fetch(e, t),
-		selectBackend: () => Va(Ba(""))
+		selectBackend: () => po(fo(""))
 	};
 }
-function Ss(e, t = xs()) {
-	let n = Za(e, t), r = ls({ session: n }), i = ns({ meanSource: () => r.controller() }), a = Go({
+function rc(e, t = nc()) {
+	let n = Co(e, t), r = Ls({ session: n }), i = As({ meanSource: () => r.controller() }), a = ys({
 		session: n,
 		ghostsOn: () => r.controller()?.status().enabled ?? !0,
 		onAdopt: i.record
 	});
 	return [
-		bs(n, { wantValue: !0 }),
+		tc(n, { wantValue: !0 }),
 		r,
 		a,
-		eo({ session: n }),
+		Eo({ session: n }),
 		i,
-		qo({ gap: i.lastGap }),
-		_s({
+		xs({ gap: i.lastGap }),
+		Qs({
 			session: n,
 			counted: (e) => a.counted(e)
+		}),
+		Ws({
+			plan: (e) => {
+				let t = a.session();
+				return t && t.tracks(e) ? t.display : null;
+			},
+			futures: () => r.controller()?.latest ?? null
 		})
 	];
 }
 //#endregion
 //#region src/lib/debug.ts
-var Cs = Symbol.for("lander.debug"), ws = Symbol.for("lander.debugOptions"), Ts = 6e4;
-function Es(e) {
-	let t = e[ws];
+var ic = Symbol.for("lander.debug"), ac = Symbol.for("lander.debugOptions"), oc = 6e4;
+function sc(e) {
+	let t = e[ac];
 	if (t === void 0) return {};
 	let n = t?.planDelayMs;
 	if (n === void 0) return {};
-	if (typeof n != "number" || !Number.isFinite(n) || n < 0 || n > 6e4) throw TypeError(`lander: debug planDelayMs must be a number of ms in [0, ${Ts}]`);
+	if (typeof n != "number" || !Number.isFinite(n) || n < 0 || n > 6e4) throw TypeError(`lander: debug planDelayMs must be a number of ms in [0, ${oc}]`);
 	return { planDelayMs: n };
 }
 //#endregion
 //#region src/lib/flightEvents.ts
-var Ds = 16, Os = class {
+var cc = 16, lc = class {
 	emit;
 	flights = /* @__PURE__ */ new Map();
 	chains = /* @__PURE__ */ new Set();
@@ -5575,13 +5916,13 @@ var Ds = 16, Os = class {
 		this.closed = !0, this.flights.clear(), this.chains.clear();
 	}
 	prune() {
-		for (; this.flights.size > Ds;) this.flights.delete(Math.min(...this.flights.keys()));
-		for (; this.chains.size > Ds;) this.chains.delete(Math.min(...this.chains));
+		for (; this.flights.size > cc;) this.flights.delete(Math.min(...this.flights.keys()));
+		for (; this.chains.size > cc;) this.chains.delete(Math.min(...this.chains));
 	}
 };
 //#endregion
 //#region src/lib/assetBase.ts
-function ks(e, t, n, r = new URL(n).origin) {
+function uc(e, t, n, r = new URL(n).origin) {
 	if (typeof e != "string" || e.trim() === "") throw TypeError(`lander: opts.${t} must be the URL of a directory${t === "assetBase" ? " holding lander.js" : ""}`);
 	let i = e.trim();
 	if (i.includes("?") || i.includes("#")) throw TypeError(`lander: opts.${t} must not carry a query or fragment; version the directory instead`);
@@ -5596,10 +5937,10 @@ function ks(e, t, n, r = new URL(n).origin) {
 	if (a.origin !== r) throw TypeError(`lander: opts.${t} must be on this page's origin (${r}), not ${a.origin}: a module worker loads only from the page's own origin, so serve dist/lander from the site`);
 	return a.href.replace(/\/+$/, "/");
 }
-var As = (e) => typeof e == "object" && !!e && !Array.isArray(e);
-function js(e, t, n) {
+var dc = (e) => typeof e == "object" && !!e && !Array.isArray(e);
+function fc(e, t, n) {
 	if (e === void 0) return {};
-	if (!As(e)) throw TypeError(`lander: opts.${n} must be an object when given`);
+	if (!dc(e)) throw TypeError(`lander: opts.${n} must be an object when given`);
 	let r = {};
 	for (let i of t) {
 		let t = e[i];
@@ -5610,50 +5951,52 @@ function js(e, t, n) {
 	}
 	return r;
 }
-var Ms = ["wasm", "webgpu"];
-function Ns(e, t, n) {
+var pc = ["wasm", "webgpu"];
+function mc(e, t, n) {
 	if (e === void 0) return {
 		wasm: null,
 		webgpu: null
 	};
 	if (typeof e == "string") {
-		let r = ks(e, "ortBase", t, n);
+		let r = uc(e, "ortBase", t, n);
 		return {
 			wasm: r,
 			webgpu: r
 		};
 	}
-	if (!As(e)) throw TypeError("lander: opts.ortBase must be a string or an object { wasm?, webgpu? } when given");
-	let r = Object.keys(e).filter((e) => !Ms.includes(e));
+	if (!dc(e)) throw TypeError("lander: opts.ortBase must be a string or an object { wasm?, webgpu? } when given");
+	let r = Object.keys(e).filter((e) => !pc.includes(e));
 	if (r.length > 0) throw TypeError(`lander: opts.ortBase has unknown key ${r.map((e) => JSON.stringify(e)).join(", ")}; the keys are wasm and webgpu`);
 	let i = {
 		wasm: null,
 		webgpu: null
 	};
-	for (let r of Ms) {
+	for (let r of pc) {
 		let a = e[r];
 		if (a !== void 0) {
 			if (typeof a != "string") throw TypeError(`lander: opts.ortBase.${r} must be a string when given`);
-			i[r] = ks(a, `ortBase.${r}`, t, n);
+			i[r] = uc(a, `ortBase.${r}`, t, n);
 		}
 	}
 	return i;
 }
-function Ps(e, t, n) {
+function hc(e, t, n) {
 	if (!e || typeof e != "object") throw TypeError("lander: mount(container, opts) needs an options object");
 	if (e.reducedMotion !== void 0 && typeof e.reducedMotion != "boolean") throw TypeError("lander: opts.reducedMotion must be a boolean when given");
 	if (e.onEvent !== void 0 && typeof e.onEvent != "function") throw TypeError("lander: opts.onEvent must be a function when given");
 	if (e.onState !== void 0 && typeof e.onState != "function") throw TypeError("lander: opts.onState must be a function when given");
+	if (e.onModel !== void 0 && typeof e.onModel != "function") throw TypeError("lander: opts.onModel must be a function when given");
+	if (e.scene !== void 0 && e.scene !== "flat" && e.scene !== "diorama") throw TypeError("lander: opts.scene must be 'flat' or 'diorama' when given");
 	if (e.ui !== void 0 && e.ui !== "full" && e.ui !== "none") throw TypeError("lander: opts.ui must be 'full' or 'none' when given");
 	if (e.inset !== void 0 && typeof e.inset != "boolean") throw TypeError("lander: opts.inset must be a boolean when given");
 	let r = e.aspect ?? 1.7777777777777777;
 	if (r !== "fill" && !(typeof r == "number" && Number.isFinite(r) && r > 0)) throw TypeError("lander: opts.aspect must be a positive finite number or 'fill'");
 	let i = e.zoom ?? 1;
 	if (!(typeof i == "number" && Number.isFinite(i) && i >= 1 && i <= 4)) throw TypeError("lander: opts.zoom must be a finite number in [1, 4] when given");
-	let a = ks(e.assetBase, "assetBase", t, n), o = e.modelsBase === void 0 ? `${a}models/` : ks(e.modelsBase, "modelsBase", t, n), s = Ns(e.ortBase, t, n), c = js(e.theme, fr, "theme"), l;
+	let a = uc(e.assetBase, "assetBase", t, n), o = e.modelsBase === void 0 ? `${a}models/` : uc(e.modelsBase, "modelsBase", t, n), s = mc(e.ortBase, t, n), c = fc(e.theme, fr, "theme"), l;
 	return l = e.text === !1 ? null : {
 		...B,
-		...js(e.text, pr, "text")
+		...fc(e.text, pr, "text")
 	}, {
 		assetBase: a,
 		modelsBase: o,
@@ -5665,28 +6008,30 @@ function Ps(e, t, n) {
 		aspect: r,
 		zoom: i,
 		reducedMotion: e.reducedMotion,
+		scene: e.scene ?? "flat",
 		onEvent: e.onEvent,
-		onState: e.onState
+		onState: e.onState,
+		onModel: e.onModel
 	};
 }
-var Fs = .001, Is = {
+var gc = .001, _c = {
 	now: () => performance.now(),
 	setTimer: (e, t) => setTimeout(e, t),
 	clearTimer: (e) => clearTimeout(e)
-}, $ = (e, t) => Math.abs(e - t) <= Fs;
-function Ls(e, t) {
+}, $ = (e, t) => Math.abs(e - t) <= gc;
+function vc(e, t) {
 	if (e.mode !== t.mode || e.attract !== t.attract || e.hop !== t.hop || e.level !== t.level || e.model !== t.model || e.planner !== t.planner || e.display !== t.display || e.outcome !== t.outcome) return !1;
 	let n = e.flight, r = t.flight;
 	return !$(n.agl, r.agl) || !$(n.vx, r.vx) || !$(n.vy, r.vy) || !$(n.tiltDeg, r.tiltDeg) || !$(n.energy, r.energy) || !$(n.windMs, r.windMs) ? !1 : e.landing === null || t.landing === null ? e.landing === t.landing : $(e.landing.pSafe, t.landing.pSafe) && $(e.landing.tGo, t.landing.tGo);
 }
-function Rs(e) {
+function yc(e) {
 	return Object.freeze({
 		...e,
 		flight: Object.freeze({ ...e.flight }),
 		landing: e.landing ? Object.freeze({ ...e.landing }) : null
 	});
 }
-var zs = class {
+var bc = class {
 	onState;
 	clock;
 	last = null;
@@ -5694,12 +6039,12 @@ var zs = class {
 	pending = null;
 	timer = null;
 	closed = !1;
-	constructor(e, t = Is) {
+	constructor(e, t = _c) {
 		this.onState = e, this.clock = t;
 	}
 	push(e) {
 		if (this.closed) return;
-		if (this.last && Ls(this.last, e)) {
+		if (this.last && vc(this.last, e)) {
 			this.pending = null;
 			return;
 		}
@@ -5720,29 +6065,35 @@ var zs = class {
 	send(e, t) {
 		this.pending = null, this.last = e, this.lastAt = t;
 		try {
-			this.onState(Rs(e));
+			this.onState(yc(e));
 		} catch (e) {
 			console.error("lander: onState threw", e);
 		}
 	}
-}, Bs = /* @__PURE__ */ new WeakSet();
-function Vs(e, t, n) {
+}, xc = /* @__PURE__ */ new WeakSet();
+function Sc(e, t, n) {
 	let { doc: r } = n;
 	if (!e || e.nodeType !== 1) throw TypeError("lander: mount(container) needs an HTMLElement");
-	let i = Ps(t, r.baseURI, r.location?.origin ?? new URL(r.baseURI).origin), a = Es(t);
-	if (Bs.has(e)) throw Error("lander: this container already holds a mounted lander; await handle.unload() first");
+	let i = hc(t, r.baseURI, r.location?.origin ?? new URL(r.baseURI).origin), a = sc(t);
+	if (xc.has(e)) throw Error("lander: this container already holds a mounted lander; await handle.unload() first");
 	let o = i.assetBase, s = r.createElement("div");
-	s.dataset.lander = "root", s.style.position = "relative", s.style.width = "100%", i.ui === "none" ? (s.style.display = "block", i.aspect === "fill" && (s.style.height = "100%")) : s.style.height = "100%", e.appendChild(s), Bs.add(e);
-	let c = i.onEvent, l = new Os((e) => {
+	s.dataset.lander = "root", s.style.position = "relative", s.style.width = "100%", i.ui === "none" ? (s.style.display = "block", i.aspect === "fill" && (s.style.height = "100%")) : s.style.height = "100%", e.appendChild(s), xc.add(e);
+	let c = i.onEvent, l = new lc((e) => {
 		if (c) try {
 			c(e);
 		} catch (e) {
 			console.error("lander: onEvent threw", e);
 		}
-	}), u = i.onState ? new zs(i.onState, n.clock) : null, d;
+	}), u = i.onState ? new bc(i.onState, n.clock) : null, d = !1, f = i.onModel, p = f ? (e) => {
+		if (!d) try {
+			f(e);
+		} catch (e) {
+			console.error("lander: onModel threw", e);
+		}
+	} : null, m;
 	try {
 		let e = () => n.createWorker(o);
-		d = n.createApp(s, {
+		m = n.createApp(s, {
 			assetBase: o,
 			reducedMotion: i.reducedMotion,
 			theme: i.theme,
@@ -5751,6 +6102,7 @@ function Vs(e, t, n) {
 			inset: i.inset,
 			aspect: i.aspect,
 			zoom: i.zoom,
+			scene: i.scene,
 			modelsBase: i.modelsBase,
 			...i.ortBase.wasm || i.ortBase.webgpu ? { ortBase: Object.fromEntries(Object.entries(i.ortBase).filter(([, e]) => e)) } : {},
 			...a.planDelayMs ? { debugPlanDelayMs: a.planDelayMs } : {},
@@ -5758,58 +6110,59 @@ function Vs(e, t, n) {
 			createWorker: e,
 			onFlight: (e) => l.push(e),
 			...u ? { onState: (e) => u.push(e) } : {},
+			...p ? { onModel: p } : {},
 			features: n.features(e)
 		});
 	} catch (t) {
-		throw l.close(), u?.close(), s.remove(), Bs.delete(e), t;
+		throw l.close(), u?.close(), d = !0, s.remove(), xc.delete(e), t;
 	}
-	let f = !1, p = null, m = null, h = {
+	let h = !1, g = null, _ = null, v = {
 		...Object.fromEntries(Pn.map((e) => [e, (...t) => {
-			p || Nn[e](d.commands, ...t);
+			g || Nn[e](m.commands, ...t);
 		}])),
 		pause() {
-			p || (f = !0, d.pause());
+			g || (h = !0, m.pause());
 		},
 		resume() {
-			p || (f = !1, d.resume());
+			g || (h = !1, m.resume());
 		},
 		unload() {
-			return p || (d.pause(), l.close(), u?.close(), m = d.debug(), p = (async () => {
+			return g || (m.pause(), l.close(), u?.close(), d = !0, _ = m.debug(), g = (async () => {
 				try {
-					await d.destroy();
+					await m.destroy();
 				} catch (e) {
 					console.error("lander: teardown failed", e);
 				} finally {
-					s.remove(), Bs.delete(e);
+					s.remove(), xc.delete(e);
 				}
-			})(), p);
+			})(), g);
 		}
 	};
-	return Object.defineProperty(h, Cs, {
+	return Object.defineProperty(v, ic, {
 		enumerable: !1,
 		value: () => ({
-			...m ?? d.debug(),
-			hostPaused: f,
+			..._ ?? m.debug(),
+			hostPaused: h,
 			hidden: r.hidden === !0,
-			unloaded: p !== null
+			unloaded: g !== null
 		})
-	}), h;
+	}), v;
 }
 //#endregion
 //#region src/lib/workerFactory.ts
-function Hs(e) {
+function Cc(e) {
 	if (!e.endsWith("/")) throw TypeError("lander: worker base must end in \"/\" (pass a normalized assetBase)");
 	return new Worker(`${e}lander-worker.js`, { type: "module" });
 }
 //#endregion
 //#region src/index.ts
-function Us(e, t) {
-	return Vs(e, t, {
-		createApp: Fa,
-		createWorker: Hs,
-		features: (e) => Ss(e),
+function wc(e, t) {
+	return Sc(e, t, {
+		createApp: oo,
+		createWorker: Cc,
+		features: (e) => rc(e),
 		doc: e?.ownerDocument ?? document
 	});
 }
 //#endregion
-export { Us as mount };
+export { wc as mount };

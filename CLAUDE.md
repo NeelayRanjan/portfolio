@@ -664,14 +664,20 @@ and only the texture is new; figure panels (`bg-panel`) cover it. Its filter
 needs `color-interpolation-filters="sRGB"` (linearRGB turned the sheet grey).
 
 **2026-10-15/16: the Titan lander replaces the draw demo as Figure 5, LIVE
-since 2026-10-16** (built on branch `lander-preview`, fast-forwarded into
-`main` and deployed at the owner's call: "push this to prod for now, looks
-good enough as an initial demo"; the owner still wants the visuals improved).
+since the night of 2026-10-16** (built on branch `lander-preview`,
+fast-forwarded into `main` at the owner's call: "push this to prod for now,
+looks good enough as an initial demo"; the owner still wants the visuals
+improved). ⚠️ That first push FAILED (an RPC disconnect, then a TLS "bad
+record mac"), so production stayed on c12cfae while the CLAUDE.md commit
+below already said LIVE; the lander first went public with the "B + E2"
+round's push (module v2). Check `git status -sb` and the Vercel deployment
+list after any push, never the push command's intent.
 ⚠️ It shipped the lander's PREVIEW models: the value head misses its own
 calibration gate (the readout says "est."), the handoff said not to deploy,
-and the owner overrode that. ⚠️ `/lander/v1/` is now in visitors' caches
-for a year: every later change, a graphics pass included, ships as
-`public/lander/v2/` (then v3...) with `LANDER_BASE` moved, never in place. The owner's lunar_lander project (a Dragonfly-shaped
+and the owner overrode that. ⚠️ `/lander/v2/` is the first version visitors'
+caches hold (for a year; v1 was never deployed and is deleted): every later
+change ships as `public/lander/v3/` (then v4...) with `LANDER_BASE` moved,
+never in place. The owner's lunar_lander project (a Dragonfly-shaped
 rotorcraft on Titan, an autopilot that plans inside a diffusion world model)
 arrived as a PREVIEW handoff
 (`~/Documents/lunar_lander/.claude/worktrees/titan/dist/titan-handoff-preview/`,
@@ -695,19 +701,46 @@ per-entry `ortBase`, the phone terrain caption fits, and a `zoom` option
 frames the craft (1.5 desktop, 2.25 phone). Contracts and measurements: "Titan lander (Figure 5)" under the
 demos.
 
+**2026-10-16 (evening): the owner's "B + E2" figure, module v2, LIVE with
+the push that first deployed the lander** (lander `site-graphics` 2b18ab8:
+the diorama, `onModel`, the craft redrawn from NASA/APL images, and the
+chunk fields). The owner picked it from a
+canvas of interface sketches (the Design artifact "Titan lander interface
+looks"): B, the scene with depth, plus E2, the model's side drawn as a
+chart rather than as a second scene. The module went to
+`public/lander/v2/` (lander `site-graphics`, built at 2b18ab8; two new mount
+options, `scene: 'diorama'` and `onModel`) and `public/lander/v1/` was
+deleted (the headshot precedent). The controls are dark chips (a wind
+select, a fault menu, take the controls, new flight) and under them
+`LanderModelChart` draws each plan's predicted paths over the model's own
+64-sample ground strip. A finding that shaped the copy: the dream reads
+that ground strip ONLY when some commands are not given, so an autopilot
+plan's futures never saw the ground (the planner checks them against it);
+manual futures do read it. Contracts under "Titan lander (Figure 5)".
+
 **Open items, roughly in order:**
 
 The lander's own, ahead of the list (LIVE since 2026-10-16):
 - L1. **The visuals are still rough** (owner, 2026-10-16: "still do want to
   work on the visuals because its quite rough still"). This session owns
-  them, in the lander repo's `site-graphics` worktree; the next pass ships
-  as `public/lander/v2/`.
-- L2. **Merge `site-graphics` (c50b62f) into the lander repo**: production
+  them, in the lander repo's `site-graphics` worktree. The "B + E2" round
+  (v2, with the craft redrawn) is the first answer; the next pass ships as
+  `public/lander/v3/`.
+- L2. **Merge `site-graphics` (2b18ab8) into the lander repo**: production
   runs a module built from that branch, which the lander session's own
   tree doesn't have yet.
+- L5. **An on-pad handover can leave the display on the fallback for
+  good** (found 2026-10-16, lander-side, pre-existing): taking the
+  controls of a fresh hop before it lifts off, in Playwright's Firefox,
+  sometimes never gets a manual prediction (futures replies arrive, the
+  display never adopts one); 1 of 3 runs with the module v1 shipped, the
+  same with v2. `lander-mounts` now takes over in the air. Report it to
+  the lander session.
+- L6. **A power-outage fault** (owner's example, 2026-10-16) is new engine
+  work; the menu offers the module's four faults.
 - L3. **The release handoff**: a value head that passes its calibration
   gate (round 2, on hold) and measured speeds; it ships as a new directory.
-- L4. **A phone has never run the lander.** Measure take-off time and frame
+- L4. **A phone has never run the lander** (nor the diorama). Measure take-off time and frame
   rate on the owner's iPhone on production; the slow-device ladder and the
   simple pilot exist for exactly that case.
 
@@ -2377,11 +2410,11 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   branch `site-graphics` in a separate worktree,
   `~/Documents/lunar_lander/.claude/worktrees/graphics` (its `node_modules`
   a symlink to the `titan` worktree's, excluded in `.git/info/exclude`),
-  commit `c50b62f` on top of `99c9a9d`; the owner merges it on the lander
-  side. Built with `npm run build:lib -- --models
+  commit `c50b62f` on top of `99c9a9d` (v1), then `68125ac`, `b4a7e31` and `2b18ab8` (v2: the
+  diorama and `onModel`, the craft redraw, the chunk fields); the owner merges it on the lander side. Built with `npm run build:lib -- --models
   ~/Documents/lunar_lander/.claude/worktrees/titan/runs/preview-models`
   (the preview models, read-only) and copied verbatim to
-  `public/lander/v1/`. It added, all illustrative scenery with no model,
+  `public/lander/v1/` (now `v2/`). The first pass (v1) added, all illustrative scenery with no model,
   physics or proportion change: craft detail (hull shading and seams, deck
   instruments, two-blade rotors drawn while slow and blurring into the
   discs as they spin up, a filled dish and feed, MMRTG fins, skid joints
@@ -2414,7 +2447,91 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   site's dark tokens the ground nearly vanished and the dunes and target
   stopped reading (compared at 1280, 2026-10-16), and Titan's orange is the
   moon's own colour.
-- **Pieces**: `public/lander/v1/` (verbatim: `lander.js`, `lander-worker.js`,
+- **The diorama and the model chart (v2, owner's "B + E2", 2026-10-16)**:
+  - `scene: 'diorama'` keeps the flight in the screen's plane, the camera
+    mapping and every overlay where they were; the depth is scenery
+    around that plane: a dune plain of 6 rows receding from the track to
+    a horizon that rises with altitude (`horizonY`), its far rows hazing
+    into the sky's own colour at that height (aerial perspective; the
+    first try ran bright orange under dark ridges, backwards), the ridges
+    moved onto that horizon, contours and grain on the near ground (in
+    the near sand, so the track no longer reads as a cliff), a dashed drop
+    line from the craft to the ground, and the craft's top and front
+    faces, tilted rotor discs with angled blades and a faint far skid.
+    The caption says so: "The flight is two-dimensional; the depth around
+    it is drawing." **Cost, measured** (Chromium, 842x473, 6x CPU
+    throttle, flat vs diorama, two rounds): first build 50-55 fps; after
+    computing each crest once, 6 rows, coarser steps and a solid near
+    fill, 58; after stopping the sky image and the ridge fills at the
+    plain's farthest crest (the plain is opaque from there down, and a
+    software-rastered canvas pays for every pixel painted twice), 60 fps
+    both, callback median 2.65-2.68 -> 2.98-3.01 ms.
+  - `onModel(view)` (the module's `src/ui/modelView.ts`) fires once per
+    adopted plan (autopilot) or futures reply (manual), about twice a
+    second: every path in the anchor's frame with its tier
+    (chosen/elite/rejected, or sample) and contact, the 1 s history, the
+    target, and the ground as the dream's own context strip (`ctxFeatures`,
+    64 samples 2 m apart, scanned and hazard flags) unscaled to metres,
+    pinned against `ctxFeatures` itself in its tests. ⚠️ `ground.read`:
+    the dream sets that strip only when some command is dropped
+    (`src/model/dream.ts`), so it is FALSE for a plan (all 30 commands
+    given) and true for manual futures (20 of 30 known). The chart's words
+    follow it: "dots: ground the autopilot checks them against" for a
+    plan, "dots: ground the model reads" for your flight. Never word a
+    plan's ground as read by the model. The candidate count comes from
+    the data (CEM population 32 on WebGPU, 16 on WASM; ghosts 16/8).
+  - `components/figures/LanderModelChart.tsx` draws it: an SVG sized by a
+    ResizeObserver (200px tall, 170 under 520px), x fixed to the strip's
+    ±64 m, y fitted on 5 m steps, tiers by opacity (chosen 2.2px solid),
+    contacts as green/red dots, the target flag or an edge arrow with its
+    distance. Before the first view: "the model's first prediction
+    appears here"; while the simple pilot flies (no model in the loop):
+    its own line, not a stale plan.
+  - **Faults**: a menu ("fault ▾", `data-lander-fault`) of the module's
+    four, each described by what the engine does (weak rotor 60% thrust,
+    gust front 5-12 s, lidar dropout 8 s, boulders on the landing site;
+    `src/world/world.ts`), on the flight in progress, watched or flown.
+    It hangs off the controls row (full row width, max 340px) and opens
+    DOWNWARD, so the flight stays in view; closes on a pick, Escape or a
+    press outside. A fault counts as demo use (`trackDemoOnce`, still once
+    per load). The model is told of a weak rotor and a gust front through
+    its fault bits; lidar dropout is not dynamics.
+  - The wind is a native `<select>` chip now (a phone gets its own
+    picker); picking a level still flies a fresh autopilot hop.
+  - **The chunking, visible** (owner, 2026-10-16: "make chunking
+    visible"). The autopilot already planned in chunks: each plan covers
+    3 s (`FUT` 30 x 0.1 s), the craft flies its first 0.5 s (`EXEC_STEPS`
+    5) and replans; a late reply keeps it on the previous plan longer.
+    `onModel` now also reports `origin` (the anchor in world metres) and
+    `execS` (0.5 s for a plan, null for manual futures). The chart draws
+    the chosen plan's first `execS` thick and the rest dashed, and a time
+    panel (`[data-lander-timeline]`, beside the space view from 700px,
+    below it under) shows height over −3 s..+3 s: the chunk flown now,
+    the rest of the plan, the chunks earlier plans flew (one per plan, a
+    tick where each took over, from each view's `origin`; the gaps
+    between them are real prediction error) and the actual flight
+    dotted. The key above the chart reads the module's `execS`, never a
+    literal. In metres a 0.5 s chunk is ~2.5 m, a few pixels across the
+    ±64 m space view, which is why it got a time axis. Diffusion here is
+    the WORLD model (the planner proposes, the dream predicts), not a
+    diffusion policy generating the action chunk itself; a 1 s chunk was
+    considered and left at 0.5 s (fewer replans means slower reaction to
+    gusts, and 0.5 s is what the lander was tuned at; the lander
+    session's call).
+  - **The craft was redrawn** (lander b4a7e31, same night, `public/lander/v2/`
+    replaced in place: v2 was never deployed) from three public-domain
+    NASA/APL images on Wikimedia Commons (the 2024 concept render, the
+    2026 structure photo, the instruments cutaway; credits in the lander
+    repo's `docs/provenance/dragonfly-silhouette.md`). No official 3D model
+    exists to pull (NASA 3D Resources has none; TurboSquid's $49 one is
+    editorial-only and 2019-era). Each part is one closed outline and every
+    joint meets what it joins: the 2024 shell, tube arms into motor hubs
+    between the coaxial discs, legs bent onto plate runners, the MMRTG a
+    drum on the aft face; the diorama adds the far rotor pair and skid.
+    Cost on a quiet machine (Chromium, 842x473, 6x CPU throttle, three
+    rounds): flat 59.7-59.9 fps, callback median 2.83-2.87 ms (2.65-2.68
+    before the redraw); diorama 58.1-60 fps, 3.31-3.36 ms (2.98-3.01).
+- **Pieces**: `public/lander/v2/` (verbatim: `lander.js`, `lander-worker.js`,
   `chunks/`, `models/`, its OWN `ort/` with both the plain and asyncify
   pairs, `manifest.json` with every sha256; check a new copy against it);
   `lib/lander-types.ts` (the module's `lander.d.ts`); `components/LanderPanel.tsx`
@@ -2440,7 +2557,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   `public/ort/`'s, so a visitor who used chess (Figure 4, just above) or the
   rerouter no longer downloads it twice (3.46 MB gz saved). The worker
   sha256-checks each shared file against its OWN `ort/manifest.json`
-  (always read from `/lander/v1/ort/`) and falls back to the bundled copy
+  (always read from the module's own `ort/`, `/lander/v2/ort/` now) and falls back to the bundled copy
   with one warning per worker on a mismatch; the WebGPU path always uses the
   bundled asyncify pair and never requests anything under `/ort/`, so
   sync-ort keeps deleting the asyncify pair there and `ort-runtime-build`
@@ -2508,20 +2625,32 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   model ready on screen, non-blank canvas, the attract flight off the pad
   inside 30 s and the autopilot's, the readout naming who flies with the
   FLOORED "% est." landing chance, the onboard view line, 0 events from
-  watching; sim frozen off-screen with `hostPaused`; stargaze unloads with
+  watching; since v2 the model chart showing a plan (at least one path,
+  64+ dots, the plan's "checks them against" wording and never "reads"),
+  or the simple pilot's line when the slow-device ladder hands it the
+  flight; sim frozen off-screen with `hostPaused`; stargaze unloads with
   every lander worker terminated and nothing fetched while in, a new worker
   on return; then the controls: a wind press flies a fresh autopilot hop at
   that level and queues the one `demo_used`, the fourth level shows the
-  beyond note, take the controls goes manual, focuses the canvas, relabels
-  itself, switches the line to the prediction with key help, hand back and
-  new flight return the autopilot, still 1 event; the /lab box's client
+  beyond note, then (since v2) back to breezy and up past 20 m before take
+  the controls (an on-pad handover can stall, L5; at 3 m in the strongest
+  wind the zero-thrust handover crashed before the first reply), which
+  goes manual, focuses the canvas, relabels itself, switches the line to
+  the prediction with key help (30 s allowed: the first manual reply can
+  queue behind a 5-8 s plan; measured 1.5-1.6 s on the site, 1.4-8.6 s on
+  the module alone) and the chart to the futures with "reads" wording,
+  hand back and new flight return the autopilot, the fault menu lists the
+  four kinds and closes on Escape and on a pick, still 1 event; the /lab box's client
   navigation terminating every worker; since v2.1 only `manifest.json`
-  (plus asyncify where `navigator.gpu` exists) from `/lander/v1/ort/`, NO
+  (plus asyncify where `navigator.gpu` exists) from the module's own
+  `ort/` (`LANDER_DIR` in the suite, `/lander/v2/` now), NO
   bundled plain file (that would be the shared entry falling back), and no
   asyncify/jsep/jspi file under the root `/ort/`); `lander-360` (touch, 360px:
   no horizontal scroll, no take-the-controls, a canvas tap leaves the
   autopilot flying, the heading below the readout, nothing painted past the
-  box, caption clear, non-blank canvas). Proved to bite: v1's mutant (no
+  box, caption clear, non-blank canvas, and since v2 the open fault menu
+  inside 360px). Proved to bite (v2's): the chart always worded "ground the
+  model reads" failed "the plan chart's words are wrong". Earlier: v1's mutant (no
   pause; the guide's fixed 560px box) failed "scrolled away, the sim moved
   16.0 -> 17.6 (hostPaused false)" and "the lander paints past its box";
   v2's two (2026-10-16): no landing chance in the readout plus a visible
@@ -3242,7 +3371,7 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 | `scripts/slaac-vectors/*.json` | ~2.8 MB | parity vectors from the owner's real modules; never in `public/` |
 | `scripts/slaac-gate/report.{md,json}` | ~240 KB | the gate's decision and per-case table (`rows.jsonl` gitignored) |
 | `public/ort/*` | ~37 MB | onnxruntime-web wasm, vendored, **gitignored**, synced on prebuild |
-| `public/lander/v1/*` | ~49.4 MB | LIVE since 2026-10-16: the Titan lander module, verbatim from lunar_lander's PREVIEW handoff (dream 10.4 MB, value 1.2 MB, its own ORT 1.27.0 runtime 37.8 MB with the asyncify pair, entry and worker ~290 KB); COMMITTED (owner call), so each new version adds a full directory to history |
+| `public/lander/v2/*` | ~48 MB | the Titan lander module, LIVE (the first version deployed; v1 never was, and is deleted), built from lunar_lander `site-graphics` 2b18ab8 with the PREVIEW models, verbatim (dream 10.4 MB, value 1.2 MB, its own ORT 1.27.0 runtime 37.8 MB with the asyncify pair, entry and worker ~290 KB); COMMITTED (owner call), so each new version adds a full directory to history |
 
 The JEPA bundle is produced by
 `export.py` in `~/Documents/embedding_jepa/` and copied verbatim; nothing in this

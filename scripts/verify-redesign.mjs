@@ -854,7 +854,7 @@ async function checkNoEarlyHeavyPayload(browser) {
 /* ---------------------------------------------------------------------- */
 
 // The ROOT /ort/ only (2026-10-15): the Titan lander ships its own ORT
-// under /lander/v1/ort/, and on a browser with a WebGPU adapter it
+// under /lander/v2/ort/, and on a browser with a WebGPU adapter it
 // legitimately fetches that copy's asyncify build (its worker picks /wasm on
 // WebKit). Its runtime is the `lander-*` checks' business, not this one's.
 const ORT_PATH_RE = /^https?:\/\/[^/]+(\/ort\/[^?#]+)/;
@@ -6569,7 +6569,7 @@ async function checkStargazeSecretDoor(browser) {
 
 /* ---------------------------------------------------------------------- */
 /* 5c. The Titan lander, Figure 5 since 2026-10-15                        */
-/* (components/LanderPanel.tsx, public/lander/v1/: lunar_lander's module, */
+/* (components/LanderPanel.tsx, public/lander/v2/: lunar_lander's module, */
 /* copied verbatim; its runtime, worker and models are its own).          */
 /* Since site embedding v2 (2026-10-16) the module draws only the canvas  */
 /* (`ui: 'none'`) and the controls, readout and lines are the site's.     */
@@ -6604,6 +6604,9 @@ function landerWorkerSpy() {
     }
   };
 }
+
+/** The module's versioned directory (LANDER_BASE in components/LanderPanel.tsx). */
+const LANDER_DIR = "/lander/v2/";
 
 const LANDER_ORT_PLAIN = new Set(["manifest.json", "ort-wasm-simd-threaded.wasm", "ort-wasm-simd-threaded.mjs"]);
 const LANDER_ORT_ASYNCIFY = new Set(["ort-wasm-simd-threaded.asyncify.wasm", "ort-wasm-simd-threaded.asyncify.mjs"]);
@@ -6655,9 +6658,9 @@ async function checkLanderMounts(browser) {
     let watchHeavy = false;
     page.on("response", (r) => {
       const u = r.url();
-      if (!u.includes("/lander/v1/")) return;
+      if (!u.includes(LANDER_DIR)) return;
       if (r.status() >= 400) bad.push(`${r.status()} ${u}`);
-      const m = u.match(/\/lander\/v1\/ort\/([^?#]+)/);
+      const m = u.match(/\/lander\/v\d+\/ort\/([^?#]+)/);
       if (m) ortFiles.push(m[1]);
     });
     // The root /ort/ is the site's shared runtime (chess loads it too, so a
@@ -6665,14 +6668,14 @@ async function checkLanderMounts(browser) {
     // matters: never an asyncify, jsep or jspi file under the root.
     const rootOrt = [];
     page.on("request", (r) => {
-      if (watchHeavy && /\/lander\/v1\/(models|ort)\//.test(r.url())) heavy.push(r.url());
+      if (watchHeavy && /\/lander\/v\d+\/(models|ort)\//.test(r.url())) heavy.push(r.url());
       const m = r.url().match(/^https?:\/\/[^/]+\/ort\/([^?#]+)/);
       if (m) rootOrt.push(m[1]);
     });
     // A HEAD the module aborts once the GET is under way is its presence probe
     // (the lander's own smoke records the same), not a failure.
     page.on("requestfailed", (r) => {
-      if (r.url().includes("/lander/v1/") && r.method() !== "HEAD") bad.push(`${r.failure()?.errorText} ${r.url()}`);
+      if (r.url().includes(LANDER_DIR) && r.method() !== "HEAD") bad.push(`${r.failure()?.errorText} ${r.url()}`);
     });
     const errors = [];
     page.on("console", (m) => {
@@ -6718,6 +6721,43 @@ async function checkLanderMounts(browser) {
       }
     }
     if (attract.view !== lc.view.onboard) throw new Error(`the autopilot's view line reads "${attract.view}"`);
+
+    // The model chart (owner's "B + E2", 2026-10-16): fed by the module's
+    // onModel, a plan's candidate paths over the 64-sample ground strip. A
+    // plan gives the dream every command, so the ground must be worded as
+    // what the autopilot checks, never as what the model read.
+    // Under load Playwright's Firefox can step down to the simple pilot,
+    // which flies without the model: then the chart must say so, not chart.
+    await landerWait(page, "the model chart shows a plan (or the simple pilot's line)", () => ["plan", "simple-pilot"].includes(document.querySelector("[data-lander-chart]")?.getAttribute("data-lander-chart")), null, 20000);
+    const simple = await page.evaluate(() => document.querySelector("[data-lander-chart]").getAttribute("data-lander-chart") === "simple-pilot");
+    if (simple) {
+      const t = await page.evaluate(() => document.querySelector("[data-lander-chart]").textContent);
+      if (!t.includes(lc.chart.simplePilot)) throw new Error(`the simple pilot flies but the chart reads "${t}"`);
+    }
+    const chartPlan = simple ? { simple: true } : await page.evaluate(() => {
+      const el = document.querySelector("[data-lander-chart]");
+      return { text: el.querySelector("p").textContent, paths: Number(el.querySelector("[data-lander-chart-paths]")?.getAttribute("data-lander-chart-paths")), dots: el.querySelectorAll("svg circle").length };
+    });
+    if (!simple) {
+      if (!(chartPlan.paths >= 1)) throw new Error(`the model chart drew no paths: ${JSON.stringify(chartPlan)}`);
+      if (chartPlan.dots < 64) throw new Error(`the model chart drew ${chartPlan.dots} dots, fewer than the 64-sample ground strip`);
+      if (!chartPlan.text.includes(lc.chart.labelPlan) || !chartPlan.text.includes(lc.chart.groundChecked) || chartPlan.text.includes(lc.chart.groundRead)) {
+        throw new Error(`the plan chart's words are wrong: "${chartPlan.text}"`);
+      }
+      // The chunking (2026-10-16): the time panel shows the chunk flown now,
+      // the rest of the plan, and, once a few plans have come in, the chunks
+      // earlier plans flew; the key names the module's own execS (0.5 s).
+      await landerWait(page, "earlier chunks appear on the time panel", () => document.querySelectorAll('[data-lander-timeline] [data-lander-chunk="past"]').length >= 1, null, 20000);
+      const chunks = await page.evaluate(() => ({
+        now: document.querySelectorAll('[data-lander-timeline] [data-lander-chunk="now"]').length,
+        rest: document.querySelectorAll('[data-lander-timeline] [data-lander-chunk="rest"]').length,
+        past: document.querySelectorAll('[data-lander-timeline] [data-lander-chunk="past"]').length,
+        legend: document.querySelector("[data-lander-chunk-legend]")?.textContent ?? "",
+      }));
+      if (chunks.now !== 1 || chunks.rest !== 1) throw new Error(`the time panel's current chunk is wrong: ${JSON.stringify(chunks)}`);
+      if (!chunks.legend.includes(`${lc.chart.flyingNowPre}0.5${lc.chart.flyingNowPost}`)) throw new Error(`the chunk key reads "${chunks.legend}"`);
+      chartPlan.chunks = chunks.past;
+    }
 
     // On screen the sim runs; scrolled away it stands still and says the host paused it.
     const a = (await landerDebug(page)).simTime;
@@ -6769,7 +6809,7 @@ async function checkLanderMounts(browser) {
     const fig = page.locator("#fig-lander");
     const st = () => page.evaluate(() => window.__lander.state);
     const viewLine = () => page.evaluate(() => document.querySelector("[data-lander-view]")?.textContent ?? "");
-    await fig.locator("[data-lander-wind] button", { hasText: lc.levels[2] }).click();
+    await fig.locator("[data-lander-wind]").selectOption("2");
     await landerWait(page, "a wind press flies a fresh hop at strong", () => window.__lander.state?.level === 2 && !window.__lander.state.attract, null);
     if ((await st()).mode !== "autopilot") throw new Error(`a wind change left ${JSON.stringify(await st())}, expected the autopilot flying`);
     await page.waitForFunction(
@@ -6778,20 +6818,50 @@ async function checkLanderMounts(browser) {
       { timeout: 10000 },
     );
     if (await fig.locator("[data-lander-beyond]").count()) throw new Error("the beyond-predicted note shows at 'strong'");
-    await fig.locator("[data-lander-wind] button", { hasText: lc.levels[3] }).click();
+    await fig.locator("[data-lander-wind]").selectOption("3");
     await landerWait(page, "beyond predicted picked", () => window.__lander.state?.level === 3, null);
     if ((await fig.locator("[data-lander-beyond]").textContent()) !== lc.beyondNote) throw new Error("no beyond-predicted note at the fourth level");
 
     // Take the controls: manual, the canvas focused, the view line now the
-    // prediction (the one view that is), and the keys still fly.
+    // prediction (the one view that is), and the keys still fly. Only once
+    // the fresh hop is off the pad: a handover ON the pad sometimes never
+    // gets a prediction (the display stays on the fallback for good;
+    // reproduced 2026-10-16 with the module production ran then, 1 of 3 runs,
+    // so it predates the diorama; a lander-side bug, reported). The old
+    // check took over on the pad and passed by luck.
+    // And high enough to fall for a while: after a handover the visitor's
+    // vector starts at zero, and a craft taken at a few metres in the
+    // strongest wind crashed before the first manual reply (2026-10-16).
+    await fig.locator("[data-lander-wind]").selectOption("1");
+    await landerWait(page, "breezy flies a fresh hop", () => window.__lander.state?.level === 1 && !window.__lander.state.attract, null);
+    await landerWait(page, "the fresh hop climbs past 20 m", () => (window.__lander.state?.flight.agl ?? 0) > 20, null, 90000);
     const take = fig.locator("[data-lander-take]");
     await take.click();
     await landerWait(page, "take the controls goes manual", () => window.__lander.state?.mode === "manual", null);
     const focused = await page.evaluate(() => document.activeElement?.tagName === "CANVAS" && !!document.activeElement.closest("#fig-lander"));
     if (!focused) throw new Error("taking the controls didn't focus the lander's canvas");
     if ((await take.textContent()) !== lc.giveBack) throw new Error(`the button reads "${await take.textContent()}" while flying by hand`);
-    await landerWait(page, "the view line becomes the prediction", (t) => document.querySelector("[data-lander-view]")?.textContent.startsWith(t), lc.view.prediction);
+    // The first manual reply can queue behind a plan already in the worker,
+    // 5-8 s in Playwright's Firefox: measured with the module alone, 1.4-8.6 s
+    // from the handover, flat and diorama alike (2026-10-16), so 10 s was too
+    // tight under load. The wait is reported.
+    // Hold some thrust straight away, as a visitor does: after a handover the
+    // vector starts at zero, and under load (another job at ~1,200% CPU,
+    // 2026-10-16) the craft fell from 20 m+ and crashed before the first
+    // manual reply.
+    await page.keyboard.down("w");
+    await page.waitForTimeout(1200);
+    await page.keyboard.up("w");
+    const tPred = Date.now();
+    await landerWait(page, "the view line becomes the prediction", (t) => document.querySelector("[data-lander-view]")?.textContent.startsWith(t), lc.view.prediction, 30000);
+    const predMs = Date.now() - tPred;
     if (!(await viewLine()).includes(lc.keys)) throw new Error("no key help while flying by hand at 1280");
+    // Flying by hand, the chart is the visitor's sampled futures, and those
+    // DO read the ground (only the sent commands are given).
+    await landerWait(page, "the chart switches to the manual futures", (w) => {
+      const el = document.querySelector("[data-lander-chart]");
+      return el?.getAttribute("data-lander-chart") === "futures" && el.querySelector("p").textContent.includes(w);
+    }, lc.chart.groundRead, 20000);
     await page.keyboard.down("w");
     await page.waitForTimeout(600);
     await page.keyboard.up("w");
@@ -6804,6 +6874,19 @@ async function checkLanderMounts(browser) {
     await landerWait(page, "new flight starts an autopilot hop on the pad", () => window.__lander.state?.mode === "autopilot" && window.__lander.state.flight.agl < 1, null);
     if ((await demoEvents(page, "lander")) !== 1) throw new Error(`demo_used{lander} queued ${await demoEvents(page, "lander")} times, expected 1`);
     await page.keyboard.press("Escape"); // the module's own "release the keys"
+
+    // The fault menu: the module's four faults, closed by a pick and by
+    // Escape; a fault hits the flight without an error.
+    const faultBtn = fig.locator("[data-lander-fault]");
+    await faultBtn.click();
+    const kinds = await fig.locator("[data-lander-fault-kind]").evaluateAll((els) => els.map((e) => e.getAttribute("data-lander-fault-kind")));
+    if (kinds.join() !== lc.faults.map((f) => f.kind).join()) throw new Error(`the fault menu lists ${kinds.join(", ")}`);
+    await page.keyboard.press("Escape");
+    await landerWait(page, "Escape closes the fault menu", () => !document.querySelector("[data-lander-faults]"), null, 3000);
+    await faultBtn.click();
+    await fig.locator('[data-lander-fault-kind="gustFront"]').click();
+    await landerWait(page, "a pick closes the fault menu", () => !document.querySelector("[data-lander-faults]"), null, 3000);
+    if ((await demoEvents(page, "lander")) !== 1) throw new Error(`after a fault demo_used{lander} queued ${await demoEvents(page, "lander")} times, expected 1`);
 
     // Leaving the page (the /lab box, a client navigation) unloads it.
     await page.evaluate(() => window.scrollTo(0, 0));
@@ -6825,7 +6908,7 @@ async function checkLanderMounts(browser) {
     if (rootBad.length) throw new Error(`a non-plain build was requested under the shared /ort/: ${[...new Set(rootBad)].join(", ")}`);
     if (bad.length) throw new Error(`failed lander request(s): ${bad.join(", ")}`);
     if (errors.length) throw new Error(`console error(s): ${errors.join(" | ")}`);
-    return `model ready ${loadMs}ms after scrolling to it; off the pad ${flewMs}ms later; canvas ${px.w}x${px.h}, ${px.colours} colours; sim frozen off-screen and while stargazing (worker terminated, nothing fetched), a new worker on return; watching 0 events; wind, take the controls, hand back and new flight each did their job, 1 event in all; navigation terminated all ${workersAfter}; from /lander/v1/ort/ only ${[...new Set(ortFiles)].join(", ")}, the plain pair shared from /ort/ (${[...new Set(rootOrt)].join(", ")})`;
+    return `model ready ${loadMs}ms after scrolling to it; off the pad ${flewMs}ms later; canvas ${px.w}x${px.h}, ${px.colours} colours; the chart ${chartPlan.simple ? "the simple pilot's line (it flew)" : `${chartPlan.paths} plan paths over ${chartPlan.dots} dots, ${chartPlan.chunks} earlier chunk(s) on the time panel`}, then the futures wording; sim frozen off-screen and while stargazing (worker terminated, nothing fetched), a new worker on return; watching 0 events; wind, take the controls, hand back, new flight and the fault menu each did their job (the manual prediction ${predMs}ms after the handover), 1 event in all; navigation terminated all ${workersAfter}; from ${LANDER_DIR}ort/ only ${[...new Set(ortFiles)].join(", ")}, the plain pair shared from /ort/ (${[...new Set(rootOrt)].join(", ")})`;
   });
 }
 
@@ -6863,6 +6946,11 @@ async function checkLander360(browser) {
     const afterTap = await page.evaluate(() => window.__lander.state);
     if (afterTap.mode !== "autopilot" || !afterTap.attract) throw new Error(`a tap on the canvas took the flight: ${JSON.stringify({ mode: afterTap.mode, attract: afterTap.attract })}`);
     if (geo.scrollW > 360) throw new Error(`horizontal scroll at 360px: scrollWidth ${geo.scrollW}`);
+    // The fault menu opens across the controls row and stays on the sheet.
+    await page.locator("#fig-lander [data-lander-fault]").tap();
+    const menu = await page.evaluate(() => ({ scrollW: document.documentElement.scrollWidth, right: document.querySelector("[data-lander-faults]")?.getBoundingClientRect().right ?? -1 }));
+    if (menu.right < 0 || menu.right > 360 || menu.scrollW > 360) throw new Error(`the fault menu at 360px: ${JSON.stringify(menu)}`);
+    await page.keyboard.press("Escape");
     if (geo.deepest > geo.hostBottom + 0.5) throw new Error(`the lander paints past its box: ${JSON.stringify(geo)}`);
     if (geo.hostBottom > geo.captionTop + 0.5) throw new Error(`the lander overlaps its caption: ${JSON.stringify(geo)}`);
     const px = await landerCanvasPixels(page);

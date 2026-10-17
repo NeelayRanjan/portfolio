@@ -5,9 +5,12 @@ import { InstrumentFigure } from "@/components/manuscript/InstrumentFigure";
 import { isStargazing, noteOffload, subscribeStargaze } from "@/lib/stargaze";
 import { trackDemoOnce } from "@/lib/track";
 import { copy } from "@/content/copy";
+import { LanderModelChart } from "@/components/figures/LanderModelChart";
 import type {
   ConditionsLevel,
+  LanderFaultKind,
   LanderHandle,
+  LanderModelView,
   LanderOptions,
   LanderState,
   LanderTheme,
@@ -16,16 +19,20 @@ import type {
 /**
  * The Titan lander, Figure 5 (since 2026-10-15): a rotorcraft flown through a
  * learned diffusion world model. Everything model-related lives in the module
- * the lunar_lander repo hands over (public/lander/v1/: its entry, its worker,
+ * the lunar_lander repo hands over (public/lander/v2/: its entry, its worker,
  * its models and its OWN onnxruntime-web build). The module draws only the
  * canvas (`ui: 'none'`, site embedding v2, 2026-10-16); every control, readout
  * and line of text around it is the site's, from `copy.systems.lander`.
  *
  * - The interface is the owner's "watch first" pick (2026-10-16): the attract
- *   flight runs on its own, and the only controls are the wind, take the
- *   controls (computer only: flying is keyboard-only, so phones watch) and a
- *   new flight. The readout shows the landing chance labelled "est." because
- *   the preview's value head misses its own calibration gate.
+ *   flight runs on its own, and the only controls are the wind, a fault menu,
+ *   take the controls (computer only: flying is keyboard-only, so phones
+ *   watch) and a new flight. The readout shows the landing chance labelled
+ *   "est." because the preview's value head misses its own calibration gate.
+ * - The owner's "B + E2" layout (2026-10-16): the module draws the scene as a
+ *   diorama (`scene: 'diorama'`: the same 2D flight with depth drawn around
+ *   its plane), and under the controls the site draws the model's side as a
+ *   chart from `onModel` (LanderModelChart), never as a second scene.
  * - Versioned directory, immutable cache (next.config.ts): any changed file
  *   ships as /lander/v2/ and this constant moves with it. `mount` rejects a
  *   query string, so the directory is the only cache key.
@@ -51,7 +58,7 @@ import type {
  *   physics predictor and draws `canvas.noModel` itself. `failed` is only a
  *   failed import of `lander.js` (a broken deploy).
  */
-const LANDER_BASE = "/lander/v1";
+const LANDER_BASE = "/lander/v2";
 /** The site's breakpoint, shared with the box's aspect classes below. */
 const WIDE = "(min-width: 880px)";
 /** Camera zoom by breakpoint (1 is the module's plain view, 4 its limit).
@@ -133,6 +140,9 @@ function readoutFor(s: LanderState | null, status: Status): string | null {
 }
 
 const LEVELS: ConditionsLevel[] = [0, 1, 2, 3];
+/** The controls' chip: the mockup's dark pill, in the figure's own rule colour. */
+const CHIP =
+  "rounded border border-rule bg-desk/60 px-2.5 py-1.5 text-[12px] text-ink transition-colors hover:border-mut disabled:cursor-not-allowed disabled:opacity-40";
 
 export function LanderPanel() {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -148,6 +158,9 @@ export function LanderPanel() {
   // after a stargaze restore read model "loading" from the last render,
   // skipped setAutopilot, and left a hand-flown flight a phone can't fly).
   const stateRef = useRef<LanderState | null>(null);
+  const [view, setView] = useState<LanderModelView | null>(null);
+  const [faultsOpen, setFaultsOpen] = useState(false);
+  const faultRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -186,7 +199,9 @@ export function LanderPanel() {
         zoom: window.matchMedia(WIDE).matches ? ZOOM_WIDE : ZOOM_NARROW,
         ortBase: { wasm: "/ort" },
         theme: siteTheme(),
+        scene: "diorama",
         text: { ...copy.systems.lander.canvas },
+        onModel: (v) => setView(v),
         onState: (s) => {
           hook.state = s;
           stateRef.current = s;
@@ -205,6 +220,7 @@ export function LanderPanel() {
       hook.state = null;
       stateRef.current = null;
       setState(null);
+      setView(null);
       if (!h) return;
       unloadingRef.current = h.unload().then(() => {
         hook.unloads++;
@@ -256,6 +272,23 @@ export function LanderPanel() {
     };
   }, []);
 
+  // The fault menu closes on a pick, Escape, or a press anywhere outside it.
+  useEffect(() => {
+    if (!faultsOpen) return;
+    const onDown = (e: PointerEvent) => {
+      if (!faultRef.current?.contains(e.target as Node)) setFaultsOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFaultsOpen(false);
+    };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [faultsOpen]);
+
   const c = copy.systems.lander;
   const ready = state?.model === "ready";
 
@@ -272,6 +305,15 @@ export function LanderPanel() {
     if (!h || level === stateRef.current?.level) return;
     h.setLevel(level);
     freshFlight(level);
+  };
+  /** A fault hits the flight in progress, watched or flown: real output, so
+   *  it counts as using the demo (once per load, like every demo). */
+  const throwFault = (kind: LanderFaultKind) => {
+    setFaultsOpen(false);
+    const h = handleRef.current;
+    if (!h || !stateRef.current || stateRef.current.outcome) return;
+    h.injectFault(kind);
+    trackDemoOnce("lander");
   };
   const toggleControls = () => {
     const h = handleRef.current;
@@ -315,41 +357,70 @@ export function LanderPanel() {
         {status === "failed" ? (
           <p className="mt-3 font-mono text-[12px] text-red-ink">{c.loadFailed}</p>
         ) : (
-          <div className="mt-3 flex flex-wrap items-end gap-x-5 gap-y-3 font-mono text-[11px]">
-            <div className="flex flex-col gap-1">
-              <span aria-hidden="true" className="text-mut">
-                {c.windLabel}
-              </span>
-              <div className="flex" role="group" aria-label={c.windLabel} data-lander-wind>
+          <div ref={faultRef} className="relative mt-3 flex flex-wrap items-center gap-2 font-mono text-[11px]">
+            {/* Wind: a native select, so a phone gets its own picker. Picking
+                a level flies a fresh hop at it, as the segmented control did. */}
+            <label className={`${CHIP} relative flex items-center gap-1.5 pr-6`}>
+              <span className="text-mut">{c.windLabel}</span>
+              <select
+                value={state?.level ?? 1}
+                onChange={(e) => pickLevel(Number(e.target.value) as ConditionsLevel)}
+                disabled={!state}
+                data-lander-wind
+                className="cursor-pointer appearance-none bg-transparent text-ink outline-none disabled:cursor-not-allowed"
+              >
                 {LEVELS.map((level) => (
-                  <button
-                    key={level}
-                    type="button"
-                    onClick={() => pickLevel(level)}
-                    disabled={!state}
-                    aria-pressed={state?.level === level}
-                    // Chess's segmented control: -ml-px joins the buttons and
-                    // `relative` keeps the active border on top.
-                    className={`border px-2.5 py-1 transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                      level > 0 ? "-ml-px" : ""
-                    } ${
-                      state?.level === level
-                        ? "relative border-ok text-ok"
-                        : "border-rule text-mut hover:border-mut hover:text-ink"
-                    }`}
-                  >
+                  <option key={level} value={level} className="bg-panel">
                     {c.levels[level]}
-                  </button>
+                  </option>
                 ))}
-              </div>
-            </div>
+              </select>
+              <span aria-hidden="true" className="pointer-events-none absolute right-2 text-mut">▾</span>
+            </label>
+            {/* The menu hangs off the whole row (faultRef), so on a phone it can
+                take the row's width instead of running off the sheet, and
+                opens downward, so the flight it's about to hit stays in view. */}
+            <button
+                type="button"
+                onClick={() => setFaultsOpen((o) => !o)}
+                disabled={!state || !!state.outcome}
+                aria-expanded={faultsOpen}
+                aria-controls="lander-faults"
+                data-lander-fault
+                className={`${CHIP} ${faultsOpen ? "border-warm text-warm" : ""}`}
+              >
+                {c.faultLabel} ▾
+              </button>
+            {faultsOpen ? (
+                <div
+                  id="lander-faults"
+                  role="group"
+                  aria-label={c.faultTitle}
+                  data-lander-faults
+                  className="absolute top-full left-0 z-10 mt-1.5 w-full max-w-[340px] border border-rule bg-panel shadow-lg"
+                >
+                  <p className="px-3 py-2 text-mut">{c.faultTitle}</p>
+                  {c.faults.map((f) => (
+                    <button
+                      key={f.kind}
+                      type="button"
+                      onClick={() => throwFault(f.kind as LanderFaultKind)}
+                      data-lander-fault-kind={f.kind}
+                      className="flex w-full flex-col gap-0.5 border-t border-rule px-3 py-2 text-left hover:bg-desk"
+                    >
+                      <span className="text-[12px] text-ink">{f.name}</span>
+                      <span className="text-mut">{f.what}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             {/* Computer only: flying is keyboard-only, so phones watch. */}
             <button
               type="button"
               onClick={toggleControls}
               disabled={!state || (state.mode === "manual" && !ready)}
               data-lander-take
-              className="hidden border border-rule px-3 py-1.5 text-xs text-mut transition-colors hover:border-mut hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 min-[880px]:inline-block"
+              className={`${CHIP} hidden min-[880px]:inline-block`}
             >
               {state?.mode === "manual" ? c.giveBack : c.takeControls}
             </button>
@@ -358,7 +429,7 @@ export function LanderPanel() {
               onClick={() => state && freshFlight(state.level)}
               disabled={!state}
               data-lander-new
-              className="border border-rule px-3 py-1.5 text-xs text-mut transition-colors hover:border-mut hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+              className={`${CHIP} border-ok/70 text-ok hover:border-ok hover:text-ok`}
             >
               {c.newFlight}
             </button>
@@ -376,6 +447,9 @@ export function LanderPanel() {
             {flyingByHand ? <span className="hidden min-[880px]:inline"> {c.keys}</span> : null}
           </p>
         ) : null}
+        {status === "failed" ? null : (
+          <LanderModelChart view={view} simplePilot={state?.mode === "autopilot" && state.planner === "simple-pilot"} />
+        )}
       </div>
     </InstrumentFigure>
   );

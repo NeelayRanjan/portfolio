@@ -2353,11 +2353,44 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   and no-model lines). The heading and lede follow chess's pattern; the
   heading starts under the readout corner below 880px (a right pad squeezed
   it to a word a line at 360).
+- **The scene's graphics are this session's too (2026-10-16)**: the owner
+  approved editing the lander repo directly for them. The work lives on
+  branch `site-graphics` in a separate worktree,
+  `~/Documents/lunar_lander/.claude/worktrees/graphics` (its `node_modules`
+  a symlink to the `titan` worktree's, excluded in `.git/info/exclude`),
+  commit `c50b62f` on top of `99c9a9d`; the owner merges it on the lander
+  side. Built with `npm run build:lib -- --models
+  ~/Documents/lunar_lander/.claude/worktrees/titan/runs/preview-models`
+  (the preview models, read-only) and copied verbatim to
+  `public/lander/v1/`. It added, all illustrative scenery with no model,
+  physics or proportion change: craft detail (hull shading and seams, deck
+  instruments, two-blade rotors drawn while slow and blurring into the
+  discs as they spin up, a filled dish and feed, MMRTG fins, skid joints
+  and toes), the sky's diffuse glow where the Sun sits behind the haze,
+  three distant ridges (a screen-space backdrop with parallax, seeded per
+  map), strata and grain under the surface, a soft shadow, and rotor-wash
+  dust near the ground (the touchdown burst too; none under reduced
+  motion). Left out on purpose: a trail behind the craft (the caption
+  calls the faint trails the model's samples) and an MMRTG heat glow (its
+  fins don't glow in visible light). **Cost, measured** (Chromium, 842x473,
+  6x CPU throttle, interleaved A/B against `99c9a9d`): 60 fps both, the
+  frame callback's median 2.4 -> 2.86 ms. ⚠️ A second full-canvas pass
+  (the glow as its own gradient, or as a stretched image) cost ~5 of 60
+  fps there, so sky and glow are painted once per palette into a 160x90
+  image and drawn in the sky's single pass; keep new scenery off
+  full-canvas passes. The lander's own smoke passed at that commit:
+  Chromium 201, Firefox 188, WebKit 189 (its podman container, with the
+  worktrees directory mounted so the symlink resolves); its 1,240 unit
+  tests pass (the ground test now reads the first fill in world space,
+  the layout test splits frames at either form of the sky draw).
 - **Palette**: the roles that carry meaning take the site's figure colours
   (`model` = `--color-ok`, the owner's own model; `baseline` =
   `--color-red-ink`, the no-model fallback and the simple pilot; `hazard`
-  red; `readout` = `--color-warm`; `craft` = `--color-ink`), resolved with
-  `getComputedStyle` at mount (a canvas can't read var()). The sky, ground,
+  red; `readout` = `--color-warm`), resolved with
+  `getComputedStyle` at mount (a canvas can't read var()). The craft keeps
+  the module's own palette (2026-10-16): a role paints EVERY colour it owns
+  in one colour, so setting `craft` to the ink drew hull, outline, rotors,
+  MMRTG and the centre-of-mass marker as one flat cream shape. The sky, ground,
   terrain and canvas text keep the module's Titan haze ON PURPOSE: with the
   site's dark tokens the ground nearly vanished and the dunes and target
   stopped reading (compared at 1280, 2026-10-16), and Titan's orange is the

@@ -1,10 +1,10 @@
 {
   "name": "titan-lander",
   "version": "0.1.0",
-  "gitSha": "99c9a9d02d144ccfe5e207cc3ab61e9efe00755e",
+  "gitSha": "c50b62f96cdc8f932404aab00cc5796ca6a3fd58",
   "ortVersion": "1.27.0",
   "models": {
-    "dir": "runs/preview-models",
+    "dir": "../titan/runs/preview-models",
     "dreamSha256": "5e16983f5464ca56700d90b8b47808f8d889c40e0eec64906250ca45d0937c9b",
     "valueSha256": "afe2880ab2fb13951db331bdc5060c48586c4bad3961e850e8358491c508a79c"
   },
@@ -18,19 +18,19 @@
       "sha256": "53457cdbb6153caba9a7d263672db2fa94b2eed2043c3c92d62a42036c072aab"
     },
     {
-      "path": "chunks/ort.wasm.min-UBWXXSWX.js",
+      "path": "chunks/ort.wasm.min-43TZZTE2.js",
       "bytes": 49645,
       "sha256": "bdf1d051598c6667e6ad9c4f6cdc46088b6acaa6de76df3ffe909f012e972a5a"
     },
     {
-      "path": "chunks/ort.webgpu.min-E56NHGLY.js",
+      "path": "chunks/ort.webgpu.min-EIHR7RO6.js",
       "bytes": 66731,
       "sha256": "f2b37bf94fbddfdd6a1665adaab972f959bb9b8808c159ec457cb6af7c47201f"
     },
     {
       "path": "lander-worker.js",
       "bytes": 34378,
-      "sha256": "5208a015909c96af3674b50f4b6bf7f2b6c8f45bff21a57ae1970c8495effc08"
+      "sha256": "b636cfa315fe341e990ec14c494b8c30fe86ce17da6eb445d1cc98d4ffad0bdc"
     },
     {
       "path": "lander.d.ts",
@@ -39,8 +39,8 @@
     },
     {
       "path": "lander.js",
-      "bytes": 163855,
-      "sha256": "9a2dbf80d1c5285e377121585e0c42a118b3219b3008e98586ca3198e3cf02f5"
+      "bytes": 170379,
+      "sha256": "b2c1d1d953026a2cfdac876ecd20c854dfd691162ad876dd45e816646d129635"
     },
     {
       "path": "models/dream.onnx",

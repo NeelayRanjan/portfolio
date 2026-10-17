@@ -76,7 +76,10 @@ type LanderVerifyHook = {
  * The site's palette for the roles that MEAN something, by the figure colour
  * conventions: green is the owner's own model (the dream's craft and ghosts),
  * red the baseline (the no-model fallback and the simple pilot) and alerts,
- * amber the instrument readouts, ink the craft. The sky, ground, terrain and
+ * amber the instrument readouts. The craft keeps the module's own palette:
+ * a role paints EVERY colour it owns in one colour, so setting `craft` drew
+ * the hull, outline, rotors, MMRTG and centre-of-mass marker all in ink, one
+ * flat shape with no detail. The sky, ground, terrain and
  * canvas text keep the module's Titan haze on purpose (2026-10-16, compared
  * at 1280px): with the site's dark tokens (panel, desk, rule, mut) the ground
  * nearly vanished and the dunes and target stopped reading, while Titan's
@@ -87,7 +90,6 @@ type LanderVerifyHook = {
 function siteTheme(): Partial<LanderTheme> {
   const css = getComputedStyle(document.documentElement);
   const roles: [keyof LanderTheme, string][] = [
-    ["craft", "--color-ink"],
     ["model", "--color-ok"],
     ["baseline", "--color-red-ink"],
     ["readout", "--color-warm"],

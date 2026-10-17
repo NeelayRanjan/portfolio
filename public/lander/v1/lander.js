@@ -11,21 +11,21 @@ var d = -.35, f = .1, p = 1.8, m = 1.2, h = 1600, g = -.85, _ = .05, v = .3, y =
 	.3,
 	.5,
 	1
-], T = .3, ie = .5, ae = 1.5, E = [.5, 1.5], oe = 1.5, se = .8, D = 10 * e, ce = 10 * e, le = 15 * e, O = 4e3, k = 2001, A = O / 4, ue = 30 * e, de = [
+], T = .3, ie = .5, ae = 1.5, E = [.5, 1.5], oe = 1.5, se = .8, ce = 10 * e, le = 10 * e, ue = 15 * e, D = 4e3, O = 2001, k = D / 4, de = 30 * e, fe = [
 	-6,
 	-2,
 	2,
 	6
-], fe = .1 * w, pe = .55, me = .6, he = 35 * e, ge = 2.5, _e = .12, ve = .05;
+], pe = .1 * w, me = .55, he = .6, ge = 35 * e, _e = 2.5, ve = .12, ye = .05;
 35 * e, 6 * e, 2 * e;
-var ye = 8 * e, be = 1.2;
+var be = 8 * e, xe = 1.2;
 //#endregion
 //#region src/engine/rng.ts
-function xe(e, t) {
+function Se(e, t) {
 	let n = (Math.imul(e >>> 0, 2654435761) ^ Math.imul((t >>> 0) + 2135587861, 2246822519)) >>> 0;
 	return n ^= n >>> 16, n = Math.imul(n, 2146121005), n ^= n >>> 15, n = Math.imul(n, 2221713035), n ^= n >>> 16, n >>> 0;
 }
-function j(e) {
+function A(e) {
 	let t = e >>> 0, n = t, r = () => {
 		n = n + 1831565813 >>> 0;
 		let e = n;
@@ -41,43 +41,43 @@ function j(e) {
 			return Math.floor(r() * e);
 		},
 		fork(e) {
-			return j(xe(t, e));
+			return A(Se(t, e));
 		}
 	};
 }
 //#endregion
 //#region src/engine/knobs.ts
-var Se = {
+var Ce = {
 	tMaxFrac: u,
-	mixKp: pe,
+	mixKp: me,
 	inertiaPerKg: p,
 	kOmega: h
 };
-function Ce() {
-	return Se.tMaxFrac * 875 * t;
-}
 function we() {
-	return Se.mixKp;
+	return Ce.tMaxFrac * 875 * t;
 }
 function Te() {
-	return 875 * Se.inertiaPerKg;
+	return Ce.mixKp;
 }
 function Ee() {
-	return Se.kOmega;
+	return 875 * Ce.inertiaPerKg;
+}
+function De() {
+	return Ce.kOmega;
 }
 //#endregion
 //#region src/engine/rotor.ts
-function De(e) {
+function Oe(e) {
 	let t = Number.isFinite(e) ? Math.min(1, Math.max(0, e)) : 0, n = Math.round(1 / _);
 	return Math.round(t * n) / n;
 }
-function M(e) {
+function j(e) {
 	return {
-		front: De(e.front),
-		rear: De(e.rear)
+		front: Oe(e.front),
+		rear: Oe(e.rear)
 	};
 }
-function Oe() {
+function ke() {
 	return {
 		weak: [!1, !1],
 		gustFrontUntil: -1,
@@ -85,11 +85,11 @@ function Oe() {
 		lidarUntil: -1
 	};
 }
-function ke(e, t) {
+function Ae(e, t) {
 	let n = 0;
 	return e.weak[0] && (n |= 1), e.weak[1] && (n |= 2), t < e.gustFrontUntil && (n |= 4), t < e.lidarUntil && (n |= 8), n;
 }
-function Ae(e, t) {
+function je(e, t) {
 	return {
 		weak: [!!(e & 1), !!(e & 2)],
 		gustFrontUntil: e & 4 ? t + 1 : -1,
@@ -97,73 +97,73 @@ function Ae(e, t) {
 		lidarUntil: e & 8 ? t + 1 : -1
 	};
 }
-function N(e, t) {
-	return e.weak[t] ? Ce() * x : Ce();
+function M(e, t) {
+	return e.weak[t] ? we() * x : we();
 }
-var je = 1 - Math.exp(-r / v);
-function Me(e, t) {
-	return e + (t - e) * je;
+var Me = 1 - Math.exp(-r / v);
+function Ne(e, t) {
+	return e + (t - e) * Me;
 }
-var Ne = Math.exp(-i / b), Pe = y * Math.sqrt(1 - Ne * Ne);
-function Fe(e, t) {
-	return e * Ne + Pe * t;
+var Pe = Math.exp(-i / b), Fe = y * Math.sqrt(1 - Pe * Pe);
+function Ie(e, t) {
+	return e * Pe + Fe * t;
 }
 //#endregion
 //#region src/terrain/profile.ts
-function P(e, t) {
+function N(e, t) {
 	if (!(t > 0)) return e.heights[0];
-	if (t >= 4e3) return e.heights[k - 1];
+	if (t >= 4e3) return e.heights[O - 1];
 	let n = t / 2, r = Math.floor(n), i = n - r;
 	return e.heights[r] * (1 - i) + e.heights[r + 1] * i;
 }
-function Ie(e, t) {
-	return (P(e, t + 1) - P(e, t - 1)) / 2;
+function Le(e, t) {
+	return (N(e, t + 1) - N(e, t - 1)) / 2;
 }
-function Le(e, t, n) {
+function Re(e, t, n) {
 	let r = Math.min(t, n), i = Math.max(t, n);
-	return i - r < .01 ? Math.atan(Math.abs(Ie(e, r))) : Math.atan(Math.abs(P(e, i) - P(e, r)) / (i - r));
+	return i - r < .01 ? Math.atan(Math.abs(Le(e, r))) : Math.atan(Math.abs(N(e, i) - N(e, r)) / (i - r));
 }
-function F(e) {
+function P(e) {
 	return Math.floor(e / 4);
 }
-function Re(e) {
+function ze(e) {
 	return (e + .5) * 4;
 }
-function ze(e, t) {
-	return t.y - P(e, t.x);
+function Be(e, t) {
+	return t.y - N(e, t.x);
 }
 //#endregion
 //#region src/engine/energy.ts
-var Be = 1 / (Math.sqrt(2 * n * C) * S);
-function Ve(e) {
-	return e > 0 ? e ** 1.5 * Be : 0;
+var Ve = 1 / (Math.sqrt(2 * n * C) * S);
+function He(e) {
+	return e > 0 ? e ** 1.5 * Ve : 0;
 }
-function He(e = Oe()) {
-	let n = De(875 * t / (N(e, 0) + N(e, 1)));
+function Ue(e = ke()) {
+	let n = Oe(875 * t / (M(e, 0) + M(e, 1)));
 	return {
 		front: n,
 		rear: n
 	};
 }
-function Ue(e = Oe()) {
+function We(e = ke()) {
 	let n = c - d, r = c + d, i = 875 * t, a = i * r / (n + r), o = i - a;
-	return [a / N(e, 0), o / N(e, 1)];
+	return [a / M(e, 0), o / M(e, 1)];
 }
 //#endregion
 //#region src/engine/sim.ts
-var We = c - d, Ge = -c - d, Ke = .5 * n * 2, qe = .5 * n * m;
-function I(e) {
+var Ge = c - d, Ke = -c - d, qe = .5 * n * 2, Je = .5 * n * m;
+function F(e) {
 	let t = e - 2 * Math.PI * Math.floor((e + Math.PI) / (2 * Math.PI));
 	return t === -Math.PI ? Math.PI : t;
 }
-function Je(e, t = {}) {
+function Ye(e, t = {}) {
 	let n = t.energy ?? 2e6, [r, i] = t.s ?? [0, 0];
 	return {
 		x: e.x,
 		y: e.y,
 		vx: e.vx,
 		vy: e.vy,
-		theta: I(e.theta),
+		theta: F(e.theta),
 		omega: e.omega,
 		sF: r,
 		sR: i,
@@ -174,21 +174,21 @@ function Je(e, t = {}) {
 		t: 0
 	};
 }
-function Ye(e, t) {
+function Xe(e, t) {
 	if (!(e > 0)) return 0;
 	let r = Math.sqrt(e / (2 * n * C));
 	return -n * C * r * t;
 }
-function Xe(e, n, r, i) {
-	let a = Math.sin(e.theta), o = Math.cos(e.theta), s = e.vx - i[0], c = e.vy - i[1], l = -Ke * Math.abs(s) * s, u = -qe * Math.abs(c) * c, p = n + r, m = s * o + c * a + e.omega * f, h = Ye(n, m) + Ye(r, m), g = -d * o + f * a, _ = -d * a - f * o, v = We * n + Ge * r + f * h + (g * u - _ * l) - Ee() * e.omega;
+function Ze(e, n, r, i) {
+	let a = Math.sin(e.theta), o = Math.cos(e.theta), s = e.vx - i[0], c = e.vy - i[1], l = -qe * Math.abs(s) * s, u = -Je * Math.abs(c) * c, p = n + r, m = s * o + c * a + e.omega * f, h = Xe(n, m) + Xe(r, m), g = -d * o + f * a, _ = -d * a - f * o, v = Ge * n + Ke * r + f * h + (g * u - _ * l) - De() * e.omega;
 	return {
 		ax: (-p * a + h * o + l) / 875,
 		ay: (p * o + h * a + u) / 875 - t,
-		alpha: v / Te()
+		alpha: v / Ee()
 	};
 }
-function Ze(e, t, n) {
-	let i = Me(e.sF, n ? 0 : t.uF), a = Me(e.sR, n ? 0 : t.uR), o = Math.max(0, i * (1 + t.epsF) * t.tmF), s = Math.max(0, a * (1 + t.epsR) * t.tmR), c = Ve(o) + Ve(s), l = n ? 0 : Ve(t.uF * t.tmF) + Ve(t.uR * t.tmR);
+function Qe(e, t, n) {
+	let i = Ne(e.sF, n ? 0 : t.uF), a = Ne(e.sR, n ? 0 : t.uR), o = Math.max(0, i * (1 + t.epsF) * t.tmF), s = Math.max(0, a * (1 + t.epsR) * t.tmR), c = He(o) + He(s), l = n ? 0 : He(t.uF * t.tmF) + He(t.uR * t.tmR);
 	return {
 		sF: i,
 		sR: a,
@@ -198,14 +198,14 @@ function Ze(e, t, n) {
 		energyEst: Math.max(0, e.energyEst - l * r)
 	};
 }
-function Qe(e, t, n) {
-	let i = Ze(e, t, n.energyLocked || e.energy <= 0), a = Xe(e, i.tF, i.tR, n.windAt(e.x, e.y)), o = e.vx + a.ax * r, s = e.vy + a.ay * r, c = e.omega + a.alpha * r;
+function $e(e, t, n) {
+	let i = Qe(e, t, n.energyLocked || e.energy <= 0), a = Ze(e, i.tF, i.tR, n.windAt(e.x, e.y)), o = e.vx + a.ax * r, s = e.vy + a.ay * r, c = e.omega + a.alpha * r;
 	return {
 		x: e.x + o * r,
 		y: e.y + s * r,
 		vx: o,
 		vy: s,
-		theta: I(e.theta + c * r),
+		theta: F(e.theta + c * r),
 		omega: c,
 		sF: i.sF,
 		sR: i.sR,
@@ -216,24 +216,24 @@ function Qe(e, t, n) {
 		t: e.t + r
 	};
 }
-function $e(e, t, n, r) {
-	let i = M(t), a = Fe(e.epsF, r.normal()), o = Fe(e.epsR, r.normal());
+function et(e, t, n, r) {
+	let i = j(t), a = Ie(e.epsF, r.normal()), o = Ie(e.epsR, r.normal());
 	return {
 		uF: i.front,
 		uR: i.rear,
-		tmF: N(n.faults, 0),
-		tmR: N(n.faults, 1),
+		tmF: M(n.faults, 0),
+		tmR: M(n.faults, 1),
 		epsF: a,
 		epsR: o
 	};
 }
-function et(e, t, n, r) {
-	let i = $e(e, t, n, r), a = [], o = e;
-	for (let e = 0; e < 12; e++) o = Qe(o, i, n), a.push(o);
+function tt(e, t, n, r) {
+	let i = et(e, t, n, r), a = [], o = e;
+	for (let e = 0; e < 12; e++) o = $e(o, i, n), a.push(o);
 	return a;
 }
-function tt(e, t, n, i) {
-	let a = $e(e, t, n, i), o = [], s = {
+function nt(e, t, n, i) {
+	let a = et(e, t, n, i), o = [], s = {
 		...e,
 		vx: 0,
 		vy: 0,
@@ -241,8 +241,8 @@ function tt(e, t, n, i) {
 	}, c = -1;
 	for (let e = 0; e < 12; e++) {
 		if (c < 0) {
-			let t = n.energyLocked || s.energy <= 0, i = Ze(s, a, t);
-			(i.tF + i.tR) * Math.cos(s.theta) > 1183 ? (c = e, s = Qe(s, a, n)) : s = {
+			let t = n.energyLocked || s.energy <= 0, i = Qe(s, a, t);
+			(i.tF + i.tR) * Math.cos(s.theta) > 1183 ? (c = e, s = $e(s, a, n)) : s = {
 				...s,
 				sF: i.sF,
 				sR: i.sR,
@@ -252,7 +252,7 @@ function tt(e, t, n, i) {
 				energyEst: i.energyEst,
 				t: s.t + r
 			};
-		} else s = Qe(s, a, n);
+		} else s = $e(s, a, n);
 		o.push(s);
 	}
 	return {
@@ -262,39 +262,39 @@ function tt(e, t, n, i) {
 }
 //#endregion
 //#region src/engine/touchdown.ts
-var nt = [-1 - d, g - f], rt = [1 - d, g - f], it = [[-s / 2 - d, 1 / 2 - f], [s / 2 - d, 1 / 2 - f]];
-function at(e, t) {
+var rt = [-1 - d, g - f], it = [1 - d, g - f], at = [[-s / 2 - d, 1 / 2 - f], [s / 2 - d, 1 / 2 - f]];
+function ot(e, t) {
 	let n = Math.cos(e.theta), r = Math.sin(e.theta);
 	return [e.x + t[0] * n - t[1] * r, e.y + t[0] * r + t[1] * n];
 }
-function ot(e) {
-	return [at(e, nt), at(e, rt)];
+function st(e) {
+	return [ot(e, rt), ot(e, it)];
+}
+function I(e, t) {
+	let [n, r] = st(e);
+	return Math.min(n[1] - N(t, n[0]), r[1] - N(t, r[0]));
 }
 function L(e, t) {
-	let [n, r] = ot(e);
-	return Math.min(n[1] - P(t, n[0]), r[1] - P(t, r[0]));
-}
-function R(e, t) {
-	let n = L(e, t);
-	for (let r of it) {
-		let [i, a] = at(e, r);
-		n = Math.min(n, a - P(t, i));
+	let n = I(e, t);
+	for (let r of at) {
+		let [i, a] = ot(e, r);
+		n = Math.min(n, a - N(t, i));
 	}
 	return n;
 }
-function st(e, t) {
-	let n = ft(t, e.x);
-	return Math.abs(I(e.theta - n.theta)) <= D && Math.abs(e.vx) <= .8 && Math.abs(e.vy) <= 1.5 && Math.abs(e.omega) <= ce;
+function ct(e, t) {
+	let n = pt(t, e.x);
+	return Math.abs(F(e.theta - n.theta)) <= ce && Math.abs(e.vx) <= .8 && Math.abs(e.vy) <= 1.5 && Math.abs(e.omega) <= le;
 }
-function ct(e, t, n) {
-	let [r, i] = ot(e), a = Math.min(r[0], i[0]), o = Math.max(r[0], i[0]), s = a < 0 || o > 4e3, c = s, l = Math.max(0, F(a)), u = Math.min(A - 1, F(o));
+function lt(e, t, n) {
+	let [r, i] = st(e), a = Math.min(r[0], i[0]), o = Math.max(r[0], i[0]), s = a < 0 || o > 4e3, c = s, l = Math.max(0, P(a)), u = Math.min(k - 1, P(o));
 	for (let e = l; e <= u && !c; e++) n(e) && (c = !0);
-	let d = I(e.theta), f = {
+	let d = F(e.theta), f = {
 		vy: oe - Math.abs(e.vy),
 		vx: se - Math.abs(e.vx),
-		theta: D - Math.abs(d),
-		omega: ce - Math.abs(e.omega),
-		slope: le - Le(t, a, o),
+		theta: ce - Math.abs(d),
+		omega: le - Math.abs(e.omega),
+		slope: ue - Re(t, a, o),
 		hazard: c,
 		offProfile: s
 	};
@@ -311,41 +311,41 @@ function ct(e, t, n) {
 		margins: f
 	};
 }
-function lt(e, t, n) {
+function ut(e, t, n) {
 	let r = (e, t) => e + (t - e) * n;
 	return {
 		x: r(e.x, t.x),
 		y: r(e.y, t.y),
 		vx: r(e.vx, t.vx),
 		vy: r(e.vy, t.vy),
-		theta: I(e.theta + I(t.theta - e.theta) * n),
+		theta: F(e.theta + F(t.theta - e.theta) * n),
 		omega: r(e.omega, t.omega)
 	};
 }
-function ut(e, t) {
+function dt(e, t) {
 	return e <= 0 ? 0 : Math.min(1, Math.max(0, e / (e - t)));
 }
-function dt(e, t, n) {
+function ft(e, t, n) {
 	if (e.length < 2) return null;
-	let r = R(e[0], t);
+	let r = L(e[0], t);
 	for (let i = 1; i < e.length; i++) {
-		let a = R(e[i], t);
+		let a = L(e[i], t);
 		if (a < 0) {
-			let o = ut(r, a), s = lt(e[i - 1], e[i], o);
+			let o = dt(r, a), s = ut(e[i - 1], e[i], o);
 			return {
 				index: i,
 				alpha: o,
-				contact: ct(s, t, n)
+				contact: lt(s, t, n)
 			};
 		}
 		r = a;
 	}
 	return null;
 }
-function ft(e, t) {
+function pt(e, t) {
 	let n = 0;
 	for (let r = 0; r < 3; r++) {
-		let [r, i] = ot({
+		let [r, i] = st({
 			x: t,
 			y: 0,
 			vx: 0,
@@ -353,7 +353,7 @@ function ft(e, t) {
 			theta: n,
 			omega: 0
 		});
-		n = Math.atan2(P(e, i[0]) - P(e, r[0]), i[0] - r[0]);
+		n = Math.atan2(N(e, i[0]) - N(e, r[0]), i[0] - r[0]);
 	}
 	let r = {
 		x: t,
@@ -365,26 +365,26 @@ function ft(e, t) {
 	};
 	return {
 		...r,
-		y: -L(r, e)
+		y: -I(r, e)
 	};
 }
 //#endregion
 //#region src/engine/wind.ts
-function pt(e) {
+function mt(e) {
 	return e > .005 ? Math.min(te, Math.max(0, Math.log(e / ee) / Math.log(10 / ee))) : 0;
 }
-function mt(e, t) {
+function ht(e, t) {
 	let n = e.fSite;
 	if (!(t > 0)) return n[0];
-	if (t >= 4e3) return n[k - 1];
+	if (t >= 4e3) return n[O - 1];
 	let r = t / 2, i = Math.floor(r), a = r - i;
 	return n[i] * (1 - a) + n[i + 1] * a;
 }
-function ht(e, t, n, r) {
-	let i = r - P(e, n), a = e.windDir * ne[t] * mt(e, n) * pt(i);
-	return [a, a * Ie(e, n) * Math.exp(-Math.max(i, 0) / 30)];
+function gt(e, t, n, r) {
+	let i = r - N(e, n), a = e.windDir * ne[t] * ht(e, n) * mt(i);
+	return [a, a * Le(e, n) * Math.exp(-Math.max(i, 0) / 30)];
 }
-var gt = class {
+var _t = class {
 	rng;
 	u;
 	w;
@@ -396,7 +396,7 @@ var gt = class {
 		let t = Math.exp(-e / 4), n = Math.sqrt(1 - t * t);
 		this.u = this.u * t + this.sigma * n * this.rng.normal(), this.w = this.w * t + T * this.sigma * n * this.rng.normal();
 	}
-}, _t = class {
+}, vt = class {
 	steps;
 	log = [];
 	held = {
@@ -409,13 +409,13 @@ var gt = class {
 		this.steps = e;
 	}
 	reset(e, t) {
-		this.log = [], this.held = M(e), this.from = t;
+		this.log = [], this.held = j(e), this.from = t;
 	}
 	send(e, t) {
 		if (t < this.from) throw Error(`DelayLink: send at step ${t} before the reset at ${this.from}`);
 		let n = this.log[this.log.length - 1];
 		if (n && t < n.step) throw Error(`DelayLink: send at step ${t} after step ${n.step}`);
-		let r = M(e);
+		let r = j(e);
 		for (n && t === n.step ? n.cmd = r : this.log.push({
 			step: t,
 			cmd: r
@@ -436,13 +436,13 @@ var gt = class {
 	downlinkStep(e) {
 		return Math.max(0, e - this.steps);
 	}
-}, vt = {
+}, yt = {
 	next: () => .5,
 	normal: () => 0,
 	int: () => 0,
-	fork: () => vt
+	fork: () => yt
 };
-function yt(e, t, n, r, i) {
+function bt(e, t, n, r, i) {
 	let a = {
 		...t.state,
 		epsF: 0,
@@ -459,26 +459,26 @@ function yt(e, t, n, r, i) {
 			return;
 		}
 		let l = {
-			faults: Ae(n, r + i),
+			faults: je(n, r + i),
 			windAt: () => [0, 0],
 			energyLocked: a.energy <= 0
 		};
 		if (o) {
-			let e = tt(a, t, l, vt);
+			let e = nt(a, t, l, yt);
 			a = e.states[e.states.length - 1], e.liftOff >= 0 && (o = !1);
 		} else {
-			let n = et(a, t, l, vt), r = a, i = R(r, e);
+			let n = tt(a, t, l, yt), r = a, i = L(r, e);
 			a = n[n.length - 1];
 			for (let t of n) {
-				let n = R(t, e);
+				let n = L(t, e);
 				if (n < 0 && t.vy <= 0) {
 					let c = {
 						...t,
-						...lt(r, t, ut(i, n))
+						...ut(r, t, dt(i, n))
 					};
-					st(c, e) ? (a = {
+					ct(c, e) ? (a = {
 						...a,
-						...ft(e, t.x)
+						...pt(e, t.x)
 					}, o = !0) : (a = c, s = !0);
 					break;
 				}
@@ -497,58 +497,58 @@ function yt(e, t, n, r, i) {
 }
 //#endregion
 //#region src/control/vector.ts
-var bt = {
+var xt = {
 	tx: 0,
 	ty: 0
 };
-function xt(e) {
+function St(e) {
 	let t = Math.hypot(e.tx, e.ty);
 	if (!(t > 1e-9) || !(e.ty > 0)) return {
 		tx: 0,
 		ty: 0
 	};
-	let n = Math.max(-he, Math.min(he, Math.atan2(e.tx, e.ty))), r = Math.min(1, t);
+	let n = Math.max(-ge, Math.min(ge, Math.atan2(e.tx, e.ty))), r = Math.min(1, t);
 	return {
 		tx: r * Math.sin(n),
 		ty: r * Math.cos(n)
 	};
 }
-function St(e, t, n) {
+function Ct(e, t, n) {
 	let r = +!!t.right - !!t.left, i = +!!t.up - !!t.down;
-	return r === 0 && i === 0 ? e : xt({
-		tx: e.tx + r * me * n,
-		ty: e.ty + i * me * n
+	return r === 0 && i === 0 ? e : St({
+		tx: e.tx + r * he * n,
+		ty: e.ty + i * he * n
 	});
 }
-function Ct(e) {
+function wt(e) {
 	return e.tx === 0 && e.ty === 0 ? 0 : -Math.atan2(e.tx, e.ty);
 }
-function wt(e) {
+function Tt(e) {
 	return Math.hypot(e.tx, e.ty);
 }
 //#endregion
 //#region src/control/mixer.ts
-function Tt(e, t) {
-	let n = wt(e), r = I(Ct(e) - t), i = we() * r;
+function Et(e, t) {
+	let n = Tt(e), r = F(wt(e) - t), i = Te() * r;
 	return {
-		front: De(n + i),
-		rear: De(n - i)
+		front: Oe(n + i),
+		rear: Oe(n - i)
 	};
 }
 //#endregion
 //#region src/terrain/fog.ts
-var Et = Math.cos(ue);
-function Dt(e, t) {
-	let n = Math.sin(e.theta), r = -Math.cos(e.theta), i = Math.max(0, F(e.x - 250)), a = Math.min(A - 1, F(e.x + 250)), o = [];
+var Dt = Math.cos(de);
+function Ot(e, t) {
+	let n = Math.sin(e.theta), r = -Math.cos(e.theta), i = Math.max(0, P(e.x - 250)), a = Math.min(k - 1, P(e.x + 250)), o = [];
 	for (let s = i; s <= a; s++) {
-		let i = Re(s), a = i - e.x, c = P(t, i) - e.y, l = Math.hypot(a, c);
-		l > 250 || l < 1e-9 || (a * n + c * r) / l >= Et && o.push(s);
+		let i = ze(s), a = i - e.x, c = N(t, i) - e.y, l = Math.hypot(a, c);
+		l > 250 || l < 1e-9 || (a * n + c * r) / l >= Dt && o.push(s);
 	}
 	return o;
 }
-function Ot(e, t, n) {
-	let r = new Uint8Array(A);
-	for (let i = 0; i < A; i++) {
+function kt(e, t, n) {
+	let r = new Uint8Array(k);
+	for (let i = 0; i < k; i++) {
 		let a = e[i];
 		if (a < 0 || a > n) continue;
 		let o = t[i];
@@ -558,45 +558,45 @@ function Ot(e, t, n) {
 }
 //#endregion
 //#region src/terrain/hazards.ts
-var kt = [
+var At = [
 	.02,
 	.03,
 	.04,
 	.07,
 	.05
-], At = 25 * e;
-function jt(e, t) {
+], jt = 25 * e;
+function Mt(e, t) {
 	let n = e * 4, r = n + 4;
 	return t.some((e) => r > e.from && n < e.to);
 }
-function Mt(e, t, n, r, i) {
-	let a = new Uint8Array(A);
-	for (let t = 0; t < A; t++) {
+function Nt(e, t, n, r, i) {
+	let a = new Uint8Array(k);
+	for (let t = 0; t < k; t++) {
 		let n = t * 4;
-		Math.atan(Math.abs(P(e, n + 4) - P(e, n)) / 4) > At && (a[t] = 1);
+		Math.atan(Math.abs(N(e, n + 4) - N(e, n)) / 4) > jt && (a[t] = 1);
 	}
-	let o = Math.round(kt[t - 1] * A), s = 0, c = (e) => {
+	let o = Math.round(At[t - 1] * k), s = 0, c = (e) => {
 		let t = 1 + i.int(3);
 		for (let n = 0; n < t; n++) {
 			let t = e + i.int(11) - 5, n = 1 + i.int(3);
 			for (let e = t; e < t + n; e++) e < 0 || e >= 1e3 || a[e] || (a[e] = 1, s++);
 		}
 	};
-	for (let e = 0; s < o && e < 1e4; e++) c(i.int(A));
-	if (t === 4) for (let e of r) for (let t of [-1, 1]) c(F((t < 0 ? e.from : e.to) + t * (8 + 32 * i.next())));
-	for (let e = 0; e < A; e++) a[e] && jt(e, n) && (a[e] = 0);
+	for (let e = 0; s < o && e < 1e4; e++) c(i.int(k));
+	if (t === 4) for (let e of r) for (let t of [-1, 1]) c(P((t < 0 ? e.from : e.to) + t * (8 + 32 * i.next())));
+	for (let e = 0; e < k; e++) a[e] && Mt(e, n) && (a[e] = 0);
 	return a;
 }
-function Nt(e, t, n) {
+function Pt(e, t, n) {
 	let r = 16 + 24 * n.next(), i = t + (n.next() - .5) * 8;
 	return {
-		from: F(i - r / 2),
-		to: F(i + r / 2)
+		from: P(i - r / 2),
+		to: P(i + r / 2)
 	};
 }
 //#endregion
 //#region src/terrain/labels.ts
-var Pt = "illustrative, generated from Cassini-observed dune and crater statistics", Ft = [
+var Ft = "illustrative, generated from Cassini-observed dune and crater statistics", It = [
 	"interdune organics",
 	"dune sand sampling",
 	"water-ice bedrock exposure",
@@ -606,41 +606,41 @@ var Pt = "illustrative, generated from Cassini-observed dune and crater statisti
 	"crater floor sediments",
 	"channel outwash deposit"
 ];
-function It(e, t) {
-	let n = t === 3 ? Ft.slice(4) : Ft.slice(0, 4);
+function Lt(e, t) {
+	let n = t === 3 ? It.slice(4) : It.slice(0, 4);
 	return n[e.int(n.length)];
 }
 //#endregion
 //#region src/terrain/mapgen.ts
-var Lt = 937, Rt = [
+var Rt = 937, zt = [
 	40,
 	25,
 	20,
 	14,
 	10
-], zt = 21, Bt = 31 * e, Vt = 33 * e, Ht = [
+], Bt = 21, Vt = 31 * e, Ht = 33 * e, Ut = [
 	[40, 60],
 	[40, 70],
 	[40, 60],
 	[50, 80],
 	[60, 100]
-], Ut = [
+], Wt = [
 	[120, 260],
 	[80, 200],
 	[80, 200],
 	[50, 140],
 	[40, 120]
-], Wt = (e) => e * e * (3 - 2 * e);
-function Gt(e, t) {
+], Gt = (e) => e * e * (3 - 2 * e);
+function Kt(e, t) {
 	if (t <= e.a || t >= e.b) return 0;
 	let n = t < e.crest ? (t - e.a) / (e.crest - e.a) : (e.b - t) / (e.b - e.crest);
-	return e.h * Wt(n);
+	return e.h * Gt(n);
 }
-var Kt = (e, t) => 1.5 * e / Math.tan(t);
-function z(e, t, n) {
+var qt = (e, t) => 1.5 * e / Math.tan(t);
+function R(e, t, n) {
 	return t + (n - t) * e.next();
 }
-function qt(e, t, n, r, i, a, o, s = .4) {
+function Jt(e, t, n, r, i, a, o, s = .4) {
 	let c = r + i, l = Math.min(1, (t - e) / c);
 	if (l < s) return null;
 	let u = r * l, d = i * l, f = o === "lo" ? e : t - (u + d), p = f + u + d;
@@ -651,11 +651,11 @@ function qt(e, t, n, r, i, a, o, s = .4) {
 		h: n * l
 	};
 }
-var Jt = [20, 100], Yt = .1;
-function Xt(e, t, n) {
-	let r = Rt[n - 1], i = t + 100, a = t + 300, o = 2 * r + 40 + (n === 5 ? 65 : 0), s = Math.max(0, a - i - o - Jt[0]), c = 2 + e.int(2), l = n === 3 || n === 5 ? i + s - z(e, 0, Math.min(20, s)) : i + z(e, 0, Math.min(40, s)), u = [l];
+var Yt = [20, 100], Xt = .1;
+function Zt(e, t, n) {
+	let r = zt[n - 1], i = t + 100, a = t + 300, o = 2 * r + 40 + (n === 5 ? 65 : 0), s = Math.max(0, a - i - o - Yt[0]), c = 2 + e.int(2), l = n === 3 || n === 5 ? i + s - R(e, 0, Math.min(20, s)) : i + R(e, 0, Math.min(40, s)), u = [l];
 	for (; u.length < c;) {
-		if (l += o + z(e, Jt[0], Jt[1]), l > a) {
+		if (l += o + R(e, Yt[0], Yt[1]), l > a) {
 			if (u.length >= 2) break;
 			l = a;
 		}
@@ -663,19 +663,19 @@ function Xt(e, t, n) {
 	}
 	return u.map((e) => Math.round(e / 2) * 2);
 }
-function Zt(e, t) {
-	let n = Math.round(t / 2) * 2, r = P(e, n), i = new Float32Array(zt);
-	for (let t = 0; t < zt; t++) i[t] = P(e, n - 20 + t * 2) - r;
+function Qt(e, t) {
+	let n = Math.round(t / 2) * 2, r = N(e, n), i = new Float32Array(Bt);
+	for (let t = 0; t < Bt; t++) i[t] = N(e, n - 20 + t * 2) - r;
 	return i;
 }
-function Qt(e) {
+function $t(e) {
 	let { seed: t, tier: n } = e;
-	if (e.startPatch && e.startPatch.length !== zt) throw Error(`generateMap: startPatch needs ${zt} samples`);
-	let r = j(t).fork(Lt), i = r.fork(1), a = r.fork(2), o = r.fork(3), s = r.fork(4), c = r.fork(5), l = i.next() < .5 ? 1 : -1, u = Rt[n - 1], d = Xt(i, 400, n), f = d.map((e) => ({
+	if (e.startPatch && e.startPatch.length !== Bt) throw Error(`generateMap: startPatch needs ${Bt} samples`);
+	let r = A(t).fork(Rt), i = r.fork(1), a = r.fork(2), o = r.fork(3), s = r.fork(4), c = r.fork(5), l = i.next() < .5 ? 1 : -1, u = zt[n - 1], d = Zt(i, 400, n), f = d.map((e) => ({
 		x: e,
 		halfWidth: u,
-		label: It(c, n)
-	})), p = z(i, 0, 2 * Math.PI), m = z(i, 0, 2 * Math.PI), h = z(i, 0, 2 * Math.PI), g = (e) => 6 * Math.sin(2 * Math.PI * e / 3e3 + p), _ = (e) => .3 * Math.sin(2 * Math.PI * e / 37 + m) + .1 * Math.sin(2 * Math.PI * e / 13 + h), v = {
+		label: Lt(c, n)
+	})), p = R(i, 0, 2 * Math.PI), m = R(i, 0, 2 * Math.PI), h = R(i, 0, 2 * Math.PI), g = (e) => 6 * Math.sin(2 * Math.PI * e / 3e3 + p), _ = (e) => .3 * Math.sin(2 * Math.PI * e / 37 + m) + .1 * Math.sin(2 * Math.PI * e / 13 + h), v = {
 		from: 380,
 		to: 420
 	}, y = d.map((e) => ({
@@ -690,9 +690,9 @@ function Qt(e) {
 			from: e.from - r,
 			to: e.to + r
 		};
-	})], x = [], [S, C] = Ht[n - 1];
+	})], x = [], [S, C] = Ut[n - 1];
 	if (n === 3) {
-		let e = b[0].to, t = b[1].from, n = z(a, 60, 90), r = Kt(n, Vt), i = qt(e, t, n, r, r * z(a, 1.2, 1.6), 1, "hi", Yt);
+		let e = b[0].to, t = b[1].from, n = R(a, 60, 90), r = qt(n, Ht), i = Jt(e, t, n, r, r * R(a, 1.2, 1.6), 1, "hi", Xt);
 		i && (x.push(i), b.push({
 			from: i.a,
 			to: i.b
@@ -701,38 +701,38 @@ function Qt(e) {
 	if (n === 5) {
 		let e = b[1];
 		for (let t of [-1, 1]) {
-			let n = z(a, S, C), r = Kt(n, Bt), i = qt(t < 0 ? Math.max(...b.filter((t) => t.to <= e.from).map((e) => e.to), -200) : e.to, t < 0 ? e.from : Math.min(...b.filter((t) => t.from >= e.to).map((e) => e.from), O + 200), n, r, r * z(a, 1, 1.2), t < 0 ? 1 : -1, t < 0 ? "hi" : "lo", Yt);
+			let n = R(a, S, C), r = qt(n, Vt), i = Jt(t < 0 ? Math.max(...b.filter((t) => t.to <= e.from).map((e) => e.to), -200) : e.to, t < 0 ? e.from : Math.min(...b.filter((t) => t.from >= e.to).map((e) => e.from), D + 200), n, r, r * R(a, 1, 1.2), t < 0 ? 1 : -1, t < 0 ? "hi" : "lo", Xt);
 			i && (x.push(i), b.push({
 				from: i.a,
 				to: i.b
 			}));
 		}
 	}
-	let [w, ee] = Ut[n - 1], te = y[y.length - 1].from, ne = [...b].sort((e, t) => e.from - t.from), re = [], T = -100;
+	let [w, ee] = Wt[n - 1], te = y[y.length - 1].from, ne = [...b].sort((e, t) => e.from - t.from), re = [], T = -100;
 	for (let e of ne) e.from > T && re.push({
 		from: T,
 		to: e.from
 	}), T = Math.max(T, e.to);
 	re.push({
 		from: T,
-		to: O + 100
+		to: D + 100
 	});
 	for (let e of re) {
 		let t = e.from >= 400 && e.to <= te, n = e.from;
 		for (let r = 0; r < 50; r++) {
-			let i = e.to, o = z(a, S, C), s = Kt(o, Bt), c = t && r === 0, u = qt(n, i, o, s, s * z(a, 1.4, 2.2), l, "lo", c ? 0 : .4);
+			let i = e.to, o = R(a, S, C), s = qt(o, Vt), c = t && r === 0, u = Jt(n, i, o, s, s * R(a, 1.4, 2.2), l, "lo", c ? 0 : .4);
 			if (!u || (c ? u.h < 4 : u.h < .45 * o)) break;
-			x.push(u), n = u.b + z(a, w, ee);
+			x.push(u), n = u.b + R(a, w, ee);
 		}
 	}
-	let E = new Float64Array(k);
-	for (let e = 0; e < k; e++) {
+	let E = new Float64Array(O);
+	for (let e = 0; e < O; e++) {
 		let t = e * 2, n = g(t) + _(t);
-		for (let e of x) n += Gt(e, t);
+		for (let e of x) n += Kt(e, t);
 		E[e] = n;
 	}
 	let oe = (e, t) => {
-		for (let n = 0; n < k; n++) {
+		for (let n = 0; n < O; n++) {
 			let r = n * 2, i = Math.max(e.from - r, r - e.to, 0);
 			if (i >= 10) continue;
 			let a = i <= 0 ? 1 : .5 * (1 + Math.cos(Math.PI * i / 10));
@@ -750,76 +750,76 @@ function Qt(e) {
 			from: 380,
 			to: 420
 		}, (e) => {
-			let n = Math.min(zt - 1, Math.max(0, Math.round((e - 380) / 2)));
+			let n = Math.min(Bt - 1, Math.max(0, Math.round((e - 380) / 2)));
 			return se + t[n];
 		});
 	} else oe(v, (e) => se + .1 * _(e));
-	let D = Float32Array.from(E), ce = z(o, 300, 800), le = z(o, 300, 800), A = z(o, 0, 2 * Math.PI), ue = z(o, 0, 2 * Math.PI), de = new Float64Array(k);
-	for (let e = 0; e < k; e++) de[e] = Math.min(1.2, Math.max(0, (D[e] - g(e * 2)) / 100));
-	let fe = new Float32Array(k);
-	for (let e = 0; e < k; e++) {
+	let ce = Float32Array.from(E), le = R(o, 300, 800), ue = R(o, 300, 800), k = R(o, 0, 2 * Math.PI), de = R(o, 0, 2 * Math.PI), fe = new Float64Array(O);
+	for (let e = 0; e < O; e++) fe[e] = Math.min(1.2, Math.max(0, (ce[e] - g(e * 2)) / 100));
+	let pe = new Float32Array(O);
+	for (let e = 0; e < O; e++) {
 		let t = 0, n = 0;
-		for (let r = Math.max(0, e - 15); r <= Math.min(k - 1, e + 15); r++) t += de[r], n++;
-		let r = e * 2, i = 1 + .18 * Math.sin(2 * Math.PI * r / ce + A) + .1 * Math.sin(2 * Math.PI * r / le + ue) + .35 * (t / n - .2);
-		fe[e] = Math.min(ae, Math.max(ie, i));
+		for (let r = Math.max(0, e - 15); r <= Math.min(O - 1, e + 15); r++) t += fe[r], n++;
+		let r = e * 2, i = 1 + .18 * Math.sin(2 * Math.PI * r / le + k) + .1 * Math.sin(2 * Math.PI * r / ue + de) + .35 * (t / n - .2);
+		pe[e] = Math.min(ae, Math.max(ie, i));
 	}
-	let pe = [{
+	let me = [{
 		from: v.from - 4,
 		to: v.to + 4
 	}, ...y];
 	return {
 		seed: t,
 		tier: n,
-		heights: D,
-		fSite: fe,
+		heights: ce,
+		fSite: pe,
 		windDir: l,
-		baseHazards: Mt({ heights: D }, n, pe, y, s),
+		baseHazards: Nt({ heights: ce }, n, me, y, s),
 		startX: 400,
 		targets: f
 	};
 }
-var $t = [
+var en = [
 	"calm",
 	"breezy",
 	"strong",
 	"beyond predicted"
 ];
-function en(e, t) {
+function tn(e, t) {
 	return Math.min(3, e + Math.max(0, t - 1));
 }
-function tn(e, t, n) {
+function nn(e, t, n) {
 	if (!Number.isInteger(n) || n < 1 || n > 5) throw Error(`hopPlan: hop must be 1..5, got ${n}`);
 	return {
 		hop: n,
-		level: en(t, n),
+		level: tn(t, n),
 		tier: n,
-		mapSeed: xe(e, n),
+		mapSeed: Se(e, n),
 		midHopEvent: n >= 4
 	};
 }
-function nn(e, t = 1) {
+function rn(e, t = 1) {
 	return {
 		seed: e >>> 0,
 		baseLevel: t,
 		results: Array.from({ length: 5 }, () => null)
 	};
 }
-var rn = {
+var an = {
 	1: "wide interdune target",
 	2: "narrower interdune",
 	3: "crater-rim relief",
 	4: "narrow corridor, more ice blocks",
 	5: "slipface-flanked target"
 };
-function an(e) {
-	return e === 3 ? `${$t[3]} (beyond Titan's predicted near-surface winds)` : $t[e];
-}
-function on(e, t) {
-	return xe(e, 1e3 + t);
+function on(e) {
+	return e === 3 ? `${en[3]} (beyond Titan's predicted near-surface winds)` : en[e];
 }
 function sn(e, t) {
-	if (!tn(e, 0, t).midHopEvent) return null;
-	let n = j(xe(e, 2e3 + t)), r = Math.round((20 + n.next() * 35) / i), a = n.int(4), o = n.int(2);
+	return Se(e, 1e3 + t);
+}
+function cn(e, t) {
+	if (!nn(e, 0, t).midHopEvent) return null;
+	let n = A(Se(e, 2e3 + t)), r = Math.round((20 + n.next() * 35) / i), a = n.int(4), o = n.int(2);
 	return {
 		step: r,
 		event: a === 0 ? {
@@ -828,48 +828,48 @@ function sn(e, t) {
 		} : a === 1 ? { kind: "gustFront" } : a === 2 ? { kind: "lidarDropout" } : { kind: "hazard" }
 	};
 }
-function cn(e, t, n, r) {
-	let i = t.hop ?? n ?? 1, a = n === null || i === 1 && t.seed === void 0 || t.seed !== void 0 && t.seed >>> 0 !== e.seed, o = t.level !== void 0, s = o && (i === 1 || a) ? Math.max(0, t.level - (i - 1)) : e.baseLevel, c = a ? nn(t.seed ?? r(), s) : s === e.baseLevel ? e : {
+function ln(e, t, n, r) {
+	let i = t.hop ?? n ?? 1, a = n === null || i === 1 && t.seed === void 0 || t.seed !== void 0 && t.seed >>> 0 !== e.seed, o = t.level !== void 0, s = o && (i === 1 || a) ? Math.max(0, t.level - (i - 1)) : e.baseLevel, c = a ? rn(t.seed ?? r(), s) : s === e.baseLevel ? e : {
 		...e,
 		baseLevel: s
 	}, l = a && o ? {
-		...tn(c.seed, c.baseLevel, i),
+		...nn(c.seed, c.baseLevel, i),
 		level: t.level
-	} : tn(c.seed, c.baseLevel, i), u = sn(c.seed, i);
+	} : nn(c.seed, c.baseLevel, i), u = cn(c.seed, i);
 	return {
 		chain: c,
 		plan: l,
-		worldSeed: on(c.seed, i),
+		worldSeed: sn(c.seed, i),
 		events: u ? [u] : []
 	};
 }
-function ln(e) {
+function un(e) {
 	return e.results.filter((e) => e?.safe).length;
 }
 //#endregion
 //#region src/world/start.ts
-function B(e, t, n) {
+function z(e, t, n) {
 	return t + (n - t) * e.next();
 }
-function un(e, t, n) {
+function dn(e, t, n) {
 	let r = -Infinity;
-	for (let i = Math.min(t, n); i <= Math.max(t, n); i += 4) r = Math.max(r, P(e, i));
+	for (let i = Math.min(t, n); i <= Math.max(t, n); i += 4) r = Math.max(r, N(e, i));
 	return r;
 }
-function dn(e, t = e.targets[0].x) {
+function fn(e, t = e.targets[0].x) {
 	return {
 		kind: "ground",
-		start: ft(e, e.startX),
+		start: pt(e, e.startX),
 		onGround: !0,
 		targetX: t,
 		energy: w,
 		s: [0, 0]
 	};
 }
-function fn(t, n, r, i) {
+function pn(t, n, r, i) {
 	let a = i - t.startX, o = (e) => Math.max(0, Math.min(e, a - 30)), s, c, l, u, d;
-	r === "transit" ? (s = t.startX + B(n, 30, Math.max(40, a - 60)), c = B(n, 15, 50), l = B(n, 0, 5), u = B(n, -1, 1), d = B(n, .4, .95) * w) : r === "scout" ? (s = i + B(n, -o(120), 60), c = B(n, 15, 60), l = B(n, -1.5, 3), u = B(n, -1, 1), d = B(n, .3, .8) * w) : (s = i + B(n, -o(25), 25), c = B(n, 4, 40), l = B(n, -1, 1), u = B(n, -2, .5), d = B(n, .2, .7) * w);
-	let f = un(t, s - 50, s + 50);
+	r === "transit" ? (s = t.startX + z(n, 30, Math.max(40, a - 60)), c = z(n, 15, 50), l = z(n, 0, 5), u = z(n, -1, 1), d = z(n, .4, .95) * w) : r === "scout" ? (s = i + z(n, -o(120), 60), c = z(n, 15, 60), l = z(n, -1.5, 3), u = z(n, -1, 1), d = z(n, .3, .8) * w) : (s = i + z(n, -o(25), 25), c = z(n, 4, 40), l = z(n, -1, 1), u = z(n, -2, .5), d = z(n, .2, .7) * w);
+	let f = dn(t, s - 50, s + 50);
 	return {
 		kind: r,
 		start: {
@@ -877,35 +877,35 @@ function fn(t, n, r, i) {
 			y: f + c,
 			vx: l,
 			vy: u,
-			theta: B(n, -8, 8) * e,
-			omega: B(n, -3, 3) * e
+			theta: z(n, -8, 8) * e,
+			omega: z(n, -3, 3) * e
 		},
 		onGround: !1,
 		targetX: i,
 		energy: d,
-		s: Ue()
+		s: We()
 	};
 }
 //#endregion
 //#region src/world/targets.ts
-function pn(e, t = 0) {
-	return [F(e - d - 1 - t), F(e - d + 1 + t)];
+function mn(e, t = 0) {
+	return [P(e - d - 1 - t), P(e - d + 1 + t)];
 }
-function mn(e, t) {
-	let [n, r] = pn(e);
+function hn(e, t) {
+	let [n, r] = mn(e);
 	for (let e = n; e <= r; e++) if (e >= 0 && e < 1e3 && t[e] === 2) return !0;
 	return !1;
 }
-function hn(e, t, n) {
-	let [r, i] = pn(e, 4);
+function gn(e, t, n) {
+	let [r, i] = mn(e, 4);
 	if (r < 0 || i >= 1e3) return !1;
 	for (let e = r; e <= i; e++) if (t[e] !== 1) return !1;
-	return Le(n, e - d - 1, e - d + 1) <= ye;
+	return Re(n, e - d - 1, e - d + 1) <= be;
 }
-function gn(e, t) {
+function _n(e, t) {
 	let n = null;
 	for (let r of e.targets) {
-		if (mn(r.x, t)) continue;
+		if (hn(r.x, t)) continue;
 		let i = Math.abs(r.x - e.startX);
 		(!n || r.halfWidth > n.w || r.halfWidth === n.w && i < n.d) && (n = {
 			x: r.x,
@@ -915,38 +915,38 @@ function gn(e, t) {
 	}
 	return n ? n.x : e.targets[0].x;
 }
-function _n(e, t, n, r) {
+function vn(e, t, n, r) {
 	return r ? void 0 : {
 		x: t.x,
-		clearance: L(t, e),
+		clearance: I(t, e),
 		energyEst: n
 	};
 }
-function vn(e, n, r) {
-	return fe + be * 2 * Ve(875 * t / 2) * (Math.abs(r - e) / 6 + Math.max(0, n - 10) / 3 + 10);
+function yn(e, n, r) {
+	return pe + xe * 2 * He(875 * t / 2) * (Math.abs(r - e) / 6 + Math.max(0, n - 10) / 3 + 10);
 }
-function yn(e, t, n) {
+function bn(e, t, n) {
 	let r = Math.round(n / 4) * 4;
 	for (let n = 0; n <= 250; n += 4) {
-		if (hn(r - n, t, e)) return r - n;
-		if (n > 0 && hn(r + n, t, e)) return r + n;
+		if (gn(r - n, t, e)) return r - n;
+		if (n > 0 && gn(r + n, t, e)) return r + n;
 	}
 	return null;
 }
-function bn(e, t, n, r) {
-	if (r && r.energyEst < vn(r.x, r.clearance, n)) {
-		let n = yn(e, t, r.x);
+function xn(e, t, n, r) {
+	if (r && r.energyEst < yn(r.x, r.clearance, n)) {
+		let n = bn(e, t, r.x);
 		if (n !== null) return n;
 	}
-	if (!mn(n, t)) return n;
+	if (!hn(n, t)) return n;
 	for (let r = 4; r <= 60; r += 4) {
-		if (hn(n - r, t, e)) return n - r;
-		if (hn(n + r, t, e)) return n + r;
+		if (gn(n - r, t, e)) return n - r;
+		if (gn(n + r, t, e)) return n + r;
 	}
-	let i = e.targets.filter((e) => Math.abs(e.x - n) > 60 && !mn(e.x, t)).sort((e, t) => Math.abs(e.x - n) - Math.abs(t.x - n));
+	let i = e.targets.filter((e) => Math.abs(e.x - n) > 60 && !hn(e.x, t)).sort((e, t) => Math.abs(e.x - n) - Math.abs(t.x - n));
 	return i.length > 0 ? i[0].x : n;
 }
-function xn(e, t) {
+function Sn(e, t) {
 	for (let n = e.length - 1; n >= 0; n--) {
 		let r = e[n];
 		if (r.event.kind !== "hazard") continue;
@@ -957,8 +957,8 @@ function xn(e, t) {
 }
 //#endregion
 //#region src/world/history.ts
-function Sn(e, t) {
-	let n = (t) => t < e.records.length ? e.records[Math.max(0, t)].state : e.state, r = Math.max(0, Math.min(Math.floor(t), e.step)), i = Math.min(r + 1, e.step), a = n(r), o = n(i), s = Math.min(1, Math.max(0, t - r)), c = lt(a, o, s), l = (e, t) => e + (t - e) * s;
+function Cn(e, t) {
+	let n = (t) => t < e.records.length ? e.records[Math.max(0, t)].state : e.state, r = Math.max(0, Math.min(Math.floor(t), e.step)), i = Math.min(r + 1, e.step), a = n(r), o = n(i), s = Math.min(1, Math.max(0, t - r)), c = ut(a, o, s), l = (e, t) => e + (t - e) * s;
 	return {
 		...c,
 		sF: l(a.sF, o.sF),
@@ -966,22 +966,22 @@ function Sn(e, t) {
 		energyEst: l(a.energyEst, o.energyEst)
 	};
 }
-function Cn(e, t, n) {
+function wn(e, t, n) {
 	let r = t.downlinkStep(n), i = e.records;
 	return Array.from({ length: 20 }, (e, a) => {
 		let o = r + a;
 		return o < n && o < i.length ? i[o].cmd : t.arriving(o);
 	});
 }
-var wn = 1, Tn = 2, En = 3;
-function Dn(e, t, n) {
+var Tn = 1, En = 2, Dn = 3;
+function On(e, t, n) {
 	let r = (e, t) => e + (t - e) * n;
 	return {
 		x: r(e.x, t.x),
 		y: r(e.y, t.y),
 		vx: r(e.vx, t.vx),
 		vy: r(e.vy, t.vy),
-		theta: I(e.theta + I(t.theta - e.theta) * n),
+		theta: F(e.theta + F(t.theta - e.theta) * n),
 		omega: r(e.omega, t.omega),
 		sF: r(e.sF, t.sF),
 		sR: r(e.sR, t.sR),
@@ -992,14 +992,14 @@ function Dn(e, t, n) {
 		t: r(e.t, t.t)
 	};
 }
-var On = class {
+var kn = class {
 	map;
 	level;
 	seed;
 	stopAtContact;
 	step = 0;
 	state;
-	faults = Oe();
+	faults = ke();
 	targetX;
 	onGround;
 	armed;
@@ -1017,21 +1017,21 @@ var On = class {
 	gusts;
 	pending;
 	constructor(e) {
-		if (this.map = e.map, this.level = e.level, this.seed = e.seed, this.stopAtContact = e.stopAtContact ?? !0, this.targetX = e.targetX, this.onGround = e.onGround, e.onGround && Math.abs(L(e.start, e.map)) > .05) throw Error("World: an onGround start must rest on the terrain (use restingPose)");
+		if (this.map = e.map, this.level = e.level, this.seed = e.seed, this.stopAtContact = e.stopAtContact ?? !0, this.targetX = e.targetX, this.onGround = e.onGround, e.onGround && Math.abs(I(e.start, e.map)) > .05) throw Error("World: an onGround start must rest on the terrain (use restingPose)");
 		let t = e.onGround ? {
 			...e.start,
 			vx: 0,
 			vy: 0,
 			omega: 0
 		} : e.start;
-		this.state = Je(t, {
+		this.state = Ye(t, {
 			energy: e.energy,
 			s: e.s
-		}), this.armed = !e.onGround && L(t, e.map) >= 1;
-		let n = j(e.seed);
-		this.rng = n.fork(wn), this.gusts = new gt(e.level, n.fork(Tn)), this.eventRng = n.fork(En), this.pending = [...e.events ?? []].sort((e, t) => e.step - t.step), this.hazardFrom = new Int32Array(A).fill(-1);
-		for (let t = 0; t < A; t++) e.map.baseHazards[t] && (this.hazardFrom[t] = 0);
-		this.revealedAt = new Int32Array(A).fill(-1), this.scan();
+		}), this.armed = !e.onGround && I(t, e.map) >= 1;
+		let n = A(e.seed);
+		this.rng = n.fork(Tn), this.gusts = new _t(e.level, n.fork(En)), this.eventRng = n.fork(Dn), this.pending = [...e.events ?? []].sort((e, t) => e.step - t.step), this.hazardFrom = new Int32Array(k).fill(-1);
+		for (let t = 0; t < k; t++) e.map.baseHazards[t] && (this.hazardFrom[t] = 0);
+		this.revealedAt = new Int32Array(k).fill(-1), this.scan();
 	}
 	get done() {
 		return this.contact !== null && this.stopAtContact;
@@ -1045,11 +1045,11 @@ var On = class {
 	advance(e) {
 		if (this.done) return this.state;
 		this.applyDue();
-		let t = M(e);
+		let t = j(e);
 		this.records.push({
 			state: this.state,
 			cmd: t,
-			faultBits: ke(this.faults, this.step),
+			faultBits: Ae(this.faults, this.step),
 			targetX: this.targetX,
 			onGround: this.onGround
 		}), this.gusts.step(i);
@@ -1059,19 +1059,19 @@ var On = class {
 			energyLocked: this.energyLocked
 		}, r, a = 0;
 		if (this.onGround) {
-			let e = tt(this.state, t, n, this.rng);
+			let e = nt(this.state, t, n, this.rng);
 			r = e.states, e.liftOff >= 0 ? (this.onGround = !1, a = e.liftOff) : a = r.length;
-		} else r = et(this.state, t, n, this.rng);
+		} else r = tt(this.state, t, n, this.rng);
 		let o = r[r.length - 1];
 		if (!this.onGround && a < r.length) {
-			let e = a === 0 ? this.state : r[a - 1], t = R(e, this.map);
+			let e = a === 0 ? this.state : r[a - 1], t = L(e, this.map);
 			for (let n = a; n < r.length; n++) {
-				let i = r[n], a = R(i, this.map);
+				let i = r[n], a = L(i, this.map);
 				if (a < 0 && (this.armed || i.vy <= 0)) {
-					let s = ut(t, a), c = Dn(e, i, s);
-					if (!this.armed && !st(c, this.map) && (this.armed = !0), this.armed) this.contact === null && !this.groundless && (this.contact = ct(c, this.map, (e) => this.hazardTrue(e)), this.contactStep = this.step, this.contactAlpha = (n + s) / r.length, this.stopAtContact ? o = c : this.groundless = !0);
+					let s = dt(t, a), c = On(e, i, s);
+					if (!this.armed && !ct(c, this.map) && (this.armed = !0), this.armed) this.contact === null && !this.groundless && (this.contact = lt(c, this.map, (e) => this.hazardTrue(e)), this.contactStep = this.step, this.contactAlpha = (n + s) / r.length, this.stopAtContact ? o = c : this.groundless = !0);
 					else {
-						let e = ft(this.map, i.x);
+						let e = pt(this.map, i.x);
 						o = {
 							...r[r.length - 1],
 							...e
@@ -1082,7 +1082,7 @@ var On = class {
 				e = i, t = a;
 			}
 		}
-		return !this.armed && !this.onGround && L(o, this.map) >= 1 && (this.armed = !0), o.energy <= 0 && (this.energyLocked = !0), this.state = o, this.step += 1, this.scan(), o;
+		return !this.armed && !this.onGround && I(o, this.map) >= 1 && (this.armed = !0), o.energy <= 0 && (this.energyLocked = !0), this.state = o, this.step += 1, this.scan(), o;
 	}
 	applyEvent(e) {
 		let t = e;
@@ -1108,8 +1108,8 @@ var On = class {
 			lidarUntil: this.step + Math.round(8 / i)
 		};
 		else {
-			let { from: e, to: t } = Nt(this.map, this.targetX, this.eventRng);
-			for (let n = Math.max(0, e); n <= Math.min(A - 1, t); n++) this.hazardFrom[n] < 0 && (this.hazardFrom[n] = this.step);
+			let { from: e, to: t } = Pt(this.map, this.targetX, this.eventRng);
+			for (let n = Math.max(0, e); n <= Math.min(k - 1, t); n++) this.hazardFrom[n] < 0 && (this.hazardFrom[n] = this.step);
 		}
 		this.eventLog.push({
 			step: this.step,
@@ -1117,7 +1117,7 @@ var On = class {
 		});
 	}
 	knowledge() {
-		return Ot(this.revealedAt, this.hazardFrom, this.step);
+		return kt(this.revealedAt, this.hazardFrom, this.step);
 	}
 	hazardTrue(e) {
 		if (e < 0 || e >= 1e3) return !0;
@@ -1125,10 +1125,10 @@ var On = class {
 		return t >= 0 && t <= this.step;
 	}
 	setTarget(e) {
-		this.targetX = Math.min(O, Math.max(0, e));
+		this.targetX = Math.min(D, Math.max(0, e));
 	}
 	windAt(e, t) {
-		let [n, r] = ht(this.map, this.level, e, t), i = pt(t - P(this.map, e)), a = Math.min(1, i);
+		let [n, r] = gt(this.map, this.level, e, t), i = mt(t - N(this.map, e)), a = Math.min(1, i);
 		return [n + (this.step < this.faults.gustFrontUntil ? this.faults.gustFrontDu * i : 0) + this.gusts.u * a, r + this.gusts.w * a];
 	}
 	gust() {
@@ -1138,34 +1138,34 @@ var On = class {
 		};
 	}
 	scan() {
-		if (!(this.step < this.faults.lidarUntil)) for (let e of Dt(this.state, this.map)) this.revealedAt[e] < 0 && (this.revealedAt[e] = this.step);
+		if (!(this.step < this.faults.lidarUntil)) for (let e of Ot(this.state, this.map)) this.revealedAt[e] < 0 && (this.revealedAt[e] = this.step);
 	}
-}, kn = [
+}, An = [
 	"weakRotor",
 	"gustFront",
 	"lidarDropout",
 	"hazard"
 ];
-function An(e, t) {
+function jn(e, t) {
 	if (t !== 0 && t !== 1 && t !== 2 && t !== 3) throw TypeError(`lander: ${e}: level must be 0, 1, 2 or 3, got ${String(t)}`);
 	return t;
 }
-function jn(e, t, n) {
+function Mn(e, t, n) {
 	if (typeof n != "number" || !Number.isFinite(n) || n < -1 || n > 1) throw TypeError(`lander: ${e}: ${t} must be a number in [-1, 1], got ${String(n)}`);
 	return n;
 }
-var Mn = {
+var Nn = {
 	newFlight(e, t) {
 		if (t !== void 0 && (typeof t != "object" || !t)) throw TypeError("lander: newFlight: the argument must be an object when given");
 		let n = t?.hop ?? 1;
 		if (!Number.isInteger(n) || n < 1 || n > 5) throw TypeError(`lander: newFlight: hop must be an integer 1..5, got ${String(n)}`);
 		e.newFlight(t?.level === void 0 ? { hop: n } : {
 			hop: n,
-			level: An("newFlight", t.level)
+			level: jn("newFlight", t.level)
 		});
 	},
 	setLevel(e, t) {
-		e.setLevel(An("setLevel", t));
+		e.setLevel(jn("setLevel", t));
 	},
 	setAutopilot(e, t) {
 		if (typeof t != "boolean") throw TypeError(`lander: setAutopilot: on must be a boolean, got ${String(t)}`);
@@ -1174,26 +1174,26 @@ var Mn = {
 	setInput(e, t) {
 		if (typeof t != "object" || !t) throw TypeError("lander: setInput: the argument must be { x, y }");
 		e.setInput({
-			x: jn("setInput", "x", t.x),
-			y: jn("setInput", "y", t.y)
+			x: Mn("setInput", "x", t.x),
+			y: Mn("setInput", "y", t.y)
 		});
 	},
 	injectFault(e, t) {
-		if (!kn.includes(t)) throw TypeError(`lander: injectFault: kind must be one of ${kn.join(", ")}, got ${String(t)}`);
+		if (!An.includes(t)) throw TypeError(`lander: injectFault: kind must be one of ${An.join(", ")}, got ${String(t)}`);
 		e.injectFault(t);
 	}
-}, Nn = Object.keys(Mn);
-function Pn(e, t, ...n) {
-	Mn[t](e, ...n);
+}, Pn = Object.keys(Nn);
+function Fn(e, t, ...n) {
+	Nn[t](e, ...n);
 }
-var Fn = .55;
-function In(e) {
-	return Math.min(400, Math.max(30, ge * Math.max(0, e) + 20));
+var In = .55;
+function Ln(e) {
+	return Math.min(400, Math.max(30, _e * Math.max(0, e) + 20));
 }
-function Ln(e, t) {
+function Rn(e, t) {
 	return 1 - Math.exp(-Math.max(0, e) / t);
 }
-var Rn = .6, zn = .25, Bn = class e {
+var zn = .6, Bn = .25, Vn = class e {
 	zoom;
 	cx = 400;
 	cy = 0;
@@ -1203,7 +1203,7 @@ var Rn = .6, zn = .25, Bn = class e {
 		this.zoom = e;
 	}
 	wantWidth(e, t) {
-		let n = In(e), r = Math.max(0, e) / (Fn * t);
+		let n = Ln(e), r = Math.max(0, e) / (In * t);
 		return Math.min(n, Math.max(n / this.zoom, 16, r));
 	}
 	visibleHeight(e) {
@@ -1224,8 +1224,8 @@ var Rn = .6, zn = .25, Bn = class e {
 			this.cx = r.cx, this.cy = r.cy, this.primed = !0;
 			return;
 		}
-		this.width += (a - this.width) * Ln(r, Rn);
-		let o = e.target(t, n, this.width, i, this.zoom), s = Ln(r, zn);
+		this.width += (a - this.width) * Rn(r, zn);
+		let o = e.target(t, n, this.width, i, this.zoom), s = Rn(r, Bn);
 		this.cx += (o.cx - this.cx) * s, this.cy += (o.cy - this.cy) * s;
 	}
 	reset() {
@@ -1241,7 +1241,7 @@ var Rn = .6, zn = .25, Bn = class e {
 	screenToWorldX(e, t) {
 		return this.cx + (e - t / 2) / this.scale(t);
 	}
-}, Vn = /* @__PURE__ */ new Set([
+}, Hn = /* @__PURE__ */ new Set([
 	"w",
 	"W",
 	"s",
@@ -1255,10 +1255,10 @@ var Rn = .6, zn = .25, Bn = class e {
 	"ArrowLeft",
 	"ArrowRight"
 ]);
-function Hn(e) {
-	return Vn.has(e);
+function Un(e) {
+	return Hn.has(e);
 }
-function Un(e, t) {
+function Wn(e, t) {
 	let n = e.createElement("div");
 	n.className = "control-toggle", n.setAttribute("role", "group"), n.setAttribute("aria-label", "Control");
 	let r = e.createElement("span");
@@ -1284,7 +1284,7 @@ function Un(e, t) {
 		}
 	};
 }
-function Wn(e, t) {
+function Gn(e, t) {
 	let n = e.createElement("button");
 	return n.type = "button", n.className = "take-controls", n.textContent = "Take the controls", n.addEventListener("click", t), {
 		el: n,
@@ -1295,9 +1295,9 @@ function Wn(e, t) {
 }
 //#endregion
 //#region src/ui/endcard.ts
-var Gn = (t) => Number((t / e).toFixed(1));
-function Kn(t) {
-	let n = t.margins, r = t.pose, i = le - n.slope;
+var Kn = (t) => Number((t / e).toFixed(1));
+function qn(t) {
+	let n = t.margins, r = t.pose, i = ue - n.slope;
 	return [
 		{
 			label: "Vertical speed",
@@ -1314,19 +1314,19 @@ function Kn(t) {
 		{
 			label: "Tilt",
 			value: `${(Math.abs(r.theta) / e).toFixed(1)}°`,
-			limit: `${Gn(D)}°`,
+			limit: `${Kn(ce)}°`,
 			ok: n.theta >= 0
 		},
 		{
 			label: "Spin rate",
 			value: `${(Math.abs(r.omega) / e).toFixed(1)}°/s`,
-			limit: `${Gn(ce)}°/s`,
+			limit: `${Kn(le)}°/s`,
 			ok: n.omega >= 0
 		},
 		{
 			label: "Ground slope",
 			value: `${(i / e).toFixed(1)}°`,
-			limit: `${Gn(le)}°`,
+			limit: `${Kn(ue)}°`,
 			ok: n.slope >= 0
 		},
 		{
@@ -1337,18 +1337,18 @@ function Kn(t) {
 		}
 	];
 }
-function qn(e) {
+function Jn(e) {
 	return `Energy used: ${(e / 1e3).toFixed(0)} kJ, ${Math.round(100 * e / w)}% of the hop budget (game-scaled; Dragonfly recharges from its RTG between flights)`;
 }
-function Jn(e, t, n) {
+function Yn(e, t, n) {
 	let r = e.ownerDocument;
 	e.replaceChildren();
 	let i = t.contact, a = r.createElement("h2");
 	a.textContent = i.safe ? "Landed safely" : "Crashed", a.className = i.safe ? "ok" : "bad";
 	let o = r.createElement("p");
-	o.textContent = `Hop ${t.hop} of 5 · ${$t[t.level]}`;
+	o.textContent = `Hop ${t.hop} of 5 · ${en[t.level]}`;
 	let s = r.createElement("table");
-	for (let e of Kn(i)) {
+	for (let e of qn(i)) {
 		let t = r.createElement("tr");
 		t.className = e.ok ? "ok" : "bad";
 		for (let n of [
@@ -1363,7 +1363,7 @@ function Jn(e, t, n) {
 		s.append(t);
 	}
 	let c = r.createElement("p");
-	c.textContent = qn(t.energyUsedJ);
+	c.textContent = Jn(t.energyUsedJ);
 	let l = r.createElement("div");
 	l.className = "endcard-buttons";
 	let u = (e, t, n = !0) => {
@@ -1372,26 +1372,26 @@ function Jn(e, t, n) {
 	};
 	l.append(u("Fly again", n.again), ...i.safe && t.hop < 5 ? [u("Next hop", n.next)] : []), e.append(a, o, s, c, l), e.hidden = !1;
 }
-function Yn(e) {
+function Xn(e) {
 	e.hidden = !0, e.replaceChildren();
 }
 //#endregion
 //#region src/ui/instruments.ts
-var Xn = (e, t = 1) => `${e >= 0 ? "+" : ""}${e.toFixed(t)}`;
-function Zn(t) {
+var Zn = (e, t = 1) => `${e >= 0 ? "+" : ""}${e.toFixed(t)}`;
+function Qn(t) {
 	let n = t.display;
 	return {
 		hgt: `${Math.max(0, t.clearance).toFixed(1)} m`,
-		vx: `${Xn(n.vx)} m/s`,
-		vy: `${Xn(n.vy)} m/s`,
-		tilt: `${Xn(n.theta / e)}°`,
+		vx: `${Zn(n.vx)} m/s`,
+		vy: `${Zn(n.vy)} m/s`,
+		tilt: `${Zn(n.theta / e)}°`,
 		energy: `${Math.round(100 * n.energyEst / w)}% est.`,
-		wind: `${Xn(t.meanU)} mean · ${Xn(t.liveU)} live m/s`,
+		wind: `${Zn(t.meanU)} mean · ${Zn(t.liveU)} live m/s`,
 		link: t.source === "onboard" ? "onboard, no delay" : t.age < 0 ? `${t.source}, ${(-t.age).toFixed(1)} s ahead` : `${t.source}, ${t.age.toFixed(1)} s old`,
 		time: `${t.t.toFixed(1)} s`
 	};
 }
-var Qn = [
+var $n = [
 	["hgt", "HGT"],
 	["vx", "VX"],
 	["vy", "VY"],
@@ -1400,12 +1400,12 @@ var Qn = [
 	["wind", "WIND"],
 	["link", "LINK"],
 	["time", "T"]
-], $n = class {
+], er = class {
 	cells = /* @__PURE__ */ new Map();
 	constructor(e) {
 		let t = e.ownerDocument;
 		e.replaceChildren();
-		for (let [n, r] of Qn) {
+		for (let [n, r] of $n) {
 			let i = t.createElement("div");
 			i.className = "inst";
 			let a = t.createElement("span");
@@ -1417,40 +1417,40 @@ var Qn = [
 	update(e) {
 		for (let [t, n] of this.cells) n.textContent !== e[t] && (n.textContent = e[t]);
 	}
-}, er = {
+}, tr = {
 	skyTop: "#2b1a0c",
 	skyHorizon: "#b86f2c",
 	haze: "rgb(196, 128, 62)",
 	panel: "rgb(24, 14, 6)"
-}, tr = {
+}, nr = {
 	ground: "#4a2f17",
 	mapBack: "#2a190b",
 	mapGround: "#5a3a1d",
 	mapFog: "#6b4a2b"
-}, nr = {
+}, rr = {
 	surfaceScanned: "#e0b47a",
 	surfaceFog: "#7a5432",
 	fog: "rgb(214, 150, 84)",
 	edge: "#a2774a",
 	insetTerrain: "rgb(214, 160, 96)",
 	mapScanned: "#e0b47a"
-}, rr = {
+}, ir = {
 	text: "#f3d6ae",
 	badgeText: "rgb(255, 228, 190)",
 	insetText: "rgb(255, 244, 228)",
 	streak: "rgb(255, 236, 200)",
 	mapWindow: "rgb(255, 240, 220)"
-}, ir = {
+}, ar = {
 	ghost: "rgb(255, 236, 210)",
 	ghostSafe: "rgb(95, 211, 138)",
 	planRejected: "rgb(255, 236, 210)",
 	planElite: "rgb(255, 200, 140)",
 	planChosen: "rgb(255, 255, 255)",
 	predictedLine: "#2a1c10"
-}, ar = { fallbackLine: "#2a1c10" }, or = {
+}, or = { fallbackLine: "#2a1c10" }, sr = {
 	target: "#9dffb0",
 	insetFrame: "rgb(214, 160, 96)"
-}, sr = {
+}, cr = {
 	craftBody: "#e9dcc6",
 	craftDeck: "#b9a487",
 	craftLine: "#2a1c10",
@@ -1461,67 +1461,67 @@ var Qn = [
 	vector: "#7fe3ff",
 	insetCraft: "rgb(255, 244, 228)",
 	mapCraft: "#ffffff"
-}, cr = {
+}, lr = {
 	hazard: "#dff4ff",
 	hazardEdge: "#4d7a96",
 	ghostCrash: "rgb(255, 90, 79)",
 	weak: "rgb(255, 120, 90)",
 	mapHazard: "#dff4ff"
-}, lr = {
-	sky: er,
-	ground: tr,
-	terrain: nr,
-	text: rr,
-	model: ir,
-	baseline: ar,
-	readout: or,
-	craft: sr,
-	hazard: cr
-}, ur = Object.freeze({
-	sky: er.skyTop,
-	ground: tr.ground,
-	terrain: nr.surfaceScanned,
-	text: rr.text,
-	model: ir.ghost,
-	baseline: ar.fallbackLine,
-	readout: or.target,
-	craft: sr.craftBody,
-	hazard: cr.hazard
-}), V = Object.freeze({
-	terrainCaption: `terrain: ${Pt}`,
+}, ur = {
+	sky: tr,
+	ground: nr,
+	terrain: rr,
+	text: ir,
+	model: ar,
+	baseline: or,
+	readout: sr,
+	craft: cr,
+	hazard: lr
+}, dr = Object.freeze({
+	sky: tr.skyTop,
+	ground: nr.ground,
+	terrain: rr.surfaceScanned,
+	text: ir.text,
+	model: ar.ghost,
+	baseline: or.fallbackLine,
+	readout: sr.target,
+	craft: cr.craftBody,
+	hazard: lr.hazard
+}), B = Object.freeze({
+	terrainCaption: `terrain: ${Ft}`,
 	awaitingTouchdown: "Touchdown predicted: awaiting confirmation",
 	insetLabel: "Downlink · {s} s old",
 	targetLabel: "{label} (illustrative)",
 	simplePilot: "Planner too slow on this device: a simple pilot is flying",
 	noModel: "Dream model isn't loaded: flying on a simple physics predictor that ignores wind."
-}), dr = Object.keys(ur), fr = Object.keys(V);
-function pr(e = {}) {
+}), fr = Object.keys(dr), pr = Object.keys(B);
+function mr(e = {}) {
 	let t = {};
-	for (let n of dr) {
+	for (let n of fr) {
 		let r = e[n];
-		for (let [e, i] of Object.entries(lr[n])) t[e] = r ?? i;
+		for (let [e, i] of Object.entries(ur[n])) t[e] = r ?? i;
 	}
 	return t;
 }
-var mr = Object.freeze(pr()), hr = Object.freeze({
-	palette: mr,
-	text: V,
+var hr = Object.freeze(mr()), gr = Object.freeze({
+	palette: hr,
+	text: B,
 	inset: !0
 });
-function gr(e = {}, t = V, n = !0) {
+function _r(e = {}, t = B, n = !0) {
 	return {
-		palette: pr(e),
+		palette: mr(e),
 		text: t,
 		inset: n
 	};
 }
-function _r(e, t, n = console.warn) {
+function vr(e, t, n = console.warn) {
 	let r = {}, i = [], a = (e, n) => {
 		t.fillStyle = n;
 		let r = t.fillStyle;
 		return t.fillStyle = e, t.fillStyle !== r;
 	};
-	for (let n of dr) {
+	for (let n of fr) {
 		let o = e?.[n];
 		if (o === void 0) continue;
 		if (!t) {
@@ -1542,7 +1542,7 @@ function _r(e, t, n = console.warn) {
 	}
 	return i.length > 0 && n(`lander: ${i.join(", ")}: not a colour a canvas accepts, so the default is drawn. Pass a resolved CSS colour (a canvas cannot resolve var(--x); read it with getComputedStyle).`), r;
 }
-function vr(e) {
+function yr(e) {
 	try {
 		let t = e.createElement("canvas");
 		return t.width = 1, t.height = 1, t.getContext("2d", { willReadFrequently: !0 });
@@ -1550,7 +1550,7 @@ function vr(e) {
 		return null;
 	}
 }
-function H(e, t) {
+function V(e, t) {
 	let n = e.trim(), r = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(n);
 	if (r) {
 		let e = r[1].length === 3 ? [...r[1]].map((e) => e + e).join("") : r[1].slice(0, 6), n = Number.parseInt(e, 16);
@@ -1559,36 +1559,36 @@ function H(e, t) {
 	let i = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*[\d.]+%?\s*)?\)$/i.exec(n);
 	return i ? `rgba(${i[1]}, ${i[2]}, ${i[3]}, ${t})` : `color-mix(in srgb, ${n} ${Math.round(t * 1e3) / 10}%, transparent)`;
 }
-function yr(e, t) {
+function br(e, t) {
 	return e.replace(/\{(\w+)\}/g, (e, n) => n in t ? t[n] : e);
 }
 //#endregion
 //#region src/ui/minimap.ts
-var br = {
+var xr = {
 	window: .4,
 	targetDim: .4
 };
-function xr(e, t, n, r, i, a, o, s, c, l = mr) {
+function Sr(e, t, n, r, i, a, o, s, c, l = hr) {
 	let u = Infinity, d = -Infinity;
-	for (let e = 0; e < k; e++) u = Math.min(u, r.heights[e]), d = Math.max(d, r.heights[e]);
-	let f = Math.max(d, o.y), p = Math.max(1, f - u), m = (e) => e / O * t, h = (e) => n - 3 - (e - u) / p * (n - 8);
+	for (let e = 0; e < O; e++) u = Math.min(u, r.heights[e]), d = Math.max(d, r.heights[e]);
+	let f = Math.max(d, o.y), p = Math.max(1, f - u), m = (e) => e / D * t, h = (e) => n - 3 - (e - u) / p * (n - 8);
 	e.clearRect(0, 0, t, n), e.fillStyle = l.mapBack, e.fillRect(0, 0, t, n), e.beginPath(), e.moveTo(0, n);
-	for (let t = 0; t < k; t++) e.lineTo(m(t * 2), h(r.heights[t]));
+	for (let t = 0; t < O; t++) e.lineTo(m(t * 2), h(r.heights[t]));
 	e.lineTo(t, n), e.closePath(), e.fillStyle = l.mapGround, e.fill();
-	let g = Math.max(1, t / A);
-	for (let t = 0; t < A; t++) e.fillStyle = i[t] === 0 ? l.mapFog : i[t] === 2 ? l.mapHazard : l.mapScanned, e.fillRect(m(t * 4), n - 3, g, 3);
-	e.strokeStyle = H(l.mapWindow, br.window), e.lineWidth = 1, e.strokeRect(m(s), 1, Math.max(2, m(c) - m(s)), n - 2);
-	for (let t of r.targets) e.fillStyle = Math.abs(t.x - a) < 1e-6 ? l.target : H(l.target, br.targetDim), e.fillRect(m(t.x) - 1, 0, 2, n);
+	let g = Math.max(1, t / k);
+	for (let t = 0; t < k; t++) e.fillStyle = i[t] === 0 ? l.mapFog : i[t] === 2 ? l.mapHazard : l.mapScanned, e.fillRect(m(t * 4), n - 3, g, 3);
+	e.strokeStyle = V(l.mapWindow, xr.window), e.lineWidth = 1, e.strokeRect(m(s), 1, Math.max(2, m(c) - m(s)), n - 2);
+	for (let t of r.targets) e.fillStyle = Math.abs(t.x - a) < 1e-6 ? l.target : V(l.target, xr.targetDim), e.fillRect(m(t.x) - 1, 0, 2, n);
 	e.fillStyle = l.mapCraft, e.beginPath(), e.arc(Math.min(t - 2, Math.max(2, m(o.x))), Math.max(3, h(o.y)), 3, 0, Math.PI * 2), e.fill();
 }
 //#endregion
 //#region src/ui/rotorBars.ts
-var Sr = {
+var Cr = {
 	you: "you: the command your vector makes now (hollow marker)",
 	autopilot: "autopilot: its command now (hollow marker)",
 	rotor: "rotor: actual thrust at the shown moment (solid; it lags)"
 };
-function Cr(e, t, n, r) {
+function wr(e, t, n, r) {
 	return {
 		cmdLabel: n === "autopilot" ? "autopilot" : "you",
 		stations: [{
@@ -1604,7 +1604,7 @@ function Cr(e, t, n, r) {
 		}]
 	};
 }
-var wr = (e) => `${(100 * Math.min(1, Math.max(0, e))).toFixed(1)}%`, Tr = class {
+var Tr = (e) => `${(100 * Math.min(1, Math.max(0, e))).toFixed(1)}%`, Er = class {
 	rows = [];
 	legend;
 	constructor(e) {
@@ -1636,26 +1636,26 @@ var wr = (e) => `${(100 * Math.min(1, Math.max(0, e))).toFixed(1)}%`, Tr = class
 	update(e) {
 		e.stations.forEach((t, n) => {
 			let r = this.rows[n];
-			r.fill.style.width = wr(t.rotor), r.marker.style.left = wr(t.cmd), r.weak.hidden = !t.weak;
+			r.fill.style.width = Tr(t.rotor), r.marker.style.left = Tr(t.cmd), r.weak.hidden = !t.weak;
 			let i = `${e.cmdLabel} ${Math.round(100 * t.cmd)}% · rotor ${Math.round(100 * t.rotor)}%`;
 			r.value.textContent !== i && (r.value.textContent = i);
 		});
-		let t = `${Sr[e.cmdLabel]} · ${Sr.rotor}`;
+		let t = `${Cr[e.cmdLabel]} · ${Cr.rotor}`;
 		this.legend.textContent !== t && (this.legend.textContent = t);
 	}
-}, Er = "\n.lander-app { --bg: #1a1009; --panel: #2a1a0e; --line: #5a3a20; --text: #f3e2c8; --dim: #c09a72; --ok: #9dffb0; --bad: #ff7a5c; --accent: #7fe3ff;\n  color-scheme: dark; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif;\n  display: flex; flex-direction: column; gap: 8px; }\n.lander-app * { box-sizing: border-box; }\n.lander-app [hidden] { display: none !important; }\n.lander-app .topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }\n.lander-app .topbar select, .lander-app .topbar button, .lander-app .endcard button, .lander-app .fault-bar button {\n  background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; font: inherit; }\n.lander-app .topbar select { max-width: 100%; }\n.lander-app button:disabled, .lander-app input:disabled + span { opacity: 0.45; }\n.lander-app .no-model { color: var(--dim); font-size: 13px; }\n.lander-app .stage { position: relative; }\n.lander-app .main-canvas { display: block; width: 100%; aspect-ratio: 16 / 9; border: 1px solid var(--line); border-radius: 8px; outline: none; touch-action: none; }\n.lander-app .main-canvas:focus { border-color: #b98a55; }\n.lander-app .minimap { display: block; width: 100%; height: 36px; border: 1px solid var(--line); border-radius: 6px; }\n.lander-app .fault-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }\n.lander-app .rotor-bars { display: grid; gap: 4px; font-family: ui-monospace, monospace; font-size: 13px; }\n.lander-app .rotor-row { display: grid; grid-template-columns: 48px 1fr auto auto; align-items: center; gap: 8px; }\n.lander-app .rotor-track { position: relative; height: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }\n.lander-app .rotor-fill { position: absolute; left: 0; top: 0; bottom: 0; background: #e0b47a; border-radius: 3px; }\n.lander-app .rotor-cmd { position: absolute; top: -3px; width: 10px; height: 18px; margin-left: -5px; border: 2px solid var(--accent); border-radius: 3px; background: transparent; }\n.lander-app .rotor-weak { color: var(--bad); }\n.lander-app .rotor-legend { color: var(--dim); font-size: 12px; }\n.lander-app .instruments { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; }\n.lander-app .inst { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; display: flex; justify-content: space-between; gap: 6px; font-family: ui-monospace, monospace; }\n.lander-app .inst-label { color: var(--dim); }\n.lander-app .touch { display: flex; justify-content: center; }\n.lander-app .vector-pad { position: relative; width: 220px; height: 120px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); touch-action: none; }\n.lander-app .vector-pad-dot { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: var(--accent); left: 50%; top: 100%; }\n@media (hover: hover) and (pointer: fine) { .lander-app .touch { display: none; } }\n.lander-app .status, .lander-app .help { color: var(--dim); font-size: 13px; }\n.lander-app .endcard { position: absolute; inset: 10% 20%; background: rgba(42, 26, 14, 0.95); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; overflow: auto; }\n.lander-app .endcard h2 { margin: 0 0 8px; }\n.lander-app .endcard .ok { color: var(--ok); }\n.lander-app .endcard .bad { color: var(--bad); }\n.lander-app .endcard table { border-collapse: collapse; width: 100%; font-family: ui-monospace, monospace; font-size: 13px; }\n.lander-app .endcard td { padding: 3px 6px; border-bottom: 1px solid var(--line); }\n.lander-app .endcard-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }\n@media (max-width: 640px) { .lander-app .endcard { inset: 4%; } }\n.lander-app .control-toggle { display: flex; align-items: center; gap: 4px; }\n.lander-app .control-toggle button[aria-pressed=\"true\"] { border-color: var(--accent); background: #3a2a18; color: #fff; }\n.lander-app .display-note { margin: 6px 0 0; font-size: 13px; color: var(--muted, #cdb89a); max-width: 70ch; }\n";
+}, Dr = "\n.lander-app { --bg: #1a1009; --panel: #2a1a0e; --line: #5a3a20; --text: #f3e2c8; --dim: #c09a72; --ok: #9dffb0; --bad: #ff7a5c; --accent: #7fe3ff;\n  color-scheme: dark; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif;\n  display: flex; flex-direction: column; gap: 8px; }\n.lander-app * { box-sizing: border-box; }\n.lander-app [hidden] { display: none !important; }\n.lander-app .topbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }\n.lander-app .topbar select, .lander-app .topbar button, .lander-app .endcard button, .lander-app .fault-bar button {\n  background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; font: inherit; }\n.lander-app .topbar select { max-width: 100%; }\n.lander-app button:disabled, .lander-app input:disabled + span { opacity: 0.45; }\n.lander-app .no-model { color: var(--dim); font-size: 13px; }\n.lander-app .stage { position: relative; }\n.lander-app .main-canvas { display: block; width: 100%; aspect-ratio: 16 / 9; border: 1px solid var(--line); border-radius: 8px; outline: none; touch-action: none; }\n.lander-app .main-canvas:focus { border-color: #b98a55; }\n.lander-app .minimap { display: block; width: 100%; height: 36px; border: 1px solid var(--line); border-radius: 6px; }\n.lander-app .fault-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }\n.lander-app .rotor-bars { display: grid; gap: 4px; font-family: ui-monospace, monospace; font-size: 13px; }\n.lander-app .rotor-row { display: grid; grid-template-columns: 48px 1fr auto auto; align-items: center; gap: 8px; }\n.lander-app .rotor-track { position: relative; height: 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }\n.lander-app .rotor-fill { position: absolute; left: 0; top: 0; bottom: 0; background: #e0b47a; border-radius: 3px; }\n.lander-app .rotor-cmd { position: absolute; top: -3px; width: 10px; height: 18px; margin-left: -5px; border: 2px solid var(--accent); border-radius: 3px; background: transparent; }\n.lander-app .rotor-weak { color: var(--bad); }\n.lander-app .rotor-legend { color: var(--dim); font-size: 12px; }\n.lander-app .instruments { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; }\n.lander-app .inst { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; display: flex; justify-content: space-between; gap: 6px; font-family: ui-monospace, monospace; }\n.lander-app .inst-label { color: var(--dim); }\n.lander-app .touch { display: flex; justify-content: center; }\n.lander-app .vector-pad { position: relative; width: 220px; height: 120px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); touch-action: none; }\n.lander-app .vector-pad-dot { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: var(--accent); left: 50%; top: 100%; }\n@media (hover: hover) and (pointer: fine) { .lander-app .touch { display: none; } }\n.lander-app .status, .lander-app .help { color: var(--dim); font-size: 13px; }\n.lander-app .endcard { position: absolute; inset: 10% 20%; background: rgba(42, 26, 14, 0.95); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; overflow: auto; }\n.lander-app .endcard h2 { margin: 0 0 8px; }\n.lander-app .endcard .ok { color: var(--ok); }\n.lander-app .endcard .bad { color: var(--bad); }\n.lander-app .endcard table { border-collapse: collapse; width: 100%; font-family: ui-monospace, monospace; font-size: 13px; }\n.lander-app .endcard td { padding: 3px 6px; border-bottom: 1px solid var(--line); }\n.lander-app .endcard-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }\n@media (max-width: 640px) { .lander-app .endcard { inset: 4%; } }\n.lander-app .control-toggle { display: flex; align-items: center; gap: 4px; }\n.lander-app .control-toggle button[aria-pressed=\"true\"] { border-color: var(--accent); background: #3a2a18; color: #fff; }\n.lander-app .display-note { margin: 6px 0 0; font-size: 13px; color: var(--muted, #cdb89a); max-width: 70ch; }\n";
 //#endregion
 //#region src/ui/vectorPad.ts
-function Dr(e, t, n, r) {
-	return !(n > 0) || !(r > 0) ? bt : xt({
+function Or(e, t, n, r) {
+	return !(n > 0) || !(r > 0) ? xt : St({
 		tx: (e - n / 2) / (n / 2),
 		ty: (r - t) / r
 	});
 }
-function Or(e, t, n) {
+function kr(e, t, n) {
 	return [t / 2 + e.tx * (t / 2), n - e.ty * n];
 }
-var kr = class {
+var Ar = class {
 	el;
 	onVector;
 	dot;
@@ -1667,7 +1667,7 @@ var kr = class {
 			e.addEventListener(t, n), this.cleanups.push(() => e.removeEventListener(t, n));
 		}, r = (t) => {
 			let n = e.getBoundingClientRect();
-			this.onVector(Dr(t.clientX - n.left, t.clientY - n.top, n.width, n.height));
+			this.onVector(Or(t.clientX - n.left, t.clientY - n.top, n.width, n.height));
 		};
 		n("pointerdown", (t) => {
 			t.preventDefault(), this.activePointer === null && (this.activePointer = t.pointerId, e.setPointerCapture?.(t.pointerId), r(t));
@@ -1683,49 +1683,49 @@ var kr = class {
 		});
 	}
 	show(e) {
-		let t = this.el.getBoundingClientRect(), [n, r] = Or(e, t.width, t.height);
+		let t = this.el.getBoundingClientRect(), [n, r] = kr(e, t.width, t.height);
 		this.dot.style.left = `${n}px`, this.dot.style.top = `${r}px`;
 	}
 	detach() {
 		for (let e of this.cleanups.splice(0)) e();
 		this.activePointer = null;
 	}
-}, Ar = "Click the view to fly. W/S or ↑/↓ lengthen or shorten the thrust vector, A/D or ←/→ lean it. Commands take 1 s to reach the craft and its state 1 s to come back (game-scaled; the real one-way delay is 67-92 minutes). Click near a flag to choose that target. Esc releases the keys.";
-function U(e, t, n, r) {
+}, jr = "Click the view to fly. W/S or ↑/↓ lengthen or shorten the thrust vector, A/D or ←/→ lean it. Commands take 1 s to reach the craft and its state 1 s to come back (game-scaled; the real one-way delay is 67-92 minutes). Click near a flag to choose that target. Esc releases the keys.";
+function H(e, t, n, r) {
 	let i = e.createElement(t);
 	return n && (i.className = n), r !== void 0 && (i.textContent = r), i;
 }
-function jr(e, t) {
-	let n = e.ownerDocument, r = (e, n, r) => e.addEventListener(n, r, { signal: t.signal }), i = U(n, "div", "lander-app");
+function Mr(e, t) {
+	let n = e.ownerDocument, r = (e, n, r) => e.addEventListener(n, r, { signal: t.signal }), i = H(n, "div", "lander-app");
 	i.dataset.landerApp = "";
-	let a = U(n, "style");
-	a.textContent = Er;
-	let o = U(n, "div", "topbar"), s = U(n, "select");
+	let a = H(n, "style");
+	a.textContent = Dr;
+	let o = H(n, "div", "topbar"), s = H(n, "select");
 	s.setAttribute("aria-label", "Hop");
 	for (let e = 1; e <= 5; e++) {
-		let t = U(n, "option", void 0, `Hop ${e}`);
+		let t = H(n, "option", void 0, `Hop ${e}`);
 		t.value = String(e), s.append(t);
 	}
-	let c = U(n, "select");
-	c.setAttribute("aria-label", "Conditions"), $t.forEach((e, t) => {
-		let r = e[0].toUpperCase() + e.slice(1), i = U(n, "option", void 0, t === 3 ? `${r} (beyond Titan's predicted near-surface winds)` : r);
+	let c = H(n, "select");
+	c.setAttribute("aria-label", "Conditions"), en.forEach((e, t) => {
+		let r = e[0].toUpperCase() + e.slice(1), i = H(n, "option", void 0, t === 3 ? `${r} (beyond Titan's predicted near-surface winds)` : r);
 		i.value = String(t), c.append(i);
 	}), c.value = "1";
-	let l = Un(n, (e) => t.setMode(e));
+	let l = Wn(n, (e) => t.setMode(e));
 	l.setAutopilotAvailable(!1, "The autopilot needs the dream model.");
-	let u = U(n, "label", "ghosts-toggle"), d = U(n, "input");
-	d.type = "checkbox", d.disabled = !0, d.title = "Ghost futures need the dream model.", u.append(d, U(n, "span", void 0, " Ghosts"));
-	let f = U(n, "button", void 0, "New flight");
-	f.type = "button", o.append(U(n, "strong", void 0, "Titan rotorcraft"), s, l.el, c, u, f);
-	let p = U(n, "div", "no-model", t.noModelText);
+	let u = H(n, "label", "ghosts-toggle"), d = H(n, "input");
+	d.type = "checkbox", d.disabled = !0, d.title = "Ghost futures need the dream model.", u.append(d, H(n, "span", void 0, " Ghosts"));
+	let f = H(n, "button", void 0, "New flight");
+	f.type = "button", o.append(H(n, "strong", void 0, "Titan rotorcraft"), s, l.el, c, u, f);
+	let p = H(n, "div", "no-model", t.noModelText);
 	p.dataset.landerNomodel = "";
-	let m = U(n, "div", "stage");
+	let m = H(n, "div", "stage");
 	t.canvas.classList.add("main-canvas");
-	let h = U(n, "div", "endcard");
+	let h = H(n, "div", "endcard");
 	h.hidden = !0, m.append(t.canvas, h);
-	let g = U(n, "div", "rotor-bars"), _ = new Tr(g), v = U(n, "canvas", "minimap"), y = U(n, "div", "instruments"), b = new $n(y), x = U(n, "div", "touch"), S = U(n, "div", "vector-pad");
+	let g = H(n, "div", "rotor-bars"), _ = new Er(g), v = H(n, "canvas", "minimap"), y = H(n, "div", "instruments"), b = new er(y), x = H(n, "div", "touch"), S = H(n, "div", "vector-pad");
 	x.append(S);
-	let C = new kr(S, (e) => t.setVector(e)), w = U(n, "div", "status"), ee = U(n, "div", "help", Ar);
+	let C = new Ar(S, (e) => t.setVector(e)), w = H(n, "div", "status"), ee = H(n, "div", "help", jr);
 	return i.append(a, o, p, m, g, v, y, x, w, ee), e.append(i), r(f, "click", () => t.newFlight()), r(s, "change", () => t.replayHop(Number(s.value))), r(c, "change", () => t.setLevel(Number(c.value))), {
 		ui: {
 			root: i,
@@ -1741,7 +1741,7 @@ function jr(e, t) {
 			ghostsToggle: d
 		},
 		flightStarted(e) {
-			l.set(e.mode), Yn(h), s.value = String(e.hop), c.value = String(e.baseLevel), w.textContent = "Click the view to start.";
+			l.set(e.mode), Xn(h), s.value = String(e.hop), c.value = String(e.baseLevel), w.textContent = "Click the view to start.";
 		},
 		setMode(e) {
 			l.set(e);
@@ -1753,13 +1753,13 @@ function jr(e, t) {
 			w.textContent = e;
 		},
 		showEnd(e, t) {
-			Jn(h, e, t);
+			Yn(h, e, t);
 		},
 		frame(e) {
 			let t = v.getBoundingClientRect(), n = Math.max(1, t.width), r = Math.max(1, t.height);
 			v.width !== Math.round(n * e.dpr) && (v.width = Math.round(n * e.dpr)), v.height !== Math.round(r * e.dpr) && (v.height = Math.round(r * e.dpr));
 			let i = v.getContext("2d");
-			i && (i.setTransform(e.dpr, 0, 0, e.dpr, 0, 0), xr(i, n, r, e.map, e.knowledge, e.targetX, e.pose, e.viewLeft, e.viewRight, e.palette)), b.update(e.readouts), _.update(e.rotor), C.show(e.vector);
+			i && (i.setTransform(e.dpr, 0, 0, e.dpr, 0, 0), Sr(i, n, r, e.map, e.knowledge, e.targetX, e.pose, e.viewLeft, e.viewRight, e.palette)), b.update(e.readouts), _.update(e.rotor), C.show(e.vector);
 		},
 		destroy() {
 			C.detach(), i.remove();
@@ -1768,25 +1768,25 @@ function jr(e, t) {
 }
 //#endregion
 //#region src/ui/displayChrome.ts
-var Mr = "The main craft is the dream's average prediction: where the craft will be in 1 s, when your newest command reaches it. The ghosts show the spread around it; the inset is the real downlink, 1 s old.", W = {
+var Nr = "The main craft is the dream's average prediction: where the craft will be in 1 s, when your newest command reaches it. The ghosts show the spread around it; the inset is the real downlink, 1 s old.", U = {
 	loading: "Dream prediction loading: showing the physics fallback (ignores wind)",
 	stale: "Dream prediction stale: showing the physics fallback (ignores wind)",
 	late: "Prediction late: carrying the last average forward",
 	awaiting: "Touchdown predicted: awaiting confirmation",
 	confirmed: "Touchdown confirmed by the downlink",
 	handback: "Handing back: physics fallback until the dream's first prediction"
-}, Nr = [
+}, Pr = [
 	"Weak front rotor",
 	"Weak rear rotor",
 	"Gust front",
 	"Lidar dropout"
 ];
-function Pr(e) {
-	return Nr.filter((t, n) => e >> n & 1).map((e) => `${e}: reached the ground 1 s late, the prediction corrects`);
-}
 function Fr(e) {
+	return Pr.filter((t, n) => e >> n & 1).map((e) => `${e}: reached the ground 1 s late, the prediction corrects`);
+}
+function Ir(e) {
 	let t = e.root.ownerDocument.createElement("p");
-	t.className = "display-note", t.dataset.landerDisplayNote = "", t.textContent = Mr, t.hidden = !0, e.stage.after(t);
+	t.className = "display-note", t.dataset.landerDisplayNote = "", t.textContent = Nr, t.hidden = !0, e.stage.after(t);
 	let n = !1;
 	return {
 		setPredicting(e) {
@@ -1797,27 +1797,27 @@ function Fr(e) {
 		}
 	};
 }
-var Ir = { painted: 0 }, G = {
+var Lr = { painted: 0 }, Rr = {
 	top: 12,
 	pitch: 20,
 	panelAlpha: .72,
 	textAlpha: .95
 };
-function Lr(e, t, n = mr) {
-	t.length !== 0 && (Ir.painted++, e.save(), e.font = "12px system-ui, sans-serif", e.textBaseline = "top", t.forEach((t, r) => {
-		let i = G.top + r * G.pitch;
-		e.fillStyle = H(n.panel, G.panelAlpha), e.fillRect(12, i - 3, 8 + 6.5 * t.length, 18), e.fillStyle = H(n.badgeText, G.textAlpha), e.fillText(t, 16, i);
+function zr(e, t, n = hr) {
+	t.length !== 0 && (Lr.painted++, e.save(), e.font = "12px system-ui, sans-serif", e.textBaseline = "top", t.forEach((t, r) => {
+		let i = Rr.top + r * Rr.pitch;
+		e.fillStyle = V(n.panel, Rr.panelAlpha), e.fillRect(12, i - 3, 8 + 6.5 * t.length, 18), e.fillStyle = V(n.badgeText, Rr.textAlpha), e.fillText(t, 16, i);
 	}), e.restore());
 }
-var Rr = 31;
-function zr(e) {
+var Br = 31;
+function Vr(e) {
 	return 1 + 30 * e;
 }
-function Br(e, t, n = Rr) {
+function Hr(e, t, n = Br) {
 	return (e * n + t) * 9;
 }
-function K(e, t, n, r = Rr) {
-	let i = Br(t, n, r);
+function W(e, t, n, r = Br) {
+	let i = Hr(t, n, r);
 	return {
 		x: e[i],
 		y: e[i + 1],
@@ -1832,62 +1832,62 @@ function K(e, t, n, r = Rr) {
 }
 //#endregion
 //#region src/ghosts/touch.ts
-function Vr(e) {
+function Ur(e) {
 	return Number.isFinite(e.x) && Number.isFinite(e.y) && Number.isFinite(e.vx) && Number.isFinite(e.vy) && Number.isFinite(e.theta) && Number.isFinite(e.omega) && Number.isFinite(e.sF) && Number.isFinite(e.sR) && Number.isFinite(e.energyEst);
 }
-function Hr(e, t, n) {
+function Wr(e, t, n) {
 	if (n) return 0;
 	for (let n = 0; n < e.length; n++) {
-		if (L(e[n], t) >= 1) return n;
+		if (I(e[n], t) >= 1) return n;
 		if (n === 0) continue;
-		let r = R(e[n], t);
-		if (r < 0 && e[n].vy <= 0 && !st(lt(e[n - 1], e[n], ut(R(e[n - 1], t), r)), t)) return n - 1;
+		let r = L(e[n], t);
+		if (r < 0 && e[n].vy <= 0 && !ct(ut(e[n - 1], e[n], dt(L(e[n - 1], t), r)), t)) return n - 1;
 	}
 	return -1;
 }
-function Ur(e, t, n, r) {
-	let i = Hr(e, t, r);
+function Gr(e, t, n, r) {
+	let i = Wr(e, t, r);
 	if (i < 0) return null;
-	let a = dt(e.slice(i), t, n);
+	let a = ft(e.slice(i), t, n);
 	return a ? {
 		...a,
 		index: a.index + i
 	} : null;
 }
-var Wr = 2.5, Gr = 35;
-function Kr(e, t, n, r) {
+var Kr = 2.5, qr = 35;
+function Jr(e, t, n, r) {
 	let i = [];
-	for (let t = 0; t < Rr; t++) i.push(K(e, 0, t));
-	if (!i.every(Vr)) return null;
-	let a = Ur(i, t, (e) => e >= 0 && e < 1e3 && n[e] === 2, r);
+	for (let t = 0; t < Br; t++) i.push(W(e, 0, t));
+	if (!i.every(Ur)) return null;
+	let a = Gr(i, t, (e) => e >= 0 && e < 1e3 && n[e] === 2, r);
 	return a ? {
 		at: a.index - 1 + a.alpha,
 		contact: a.contact
 	} : null;
 }
-function qr(e, t, n) {
+function Yr(e, t, n) {
 	let r = (e, t) => e + (t - e) * n;
 	return {
 		x: r(e.x, t.x),
 		y: r(e.y, t.y),
 		vx: r(e.vx, t.vx),
 		vy: r(e.vy, t.vy),
-		theta: e.theta + I(t.theta - e.theta) * n,
+		theta: e.theta + F(t.theta - e.theta) * n,
 		omega: r(e.omega, t.omega),
 		sF: r(e.sF, t.sF),
 		sR: r(e.sR, t.sR),
 		energyEst: r(e.energyEst, t.energyEst)
 	};
 }
-function Jr(e, t) {
+function Xr(e, t) {
 	let n = Math.min(30, Math.max(0, t)), r = Math.min(29, Math.floor(n));
-	return qr(K(e, 0, r), K(e, 0, r + 1), n - r);
+	return Yr(W(e, 0, r), W(e, 0, r + 1), n - r);
 }
-function Yr(e, t) {
-	if (t > Gr) return null;
+function Zr(e, t) {
+	if (t > qr) return null;
 	if (e.touchdown && t >= e.touchdown.at) return {
 		pose: {
-			...Jr(e.mean, e.touchdown.at),
+			...Xr(e.mean, e.touchdown.at),
 			...e.touchdown.contact.pose
 		},
 		u: t,
@@ -1895,9 +1895,9 @@ function Yr(e, t) {
 		touchedDown: !0
 	};
 	let n, r = !1;
-	if (t <= 30) n = Jr(e.mean, t);
+	if (t <= 30) n = Xr(e.mean, t);
 	else {
-		let a = K(e.mean, 0, 30), o = K(e.mean, 0, 29), s = (t - 30) * i, c = (a.x - o.x) / i, l = (a.y - o.y) / i, u = I(a.theta - o.theta) / i;
+		let a = W(e.mean, 0, 30), o = W(e.mean, 0, 29), s = (t - 30) * i, c = (a.x - o.x) / i, l = (a.y - o.y) / i, u = F(a.theta - o.theta) / i;
 		n = {
 			...a,
 			x: a.x + c * s,
@@ -1905,14 +1905,14 @@ function Yr(e, t) {
 			theta: a.theta + u * s
 		}, r = !0;
 	}
-	return Vr(n) ? {
+	return Ur(n) ? {
 		pose: n,
 		u: t,
 		extrapolated: r,
 		touchedDown: !1
 	} : null;
 }
-var Xr = class {
+var Qr = class {
 	cur = null;
 	prev = null;
 	adoptedAt = -Infinity;
@@ -1931,65 +1931,65 @@ var Xr = class {
 	}
 	at(e) {
 		if (!this.cur) return null;
-		let t = Yr(this.cur, e - this.cur.anchorStep);
+		let t = Zr(this.cur, e - this.cur.anchorStep);
 		if (!t) return null;
-		let n = (e - this.adoptedAt) / Wr;
+		let n = (e - this.adoptedAt) / Kr;
 		if (n >= 1) return t;
-		let r = this.prev ? Yr(this.prev, e - this.prev.anchorStep)?.pose ?? this.from : this.from;
+		let r = this.prev ? Zr(this.prev, e - this.prev.anchorStep)?.pose ?? this.from : this.from;
 		return r ? {
 			...t,
-			pose: qr(r, t.pose, Math.max(0, n))
+			pose: Yr(r, t.pose, Math.max(0, n))
 		} : t;
 	}
-}, Zr = {
+}, $r = {
 	path: .14,
 	sprite: .32,
 	marker: .9
-}, Qr = .4, $r = 2.5, ei = s / 2, q = 1 / 2, J = q + .2, ti = [
+}, ei = .4, ti = 2.5, ni = s / 2, G = 1 / 2, ri = G + .2, ii = [
 	[
-		[-ei, -q],
-		[ei, -q],
-		[ei, q],
-		[-ei, q],
-		[-ei, -q]
+		[-ni, -G],
+		[ni, -G],
+		[ni, G],
+		[-ni, G],
+		[-ni, -G]
 	],
-	[[c, q], [c, J]],
-	[[c - l / 2, J], [c + l / 2, J]],
-	[[-c, q], [-c, J]],
-	[[-c - l / 2, J], [-c + l / 2, J]],
-	[[-1, -q], [-1, g]],
-	[[1, -q], [1, g]]
-], ni = { painted: 0 };
-function ri(e, t, n) {
+	[[c, G], [c, ri]],
+	[[c - l / 2, ri], [c + l / 2, ri]],
+	[[-c, G], [-c, ri]],
+	[[-c - l / 2, ri], [-c + l / 2, ri]],
+	[[-1, -G], [-1, g]],
+	[[1, -G], [1, g]]
+], ai = { painted: 0 };
+function oi(e, t, n) {
 	let r = Math.cos(e.theta), i = Math.sin(e.theta), a = t - d, o = n - f;
 	return [e.x + a * r - o * i, e.y + a * i + o * r];
 }
-function ii(e, t, n) {
-	for (let r of ti) e.beginPath(), r.forEach(([r, i], a) => {
-		let [o, s] = ri(n, r, i), [c, l] = t.toScreen(o, s);
+function si(e, t, n) {
+	for (let r of ii) e.beginPath(), r.forEach(([r, i], a) => {
+		let [o, s] = oi(n, r, i), [c, l] = t.toScreen(o, s);
 		a === 0 ? e.moveTo(c, l) : e.lineTo(c, l);
 	}), e.stroke();
 }
-function ai(e, t, n, r = 1) {
+function ci(e, t, n, r = 1) {
 	let i = 30 * r;
 	if (!n) return i;
-	let a = zr(r);
+	let a = Vr(r);
 	for (let r = 1; r <= i; r++) {
-		let i = K(e, t, r, a);
+		let i = W(e, t, r, a);
 		if (Math.abs(i.x - n.pose.x) <= .001 && Math.abs(i.y - n.pose.y) <= .001) return r;
 	}
 	return i;
 }
-function oi(e, t) {
-	let n = e.k, r = zr(n), i = Math.max(0, t - e.anchorStep);
+function li(e, t) {
+	let n = e.k, r = Vr(n), i = Math.max(0, t - e.anchorStep);
 	if (i > 30 * n) return null;
 	let a = [];
 	for (let t = 0; t < e.n; t++) {
-		let o = e.contacts[t] ?? null, s = ai(e.poses, t, o, n), c = Math.min(i, s), l = Math.floor(c), u = Math.min(l + 1, s), d = qr(K(e.poses, t, l, r), K(e.poses, t, u, r), c - l);
-		if (!Vr(d)) continue;
+		let o = e.contacts[t] ?? null, s = ci(e.poses, t, o, n), c = Math.min(i, s), l = Math.floor(c), u = Math.min(l + 1, s), d = Yr(W(e.poses, t, l, r), W(e.poses, t, u, r), c - l);
+		if (!Ur(d)) continue;
 		let f = [d.x, d.y];
 		for (let n = l + 1; n <= s; n++) {
-			let i = K(e.poses, t, n, r);
+			let i = W(e.poses, t, n, r);
 			if (!Number.isFinite(i.x) || !Number.isFinite(i.y)) break;
 			f.push(i.x, i.y);
 		}
@@ -2005,12 +2005,12 @@ function oi(e, t) {
 		k: i
 	};
 }
-function si(e, t, n, r = mr) {
-	ni.painted++, e.save(), e.lineWidth = 1, e.lineJoin = "round";
+function ui(e, t, n, r = hr) {
+	ai.painted++, e.save(), e.lineWidth = 1, e.lineJoin = "round";
 	for (let i of n.ghosts) {
 		let n = i.contact ? i.contact.safe ? r.ghostSafe : r.ghostCrash : r.ghost;
 		if (i.path.length >= 4) {
-			e.strokeStyle = H(r.ghost, Zr.path), e.beginPath();
+			e.strokeStyle = V(r.ghost, $r.path), e.beginPath();
 			let [n, a] = t.toScreen(i.path[0], i.path[1]);
 			e.moveTo(n, a);
 			for (let n = 2; n < i.path.length; n += 2) {
@@ -2019,14 +2019,14 @@ function si(e, t, n, r = mr) {
 			}
 			e.stroke();
 		}
-		if (e.strokeStyle = H(i.landed ? n : r.ghost, Zr.sprite), ii(e, t, i.pose), i.contact) {
-			let [r, a] = ot(i.contact.pose), o = r[1] <= a[1] ? r : a, [s, c] = t.toScreen(o[0], o[1]);
-			e.fillStyle = H(n, Zr.marker), e.beginPath(), e.arc(s, c, Math.max($r, Qr * t.pxPerM), 0, 2 * Math.PI), e.fill();
+		if (e.strokeStyle = V(i.landed ? n : r.ghost, $r.sprite), si(e, t, i.pose), i.contact) {
+			let [r, a] = st(i.contact.pose), o = r[1] <= a[1] ? r : a, [s, c] = t.toScreen(o[0], o[1]);
+			e.fillStyle = V(n, $r.marker), e.beginPath(), e.arc(s, c, Math.max(ti, ei * t.pxPerM), 0, 2 * Math.PI), e.fill();
 		}
 	}
 	e.restore();
 }
-function ci(e, t, n) {
+function di(e, t, n) {
 	return {
 		toScreen: (r, i) => e.toScreen(r, i, t, n),
 		pxPerM: e.scale(t)
@@ -2034,84 +2034,84 @@ function ci(e, t, n) {
 }
 //#endregion
 //#region src/ui/layout.ts
-var li = 16 / 9, ui = "lander: opts.aspect 'fill' needs ui 'none' and a container with a definite height; drawing at 16:9 instead";
-function di(e) {
+var fi = 16 / 9, pi = "lander: opts.aspect 'fill' needs ui 'none' and a container with a definite height; drawing at 16:9 instead";
+function mi(e) {
 	return `display:block;width:100%;${e === "fill" ? "height:100%" : `aspect-ratio:${e}`};touch-action:manipulation`;
 }
-function fi(e, t) {
+function hi(e, t) {
 	let n = t.style.display;
 	t.style.display = "none";
 	let r = e.getBoundingClientRect().height;
 	return t.style.display = n, r > 0;
 }
-var pi = {
+var gi = {
 	w: 176,
 	h: 112,
 	margin: 12
-}, mi = .3;
-function hi(e) {
-	let t = e < 480, n = mi * e, r = t ? n : Math.min(pi.w, Math.max(120, n));
+}, _i = .3;
+function vi(e) {
+	let t = e < 480, n = _i * e, r = t ? n : Math.min(gi.w, Math.max(120, n));
 	return {
 		w: r,
-		h: r * pi.h / pi.w,
+		h: r * gi.h / gi.w,
 		short: t
 	};
 }
-function gi(e, t) {
-	return t ? hi(e).w + pi.margin + 6 : 0;
+function yi(e, t) {
+	return t ? vi(e).w + gi.margin + 6 : 0;
 }
 //#endregion
 //#region src/ui/downlinkInset.ts
-var _i = {
+var bi = {
 	w: 176,
 	h: 112,
 	margin: 12,
 	spanM: 60
-}, vi = { painted: 0 };
-function yi(e) {
-	let t = hi(e);
+}, xi = { painted: 0 };
+function Si(e) {
+	let t = vi(e);
 	return {
-		x: e - t.w - _i.margin,
-		y: _i.margin,
+		x: e - t.w - bi.margin,
+		y: bi.margin,
 		w: t.w,
 		h: t.h
 	};
 }
-function bi(e, t, n) {
-	return Ci(t, hi(e).short ? xi : n);
+function Ci(e, t, n) {
+	return Ei(t, vi(e).short ? wi : n);
 }
-var xi = "{s} s";
-function Si(e, t) {
-	let n = e.w / _i.spanM;
+var wi = "{s} s";
+function Ti(e, t) {
+	let n = e.w / bi.spanM;
 	return {
 		toScreen: (r, i) => [e.x + e.w / 2 + (r - t.x) * n, e.y + e.h / 2 - (i - t.y) * n],
 		pxPerM: n
 	};
 }
-function Ci(e, t = V.insetLabel) {
-	return yr(t, { s: e.toFixed(1) });
+function Ei(e, t = B.insetLabel) {
+	return br(t, { s: e.toFixed(1) });
 }
-var wi = {
+var Di = {
 	panel: .78,
 	line: .9,
 	craft: .95,
 	frame: .9,
 	text: .95
 };
-function Ti(e, t, n, r, i = hr) {
-	vi.painted++;
-	let a = i.palette, o = yi(t), s = Si(o, r.pose);
-	e.save(), e.fillStyle = H(a.panel, wi.panel), e.fillRect(o.x, o.y, o.w, o.h), e.beginPath(), e.rect(o.x, o.y, o.w, o.h), e.clip(), e.lineWidth = 1, e.strokeStyle = H(a.insetTerrain, wi.line), e.beginPath();
-	let c = r.pose.x - _i.spanM / 2;
-	for (let t = 0; t * 2 <= _i.spanM; t++) {
-		let r = c + t * 2, [i, a] = s.toScreen(r, P(n, r));
+function Oi(e, t, n, r, i = gr) {
+	xi.painted++;
+	let a = i.palette, o = Si(t), s = Ti(o, r.pose);
+	e.save(), e.fillStyle = V(a.panel, Di.panel), e.fillRect(o.x, o.y, o.w, o.h), e.beginPath(), e.rect(o.x, o.y, o.w, o.h), e.clip(), e.lineWidth = 1, e.strokeStyle = V(a.insetTerrain, Di.line), e.beginPath();
+	let c = r.pose.x - bi.spanM / 2;
+	for (let t = 0; t * 2 <= bi.spanM; t++) {
+		let r = c + t * 2, [i, a] = s.toScreen(r, N(n, r));
 		t === 0 ? e.moveTo(i, a) : e.lineTo(i, a);
 	}
-	e.stroke(), e.strokeStyle = H(a.insetCraft, wi.craft), ii(e, s, r.pose), e.restore(), e.save(), e.strokeStyle = H(a.insetFrame, wi.frame), e.strokeRect(o.x, o.y, o.w, o.h), i.text && (e.fillStyle = H(a.insetText, wi.text), e.font = "11px system-ui, sans-serif", e.textBaseline = "top", e.fillText(bi(t, r.ageS, i.text.insetLabel), o.x + 6, o.y + 5)), e.restore();
+	e.stroke(), e.strokeStyle = V(a.insetCraft, Di.craft), si(e, s, r.pose), e.restore(), e.save(), e.strokeStyle = V(a.insetFrame, Di.frame), e.strokeRect(o.x, o.y, o.w, o.h), i.text && (e.fillStyle = V(a.insetText, Di.text), e.font = "11px system-ui, sans-serif", e.textBaseline = "top", e.fillText(Ci(t, r.ageS, i.text.insetLabel), o.x + 6, o.y + 5)), e.restore();
 }
 //#endregion
 //#region src/ui/input.ts
-function Ei(e) {
+function ki(e) {
 	switch (e) {
 		case "ArrowUp":
 		case "w":
@@ -2128,7 +2128,7 @@ function Ei(e) {
 		default: return null;
 	}
 }
-function Di() {
+function Ai() {
 	return {
 		up: !1,
 		down: !1,
@@ -2136,9 +2136,9 @@ function Di() {
 		right: !1
 	};
 }
-var Oi = class {
-	keys = Di();
-	vector = bt;
+var ji = class {
+	keys = Ai();
+	vector = xt;
 	onFirstInput = null;
 	cleanups = [];
 	firstFired = !1;
@@ -2146,7 +2146,7 @@ var Oi = class {
 		this.firstFired || (this.firstFired = !0, this.onFirstInput?.());
 	}
 	releaseAll() {
-		this.keys = Di();
+		this.keys = Ai();
 	}
 	attach(e) {
 		let t = (e, t, n) => {
@@ -2158,10 +2158,10 @@ var Oi = class {
 				e.blur();
 				return;
 			}
-			let n = Ei(t.key);
+			let n = ki(t.key);
 			n && (t.preventDefault(), !t.repeat && (this.keys[n] = !0, this.fireFirst()));
 		}), t(e, "keyup", (e) => {
-			let t = Ei(e.key);
+			let t = ki(e.key);
 			t && (e.preventDefault(), this.keys[t] = !1);
 		}), t(e, "blur", () => this.releaseAll()), t(window, "blur", () => this.releaseAll()), t(document, "visibilitychange", () => {
 			document.hidden && this.releaseAll();
@@ -2172,20 +2172,20 @@ var Oi = class {
 		this.releaseAll();
 	}
 	setVector(e) {
-		this.vector = xt(e), this.fireFirst();
+		this.vector = St(e), this.fireFirst();
 	}
-	reset(e = bt) {
-		this.keys = Di(), this.vector = xt(e), this.firstFired = !1;
+	reset(e = xt) {
+		this.keys = Ai(), this.vector = St(e), this.firstFired = !1;
 	}
 	step(e) {
-		return this.vector = St(this.vector, this.keys, e), this.vector;
+		return this.vector = Ct(this.vector, this.keys, e), this.vector;
 	}
-}, ki = .25, Ai = class {
+}, Mi = .25, Ni = class {
 	step;
 	maxFrame;
 	acc = 0;
 	last = null;
-	constructor(e = i, t = ki) {
+	constructor(e = i, t = Mi) {
 		this.step = e, this.maxFrame = t;
 	}
 	tick(e) {
@@ -2201,7 +2201,7 @@ var Oi = class {
 	reset() {
 		this.last = null, this.acc = 0;
 	}
-}, ji = class {
+}, Pi = class {
 	info;
 	cmds = [];
 	targets = [];
@@ -2251,7 +2251,7 @@ var Oi = class {
 };
 //#endregion
 //#region src/ui/wrapText.ts
-function Mi(e, t, n) {
+function Fi(e, t, n) {
 	let r = [], i = "";
 	for (let a of e.split(/\s+/).filter(Boolean)) {
 		let e = i ? `${i} ${a}` : a;
@@ -2261,7 +2261,7 @@ function Mi(e, t, n) {
 }
 //#endregion
 //#region src/ui/craft.ts
-var Y = {
+var K = {
 	body: {
 		x0: -s / 2,
 		y0: -1 / 2,
@@ -2327,19 +2327,48 @@ var Y = {
 		y0: -.3,
 		x1: -s / 2 - .02,
 		y1: .34,
-		fins: 5
+		fins: 5,
+		finReach: .07
 	},
 	com: {
 		x: d,
 		y: f,
 		r: .15
+	},
+	seams: [
+		-.62,
+		.05,
+		.72
+	],
+	belt: -.14,
+	instruments: [{
+		x0: -.95,
+		y0: 1 / 2,
+		x1: -.62,
+		y1: .58
+	}, {
+		x0: .5,
+		y0: 1 / 2,
+		x1: .78,
+		y1: .56
+	}],
+	joint: .05,
+	toe: {
+		reach: .16,
+		rise: .1
 	}
 };
 2 * (c + l / 2);
-function Ni(e) {
+function Ii(e) {
 	return .12 + .6 * Math.sqrt(Math.min(1, Math.max(0, e)));
 }
-function Pi(e, t = "craft") {
+function Li(e) {
+	return Math.max(0, 1 - Math.sqrt(Math.min(1, Math.max(0, e))) / .75);
+}
+function Ri(e) {
+	return 2 * Math.PI * (.6 + 9 * Math.sqrt(Math.min(1, Math.max(0, e))));
+}
+function zi(e, t = "craft") {
 	let n = t === "model" ? e.predictedLine : t === "baseline" ? e.fallbackLine : e.craftLine;
 	return {
 		body: e.craftBody,
@@ -2353,45 +2382,78 @@ function Pi(e, t = "craft") {
 		vector: e.vector
 	};
 }
-function Fi(e, t) {
+function Bi(e, t, n, r, i, a, o) {
+	let s = e.createLinearGradient(0, i, 0, n);
+	s.addColorStop(0, V(a, 0)), s.addColorStop(1, V(a, o)), e.fillStyle = s, e.fillRect(t, n, r - t, i - n);
+}
+function q(e, t) {
 	e.beginPath(), e.moveTo(t[0], t[1]), e.lineTo(t[2], t[3]), e.stroke();
 }
-function Ii(e, t, n) {
-	let r = n.colors ?? Pi(mr), i = Math.max(1, 14 / (a * n.scale)), o = 1.4 / (n.scale * i);
-	e.save(), e.translate(t.x, t.y), e.scale(i, i), e.save(), e.rotate(t.theta), e.translate(-d, -f), e.lineWidth = o, e.strokeStyle = r.line, Y.rotors.x.forEach((t, i) => {
-		let a = i === 0 ? n.sF : n.sR;
-		e.fillStyle = H(n.weak?.[i] ?? !1 ? r.weak : r.rotor, Number(Ni(a).toFixed(3)));
-		for (let n of [Y.rotors.yLow, Y.rotors.yHigh]) e.beginPath(), e.ellipse(t, n, Y.rotors.half, .045 + .04 * Math.sqrt(Math.max(0, a)), 0, 0, Math.PI * 2), e.fill();
-		e.fillStyle = r.line, e.fillRect(t - Y.rotors.hub / 2, Y.rotors.yLow - .08, Y.rotors.hub, Y.rotors.yHigh - Y.rotors.yLow + .12);
+function Vi(e, t, n) {
+	let r = n.colors ?? zi(hr), i = Math.max(1, 14 / (a * n.scale)), o = 1.4 / (n.scale * i);
+	e.save(), e.translate(t.x, t.y), e.scale(i, i), e.save(), e.rotate(t.theta), e.translate(-d, -f), e.lineWidth = o, e.strokeStyle = r.line, K.rotors.x.forEach((t, i) => {
+		let a = i === 0 ? n.sF : n.sR, s = n.weak?.[i] ?? !1, c = Li(a);
+		[K.rotors.yLow, K.rotors.yHigh].forEach((l, u) => {
+			if (e.fillStyle = V(s ? r.weak : r.rotor, Number(Ii(a).toFixed(3))), e.beginPath(), e.ellipse(t, l, K.rotors.half, .045 + .04 * Math.sqrt(Math.max(0, a)), 0, 0, Math.PI * 2), e.fill(), c > .01) {
+				let s = n.t === void 0 ? .6 : n.t * Ri(a), d = K.rotors.half * Math.abs(Math.cos((u === 0 ? 1 : -1) * s + .9 * i + .5 * u));
+				e.save(), e.strokeStyle = V(r.line, Number((.85 * c).toFixed(3))), e.lineWidth = 2.2 * o, q(e, [
+					t - d,
+					l,
+					t + d,
+					l
+				]), e.restore();
+			}
+		}), e.fillStyle = r.line, e.fillRect(t - K.rotors.hub / 2, K.rotors.yLow - .08, K.rotors.hub, K.rotors.yHigh - K.rotors.yLow + .12);
 	});
-	for (let t of Y.arms) Fi(e, t);
-	for (let t of Y.skids.struts) Fi(e, t);
-	Fi(e, Y.skids.runner);
-	let s = Y.rtg;
-	e.fillStyle = r.rtg, e.fillRect(s.x0, s.y0, s.x1 - s.x0, s.y1 - s.y0), e.strokeRect(s.x0, s.y0, s.x1 - s.x0, s.y1 - s.y0);
-	for (let t = 1; t < s.fins; t++) {
-		let n = s.x0 + (s.x1 - s.x0) * t / s.fins;
-		Fi(e, [
-			n,
-			s.y0 - .04,
-			n,
-			s.y1 + .04
-		]);
+	for (let t of K.arms) q(e, t);
+	e.fillStyle = r.line;
+	for (let t of K.skids.struts) {
+		q(e, t);
+		for (let [n, r] of [[t[0], t[1]], [t[2], t[3]]]) e.beginPath(), e.arc(n, r, K.joint, 0, Math.PI * 2), e.fill();
 	}
-	let c = Y.body;
-	e.fillStyle = r.body, e.fillRect(c.x0, c.y0, c.x1 - c.x0, c.y1 - c.y0), e.strokeRect(c.x0, c.y0, c.x1 - c.x0, c.y1 - c.y0);
-	let l = Y.deck;
-	e.fillStyle = r.deck, e.fillRect(l.x0, l.y0, l.x1 - l.x0, l.y1 - l.y0);
-	let u = Y.hga;
-	Fi(e, [
-		u.mastX,
-		u.mastY0,
-		u.mastX,
-		u.mastY1
-	]), e.beginPath(), e.ellipse(u.mastX, u.cy, u.radius, u.depth, u.tilt, 0, Math.PI), e.stroke();
-	let p = Y.com;
-	e.fillStyle = r.comFill, e.beginPath(), e.arc(p.x, p.y, p.r, 0, Math.PI * 2), e.fill(), e.stroke(), e.fillStyle = r.com;
-	for (let t of [0, Math.PI]) e.beginPath(), e.moveTo(p.x, p.y), e.arc(p.x, p.y, p.r, t, t + Math.PI / 2), e.closePath(), e.fill();
+	let s = K.skids.runner, c = K.toe;
+	e.beginPath(), e.moveTo(s[0] - c.reach, s[1] + c.rise), e.quadraticCurveTo(s[0] - c.reach * .25, s[1], s[0], s[1]), e.lineTo(s[2], s[3]), e.quadraticCurveTo(s[2] + c.reach * .25, s[3], s[2] + c.reach, s[3] + c.rise), e.stroke();
+	let l = K.rtg;
+	e.fillStyle = r.rtg;
+	for (let t = 1; t < l.fins; t++) {
+		let n = l.x0 + (l.x1 - l.x0) * t / l.fins;
+		e.fillRect(n - .02, l.y0 - l.finReach, .04, l.y1 - l.y0 + 2 * l.finReach), e.strokeRect(n - .02, l.y0 - l.finReach, .04, l.y1 - l.y0 + 2 * l.finReach);
+	}
+	e.fillRect(l.x0, l.y0, l.x1 - l.x0, l.y1 - l.y0), Bi(e, l.x0, l.y0, l.x1, l.y1, r.line, .3), e.strokeRect(l.x0, l.y0, l.x1 - l.x0, l.y1 - l.y0);
+	let u = K.body;
+	e.fillStyle = r.body, e.fillRect(u.x0, u.y0, u.x1 - u.x0, u.y1 - u.y0), Bi(e, u.x0, u.y0, u.x1, u.y1, r.line, .28), e.save(), e.strokeStyle = V(r.line, .4), e.lineWidth = .6 * o;
+	for (let t of K.seams) q(e, [
+		t,
+		u.y0 + .06,
+		t,
+		K.deck.y0 - .04
+	]);
+	q(e, [
+		u.x0 + .06,
+		K.belt,
+		u.x1 - .06,
+		K.belt
+	]), e.restore(), e.strokeRect(u.x0, u.y0, u.x1 - u.x0, u.y1 - u.y0);
+	let p = K.deck;
+	e.fillStyle = r.deck, e.fillRect(p.x0, p.y0, p.x1 - p.x0, p.y1 - p.y0);
+	for (let t of K.instruments) e.fillRect(t.x0, t.y0, t.x1 - t.x0, t.y1 - t.y0), e.strokeRect(t.x0, t.y0, t.x1 - t.x0, t.y1 - t.y0);
+	let m = K.hga;
+	q(e, [
+		m.mastX,
+		m.mastY0,
+		m.mastX,
+		m.mastY1
+	]), e.beginPath(), e.ellipse(m.mastX, m.cy, m.radius, m.depth, m.tilt, 0, Math.PI), e.closePath(), e.fillStyle = r.body, e.fill(), e.stroke();
+	let h = [
+		m.mastX,
+		m.cy,
+		m.mastX - .2 * Math.sin(m.tilt),
+		m.cy + .2 * Math.cos(m.tilt)
+	];
+	e.save(), e.lineWidth = .7 * o, q(e, h), e.restore();
+	let g = K.com;
+	e.fillStyle = r.comFill, e.beginPath(), e.arc(g.x, g.y, g.r, 0, Math.PI * 2), e.fill(), e.stroke(), e.fillStyle = r.com;
+	for (let t of [0, Math.PI]) e.beginPath(), e.moveTo(g.x, g.y), e.arc(g.x, g.y, g.r, t, t + Math.PI / 2), e.closePath(), e.fill();
 	if (e.restore(), n.vector && (n.vector.tx !== 0 || n.vector.ty !== 0)) {
 		let t = n.vector.tx * 4, i = n.vector.ty * 4, a = Math.hypot(t, i), s = t / a, c = i / a, l = Math.min(.6, .4 * a);
 		e.strokeStyle = r.vector, e.fillStyle = r.vector, e.lineWidth = 2 * o, e.beginPath(), e.moveTo(0, 0), e.lineTo(t - s * l, i - c * l), e.stroke(), e.beginPath(), e.moveTo(t, i), e.lineTo(t - s * l - c * l * .5, i - c * l + s * l * .5), e.lineTo(t - s * l + c * l * .5, i - c * l - s * l * .5), e.closePath(), e.fill();
@@ -2400,27 +2462,26 @@ function Ii(e, t, n) {
 }
 //#endregion
 //#region src/ui/render.ts
-var Li = {
+var Hi = {
 	fog: .18,
 	targetDim: .45,
 	hazeFar: .85
 };
-function Ri(e, t, n, r, i) {
-	let a = i.style ?? hr, o = a.palette, s = i.camera, c = s.scale(t);
-	e.setTransform(r, 0, 0, r, 0, 0);
-	let l = e.createLinearGradient(0, 0, 0, n);
-	l.addColorStop(0, o.skyTop), l.addColorStop(1, o.skyHorizon), e.fillStyle = l, e.fillRect(0, 0, t, n), e.setTransform(r * c, 0, 0, -r * c, r * (t / 2 - s.cx * c), r * (n / 2 + s.cy * c));
-	let u = s.cx - s.width / 2 - 2, d = s.cx + s.width / 2 + 2, f = s.cy - n / c;
-	Ui(e, i.map, u, d, f, c, o), Wi(e, i, u, d, c, o), Qi(e, i, c, a, t, n), i.streaks?.draw(e, i.field, c, o.streak), Ii(e, i.display, {
+function Ui(e, t, n, r, i) {
+	let a = i.style ?? gr, o = a.palette, s = i.camera, c = s.scale(t);
+	e.setTransform(r, 0, 0, r, 0, 0), ca(e, t, n, o), ga(e, i.map, s.cx, t, n, s.toScreen(s.cx, N(i.map, s.cx), t, n)[1], o), e.setTransform(r * c, 0, 0, -r * c, r * (t / 2 - s.cx * c), r * (n / 2 + s.cy * c));
+	let l = s.cx - s.width / 2 - 2, u = s.cx + s.width / 2 + 2, d = s.cy - n / c;
+	Ji(e, i.map, l, u, d, c, o), va(e, i.map, l, u, c, o), Yi(e, i, l, u, c, o), xa(e, i.map, i.display, o), ra(e, i, c, a, t, n), i.streaks?.draw(e, i.field, c, o.streak), wa(e, i.map, i.display, i.t, o), Vi(e, i.display, {
 		sF: i.display.sF,
 		sR: i.display.sR,
 		weak: i.weak,
 		vector: i.vector,
 		scale: c,
-		colors: Pi(o, i.tint ?? "craft")
-	}), $i(e, i.display.x, u, d, f, s.cy + n / c, o), e.setTransform(r, 0, 0, r, 0, 0);
+		colors: zi(o, i.tint ?? "craft"),
+		t: i.t
+	}), Ta(e, i.display.x, l, u, d, s.cy + n / c, o), e.setTransform(r, 0, 0, r, 0, 0);
 }
-var X = {
+var J = {
 	x: 8,
 	bottom: 8,
 	line: 14,
@@ -2428,18 +2489,18 @@ var X = {
 	descent: 3,
 	clearance: 40,
 	font: "11px ui-monospace, monospace"
-}, zi = {
+}, Wi = {
 	line: 11,
 	ascent: 8,
 	descent: 2,
 	font: "9px system-ui, sans-serif"
 };
-function Bi(e, t, n, r, i) {
+function Gi(e, t, n, r, i) {
 	return Math.hypot(Math.max(t - e[0], 0, e[0] - n), Math.max(r - e[1], 0, e[1] - i));
 }
-function Vi(e, t, n, r, i, a, o = !1) {
-	let s = o ? zi : X, c = e.length, l = X.x, u = X.x + Math.max(0, ...t), d = G.top + a * G.pitch + s.ascent, f = e.map((e, t) => d + t * s.line), p = e.map((e, t) => r - X.bottom - (c - 1 - t) * s.line);
-	return o ? Bi(i, l, u, d - s.ascent, (f[c - 1] ?? d) + s.descent) < X.clearance ? {
+function Ki(e, t, n, r, i, a, o = !1) {
+	let s = o ? Wi : J, c = e.length, l = J.x, u = J.x + Math.max(0, ...t), d = Rr.top + a * Rr.pitch + s.ascent, f = e.map((e, t) => d + t * s.line), p = e.map((e, t) => r - J.bottom - (c - 1 - t) * s.line);
+	return o ? Gi(i, l, u, d - s.ascent, (f[c - 1] ?? d) + s.descent) < J.clearance ? {
 		at: "bottom",
 		lines: e,
 		baselines: p
@@ -2447,7 +2508,7 @@ function Vi(e, t, n, r, i, a, o = !1) {
 		at: "top",
 		lines: e,
 		baselines: f
-	} : Bi(i, l, u, (p[0] ?? r) - s.ascent, r - X.bottom + s.descent) < X.clearance ? {
+	} : Gi(i, l, u, (p[0] ?? r) - s.ascent, r - J.bottom + s.descent) < J.clearance ? {
 		at: "top",
 		lines: e,
 		baselines: f
@@ -2457,53 +2518,53 @@ function Vi(e, t, n, r, i, a, o = !1) {
 		baselines: p
 	};
 }
-function Hi(e, t, n, r, i, a, o, s = 0) {
+function qi(e, t, n, r, i, a, o, s = 0) {
 	e.save(), e.fillStyle = i.text;
-	let c = t < 480, l = c ? zi : X;
+	let c = t < 480, l = c ? Wi : J;
 	e.font = l.font, e.textBaseline = "alphabetic";
-	let u = Mi(r, t - 2 * X.x - (c ? s : 0), (t) => e.measureText(t).width), d = u.map((t) => e.measureText(t).width), f = Vi(u, d, t, n, a, o, c);
-	f.lines.forEach((t, n) => e.fillText(t, X.x, f.baselines[n])), e.restore();
+	let u = Fi(r, t - 2 * J.x - (c ? s : 0), (t) => e.measureText(t).width), d = u.map((t) => e.measureText(t).width), f = Ki(u, d, t, n, a, o, c);
+	f.lines.forEach((t, n) => e.fillText(t, J.x, f.baselines[n])), e.restore();
 	let p = (f.baselines[0] ?? 0) - l.ascent, m = (f.baselines[f.baselines.length - 1] ?? 0) + l.descent;
 	return {
 		...f,
 		box: {
-			x: X.x,
+			x: J.x,
 			y: p,
 			w: Math.max(0, ...d),
 			h: Math.max(0, m - p)
 		}
 	};
 }
-function Ui(e, t, n, r, i, a, o) {
-	let s = Math.max(0, Math.ceil(n / 2) * 2), c = Math.min(O, r);
-	e.beginPath(), e.moveTo(n, i), e.lineTo(n, P(t, n));
-	for (let n = s; n <= c; n += 2) e.lineTo(n, P(t, n));
-	e.lineTo(r, P(t, r)), e.lineTo(r, i), e.closePath(), e.fillStyle = o.ground, e.fill(), e.strokeStyle = o.edge, e.lineWidth = 1 / a, e.setLineDash([4 / a, 4 / a]);
-	for (let a of [0, O]) a < n || a > r || (e.beginPath(), e.moveTo(a, i), e.lineTo(a, P(t, a) + 2e3), e.stroke());
+function Ji(e, t, n, r, i, a, o) {
+	let s = Math.max(0, Math.ceil(n / 2) * 2), c = Math.min(D, r);
+	e.beginPath(), e.moveTo(n, i), e.lineTo(n, N(t, n));
+	for (let n = s; n <= c; n += 2) e.lineTo(n, N(t, n));
+	e.lineTo(r, N(t, r)), e.lineTo(r, i), e.closePath(), e.fillStyle = o.ground, e.fill(), e.strokeStyle = o.edge, e.lineWidth = 1 / a, e.setLineDash([4 / a, 4 / a]);
+	for (let a of [0, D]) a < n || a > r || (e.beginPath(), e.moveTo(a, i), e.lineTo(a, N(t, a) + 2e3), e.stroke());
 	e.setLineDash([]);
 }
-function Wi(e, t, n, r, i, a) {
-	let o = Math.max(0, F(n)), s = Math.min(A - 1, F(r)), c = 8 / i;
+function Yi(e, t, n, r, i, a) {
+	let o = Math.max(0, P(n)), s = Math.min(k - 1, P(r)), c = 8 / i;
 	for (let n = o; n <= s; n++) {
-		let r = n * 4, o = r + 4, s = P(t.map, r), l = P(t.map, o), u = t.knowledge[n];
-		if (e.strokeStyle = u === 0 ? a.surfaceFog : a.surfaceScanned, e.lineWidth = (u === 0 ? 1 : 2) / i, e.beginPath(), e.moveTo(r, s), e.lineTo(o, l), e.stroke(), u === 0) e.fillStyle = H(a.fog, Li.fog), e.beginPath(), e.moveTo(r, s), e.lineTo(o, l), e.lineTo(o, l + c), e.lineTo(r, s + c), e.closePath(), e.fill();
+		let r = n * 4, o = r + 4, s = N(t.map, r), l = N(t.map, o), u = t.knowledge[n];
+		if (e.strokeStyle = u === 0 ? a.surfaceFog : a.surfaceScanned, e.lineWidth = (u === 0 ? 1 : 2) / i, e.beginPath(), e.moveTo(r, s), e.lineTo(o, l), e.stroke(), u === 0) e.fillStyle = V(a.fog, Hi.fog), e.beginPath(), e.moveTo(r, s), e.lineTo(o, l), e.lineTo(o, l + c), e.lineTo(r, s + c), e.closePath(), e.fill();
 		else if (u === 2) {
 			e.fillStyle = a.hazard, e.strokeStyle = a.hazardEdge, e.lineWidth = 1 / i;
 			for (let i = 0; i < 2; i++) {
 				let a = r + (.25 + .5 * i) * 4, o = .5 + .3 * ((n * 7 + i * 3) % 5 / 4);
-				e.beginPath(), e.arc(a, P(t.map, a) + o * .7, o, 0, Math.PI * 2), e.fill(), e.stroke();
+				e.beginPath(), e.arc(a, N(t.map, a) + o * .7, o, 0, Math.PI * 2), e.fill(), e.stroke();
 			}
 		}
 	}
 }
-var Gi = {
+var Xi = {
 	len: 9,
 	width: 10,
 	inset: 3,
 	gap: 3
 };
-function Ki(e, t, n, r, i = []) {
-	let { len: a, width: o, inset: s, gap: c } = Gi, l = e < 0 || e > n;
+function Zi(e, t, n, r, i = []) {
+	let { len: a, width: o, inset: s, gap: c } = Xi, l = e < 0 || e > n;
 	if (!l && t >= 0 && t <= r) return null;
 	let u = l ? e > n ? 1 : -1 : t > r ? 1 : -1, d = l ? n : r, f = l ? r : n, p = u > 0 ? d - s : s, m = p - u * a, [h, g] = [Math.min(p, m), Math.max(p, m)], _ = o, v = f - o;
 	for (let e of i) {
@@ -2527,12 +2588,12 @@ function Ki(e, t, n, r, i = []) {
 		b(m, y + o / 2)
 	];
 }
-function qi(e, t, n, r, i, a = []) {
-	let [o, s] = t.camera.toScreen(t.targetX, P(t.map, t.targetX), n, r), c = Ki(o, s, n, r, a);
+function Qi(e, t, n, r, i, a = []) {
+	let [o, s] = t.camera.toScreen(t.targetX, N(t.map, t.targetX), n, r), c = Zi(o, s, n, r, a);
 	c && (e.fillStyle = i.target, e.beginPath(), e.moveTo(...c[0]), e.lineTo(...c[1]), e.lineTo(...c[2]), e.closePath(), e.fill());
 }
-var Ji = 4, Yi = 2, Xi = 13;
-function Zi(e, t, n, r, i = Ji, a = Yi) {
+var $i = 4, ea = 2, ta = 13;
+function na(e, t, n, r, i = $i, a = ea) {
 	let o = {
 		side: "right",
 		lines: [t],
@@ -2549,33 +2610,195 @@ function Zi(e, t, n, r, i = Ji, a = Yi) {
 		dx: -a
 	} : c >= l ? {
 		side: "right",
-		lines: Mi(t, c, r),
+		lines: Fi(t, c, r),
 		dx: Math.max(a, i - e)
 	} : {
 		side: "left",
-		lines: Mi(t, l, r),
+		lines: Fi(t, l, r),
 		dx: -a
 	};
 }
-function Qi(e, t, n, r, i, a) {
-	let o = r.palette, s = H(o.target, Li.targetDim);
+function ra(e, t, n, r, i, a) {
+	let o = r.palette, s = V(o.target, Hi.targetDim);
 	for (let c of t.map.targets) {
-		let l = Math.abs(c.x - t.targetX) < 1e-6, u = P(t.map, c.x), d = 18 / n + 3;
-		if (e.strokeStyle = l ? o.target : s, e.fillStyle = l ? o.target : s, e.lineWidth = 1.5 / n, e.beginPath(), e.moveTo(c.x, u), e.lineTo(c.x, u + d), e.stroke(), e.beginPath(), e.moveTo(c.x, u + d), e.lineTo(c.x + 10 / n + 1.5, u + d - 5 / n - .8), e.lineTo(c.x, u + d - 10 / n - 1.6), e.closePath(), e.fill(), l && (e.beginPath(), e.moveTo(c.x - 1, P(t.map, c.x - 1) + .5), e.lineTo(c.x - 1, P(t.map, c.x - 1)), e.lineTo(c.x + 1, P(t.map, c.x + 1)), e.lineTo(c.x + 1, P(t.map, c.x + 1) + .5), e.stroke()), !r.text) continue;
+		let l = Math.abs(c.x - t.targetX) < 1e-6, u = N(t.map, c.x), d = 18 / n + 3;
+		if (e.strokeStyle = l ? o.target : s, e.fillStyle = l ? o.target : s, e.lineWidth = 1.5 / n, e.beginPath(), e.moveTo(c.x, u), e.lineTo(c.x, u + d), e.stroke(), e.beginPath(), e.moveTo(c.x, u + d), e.lineTo(c.x + 10 / n + 1.5, u + d - 5 / n - .8), e.lineTo(c.x, u + d - 10 / n - 1.6), e.closePath(), e.fill(), l && (e.beginPath(), e.moveTo(c.x - 1, N(t.map, c.x - 1) + .5), e.lineTo(c.x - 1, N(t.map, c.x - 1)), e.lineTo(c.x + 1, N(t.map, c.x + 1)), e.lineTo(c.x + 1, N(t.map, c.x + 1) + .5), e.stroke()), !r.text) continue;
 		e.save(), e.font = "11px system-ui, sans-serif";
-		let f = yr(r.text.targetLabel, { label: c.label }), [p] = t.camera.toScreen(c.x, u, i, a), m = Zi(p, f, i, (t) => e.measureText(t).width);
-		e.translate(c.x + m.dx / n, u + d + 4 / n), e.scale(1 / n, -1 / n), m.side === "left" && (e.textAlign = "right"), m.lines.forEach((t, n) => e.fillText(t, 0, (n - (m.lines.length - 1)) * Xi)), e.restore();
+		let f = br(r.text.targetLabel, { label: c.label }), [p] = t.camera.toScreen(c.x, u, i, a), m = na(p, f, i, (t) => e.measureText(t).width);
+		e.translate(c.x + m.dx / n, u + d + 4 / n), e.scale(1 / n, -1 / n), m.side === "left" && (e.textAlign = "right"), m.lines.forEach((t, n) => e.fillText(t, 0, (n - (m.lines.length - 1)) * ta)), e.restore();
 	}
 }
-function $i(e, t, n, r, i, a, o) {
+function Y(e) {
+	let t = Math.sin(e * 12.9898 + 78.233) * 43758.5453;
+	return t - Math.floor(t);
+}
+var X = {
+	x: .74,
+	y: .1,
+	r: .6,
+	stops: [
+		[0, .16],
+		[.35, .05],
+		[1, 0]
+	]
+}, ia = [160, 90], aa = /* @__PURE__ */ new Map();
+function oa(e, t, n, r) {
+	let i = e.createLinearGradient(0, 0, 0, n);
+	i.addColorStop(0, r.skyTop), i.addColorStop(1, r.skyHorizon), e.fillStyle = i, e.fillRect(0, 0, t, n);
+	let a = X.r * Math.max(t, n), o = e.createRadialGradient(X.x * t, X.y * n, 0, X.x * t, X.y * n, a);
+	for (let [e, t] of X.stops) o.addColorStop(e, V(r.badgeText, t));
+	e.fillStyle = o, e.fillRect(0, 0, t, n);
+}
+function sa(e) {
+	let t = `${e.skyTop}|${e.skyHorizon}|${e.badgeText}`;
+	if (aa.has(t)) return aa.get(t);
+	let [n, r] = ia, i = null;
+	try {
+		let t = typeof OffscreenCanvas < "u" ? new OffscreenCanvas(n, r) : typeof document < "u" ? Object.assign(document.createElement("canvas"), {
+			width: n,
+			height: r
+		}) : null, a = t?.getContext("2d");
+		t && a && typeof a.createRadialGradient == "function" && typeof a.fillRect == "function" && (oa(a, n, r, e), i = t);
+	} catch {
+		i = null;
+	}
+	return aa.set(t, i), i;
+}
+function ca(e, t, n, r) {
+	let i = sa(r);
+	i ? e.drawImage(i, 0, 0, t, n) : oa(e, t, n, r);
+}
+var la = [
+	{
+		p: .12,
+		wavePx: 380,
+		ampH: .1,
+		liftH: .05,
+		alpha: .13
+	},
+	{
+		p: .25,
+		wavePx: 260,
+		ampH: .07,
+		liftH: .025,
+		alpha: .2
+	},
+	{
+		p: .45,
+		wavePx: 170,
+		ampH: .045,
+		liftH: 0,
+		alpha: .3
+	}
+], ua = 2, da = Math.ceil((3 * D + 4096) / ua), fa = /* @__PURE__ */ new WeakMap();
+function pa(e) {
+	let t = fa.get(e);
+	if (!t) {
+		let n = la.map((t, n) => [
+			0,
+			1,
+			2
+		].map((t) => 2 * Math.PI * Y(e.seed * 31 + n * 7 + t)));
+		t = {
+			phase: n,
+			table: la.map((e, t) => {
+				let r = new Float32Array(da);
+				for (let e = 0; e < da; e++) r[e] = ha(t, e * ua, n[t]);
+				return r;
+			})
+		}, fa.set(e, t);
+	}
+	return t;
+}
+function ma(e, t) {
+	return e[Math.min(e.length - 1, Math.max(0, Math.round(t / ua)))];
+}
+function ha(e, t, n) {
+	let r = 2 * Math.PI * t / la[e].wavePx;
+	return .5 + .5 * (.55 * Math.sin(r + n[0]) + .3 * Math.sin(2.3 * r + n[1]) + .15 * Math.sin(5.1 * r + n[2]));
+}
+function ga(e, t, n, r, i, a, o) {
+	let { table: s } = pa(t);
+	la.forEach((t, c) => {
+		let l = t.p * Math.max(0, n) * 3;
+		e.beginPath(), e.moveTo(0, i);
+		for (let n = 0; n <= r + 6; n += 6) e.lineTo(n, a - (t.liftH + t.ampH * ma(s[c], n + l)) * i);
+		e.lineTo(r + 6, i), e.closePath(), e.fillStyle = V(o.ground, t.alpha), e.fill();
+	});
+}
+var _a = [
+	{
+		depthPx: 5,
+		alpha: .24
+	},
+	{
+		depthPx: 13,
+		alpha: .15
+	},
+	{
+		depthPx: 26,
+		alpha: .08
+	}
+];
+function va(e, t, n, r, i, a) {
+	let o = Math.floor(n / 2) * 2, s = [], c = [];
+	for (let e = o; e <= r + 2; e += 2) s.push(e), c.push(N(t, e));
+	e.lineWidth = 1 / i;
+	for (let t of _a) {
+		let n = t.depthPx / i;
+		e.strokeStyle = V(a.edge, t.alpha), e.beginPath(), e.moveTo(s[0], c[0] - n);
+		for (let t = 1; t < s.length; t++) e.lineTo(s[t], c[t] - n);
+		e.stroke();
+	}
+	let l = 9 / i, u = 1.2 / i;
+	e.fillStyle = V(a.panel, .22), e.beginPath();
+	for (let a = Math.floor(n / l); a * l <= r; a++) {
+		let n = a * l + Y(a) * l;
+		e.rect(n, N(t, n) - (3 + 34 * Y(a + .5)) / i, u, u);
+	}
+	e.fill();
+}
+var ya = {
+	fadeM: 30,
+	alpha: .34
+};
+function ba(e, t) {
+	let n = Math.max(0, e.y - t);
+	return {
+		rx: 1.6 + .08 * n,
+		ry: .18 + .012 * n,
+		alpha: ya.alpha * Math.max(0, 1 - n / ya.fadeM)
+	};
+}
+function xa(e, t, n, r) {
+	let i = N(t, n.x), a = ba(n, i);
+	a.alpha <= .005 || (e.fillStyle = V(r.panel, a.alpha), e.beginPath(), e.ellipse(n.x, i + .05, a.rx, a.ry, 0, 0, Math.PI * 2), e.fill());
+}
+var Sa = {
+	reachM: 6,
+	count: 26
+};
+function Ca(e, t) {
+	let n = e.y - f + g - t, r = (Math.max(0, e.sF) + Math.max(0, e.sR)) / 2;
+	return Math.min(1, r) * Math.max(0, 1 - Math.max(0, n) / Sa.reachM);
+}
+function wa(e, t, n, r, i) {
+	if (r === void 0) return;
+	let a = Ca(n, N(t, n.x));
+	if (!(a < .02)) for (let o = 0; o < Sa.count; o++) {
+		let s = Y(o * 3 + 1), c = Y(o * 3 + 2), l = Y(o * 3 + 3), u = r * (.5 + .7 * c) + s, d = u - Math.floor(u), f = o % 2 == 0 ? -1 : 1, p = n.x + f * (.8 + (2.5 + 4 * l) * d * (.6 + .4 * a)), m = N(t, p) + .15 + d * (.6 + 1.4 * c) * a, h = .45 * a * (1 - d) ** 1.4;
+		h < .01 || (e.fillStyle = V(i.surfaceScanned, h), e.beginPath(), e.arc(p, m, .2 + .85 * d * (.5 + l), 0, Math.PI * 2), e.fill());
+	}
+}
+function Ta(e, t, n, r, i, a, o) {
 	for (let s of [-1, 1]) {
 		let c = e.createLinearGradient(t + s * 100, 0, t + s * 400, 0);
-		c.addColorStop(0, H(o.haze, 0)), c.addColorStop(1, H(o.haze, Li.hazeFar)), e.fillStyle = c;
+		c.addColorStop(0, V(o.haze, 0)), c.addColorStop(1, V(o.haze, Hi.hazeFar)), e.fillStyle = c;
 		let l = s < 0 ? n : t + 100, u = s < 0 ? t - 100 : r;
 		u > l && e.fillRect(l, i, u - l, a - i);
 	}
 }
-var ea = [2, 6], ta = 1.5, na = class {
+var Ea = [2, 6], Da = 1.5, Oa = class {
 	rng;
 	count;
 	streaks = [];
@@ -2588,7 +2811,7 @@ var ea = [2, 6], ta = 1.5, na = class {
 			x: n,
 			y: r + Math.max(0, e.top - r) * this.rng.next(),
 			age: 0,
-			life: ea[0] + (ea[1] - ea[0]) * this.rng.next()
+			life: Ea[0] + (Ea[1] - Ea[0]) * this.rng.next()
 		};
 	}
 	reset() {
@@ -2612,11 +2835,11 @@ var ea = [2, 6], ta = 1.5, na = class {
 			let [i, a] = t(n.x, n.y), o = Math.hypot(i, a);
 			if (o < .001) continue;
 			let s = Math.min(1, n.age / .4, (n.life - n.age) / .4);
-			e.strokeStyle = H(r, Number((Math.max(0, s) * Math.min(.7, .2 + o / 6)).toFixed(3))), e.beginPath(), e.moveTo(n.x, n.y), e.lineTo(n.x - i * ta, n.y - a * ta), e.stroke();
+			e.strokeStyle = V(r, Number((Math.max(0, s) * Math.min(.7, .2 + o / 6)).toFixed(3))), e.beginPath(), e.moveTo(n.x, n.y), e.lineTo(n.x - i * Da, n.y - a * Da), e.stroke();
 		}
 	}
 };
-function ra(e, t) {
+function ka(e, t) {
 	let n = new URL(e.assetBase, t).href, r = typeof window < "u" && typeof window.matchMedia == "function" ? window.matchMedia : null;
 	return {
 		...e,
@@ -2626,17 +2849,17 @@ function ra(e, t) {
 		ui: e.ui ?? "full"
 	};
 }
-function ia(e, t) {
-	return Cn(e.world, e.link, t);
+function Aa(e, t) {
+	return wn(e.world, e.link, t);
 }
-function aa(e, t) {
+function ja(e, t) {
 	let n = e.world, r = e.link.downlinkStep(t), i = r < n.records.length ? n.records[r] : null, a = i ? {
 		state: i.state,
 		onGround: i.onGround
 	} : {
 		state: n.state,
 		onGround: n.onGround
-	}, o = i ? i.faultBits : ke(n.faults, n.step), s = yt(n.map, a, o, r, ia(e, t)), c = s[Math.min(s.length - 1, t + 10 - r - 1)].state;
+	}, o = i ? i.faultBits : Ae(n.faults, n.step), s = bt(n.map, a, o, r, Aa(e, t)), c = s[Math.min(s.length - 1, t + 10 - r - 1)].state;
 	return {
 		x: c.x,
 		y: c.y,
@@ -2649,29 +2872,29 @@ function aa(e, t) {
 		energyEst: c.energyEst
 	};
 }
-function oa(e, t) {
+function Ma(e, t) {
 	let n = e.world;
-	return e.mode === "autopilot" ? n.knowledge() : Ot(n.revealedAt, n.hazardFrom, e.link.downlinkStep(t));
+	return e.mode === "autopilot" ? n.knowledge() : kt(n.revealedAt, n.hazardFrom, e.link.downlinkStep(t));
 }
-function sa(e, t) {
+function Na(e, t) {
 	if (e.mode === "autopilot") return {
-		pose: Sn(e.world, t),
+		pose: Cn(e.world, t),
 		source: "onboard",
 		age: 0
 	};
 	let n = e.world;
 	if (n.done && (e.ended || t - 10 >= n.step)) return {
-		pose: Sn(n, n.step),
+		pose: Cn(n, n.step),
 		source: "downlink",
 		age: 0
 	};
-	let r = Math.floor(t), a = t - r, o = aa(e, r);
+	let r = Math.floor(t), a = t - r, o = ja(e, r);
 	if (a < 1e-9) return {
 		pose: o,
 		source: "fallback",
 		age: -10 * i
 	};
-	let s = aa(e, r + 1), c = lt(o, s, a), l = (e, t) => e + (t - e) * a;
+	let s = ja(e, r + 1), c = ut(o, s, a), l = (e, t) => e + (t - e) * a;
 	return {
 		pose: {
 			...c,
@@ -2683,13 +2906,13 @@ function sa(e, t) {
 		age: -10 * i
 	};
 }
-function ca(e) {
+function Pa(e) {
 	return e.source === "predicted" ? "model" : e.source === "fallback" ? "baseline" : "craft";
 }
-function la(e, t) {
-	return new ua(e, t);
+function Fa(e, t) {
+	return new Ia(e, t);
 }
-var ua = class {
+var Ia = class {
 	doc;
 	opts;
 	style;
@@ -2699,18 +2922,18 @@ var ua = class {
 	ui;
 	root;
 	canvas;
-	input = new Oi();
-	clock = new Ai();
+	input = new ji();
+	clock = new Ni();
 	camera;
 	lastView = {
 		altitude: 0,
 		groundY: 0,
 		h: 0
 	};
-	streaks = new na(j(87));
+	streaks = new Oa(A(87));
 	listeners = new AbortController();
 	reasons = /* @__PURE__ */ new Set();
-	chainState = nn(1);
+	chainState = rn(1);
 	current = null;
 	nextFlightId = 1;
 	startToken = 0;
@@ -2748,18 +2971,18 @@ var ua = class {
 		injectFault: (e) => this.afterStart(() => this.injectFault(e))
 	};
 	constructor(e, t) {
-		this.doc = e.ownerDocument, this.opts = ra(t, this.doc.baseURI);
+		this.doc = e.ownerDocument, this.opts = ka(t, this.doc.baseURI);
 		let n = this.opts.theme && Object.keys(this.opts.theme).length > 0 ? this.opts.theme : void 0;
-		this.theme = Object.freeze(n ? _r(n, vr(this.doc)) : {}), this.style = gr(this.theme, this.opts.text === void 0 ? V : this.opts.text, this.opts.inset ?? !0), this.camera = new Bn(this.opts.zoom ?? 1), this.features = [...t.features ?? []];
+		this.theme = Object.freeze(n ? vr(n, yr(this.doc)) : {}), this.style = _r(this.theme, this.opts.text === void 0 ? B : this.opts.text, this.opts.inset ?? !0), this.camera = new Vn(this.opts.zoom ?? 1), this.features = [...t.features ?? []];
 		let r = this.doc, i = (e, t, n) => e.addEventListener(t, n, { signal: this.listeners.signal });
 		this.canvas = r.createElement("canvas"), this.canvas.className = "main-canvas", this.canvas.tabIndex = 0, this.canvas.setAttribute("aria-label", "Rotorcraft view. Click to fly; Escape releases the keys.");
 		let a = this.opts.aspect ?? 1.7777777777777777;
-		this.opts.ui === "none" ? (this.canvas.style.cssText = di(a), this.fillCheck = a === "fill", this.chrome = null, this.root = this.canvas, e.append(this.canvas)) : (this.chrome = jr(e, {
+		this.opts.ui === "none" ? (this.canvas.style.cssText = mi(a), this.fillCheck = a === "fill", this.chrome = null, this.root = this.canvas, e.append(this.canvas)) : (this.chrome = Mr(e, {
 			canvas: this.canvas,
 			signal: this.listeners.signal,
 			noModelText: this.style.text?.noModel ?? "Dream model isn't loaded: flying on a simple physics predictor that ignores wind.",
-			setMode: (e) => Pn(this.commands, "setAutopilot", e === "autopilot"),
-			newFlight: () => Pn(this.commands, "newFlight"),
+			setMode: (e) => Fn(this.commands, "setAutopilot", e === "autopilot"),
+			newFlight: () => Fn(this.commands, "newFlight"),
 			replayHop: (e) => void this.startFlight({
 				hop: e,
 				seed: this.chainState.seed,
@@ -2768,7 +2991,7 @@ var ua = class {
 				attract: !1
 			}),
 			setLevel: (e) => {
-				Pn(this.commands, "setLevel", e), this.startFlight({
+				Fn(this.commands, "setLevel", e), this.startFlight({
 					hop: this.current?.hop ?? 1,
 					seed: this.chainState.seed,
 					start: "pad",
@@ -2777,7 +3000,7 @@ var ua = class {
 				});
 			},
 			setVector: (e) => this.input.setVector(e)
-		}), this.root = this.chrome.ui.root, a === "fill" && console.warn(ui), this.canvas.style.aspectRatio = String(a === "fill" ? li : a)), this.ui = this.chrome?.ui ?? null, this.input.attach(this.canvas), this.input.onFirstInput = () => this.beginCurrent(), i(this.canvas, "focus", () => this.beginCurrent()), i(this.canvas, "pointerdown", () => {
+		}), this.root = this.chrome.ui.root, a === "fill" && console.warn(pi), this.canvas.style.aspectRatio = String(a === "fill" ? fi : a)), this.ui = this.chrome?.ui ?? null, this.input.attach(this.canvas), this.input.onFirstInput = () => this.beginCurrent(), i(this.canvas, "focus", () => this.beginCurrent()), i(this.canvas, "pointerdown", () => {
 			this.focusedBeforeClick = r.activeElement === this.canvas;
 		}), i(this.canvas, "click", (e) => {
 			let t = this.current;
@@ -2794,7 +3017,7 @@ var ua = class {
 			opts: this.opts,
 			canvas: this.canvas,
 			...this.ui ? { ui: this.ui } : {},
-			command: (e, ...t) => Pn(this.commands, e, ...t),
+			command: (e, ...t) => Fn(this.commands, e, ...t),
 			recording: () => this.current ? this.current.recorder.finish(this.current.world) : null
 		};
 		for (let e of this.features) e.mount?.(this.ui, o);
@@ -2819,14 +3042,14 @@ var ua = class {
 			mode: e ? e.mode : this.mode,
 			attract: e ? e.attract : !1,
 			model: this.model,
-			agl: e ? L(e.world.state, e.world.map) : 0,
+			agl: e ? I(e.world.state, e.world.map) : 0,
 			hop: e ? e.hop : 1,
 			level: e ? e.level : this.chainState.baseLevel,
 			groundStep: e ? e.groundStep : 0,
 			worldStep: e ? e.world.step : 0,
 			cameraWidth: this.camera.width,
 			cameraAltitude: this.lastView.altitude,
-			cameraPlainWidth: In(this.lastView.altitude),
+			cameraPlainWidth: Ln(this.lastView.altitude),
 			groundScreenY: this.lastView.groundY,
 			viewHeight: this.lastView.h,
 			theme: this.theme
@@ -2852,15 +3075,15 @@ var ua = class {
 	}
 	async applyStart(e, t) {
 		this.startIssued = !0;
-		let n = ++this.startToken, r = cn(this.chainState, e, this.current?.hop ?? null, () => Math.random() * 2 ** 32 >>> 0);
+		let n = ++this.startToken, r = ln(this.chainState, e, this.current?.hop ?? null, () => Math.random() * 2 ** 32 >>> 0);
 		this.chainState = r.chain;
 		let i = r.plan.hop;
 		if (await Promise.resolve(), n !== this.startToken || (this.starting = null, this.dead)) return;
-		let { plan: a, worldSeed: o, events: s } = r, c = a.level, l = Qt({
+		let { plan: a, worldSeed: o, events: s } = r, c = a.level, l = $t({
 			seed: a.mapSeed,
 			tier: a.tier,
 			startPatch: t ?? void 0
-		}), u = gn(l, new Uint8Array(A)), d = e.start === "air" ? fn(l, j(o), "transit", u) : dn(l, u), f = new On({
+		}), u = _n(l, new Uint8Array(k)), d = e.start === "air" ? pn(l, A(o), "transit", u) : fn(l, u), f = new kn({
 			map: l,
 			level: c,
 			seed: o,
@@ -2870,12 +3093,12 @@ var ua = class {
 			energy: d.energy,
 			s: d.s,
 			events: s
-		}), p = new _t();
+		}), p = new vt();
 		p.reset({
 			front: 0,
 			rear: 0
 		}, 0), this.current && (this.current.ended = !0);
-		let m = j(o).fork(250), h = {
+		let m = A(o).fork(250), h = {
 			flightId: this.nextFlightId++,
 			hop: i,
 			level: c,
@@ -2891,7 +3114,7 @@ var ua = class {
 			chainSeed: this.chainState.seed,
 			start: d,
 			startPatch: t,
-			recorder: new ji({
+			recorder: new Pi({
 				mapSeed: a.mapSeed,
 				tier: a.tier,
 				startPatch: t,
@@ -2916,7 +3139,7 @@ var ua = class {
 			liveWind: [],
 			faultRng: () => m.int(2)
 		};
-		this.current = h, this.mode = e.mode, this.input.reset(), this.clock.reset(), this.camera.reset(), this.streaks = new na(j(o).fork(87)), this.chrome?.flightStarted({
+		this.current = h, this.mode = e.mode, this.input.reset(), this.clock.reset(), this.camera.reset(), this.streaks = new Oa(A(o).fork(87)), this.chrome?.flightStarted({
 			hop: i,
 			mode: e.mode,
 			baseLevel: this.chainState.baseLevel
@@ -2927,7 +3150,7 @@ var ua = class {
 	setMode(e) {
 		this.mode = e;
 		let t = this.current;
-		t && t.mode !== e && (t.mode = e, t.knowledge = oa(t, t.groundStep), this.chrome?.setMode(e), e === "manual" && (t.attract = !1), this.signal({
+		t && t.mode !== e && (t.mode = e, t.knowledge = Ma(t, t.groundStep), this.chrome?.setMode(e), e === "manual" && (t.attract = !1), this.signal({
 			type: "mode",
 			flightId: t.flightId,
 			mode: e
@@ -3002,7 +3225,7 @@ var ua = class {
 			let r = n.displayPose?.(e, t);
 			if (r) return r;
 		}
-		return sa(e, t);
+		return Na(e, t);
 	}
 	addReason(e) {
 		if (this.dead || this.reasons.has(e)) return;
@@ -3039,7 +3262,7 @@ var ua = class {
 		let t = e.world;
 		if (!t.done) {
 			e.pendingTarget !== null && (t.setTarget(e.pendingTarget), e.pendingTarget = null), this.recordTarget(e), e.vector = this.input.step(i);
-			let n = Tt(e.vector, this.display(e, e.groundStep).pose.theta);
+			let n = Et(e.vector, this.display(e, e.groundStep).pose.theta);
 			e.mixOut = n;
 			let r = null;
 			for (let t of this.features) {
@@ -3051,11 +3274,11 @@ var ua = class {
 			}
 			this.recordTarget(e);
 			let a;
-			r ? (a = M(r), e.link.reset(a, t.step + 1)) : (e.link.send(n, t.step), a = e.link.arriving(t.step)), e.cmd = a, e.recorder.recordStep(t.step, a), t.advance(a), e.liveWind.push(t.windAt(t.state.x, t.state.y)[0]);
+			r ? (a = j(r), e.link.reset(a, t.step + 1)) : (e.link.send(n, t.step), a = e.link.arriving(t.step)), e.cmd = a, e.recorder.recordStep(t.step, a), t.advance(a), e.liveWind.push(t.windAt(t.state.x, t.state.y)[0]);
 			for (let t of this.features) t.afterStep?.(e);
 			this.recordTarget(e), t.done && (e.contactAt = t.step);
 		}
-		e.groundStep++, e.knowledge = oa(e, e.groundStep), t.done && e.groundStep >= e.contactAt + (e.mode === "manual" ? 10 : 0) ? this.end(e) : t.done && this.chrome?.setStatus("Touchdown awaiting confirmation…");
+		e.groundStep++, e.knowledge = Ma(e, e.groundStep), t.done && e.groundStep >= e.contactAt + (e.mode === "manual" ? 10 : 0) ? this.end(e) : t.done && this.chrome?.setStatus("Touchdown awaiting confirmation…");
 	}
 	recordTarget(e) {
 		let t = e.world;
@@ -3101,18 +3324,18 @@ var ua = class {
 				start: "pad",
 				mode: e.mode,
 				attract: !1
-			}, Zt(e.world.map, t.pose.x))
+			}, Qt(e.world.map, t.pose.x))
 		});
 	}
 	draw(e, t) {
 		if (this.fillCheck) {
 			this.fillCheck = !1;
 			let e = this.canvas.parentElement;
-			(!e || !fi(e, this.canvas)) && (console.warn(ui), this.canvas.style.height = "", this.canvas.style.aspectRatio = String(li));
+			(!e || !hi(e, this.canvas)) && (console.warn(pi), this.canvas.style.height = "", this.canvas.style.aspectRatio = String(fi));
 		}
 		let n = window.devicePixelRatio || 1, r = this.canvas.getBoundingClientRect(), a = Math.max(1, r.width), o = Math.max(1, r.height);
 		(this.canvas.width !== Math.round(a * n) || this.canvas.height !== Math.round(o * n)) && (this.canvas.width = Math.round(a * n), this.canvas.height = Math.round(o * n));
-		let s = e.world, c = this.shown(e), { displayStep: l, display: u, shownRow: d, shownBits: f, meanU: p, liveU: m } = c, h = u.pose, g = P(s.map, h.x);
+		let s = e.world, c = this.shown(e), { displayStep: l, display: u, shownRow: d, shownBits: f, meanU: p, liveU: m } = c, h = u.pose, g = N(s.map, h.x);
 		this.camera.update(h, g, t, o / a), this.lastView = {
 			altitude: h.y - g,
 			groundY: this.camera.toScreen(h.x, g, a, o)[1],
@@ -3124,10 +3347,10 @@ var ua = class {
 			bottom: g - 5,
 			top: this.camera.cy + this.camera.width * o / a / 2
 		};
-		this.opts.reducedMotion || this.streaks.update(t, _, v, (e) => P(s.map, e));
+		this.opts.reducedMotion || this.streaks.update(t, _, v, (e) => N(s.map, e));
 		let y = this.canvas.getContext("2d");
 		if (y) {
-			Ri(y, a, o, n, {
+			Ui(y, a, o, n, {
 				map: s.map,
 				knowledge: e.knowledge,
 				targetX: s.targetX,
@@ -3138,7 +3361,8 @@ var ua = class {
 				streaks: this.opts.reducedMotion ? null : this.streaks,
 				field: _,
 				style: this.style,
-				tint: this.featureState(e).planner === "simple-pilot" ? "baseline" : ca(u)
+				tint: this.featureState(e).planner === "simple-pilot" ? "baseline" : Pa(u),
+				t: this.opts.reducedMotion ? void 0 : l * i
 			});
 			let t = {
 				flight: e,
@@ -3151,18 +3375,18 @@ var ua = class {
 				style: this.style
 			};
 			for (let e of this.features) e.draw && (y.save(), y.setTransform(n, 0, 0, n, 0, 0), e.draw(y, t), y.restore());
-			let r = this.style.inset && this.features.some((e) => e.insetDrawn?.() === !0), i = r ? [yi(a)] : [], c = this.style.text;
-			if (c) {
-				let t = this.features.flatMap((t) => t.badges?.(e, c) ?? []);
-				!this.chrome && this.model === "absent" && t.unshift(c.noModel), y.save(), y.setTransform(n, 0, 0, n, 0, 0), Lr(y, t, this.style.palette);
-				let s = this.camera.toScreen(h.x, h.y, a, o);
-				i.push(Hi(y, a, o, c.terrainCaption, this.style.palette, s, t.length, gi(a, r)).box), y.restore();
+			let r = this.style.inset && this.features.some((e) => e.insetDrawn?.() === !0), c = r ? [Si(a)] : [], d = this.style.text;
+			if (d) {
+				let t = this.features.flatMap((t) => t.badges?.(e, d) ?? []);
+				!this.chrome && this.model === "absent" && t.unshift(d.noModel), y.save(), y.setTransform(n, 0, 0, n, 0, 0), zr(y, t, this.style.palette);
+				let i = this.camera.toScreen(h.x, h.y, a, o);
+				c.push(qi(y, a, o, d.terrainCaption, this.style.palette, i, t.length, yi(a, r)).box), y.restore();
 			}
-			y.save(), y.setTransform(n, 0, 0, n, 0, 0), qi(y, {
+			y.save(), y.setTransform(n, 0, 0, n, 0, 0), Qi(y, {
 				camera: this.camera,
 				map: s.map,
 				targetX: s.targetX
-			}, a, o, this.style.palette, i), y.restore();
+			}, a, o, this.style.palette, c), y.restore();
 		}
 		this.opts.onState?.(this.stateOf(e, c)), this.chrome && this.chrome.frame({
 			map: s.map,
@@ -3171,23 +3395,23 @@ var ua = class {
 			pose: h,
 			viewLeft: this.camera.cx - this.camera.width / 2,
 			viewRight: this.camera.cx + this.camera.width / 2,
-			readouts: Zn({
+			readouts: Qn({
 				display: h,
 				source: u.source,
 				age: u.age,
-				clearance: L(h, s.map),
+				clearance: I(h, s.map),
 				meanU: p,
 				liveU: m,
 				t: l * i
 			}),
-			rotor: Cr(e.mode === "manual" ? e.mixOut : e.cmd, h, e.mode, f),
+			rotor: wr(e.mode === "manual" ? e.mixOut : e.cmd, h, e.mode, f),
 			vector: this.input.vector,
 			palette: this.style.palette,
 			dpr: n
 		});
 	}
 	shown(e) {
-		let t = e.world, n = e.started && !e.ended ? this.clock.alpha() : 1, r = Math.max(0, e.groundStep - 1 + n), i = this.display(e, r), a = Math.max(0, Math.min(t.step, Math.round(r) - (e.mode === "autopilot" ? 0 : 10))), o = a < t.records.length ? t.records[a].faultBits : ke(t.faults, t.step), [s] = ht(t.map, t.level, i.pose.x, i.pose.y);
+		let t = e.world, n = e.started && !e.ended ? this.clock.alpha() : 1, r = Math.max(0, e.groundStep - 1 + n), i = this.display(e, r), a = Math.max(0, Math.min(t.step, Math.round(r) - (e.mode === "autopilot" ? 0 : 10))), o = a < t.records.length ? t.records[a].faultBits : Ae(t.faults, t.step), [s] = gt(t.map, t.level, i.pose.x, i.pose.y);
 		return {
 			displayStep: r,
 			display: i,
@@ -3208,7 +3432,7 @@ var ua = class {
 			planner: i.planner ?? "ok",
 			display: n.display.source === "fallback" ? "fallback" : "predicted",
 			flight: {
-				agl: Math.max(0, L(r, t.world.map)),
+				agl: Math.max(0, I(r, t.world.map)),
 				vx: r.vx,
 				vy: r.vy,
 				tiltDeg: r.theta / e,
@@ -3231,11 +3455,11 @@ var ua = class {
 		let e = this.current;
 		!this.dead && e && this.opts.onState && this.opts.onState(this.stateOf(e, this.shown(e)));
 	}
-}, da = /\b(iPhone|iPad|iPod)\b/, fa = /Chrom(e|ium)\//;
-function pa(e, t) {
-	return da.test(e) || /Macintosh/.test(e) && t > 1 ? !0 : /AppleWebKit\//.test(e) ? !fa.test(e) : !1;
+}, La = /\b(iPhone|iPad|iPod)\b/, Ra = /Chrom(e|ium)\//;
+function za(e, t) {
+	return La.test(e) || /Macintosh/.test(e) && t > 1 ? !0 : /AppleWebKit\//.test(e) ? !Ra.test(e) : !1;
 }
-function ma(e = globalThis.location?.search ?? "") {
+function Ba(e = globalThis.location?.search ?? "") {
 	let t = globalThis.navigator, n = null;
 	try {
 		let t = new URLSearchParams(e).get("backend");
@@ -3250,8 +3474,8 @@ function ma(e = globalThis.location?.search ?? "") {
 		override: n
 	};
 }
-async function ha(e = ma()) {
-	if (pa(e.ua, e.maxTouchPoints)) return "wasm";
+async function Va(e = Ba()) {
+	if (za(e.ua, e.maxTouchPoints)) return "wasm";
 	if (e.override) return e.override;
 	if (!e.gpu) return "wasm";
 	let t;
@@ -3274,20 +3498,20 @@ function Q(e, t) {
 	let n = e[t];
 	return (typeof n != "number" || !Number.isFinite(n)) && Z(`${t} must be a finite number`), n;
 }
-function ga(e, t, n, r = !1) {
+function Ha(e, t, n, r = !1) {
 	(!Array.isArray(e) || e.length !== t) && Z(`${n} must have length ${t}`);
 	for (let t of e) (typeof t != "number" || !Number.isFinite(t)) && Z(`${n} has a non-finite entry`), r && !(t > 0) && Z(`${n} must be > 0`);
 	return e;
 }
-function _a(e, t, n, r, i = !1) {
-	return (!Array.isArray(e) || e.length !== t) && Z(`${r} must have ${t} rows`), e.map((e, t) => ga(e, n, `${r}[${t}]`, i));
+function Ua(e, t, n, r, i = !1) {
+	return (!Array.isArray(e) || e.length !== t) && Z(`${r} must have ${t} rows`), e.map((e, t) => Ha(e, n, `${r}[${t}]`, i));
 }
-function va(e) {
+function Wa(e) {
 	(typeof e != "object" || !e) && Z("windGrid missing");
 	let t = e, n = {
 		nx: 16,
 		dx: 4,
-		dz: [...de],
+		dz: [...fe],
 		scale: 4
 	};
 	for (let e of [
@@ -3295,10 +3519,10 @@ function va(e) {
 		"dx",
 		"scale"
 	]) Q(t, e) !== n[e] && Z(`windGrid.${e} is ${String(t[e])}, constants.ts says ${n[e]}`);
-	let r = ga(t.dz, n.dz.length, "windGrid.dz");
+	let r = Ha(t.dz, n.dz.length, "windGrid.dz");
 	return r.some((e, t) => e !== n.dz[t]) && Z(`windGrid.dz is [${r.join(", ")}], constants.ts says [${n.dz.join(", ")}]`), n;
 }
-function ya(e) {
+function Ga(e) {
 	(typeof e != "object" || !e) && Z("not an object");
 	let t = e;
 	t.version !== 1 && Z(`unsupported version ${String(t.version)}`);
@@ -3310,7 +3534,7 @@ function ya(e) {
 		["statDim", 135],
 		["ctxDim", 193]
 	]) Q(t, e) !== n && Z(`${e} is ${String(t[e])}, constants.ts says ${n}`);
-	let n = va(t.windGrid);
+	let n = Wa(t.windGrid);
 	Q(t, "e0") !== 2e6 && Z(`e0 is ${String(t.e0)}, constants.ts says ${w} (energyEst is scaled by it)`);
 	let r = t.stepsDefault;
 	r || Z("stepsDefault missing");
@@ -3337,10 +3561,10 @@ function ya(e) {
 		ctxDim: 193,
 		windGrid: n,
 		e0: w,
-		histMean: ga(t.histMean, 10, "histMean"),
-		histStd: ga(t.histStd, 10, "histStd", !0),
-		futMean: _a(t.futMean, 30, 10, "futMean"),
-		futStd: _a(t.futStd, 30, 10, "futStd", !0),
+		histMean: Ha(t.histMean, 10, "histMean"),
+		histStd: Ha(t.histStd, 10, "histStd", !0),
+		futMean: Ua(t.futMean, 30, 10, "futMean"),
+		futStd: Ua(t.futStd, 30, 10, "futStd", !0),
 		sigmaMin: i,
 		sigmaMax: a,
 		rho: Q(t, "rho"),
@@ -3359,23 +3583,23 @@ function ya(e) {
 		...s === void 0 ? {} : { skipS0: s }
 	};
 }
-function ba(e) {
+function Ka(e) {
 	return (e.headers.get("content-type") ?? "").includes("text/html");
 }
-async function xa(e, t) {
+async function qa(e, t) {
 	try {
 		let n = await t(`${e}dream.onnx`, { method: "HEAD" });
-		if (!n.ok || ba(n)) return {
+		if (!n.ok || Ka(n)) return {
 			ok: !1,
 			reason: "missing"
 		};
 		let r = await t(`${e}dream_meta.json`);
-		return !r.ok || ba(r) ? {
+		return !r.ok || Ka(r) ? {
 			ok: !1,
 			reason: "missing"
 		} : {
 			ok: !0,
-			ghostSteps: ya(await r.json()).stepsDefault.ghost
+			ghostSteps: Ga(await r.json()).stepsDefault.ghost
 		};
 	} catch {
 		return {
@@ -3384,7 +3608,7 @@ async function xa(e, t) {
 		};
 	}
 }
-var Sa = class {
+var Ja = class {
 	deps;
 	onGhosts = null;
 	onValue = null;
@@ -3485,7 +3709,7 @@ var Sa = class {
 		}), e.terminate()), this._fail = null, this.set("unloaded");
 	}
 	async doLoad(e, t, n, r, i) {
-		let a = await xa(t.modelsBase, this.deps.fetch);
+		let a = await qa(t.modelsBase, this.deps.fetch);
 		if (e !== this.gen) return null;
 		if (!a.ok) return this.failWith(a.reason), null;
 		let o;
@@ -3657,17 +3881,17 @@ var Sa = class {
 };
 //#endregion
 //#region src/runtime/session.ts
-function Ca() {
+function Ya() {
 	return {
 		fetch: (e, t) => fetch(e, t),
-		selectBackend: () => ha()
+		selectBackend: () => Va()
 	};
 }
-function wa(e) {
+function Xa(e) {
 	return e === "ready" ? "ready" : e === "failed" || e === "unloaded" ? "absent" : "loading";
 }
-function Ta(e, t = Ca()) {
-	let n = /* @__PURE__ */ new Set(), r = new Sa({
+function Za(e, t = Ya()) {
+	let n = /* @__PURE__ */ new Set(), r = new Ja({
 		createWorker: () => {
 			if (!e) throw Error("dream session: no worker factory (AppOptions.createWorker)");
 			return e();
@@ -3717,7 +3941,7 @@ function Ta(e, t = Ca()) {
 		}
 	};
 }
-var Ea = class {
+var Qa = class {
 	host;
 	opts;
 	phase = "idle";
@@ -3758,22 +3982,22 @@ var Ea = class {
 };
 //#endregion
 //#region src/ui/attractFeature.ts
-function Da() {
+function $a() {
 	let e = globalThis.matchMedia;
 	return e ? e("(prefers-reduced-motion: reduce)").matches : !1;
 }
-function Oa(e = {}) {
+function eo(e = {}) {
 	let t = e.now ?? (() => performance.now() / 1e3), n = null, r = null, i = null, a = null, o = !1, s = null, c = !1, l = null, u = () => {
 		let e = l?.flight();
 		n?.phase === "attract" && e && !e.attract && !e.ended && n.takeControls();
 	}, d = () => {
 		n && (n.inAttract ? n.takeControls() : n.onVisitorInput());
 	}, f = (e) => {
-		Hn(e.key) && d();
+		Un(e.key) && d();
 	};
 	return {
 		mount(t, s) {
-			l = s, c = s.opts.reducedMotion ?? Da(), n = new Ea({
+			l = s, c = s.opts.reducedMotion ?? $a(), n = new Qa({
 				startAttract: (e) => {
 					s.startFlight({
 						hop: 1,
@@ -3798,7 +4022,7 @@ function Oa(e = {}) {
 			}, {
 				reducedMotion: c,
 				firstSeed: e.firstSeed ?? 1
-			}), t && (r = Wn(t.root.ownerDocument, () => n?.takeControls()), t.stage.append(r.el)), i = t?.canvas ?? s.canvas ?? null, i?.addEventListener("keydown", f);
+			}), t && (r = Gn(t.root.ownerDocument, () => n?.takeControls()), t.stage.append(r.el)), i = t?.canvas ?? s.canvas ?? null, i?.addEventListener("keydown", f);
 			let u = t?.root ?? i;
 			typeof IntersectionObserver > "u" || !u ? o = !0 : (a = new IntersectionObserver((e) => {
 				o = e.some((e) => e.isIntersecting);
@@ -3834,7 +4058,7 @@ function Oa(e = {}) {
 }
 //#endregion
 //#region src/ghosts/ghosts.ts
-function ka(e) {
+function to(e) {
 	return {
 		x: e.x,
 		y: e.y,
@@ -3847,28 +4071,28 @@ function ka(e) {
 		energyEst: e.energyEst
 	};
 }
-function Aa(e, t) {
+function no(e, t) {
 	return t >= e.step ? e.state : e.records[t].state;
 }
-function ja(e, t) {
-	return Ot(e.revealedAt, e.hazardFrom, t);
+function ro(e, t) {
+	return kt(e.revealedAt, e.hazardFrom, t);
 }
-function Ma(e, t) {
-	return t < e.step ? e.records[t].faultBits : ke(e.faults, e.step);
+function io(e, t) {
+	return t < e.step ? e.records[t].faultBits : Ae(e.faults, e.step);
 }
-function Na(e, t) {
+function ao(e, t) {
 	if (!e.armed) return !1;
 	let n = Math.min(t, e.step);
-	for (let t = 0; t <= n; t++) if (L(Aa(e, t), e.map) >= 1) return !0;
+	for (let t = 0; t <= n; t++) if (I(no(e, t), e.map) >= 1) return !0;
 	return n >= e.step;
 }
-function Pa(e, t, n, r) {
+function oo(e, t, n, r) {
 	if (t < 9 || t > e.step || t < 10 && !e.records[0]?.onGround) return null;
 	let i = [];
 	for (let n = t - 10 + 1; n <= t; n++) {
 		let t = n === 0 ? null : e.records[n - 1].cmd;
 		i.push({
-			row: ka(Aa(e, n)),
+			row: to(no(e, n)),
 			cmd: t ? {
 				front: t.front,
 				rear: t.rear
@@ -3878,11 +4102,11 @@ function Pa(e, t, n, r) {
 	return {
 		step: t,
 		hist: i,
-		faultBits: Ma(e, t),
+		faultBits: io(e, t),
 		level: e.level,
 		targetX: e.targetX,
-		knowledge: ja(e, t),
-		armed: Na(e, t),
+		knowledge: ro(e, t),
+		armed: ao(e, t),
 		given: n.map((e) => ({
 			front: e.front,
 			rear: e.rear
@@ -3893,19 +4117,19 @@ function Pa(e, t, n, r) {
 		}
 	};
 }
-function Fa(e, t) {
-	return Pa(e, e.step, [], t);
+function so(e, t) {
+	return oo(e, e.step, [], t);
 }
-function Ia(e, t) {
+function co(e, t) {
 	let n = e.step, r = t.downlinkStep(n);
 	if (r !== n - 10) return null;
-	let i = Cn(e, t, n);
-	return Pa(e, r, i, i[i.length - 1]);
+	let i = wn(e, t, n);
+	return oo(e, r, i, i[i.length - 1]);
 }
-function La(e, t) {
+function lo(e, t) {
 	return (Math.imul(e ^ 2654435769, 2246822507) ^ Math.imul(t + 1, 3266489909)) >>> 0;
 }
-var Ra = class {
+var uo = class {
 	req;
 	cfg = null;
 	paused = !1;
@@ -3934,14 +4158,14 @@ var Ra = class {
 	}
 	onStep(e, t, n) {
 		if (e.contact !== null || !this.cfg || this.paused || n !== "manual" || e.step - this.lastStep < 5) return !1;
-		let r = Ia(e, t);
+		let r = co(e, t);
 		if (!r) return !1;
 		this.lastStep = e.step;
 		let i = {
 			...r,
 			flightId: this.flightId
 		};
-		return this.req.requestGhosts(i, this.cfg.n, this.cfg.steps, La(this.seedBase, e.step), this.cfg.k), !0;
+		return this.req.requestGhosts(i, this.cfg.n, this.cfg.steps, lo(this.seedBase, e.step), this.cfg.k), !0;
 	}
 	accept(e) {
 		return e.flightId !== this.flightId || this.latest && e.anchorStep < this.latest.anchorStep ? !1 : (this.latest = e, !0);
@@ -3949,14 +4173,14 @@ var Ra = class {
 	get current() {
 		return this.latest;
 	}
-}, za = 31;
+}, fo = 31;
 //#endregion
 //#region src/planner/plan.ts
-function Ba(e, t, n) {
-	return K(e, t, n, za);
+function po(e, t, n) {
+	return W(e, t, n, fo);
 }
-function Va(e) {
-	let t = M(e);
+function mo(e) {
+	let t = j(e);
 	return {
 		mean: [[
 			,
@@ -3980,35 +4204,35 @@ function Va(e) {
 			,
 			,
 			,
-		].fill(_e), [
+		].fill(ve), [
 			,
 			,
 			,
 			,
 			,
 			,
-		].fill(_e)]
+		].fill(ve)]
 	};
 }
-function Ha(e) {
+function ho(e) {
 	return {
 		mean: [e.mean[0].slice(), e.mean[1].slice()],
 		std: [e.std[0].slice(), e.std[1].slice()]
 	};
 }
-function Ua(e, t) {
+function go(e, t) {
 	let n = Math.floor(t / 5);
 	if (n >= 5) return e[5];
 	if (n < 0) return e[0];
 	let r = (t - n * 5) / 5;
 	return e[n] + (e[n + 1] - e[n]) * r;
 }
-function Wa(e, t) {
+function _o(e, t) {
 	let n = Math.max(0, Math.round(t)), r = (t) => {
 		let r = [], i = [];
 		for (let a = 0; a < 6; a++) {
 			let o = a * 5 + n;
-			r.push(Ua(e.mean[t], o)), i.push(o > 25 ? _e : Math.max(Ua(e.std[t], o), ve));
+			r.push(go(e.mean[t], o)), i.push(o > 25 ? ve : Math.max(go(e.std[t], o), ye));
 		}
 		return {
 			mean: r,
@@ -4020,7 +4244,7 @@ function Wa(e, t) {
 		std: [i.std, a.std]
 	};
 }
-var Ga = [
+var vo = [
 	{
 		pop: 32,
 		iters: 3,
@@ -4042,11 +4266,11 @@ var Ga = [
 		ghosts: 4
 	}
 ];
-function Ka(e) {
+function yo(e) {
 	return e === "webgpu" ? 0 : 1;
 }
-function qa(e, t, n) {
-	return Ga.slice(Ka(e)).map((r, i) => ({
+function bo(e, t, n) {
+	return vo.slice(yo(e)).map((r, i) => ({
 		pop: r.pop,
 		iters: r.iters,
 		elite: 4,
@@ -4056,16 +4280,16 @@ function qa(e, t, n) {
 		chainK: e === "webgpu" && i === 0 ? Math.max(1, t) : 1
 	}));
 }
-function Ja(e) {
-	let n = 875 * t / (N(e, 0) + N(e, 1)), r = Math.floor(n / _ + 1e-9) * _;
-	return M({
+function xo(e) {
+	let n = 875 * t / (M(e, 0) + M(e, 1)), r = Math.floor(n / _ + 1e-9) * _;
+	return j({
 		front: r,
 		rear: r
 	});
 }
 //#endregion
 //#region src/planner/executor.ts
-var Ya = class {
+var So = class {
 	ladder;
 	plan = null;
 	heldDist = null;
@@ -4079,7 +4303,7 @@ var Ya = class {
 	rng;
 	constructor(e, t) {
 		if (this.ladder = e, e.length === 0) throw Error("PlanExecutor: the budget ladder is empty");
-		this.rng = j(t);
+		this.rng = A(t);
 	}
 	get active() {
 		return this.plan !== null;
@@ -4121,12 +4345,12 @@ var Ya = class {
 		this.rungIx = this.ladder.length - 1;
 	}
 	start(e, t) {
-		let n = M(t);
+		let n = j(t);
 		this.plan = {
 			base: e,
 			actions: Array.from({ length: 30 }, () => ({ ...n })),
 			result: null
-		}, this.heldDist = Va(n), this.pending = null, this.nextRequestStep = e, this.streak = 0, this.expired = 0;
+		}, this.heldDist = mo(n), this.pending = null, this.nextRequestStep = e, this.streak = 0, this.expired = 0;
 	}
 	stop() {
 		this.plan = null, this.pending = null;
@@ -4155,7 +4379,7 @@ var Ya = class {
 		}, this.nextRequestStep = e + 5, {
 			token: t,
 			step: e,
-			warm: this.plan.result ? Wa(this.plan.result.dist, e - this.plan.base) : Ha(this.heldDist),
+			warm: this.plan.result ? _o(this.plan.result.dist, e - this.plan.base) : ho(this.heldDist),
 			budget: this.activeBudget,
 			seed: this.rng.int(2147483647)
 		};
@@ -4174,7 +4398,7 @@ var Ya = class {
 };
 //#endregion
 //#region src/pilots/observe.ts
-function Xa(e, t = e.knowledge()) {
+function Co(e, t = e.knowledge()) {
 	let n = e.state;
 	return {
 		pose: {
@@ -4188,60 +4412,60 @@ function Xa(e, t = e.knowledge()) {
 		sF: n.sF,
 		sR: n.sR,
 		energyEst: n.energyEst,
-		faultBits: ke(e.faults, e.step),
+		faultBits: Ae(e.faults, e.step),
 		level: e.level,
 		map: e.map,
 		targetX: e.targetX,
 		knowledge: t,
 		step: e.step,
-		agl: ze(e.map, n),
+		agl: Be(e.map, n),
 		onGround: e.onGround,
-		meanWindAt: (t, n) => ht(e.map, e.level, t, n),
+		meanWindAt: (t, n) => gt(e.map, e.level, t, n),
 		records: e.records
 	};
 }
-var Za = .12, Qa = 30 * e, $a = 3 * e, eo = (e, t, n) => Math.min(n, Math.max(t, e));
-function to(e, n = {}) {
-	let r = n.vxCruise ?? 5, i = n.clearance ?? 20, a = e.pose, o = L(a, e.map), s = e.targetX - a.x, c = s >= 0 ? 1 : -1, l = un(e.map, a.x - c * 30, a.x + c * Math.min(200, Math.abs(s) + 30)), u = Math.abs(s) < 8 && Math.abs(a.vx) < .6, d = !u && o < .6 * i && Math.abs(s) > 30, f = u ? "descend" : d ? "climb" : "cruise", p = d ? 0 : c * Math.min(r, Math.sqrt(.3 * Math.abs(s)), .15 * Math.abs(s)), m = u ? -Math.min(4, .8 + Za * Math.max(0, o)) : eo(.25 * (l + i - a.y), -4, 4), h = eo(.5 * (p - a.vx), -.5, .5), g = t + eo(.8 * (m - a.vy), -.6, .8), [_, v] = e.meanWindAt(a.x, a.y), y = a.vx - _, b = a.vy - v, x = h - 2 * Ye(875 * t / 2, y) / 875 + Ke * Math.abs(y) * y / 875, S = g + qe * Math.abs(b) * b / 875, C = o < 3 ? $a : Qa, w = eo(Math.atan2(-x, S), -C, C);
+var wo = .12, To = 30 * e, Eo = 3 * e, Do = (e, t, n) => Math.min(n, Math.max(t, e));
+function Oo(e, n = {}) {
+	let r = n.vxCruise ?? 5, i = n.clearance ?? 20, a = e.pose, o = I(a, e.map), s = e.targetX - a.x, c = s >= 0 ? 1 : -1, l = dn(e.map, a.x - c * 30, a.x + c * Math.min(200, Math.abs(s) + 30)), u = Math.abs(s) < 8 && Math.abs(a.vx) < .6, d = !u && o < .6 * i && Math.abs(s) > 30, f = u ? "descend" : d ? "climb" : "cruise", p = d ? 0 : c * Math.min(r, Math.sqrt(.3 * Math.abs(s)), .15 * Math.abs(s)), m = u ? -Math.min(4, .8 + wo * Math.max(0, o)) : Do(.25 * (l + i - a.y), -4, 4), h = Do(.5 * (p - a.vx), -.5, .5), g = t + Do(.8 * (m - a.vy), -.6, .8), [_, v] = e.meanWindAt(a.x, a.y), y = a.vx - _, b = a.vy - v, x = h - 2 * Xe(875 * t / 2, y) / 875 + qe * Math.abs(y) * y / 875, S = g + Je * Math.abs(b) * b / 875, C = o < 3 ? Eo : To, w = Do(Math.atan2(-x, S), -C, C);
 	return {
 		phase: f,
 		vxDes: p,
 		vyDes: m,
 		thetaDes: w,
 		force: 875 * Math.max(.1, S) / Math.cos(w),
-		torque: Te() * (1.5 * (w - a.theta) - 2.2 * a.omega) + Ee() * a.omega,
+		torque: Ee() * (1.5 * (w - a.theta) - 2.2 * a.omega) + De() * a.omega,
 		clearance: o
 	};
 }
-function no(e, t, n) {
-	let r = (t - Ge * e) / (We - Ge), i = e - r;
+function ko(e, t, n) {
+	let r = (t - Ke * e) / (Ge - Ke), i = e - r;
 	return {
-		front: r / N(n, 0),
-		rear: i / N(n, 1)
+		front: r / M(n, 0),
+		rear: i / M(n, 1)
 	};
 }
-function ro(e, t = {}) {
-	let n = to(e, t);
-	return no(n.force, n.torque, Ae(e.faultBits, e.step));
+function Ao(e, t = {}) {
+	let n = Oo(e, t);
+	return ko(n.force, n.torque, je(e.faultBits, e.step));
 }
-var io = class {
+var jo = class {
 	noise;
 	id = 0;
-	rng = j(0);
+	rng = A(0);
 	constructor(e = .02) {
 		this.noise = e;
 	}
 	reset(e) {
-		this.rng = j(e).fork(157);
+		this.rng = A(e).fork(157);
 	}
 	act(e) {
-		let t = ro(e);
-		return M({
+		let t = Ao(e);
+		return j({
 			front: t.front + this.noise * this.rng.normal(),
 			rear: t.rear + this.noise * this.rng.normal()
 		});
 	}
-}, ao = class {
+}, Mo = class {
 	opts;
 	exec;
 	world = null;
@@ -4260,11 +4484,11 @@ var io = class {
 	switched = !1;
 	bottomNext = !1;
 	engagedAt = -1;
-	pilot = new io();
+	pilot = new jo();
 	now;
 	redesignation = null;
 	constructor(e) {
-		this.opts = e, this.exec = new Ya(qa(e.backend, e.chainK, 0), e.seed), this.now = e.now ?? (() => performance.now());
+		this.opts = e, this.exec = new So(bo(e.backend, e.chainK, 0), e.seed), this.now = e.now ?? (() => performance.now());
 	}
 	get engaged() {
 		return this.exec.active;
@@ -4292,12 +4516,12 @@ var io = class {
 		let n = e.world;
 		if (this.switched && !this.simple && (this.simple = !0), this.simple) return this.flySimple(n);
 		if (!this.exec.active) {
-			let e = n.onGround ? Ja(n.faults) : n.step === 0 ? He(n.faults) : n.records[n.step - 1].cmd;
-			this.exec.start(n.step, e), this.engagedAt = n.step, this.last = M(e);
+			let e = n.onGround ? xo(n.faults) : n.step === 0 ? Ue(n.faults) : n.records[n.step - 1].cmd;
+			this.exec.start(n.step, e), this.engagedAt = n.step, this.last = j(e);
 		}
 		this.steer(n);
 		let r = this.exec.command(n.step);
-		return this.tooSlow(n) ? (this.goSimple(n), this.flySimple(n)) : (this.setHold(this.exec.lateStreak > 0), !this.paused && this.exec.due(n.step, n.step >= 9) && this.dispatch(e, n), this.last = M(r), this.flying = !0, r);
+		return this.tooSlow(n) ? (this.goSimple(n), this.flySimple(n)) : (this.setHold(this.exec.lateStreak > 0), !this.paused && this.exec.due(n.step, n.step >= 9) && this.dispatch(e, n), this.last = j(r), this.flying = !0, r);
 	}
 	get simplePilot() {
 		return this.simple;
@@ -4312,14 +4536,14 @@ var io = class {
 		this.simple = !0, this.bottomNext = !0, this.exec.toBottom(), this.exec.stop(), this.setHold(!1), this.pilot.reset(e.seed);
 	}
 	flySimple(e) {
-		let t = bn(e.map, e.knowledge(), e.targetX, _n(e.map, e.state, e.state.energyEst, e.onGround));
+		let t = xn(e.map, e.knowledge(), e.targetX, vn(e.map, e.state, e.state.energyEst, e.onGround));
 		t !== e.targetX && (this.redesignation = {
 			step: e.step,
 			from: e.targetX,
 			to: t
 		}, e.setTarget(t));
-		let n = this.pilot.act(Xa(e));
-		return this.last = M(n), this.flying = !0, n;
+		let n = this.pilot.act(Co(e));
+		return this.last = j(n), this.flying = !0, n;
 	}
 	afterStep(e) {
 		this.track(e);
@@ -4344,7 +4568,7 @@ var io = class {
 		};
 	}
 	steer(e) {
-		let t = bn(e.map, e.knowledge(), e.targetX, _n(e.map, e.state, e.state.energyEst, e.onGround));
+		let t = xn(e.map, e.knowledge(), e.targetX, vn(e.map, e.state, e.state.energyEst, e.onGround));
 		t !== e.targetX && (this.redesignation = {
 			step: e.step,
 			from: e.targetX,
@@ -4355,7 +4579,7 @@ var io = class {
 		return (e.world !== this.world || e.flightId !== this.flightId) && (this.exec.newFlight(this.bottomNext), this.bottomNext = !1, this.simple = !1, this.switched = !1, this.world = e.world, this.flightId = e.flightId, this.flying = !1, this.target = e.world.targetX, this.redesignation = null), e.mode !== "autopilot" || e.ended || e.world.contact !== null ? (this.flying && e.mode === "manual" && !e.ended && e.world.contact === null && e.link.reset(this.last, e.world.step), this.flying = !1, this.simple &&= (this.switched = !0, !1), this.exec.stop(), this.setHold(!1), !1) : !0;
 	}
 	dispatch(e, t) {
-		let n = Fa(t, this.last);
+		let n = so(t, this.last);
 		if (!n) return;
 		let r = {
 			...n,
@@ -4375,24 +4599,24 @@ var io = class {
 			this.world === t && this.flightId === a && this.exec.resolve(i.token, null, t.step);
 		});
 	}
-}, oo = {
+}, No = {
 	rejected: .08,
 	elite: .3,
 	chosen: .85
-}, so = Array.from({ length: Math.floor(30 * i / 1) }, (e, t) => Math.round((t + 1) / i)).filter((e) => e < 30), co = {
+}, Po = Array.from({ length: Math.floor(30 * i / 1) }, (e, t) => Math.round((t + 1) / i)).filter((e) => e < 30), Fo = {
 	rejected: 0,
 	elite: 1,
 	chosen: 2
 };
-function lo(e) {
+function Io(e) {
 	let t = (t) => t === e.chosen ? "chosen" : e.elite[t] ? "elite" : "rejected";
 	return Array.from({ length: e.n }, (e, n) => ({
 		index: n,
 		tier: t(n),
-		alpha: oo[t(n)]
-	})).sort((e, t) => co[e.tier] - co[t.tier] || e.index - t.index);
+		alpha: No[t(n)]
+	})).sort((e, t) => Fo[e.tier] - Fo[t.tier] || e.index - t.index);
 }
-function uo(e) {
+function Lo(e) {
 	let t = Math.cos(e.theta), n = Math.sin(e.theta);
 	return [
 		[-1, -1],
@@ -4404,13 +4628,13 @@ function uo(e) {
 		return [e.x + a * t - o * n, e.y + a * n + o * t];
 	});
 }
-var fo = (e) => Number.isFinite(e.x) && Number.isFinite(e.y) && Number.isFinite(e.theta);
-function po(e, t) {
-	for (let n of lo(e)) {
+var Ro = (e) => Number.isFinite(e.x) && Number.isFinite(e.y) && Number.isFinite(e.theta);
+function zo(e, t) {
+	for (let n of Io(e)) {
 		let r = e.touchIndex[n.index] >= 0 ? e.touchIndex[n.index] : 30, i = new Float32Array((r + 1) * 2), a = !0;
 		for (let t = 0; t <= r; t++) {
-			let r = Ba(e.poses, n.index, t);
-			if (!fo(r)) {
+			let r = po(e.poses, n.index, t);
+			if (!Ro(r)) {
 				a = !1;
 				break;
 			}
@@ -4418,21 +4642,21 @@ function po(e, t) {
 		}
 		if (!a) continue;
 		t.path(i, n.alpha, n.tier);
-		for (let i of so) i < r && t.outline(uo(Ba(e.poses, n.index, i)), n.alpha, n.tier);
+		for (let i of Po) i < r && t.outline(Lo(po(e.poses, n.index, i)), n.alpha, n.tier);
 		let o = e.contacts[n.index];
-		t.outline(uo(o ? o.pose : Ba(e.poses, n.index, r)), n.alpha, n.tier);
+		t.outline(Lo(o ? o.pose : po(e.poses, n.index, r)), n.alpha, n.tier);
 	}
 }
 //#endregion
 //#region src/ui/autopilotFeature.ts
-var mo = "Dream model not loaded", ho = {
+var Bo = "Dream model not loaded", Vo = {
 	takeoff: "Autopilot: taking off",
 	transit: "Autopilot: transit at a safe height",
 	scout: "Autopilot: scouting the landing site",
 	approach: "Autopilot: approach",
 	final: "Autopilot: final descent at 1 m/s"
 };
-function go(e) {
+function Ho(e) {
 	if (e.advisoryS !== null) {
 		let t = `${Math.ceil(e.advisoryS)} s`;
 		if (e.mode === "autopilot" && e.redesignation) {
@@ -4441,15 +4665,15 @@ function go(e) {
 		}
 		return `Hazard detected on the landing site: pick another site (${t}).`;
 	}
-	return e.mode === "autopilot" && e.simple ? e.simple : e.mode === "autopilot" && e.phase ? ho[e.phase] : "";
+	return e.mode === "autopilot" && e.simple ? e.simple : e.mode === "autopilot" && e.phase ? Vo[e.phase] : "";
 }
-function _o(e, t) {
+function Uo(e, t) {
 	let n = t.style.palette, r = {
 		rejected: n.planRejected,
 		elite: n.planElite,
 		chosen: n.planChosen
 	}, i = (e, n) => t.camera.toScreen(e, n, t.w, t.h), a = (t, n, a, o, s) => {
-		e.save(), e.strokeStyle = H(r[a], n), e.lineWidth = o, e.beginPath(), t.forEach(([t, n], r) => {
+		e.save(), e.strokeStyle = V(r[a], n), e.lineWidth = o, e.beginPath(), t.forEach(([t, n], r) => {
 			let [a, o] = i(t, n);
 			r === 0 ? e.moveTo(a, o) : e.lineTo(a, o);
 		}), s && e.closePath(), e.stroke(), e.restore();
@@ -4466,17 +4690,17 @@ function _o(e, t) {
 		}
 	};
 }
-function vo(e) {
+function Wo(e) {
 	globalThis.__landerPlan = { planStats: () => e.planStats() };
 }
-function yo(e) {
+function Go(e) {
 	let t = null, n = null, r = null, i = null, a = null, o = !1;
 	function s() {
 		let n = e.session.state() === "ready" ? e.session.info() : null;
-		if (!n) return t &&= (t.end(), null), r?.setAutopilotAvailable(!1, mo), null;
+		if (!n) return t &&= (t.end(), null), r?.setAutopilotAvailable(!1, Bo), null;
 		if (!t) {
 			let r = e.session.client;
-			t = new ao({
+			t = new Mo({
 				requester: {
 					request: (e, t, n, i) => r.requestPlan(e, t, n, i),
 					hold: (e) => r.holdBackground?.(e)
@@ -4492,7 +4716,7 @@ function yo(e) {
 	let c = () => {
 		n?.flight()?.mode === "autopilot" && n.setMode("manual");
 	}, l = (e) => {
-		Hn(e.key) && c();
+		Un(e.key) && c();
 	}, u = {
 		get ready() {
 			return s() !== null;
@@ -4509,7 +4733,7 @@ function yo(e) {
 			return e.mode === "autopilot" && t?.simplePilot && t.tracks(e) ? [n.simplePilot] : [];
 		},
 		mount(t, o) {
-			n = o, t && (r = t.controlToggle, a = t.root.ownerDocument.createElement("div"), a.className = "autopilot-status", a.setAttribute("aria-live", "polite"), t.stage.append(a)), i = t?.canvas ?? o.canvas ?? null, i?.addEventListener("keydown", l), s(), e.debugHook && vo(u);
+			n = o, t && (r = t.controlToggle, a = t.root.ownerDocument.createElement("div"), a.className = "autopilot-status", a.setAttribute("aria-live", "polite"), t.stage.append(a)), i = t?.canvas ?? o.canvas ?? null, i?.addEventListener("keydown", l), s(), e.debugHook && Wo(u);
 		},
 		onFlightStart(e) {
 			r?.set(e.mode);
@@ -4536,9 +4760,9 @@ function yo(e) {
 			let o = s(), c = i.flight;
 			!o && c.mode === "autopilot" && !c.ended && n?.setMode("manual"), r?.set(c.mode);
 			let l = c.mode === "autopilot" ? o?.display ?? null : null;
-			if (l && (e.ghostsOn?.() ?? !0) && po(l, _o(t, i)), a) {
-				let e = c.ended ? null : xn(c.world.eventLog, c.world.step), t = c.mode === "autopilot" && o?.simplePilot && o.tracks(c) ? (i.style.text ?? V).simplePilot : null;
-				a.textContent = go({
+			if (l && (e.ghostsOn?.() ?? !0) && zo(l, Uo(t, i)), a) {
+				let e = c.ended ? null : Sn(c.world.eventLog, c.world.step), t = c.mode === "autopilot" && o?.simplePilot && o.tracks(c) ? (i.style.text ?? B).simplePilot : null;
+				a.textContent = Ho({
 					mode: c.mode,
 					phase: l?.phase ?? null,
 					advisoryS: e ? e.remainingS : null,
@@ -4548,20 +4772,20 @@ function yo(e) {
 			}
 		},
 		destroy() {
-			delete globalThis.__landerPlan, t?.end(), t = null, i?.removeEventListener("keydown", l), r?.setAutopilotAvailable(!1, mo), a?.remove();
+			delete globalThis.__landerPlan, t?.end(), t = null, i?.removeEventListener("keydown", l), r?.setAutopilotAvailable(!1, Bo), a?.remove();
 		}
 	};
 	return u;
 }
 //#endregion
 //#region src/ui/chainFeature.ts
-function bo(e, t) {
+function Ko(e, t) {
 	return e.results.map((n, r) => {
-		let i = r + 1, a = tn(e.seed, e.baseLevel, i), o = t[r] ?? null;
+		let i = r + 1, a = nn(e.seed, e.baseLevel, i), o = t[r] ?? null;
 		if (!n) return {
 			hop: i,
-			conditions: an(a.level),
-			map: rn[a.tier],
+			conditions: on(a.level),
+			map: an[a.tier],
 			outcome: "not flown",
 			energy: "",
 			gap: ""
@@ -4569,15 +4793,15 @@ function bo(e, t) {
 		let s = o && o.attempts > 1 ? ` (${o.attempts} tries)` : "";
 		return {
 			hop: i,
-			conditions: an(a.level),
-			map: rn[a.tier],
+			conditions: on(a.level),
+			map: an[a.tier],
 			outcome: `${n.safe ? "landed" : "crashed"}${o ? `, ${o.mode}` : ""}${s}`,
 			energy: `${Math.round(100 * n.energyUsed / w)}%`,
 			gap: o?.gapM == null ? "" : `${o.gapM.toFixed(1)} m`
 		};
 	});
 }
-function xo(e = {}) {
+function qo(e = {}) {
 	let t = e.randomSeed ?? (() => Math.random() * 2 ** 32 >>> 0), n = null, r = null, i = null, a = null, o = [
 		,
 		,
@@ -4597,7 +4821,7 @@ function xo(e = {}) {
 				r?.opts.onFlight?.({
 					type: "chain",
 					flightId: t.flightId,
-					landed: ln(e)
+					landed: un(e)
 				});
 			} catch (e) {
 				console.error("lander: onFlight handler threw", e);
@@ -4608,9 +4832,9 @@ function xo(e = {}) {
 		let a = e.createElement("div");
 		a.className = "chain-summary";
 		let s = e.createElement("h3");
-		s.textContent = `Chain: ${ln(n)} of 5 hops landed`;
+		s.textContent = `Chain: ${un(n)} of 5 hops landed`;
 		let c = e.createElement("table");
-		for (let t of bo(n, o)) {
+		for (let t of Ko(n, o)) {
 			let n = e.createElement("tr");
 			for (let r of [
 				`Hop ${t.hop}`,
@@ -4684,10 +4908,10 @@ function xo(e = {}) {
 		}
 	};
 }
-function So(e) {
+function Jo(e) {
 	let t = e.touchdown ? Math.min(30, Math.max(1, Math.ceil(e.touchdown.at))) : 30, n = new Float32Array((t + 1) * 2);
 	for (let r = 0; r <= t; r++) {
-		let t = K(e.mean, 0, r, 31);
+		let t = W(e.mean, 0, r, 31);
 		n[2 * r] = t.x, n[2 * r + 1] = t.y;
 	}
 	return {
@@ -4695,7 +4919,7 @@ function So(e) {
 		last: t
 	};
 }
-var Co = class {
+var Yo = class {
 	preds = [];
 	lastBase = -Infinity;
 	get predictions() {
@@ -4707,7 +4931,7 @@ var Co = class {
 	record(e) {
 		let t = e.touchIndex[e.chosen] >= 0 ? e.touchIndex[e.chosen] : 30, n = new Float32Array((t + 1) * 2);
 		for (let r = 0; r <= t; r++) {
-			let t = Ba(e.poses, e.chosen, r);
+			let t = po(e.poses, e.chosen, r);
 			n[2 * r] = t.x, n[2 * r + 1] = t.y;
 		}
 		this.recordPath(e.step, n, t);
@@ -4720,7 +4944,7 @@ var Co = class {
 		}), this.lastBase = e);
 	}
 };
-function wo(e) {
+function Xo(e) {
 	let t = e.records.map((e) => ({
 		x: e.state.x,
 		y: e.state.y
@@ -4730,7 +4954,7 @@ function wo(e) {
 		y: e.state.y
 	}), t;
 }
-function To(e, t) {
+function Zo(e, t) {
 	let n = null;
 	for (let r of e) for (let e = 1; e <= r.last; e++) {
 		let i = r.base + e;
@@ -4744,10 +4968,10 @@ function To(e, t) {
 	}
 	return n;
 }
-function Eo(e) {
+function Qo(e) {
 	return `Largest dream-versus-reality gap: ${e.metres.toFixed(1)} m, ${(e.k / 10).toFixed(1)} s into the plan made at t = ${(e.base / 10).toFixed(1)} s`;
 }
-function Do(e, t, n, r, i) {
+function $o(e, t, n, r, i) {
 	let a = Infinity, o = -Infinity, s = Infinity, c = -Infinity, l = (e, t) => {
 		Number.isFinite(e) && Number.isFinite(t) && (a = Math.min(a, e), o = Math.max(o, e), s = Math.min(s, t), c = Math.max(c, t));
 	};
@@ -4757,8 +4981,8 @@ function Do(e, t, n, r, i) {
 	let u = Math.max(o - a, 1e-6), d = Math.max(c - s, 1e-6), f = Math.min((n - 2 * i) / u, (r - 2 * i) / d), p = (n - 2 * i - u * f) / 2, m = (r - 2 * i - d * f) / 2;
 	return { toScreen: (e, t) => [i + p + (e - a) * f, r - i - m - (t - s) * f] };
 }
-function Oo(e, t, n, r, i, a) {
-	let o = Do(r, i, t, n, 10);
+function es(e, t, n, r, i, a) {
+	let o = $o(r, i, t, n, 10);
 	e.clearRect(0, 0, t, n), e.save(), e.lineWidth = 1, e.setLineDash([4, 3]), e.strokeStyle = "rgba(159, 211, 255, 0.7)";
 	for (let t of r) {
 		e.beginPath();
@@ -4780,19 +5004,19 @@ function Oo(e, t, n, r, i, a) {
 	}
 	e.restore();
 }
-function ko(e, t, n) {
+function ts(e, t, n) {
 	if (t.length === 0) return [];
 	let r = e.ownerDocument, i = r.defaultView?.devicePixelRatio ?? 1, a = r.createElement("canvas");
 	a.className = "dvr-overlay", a.width = Math.round(320 * i), a.height = Math.round(160 * i), a.style.width = "320px", a.style.height = "160px", a.setAttribute("role", "img");
-	let o = To(t, n);
-	a.setAttribute("aria-label", o ? Eo(o) : "Dream versus reality");
+	let o = Zo(t, n);
+	a.setAttribute("aria-label", o ? Qo(o) : "Dream versus reality");
 	let s = a.getContext("2d");
-	s && (s.scale(i, i), Oo(s, 320, 160, t, n, o));
+	s && (s.scale(i, i), es(s, 320, 160, t, n, o));
 	let c = r.createElement("p");
-	return c.className = "dvr-caption", c.textContent = o ? Eo(o) : "Dream versus reality", e.append(a, c), [a, c];
+	return c.className = "dvr-caption", c.textContent = o ? Qo(o) : "Dream versus reality", e.append(a, c), [a, c];
 }
-function Ao(e = {}) {
-	let t = new Co(), n = null, r = null, i = [], a = null, o = () => {
+function ns(e = {}) {
+	let t = new Yo(), n = null, r = null, i = [], a = null, o = () => {
 		for (let e of i) e.remove();
 		i = [];
 	};
@@ -4808,16 +5032,16 @@ function Ao(e = {}) {
 			let n = e.meanSource?.();
 			n && (n.onMean = (e) => {
 				if (r?.flight()?.mode !== "manual") return;
-				let { xy: n, last: i } = So(e);
+				let { xy: n, last: i } = Jo(e);
 				t.recordPath(e.anchorStep, n, i);
 			});
 		},
 		onTouchdown(e) {
-			let r = t.predictions.slice(), s = wo(e.world);
-			if (a = To(r, s), e.attract || !n) return;
+			let r = t.predictions.slice(), s = Xo(e.world);
+			if (a = Zo(r, s), e.attract || !n) return;
 			let c = n.endcard;
 			queueMicrotask(() => {
-				o(), i = ko(c, r, s);
+				o(), i = ts(c, r, s);
 			});
 		},
 		destroy() {
@@ -4827,7 +5051,7 @@ function Ao(e = {}) {
 }
 //#endregion
 //#region src/ui/ghostChrome.ts
-function jo(e) {
+function rs(e) {
 	let t = () => n.onToggle?.(e.checked), n = {
 		onToggle: null,
 		setToggle(t) {
@@ -4839,14 +5063,14 @@ function jo(e) {
 	};
 	return e.addEventListener("change", t), n;
 }
-var Mo = 10;
-function No(e) {
+var is = 10;
+function as(e) {
 	return e.mode === "manual" && !e.attract && !e.ended;
 }
-var Po = class {
+var os = class {
 	deps;
 	scheduler;
-	display = new Xr();
+	display = new Qr();
 	stopState;
 	flight = null;
 	enabled = !0;
@@ -4872,7 +5096,7 @@ var Po = class {
 		this.replies++, this.ghostMs = e.ms;
 		let t = this.flight;
 		if (!t || e.flightId !== t.flightId || this.floor !== null && e.anchorStep < this.floor || !this.scheduler.accept(e)) return;
-		let n = t.world, r = Kr(e.mean, n.map, ja(n, e.anchorStep), Na(n, e.anchorStep)), i = this.lastT ?? n.step - 1 + 10, a = {
+		let n = t.world, r = Jr(e.mean, n.map, ro(n, e.anchorStep), ao(n, e.anchorStep)), i = this.lastT ?? n.step - 1 + 10, a = {
 			flightId: e.flightId,
 			anchorStep: e.anchorStep,
 			mean: e.mean,
@@ -4883,7 +5107,7 @@ var Po = class {
 	constructor(e) {
 		this.deps = e;
 		let t = e.session.client;
-		this.scheduler = new Ra({ requestGhosts: (e, n, r, i, a) => {
+		this.scheduler = new uo({ requestGhosts: (e, n, r, i, a) => {
 			this.requests++, t.requestGhosts(e, n, r, i, a);
 		} }), t.onGhosts = this.onGhosts, this.stopState = e.session.onState(() => this.sync()), e.chrome.onToggle = (e) => this.setEnabled(e), this.sync();
 	}
@@ -4897,8 +5121,8 @@ var Po = class {
 	onModelStep(e) {
 		if (!this.isCurrent(e) || e.attract) return;
 		let t = e.world;
-		if (this.mode === "autopilot" && e.mode === "manual" && (this.handbackAt = t.step, this.floor = e.link.downlinkStep(t.step), this.display.reset(), this.scheduler.restart(), this.lastBits = Ma(t, e.link.downlinkStep(t.step))), e.mode === "autopilot" && this.mode !== "autopilot" && this.deps.session.client.dropPending(), this.mode = e.mode, e.mode === "autopilot" && this.display.reset(), e.mode !== "manual") return;
-		let n = Ma(t, e.link.downlinkStep(t.step)), r = n & ~this.lastBits;
+		if (this.mode === "autopilot" && e.mode === "manual" && (this.handbackAt = t.step, this.floor = e.link.downlinkStep(t.step), this.display.reset(), this.scheduler.restart(), this.lastBits = io(t, e.link.downlinkStep(t.step))), e.mode === "autopilot" && this.mode !== "autopilot" && this.deps.session.client.dropPending(), this.mode = e.mode, e.mode === "autopilot" && this.display.reset(), e.mode !== "manual") return;
+		let n = io(t, e.link.downlinkStep(t.step)), r = n & ~this.lastBits;
 		r && (this.faultNotice = {
 			bits: r,
 			until: t.step + 30
@@ -4917,14 +5141,14 @@ var Po = class {
 		this.isCurrent(e) && (this.lastShown = t.pose, this.shownSource = t.source);
 	}
 	frame(e, t) {
-		let n = this.enabled && this.isCurrent(e) && No(e) && this.last.show?.source === "predicted" ? this.scheduler.current : null, r = n ? oi(n, t + 10) : null;
+		let n = this.enabled && this.isCurrent(e) && as(e) && this.last.show?.source === "predicted" ? this.scheduler.current : null, r = n ? li(n, t + 10) : null;
 		return this.drawn = r ? r.ghosts.length : 0, r;
 	}
 	insetFrame(e, t) {
 		if (!this.isCurrent(e) || this.last.show?.source !== "predicted") return null;
 		let n = Math.max(0, t - 10);
 		return {
-			pose: Sn(e.world, n),
+			pose: Cn(e.world, n),
 			ageS: (t - n) * i
 		};
 	}
@@ -4938,13 +5162,13 @@ var Po = class {
 		let e = this.deps.session.client, t = this.deps.session.state(), n = this.display.current, r = this.last.show;
 		return {
 			state: t,
-			modelState: wa(t),
+			modelState: Xa(t),
 			failReason: e.failReason,
 			backendRequested: e.requestedBackend,
 			info: e.info,
 			enabled: this.enabled,
 			drawnGhosts: this.drawn,
-			painted: ni.painted,
+			painted: ai.painted,
 			requests: this.requests,
 			replies: this.replies,
 			flightId: this.flight?.flightId ?? 0,
@@ -4957,7 +5181,7 @@ var Po = class {
 				anchorStep: n?.anchorStep ?? null,
 				u: this.last.u,
 				rotor: r ? [r.pose.sF, r.pose.sR] : null,
-				insetPainted: vi.painted
+				insetPainted: xi.painted
 			}
 		};
 	}
@@ -4974,21 +5198,21 @@ var Po = class {
 		};
 		if (!this.isCurrent(e) || e.mode !== "manual" || e.attract) return n;
 		let r = this.deps.session.state();
-		if (r === "idle" || r === "loading") return No(e) ? {
+		if (r === "idle" || r === "loading") return as(e) ? {
 			show: null,
-			badges: [W.loading],
+			badges: [U.loading],
 			u: null
 		} : n;
 		if (r !== "ready") return n;
-		let a = e.world, o = this.faultNotice && t < this.faultNotice.until ? Pr(this.faultNotice.bits) : [];
+		let a = e.world, o = this.faultNotice && t < this.faultNotice.until ? Fr(this.faultNotice.bits) : [];
 		if (a.done && (e.ended || t - 10 >= a.step)) return {
 			show: null,
-			badges: [...o, W.confirmed],
+			badges: [...o, U.confirmed],
 			u: null
 		};
-		if (!No(e)) return n;
+		if (!as(e)) return n;
 		let s = this.display.at(t + 10);
-		return s ? (s.touchedDown ? o.push(W.awaiting) : s.extrapolated && o.push(W.late), {
+		return s ? (s.touchedDown ? o.push(U.awaiting) : s.extrapolated && o.push(U.late), {
 			show: {
 				pose: s.pose,
 				source: "predicted",
@@ -4996,13 +5220,13 @@ var Po = class {
 			},
 			badges: o,
 			u: s.u
-		}) : this.handbackAt !== null && !this.display.started && a.step - this.handbackAt < Mo ? {
+		}) : this.handbackAt !== null && !this.display.started && a.step - this.handbackAt < is ? {
 			show: null,
-			badges: [...o, W.handback],
+			badges: [...o, U.handback],
 			u: null
 		} : {
 			show: null,
-			badges: [...o, this.display.started ? W.stale : W.loading],
+			badges: [...o, this.display.started ? U.stale : U.loading],
 			u: null
 		};
 	}
@@ -5028,25 +5252,25 @@ var Po = class {
 			enabled: r
 		});
 	}
-}, Fo = {
+}, ss = {
 	onToggle: null,
 	setToggle: () => {},
 	destroy: () => {}
 };
-function Io() {
+function cs() {
 	return {
-		mountChrome: (e) => jo(e.ghostsToggle),
-		mountDisplayChrome: Fr,
+		mountChrome: (e) => rs(e.ghostsToggle),
+		mountDisplayChrome: Ir,
 		random: Math.random
 	};
 }
-function Lo(e, t) {
+function ls(e, t) {
 	let n = null, r = null, i = null, a = !1;
 	return {
 		controller: () => n,
 		mount(a, o) {
-			let s = t ?? Io();
-			r = a ? s.mountChrome(a) : { ...Fo }, i = a ? s.mountDisplayChrome(a) : null, n = new Po({
+			let s = t ?? cs();
+			r = a ? s.mountChrome(a) : { ...ss }, i = a ? s.mountDisplayChrome(a) : null, n = new os({
 				session: e.session,
 				chrome: r,
 				random: s.random,
@@ -5066,11 +5290,11 @@ function Lo(e, t) {
 			if (a = !1, !n) return;
 			n.noteShown(t.flight, t.display);
 			let r = n.frame(t.flight, t.displayStep), o = n.insetFrame(t.flight, t.displayStep);
-			i?.setPredicting(n.showing === "predicted"), e.save(), e.setTransform(t.dpr, 0, 0, t.dpr, 0, 0), r && si(e, ci(t.camera, t.w, t.h), r, t.style.palette), o && t.style.inset && (Ti(e, t.w, t.flight.world.map, o, t.style), a = !0), e.restore();
+			i?.setPredicting(n.showing === "predicted"), e.save(), e.setTransform(t.dpr, 0, 0, t.dpr, 0, 0), r && ui(e, di(t.camera, t.w, t.h), r, t.style.palette), o && t.style.inset && (Oi(e, t.w, t.flight.world.map, o, t.style), a = !0), e.restore();
 		},
 		insetDrawn: () => a,
 		badges(e, t) {
-			return n ? n.badges().map((e) => e === W.awaiting ? t.awaitingTouchdown : e) : [];
+			return n ? n.badges().map((e) => e === U.awaiting ? t.awaitingTouchdown : e) : [];
 		},
 		onPause() {
 			n?.setPaused(!0);
@@ -5083,21 +5307,21 @@ function Lo(e, t) {
 		}
 	};
 }
-function Ro(e, t, n) {
+function us(e, t, n) {
 	return !e || e.flightId !== n || t - e.atMs > 1500 || !Number.isFinite(e.pSafe) ? null : e;
 }
-var zo = (e) => `${Math.round(Math.min(1, Math.max(0, e)) * 100)}%`;
-function Bo(e) {
-	let t = e.hasValue ? Ro(e.value, e.nowMs, e.flightId) : null;
+var ds = (e) => `${Math.round(Math.min(1, Math.max(0, e)) * 100)}%`;
+function fs(e) {
+	let t = e.hasValue ? us(e.value, e.nowMs, e.flightId) : null;
 	if (e.mode === "autopilot") {
 		let n = e.counted;
 		return n && n.n > 0 && Number.isFinite(n.value) ? {
 			label: "Landing probability",
-			value: zo(n.value),
+			value: ds(n.value),
 			source: `from ${n.n} future${n.n === 1 ? "" : "s"}`
 		} : t ? {
 			label: "Landing probability",
-			value: zo(t.pSafe),
+			value: ds(t.pSafe),
 			source: "estimated"
 		} : null;
 	}
@@ -5105,11 +5329,11 @@ function Bo(e) {
 	let n = e.ageS !== null && Number.isFinite(e.ageS) ? `, ${Math.max(0, e.ageS).toFixed(1)} s old` : "";
 	return {
 		label: "Autopilot could land from here",
-		value: zo(t.pSafe),
+		value: ds(t.pSafe),
 		source: `estimated from the downlink${n}`
 	};
 }
-function Vo(e) {
+function ps(e) {
 	let t = e.createElement("div");
 	t.className = "instrument landing-readout", t.setAttribute("aria-live", "polite");
 	let n = e.createElement("span");
@@ -5126,18 +5350,18 @@ function Vo(e) {
 }
 //#endregion
 //#region src/ui/valueSnapshot.ts
-var Ho = {
+var ms = {
 	front: 0,
 	rear: 0
 };
-function Uo(e) {
+function hs(e) {
 	let t = e.world;
-	return e.mode === "autopilot" ? Fa(t, t.step > 0 ? t.records[t.step - 1].cmd : Ho) : Ia(t, e.link);
+	return e.mode === "autopilot" ? so(t, t.step > 0 ? t.records[t.step - 1].cmd : ms) : co(t, e.link);
 }
 //#endregion
 //#region src/ui/readoutFeature.ts
-var Wo = 5;
-function Go(e) {
+var gs = 5;
+function _s(e) {
 	let t = e.now ?? (() => performance.now()), n = e.session.client, r = null, a = null, o = -1, s = -Infinity, c = !1, l = (e) => {
 		e.flightId === o && (a = {
 			pSafe: e.pSafe,
@@ -5149,7 +5373,7 @@ function Go(e) {
 	}, u = () => e.session.state() === "ready" && (e.session.info()?.hasValue ?? !1), d = (e) => e.mode === "manual" && a && a.anchorStep > e.link.downlinkStep(e.world.step) ? null : a;
 	return {
 		mount(t) {
-			t && (r = e.createView ? e.createView(t) : Vo(t.root.ownerDocument), t.instruments.append(r.el)), n.onValue = l;
+			t && (r = e.createView ? e.createView(t) : ps(t.root.ownerDocument), t.instruments.append(r.el)), n.onValue = l;
 		},
 		onFlightStart(e) {
 			o = e.flightId, a = null, s = -Infinity, r?.update(null);
@@ -5157,15 +5381,15 @@ function Go(e) {
 		afterStep(e) {
 			if (c || e.ended || e.flightId !== o || !u()) return;
 			let t = e.world.step;
-			if (t - s < Wo) return;
-			let r = Uo(e);
+			if (t - s < gs) return;
+			let r = hs(e);
 			r && (s = t, n.requestValue({
 				...r,
 				flightId: e.flightId
 			}));
 		},
 		reportState(e) {
-			let n = u() ? Ro(d(e), t(), e.flightId) : null;
+			let n = u() ? us(d(e), t(), e.flightId) : null;
 			return { landing: n ? {
 				pSafe: n.pSafe,
 				tGo: n.tGo
@@ -5173,7 +5397,7 @@ function Go(e) {
 		},
 		draw(n, a) {
 			let o = a.flight, s = d(o);
-			r?.update(Bo({
+			r?.update(fs({
 				mode: o.mode,
 				hasValue: u(),
 				value: s,
@@ -5197,7 +5421,7 @@ function Go(e) {
 }
 //#endregion
 //#region src/ui/sessionFeature.ts
-function Ko(e, t) {
+function vs(e, t) {
 	if (typeof IntersectionObserver > "u") return t(), () => {};
 	let n = !1, r = new IntersectionObserver((e) => {
 		!n && e.some((e) => e.isIntersecting) && (n = !0, r.disconnect(), t());
@@ -5206,24 +5430,24 @@ function Ko(e, t) {
 		n = !0, r.disconnect();
 	};
 }
-function qo(e, t) {
+function ys(e, t) {
 	let n = new URL(e, t).href;
 	return n.endsWith("/") ? n : `${n}/`;
 }
-function Jo(e, t = {}, n) {
+function bs(e, t = {}, n) {
 	let r = null, i = null, a = null;
 	return {
 		mount(a, o) {
 			t.onMount?.(a, o);
 			let s = n ?? {
-				observeOnce: Ko,
+				observeOnce: vs,
 				baseURI: () => document.baseURI
 			}, c = null, l = (e) => {
-				let t = wa(e);
+				let t = Xa(e);
 				t !== c && (c = t, o.setModelState(t));
 			};
 			i = e.onState(l), l(e.state());
-			let u = qo(t.dreamBase ?? o.opts.assetBase, s.baseURI()), { modelsBase: d, ortBase: f, debugPlanDelayMs: p } = o.opts, m = () => {
+			let u = ys(t.dreamBase ?? o.opts.assetBase, s.baseURI()), { modelsBase: d, ortBase: f, debugPlanDelayMs: p } = o.opts, m = () => {
 				e.ensureLoaded(u, {
 					wantValue: t.wantValue ?? !1,
 					...d ? { modelsBase: d } : {},
@@ -5243,26 +5467,26 @@ function Jo(e, t = {}, n) {
 }
 //#endregion
 //#region src/lib/libraryFeatures.ts
-function Yo() {
+function xs() {
 	return {
 		fetch: (e, t) => fetch(e, t),
-		selectBackend: () => ha(ma(""))
+		selectBackend: () => Va(Ba(""))
 	};
 }
-function Xo(e, t = Yo()) {
-	let n = Ta(e, t), r = Lo({ session: n }), i = Ao({ meanSource: () => r.controller() }), a = yo({
+function Ss(e, t = xs()) {
+	let n = Za(e, t), r = ls({ session: n }), i = ns({ meanSource: () => r.controller() }), a = Go({
 		session: n,
 		ghostsOn: () => r.controller()?.status().enabled ?? !0,
 		onAdopt: i.record
 	});
 	return [
-		Jo(n, { wantValue: !0 }),
+		bs(n, { wantValue: !0 }),
 		r,
 		a,
-		Oa({ session: n }),
+		eo({ session: n }),
 		i,
-		xo({ gap: i.lastGap }),
-		Go({
+		qo({ gap: i.lastGap }),
+		_s({
 			session: n,
 			counted: (e) => a.counted(e)
 		})
@@ -5270,18 +5494,18 @@ function Xo(e, t = Yo()) {
 }
 //#endregion
 //#region src/lib/debug.ts
-var Zo = Symbol.for("lander.debug"), Qo = Symbol.for("lander.debugOptions"), $o = 6e4;
-function es(e) {
-	let t = e[Qo];
+var Cs = Symbol.for("lander.debug"), ws = Symbol.for("lander.debugOptions"), Ts = 6e4;
+function Es(e) {
+	let t = e[ws];
 	if (t === void 0) return {};
 	let n = t?.planDelayMs;
 	if (n === void 0) return {};
-	if (typeof n != "number" || !Number.isFinite(n) || n < 0 || n > 6e4) throw TypeError(`lander: debug planDelayMs must be a number of ms in [0, ${$o}]`);
+	if (typeof n != "number" || !Number.isFinite(n) || n < 0 || n > 6e4) throw TypeError(`lander: debug planDelayMs must be a number of ms in [0, ${Ts}]`);
 	return { planDelayMs: n };
 }
 //#endregion
 //#region src/lib/flightEvents.ts
-var ts = 16, ns = class {
+var Ds = 16, Os = class {
 	emit;
 	flights = /* @__PURE__ */ new Map();
 	chains = /* @__PURE__ */ new Set();
@@ -5351,13 +5575,13 @@ var ts = 16, ns = class {
 		this.closed = !0, this.flights.clear(), this.chains.clear();
 	}
 	prune() {
-		for (; this.flights.size > ts;) this.flights.delete(Math.min(...this.flights.keys()));
-		for (; this.chains.size > ts;) this.chains.delete(Math.min(...this.chains));
+		for (; this.flights.size > Ds;) this.flights.delete(Math.min(...this.flights.keys()));
+		for (; this.chains.size > Ds;) this.chains.delete(Math.min(...this.chains));
 	}
 };
 //#endregion
 //#region src/lib/assetBase.ts
-function rs(e, t, n, r = new URL(n).origin) {
+function ks(e, t, n, r = new URL(n).origin) {
 	if (typeof e != "string" || e.trim() === "") throw TypeError(`lander: opts.${t} must be the URL of a directory${t === "assetBase" ? " holding lander.js" : ""}`);
 	let i = e.trim();
 	if (i.includes("?") || i.includes("#")) throw TypeError(`lander: opts.${t} must not carry a query or fragment; version the directory instead`);
@@ -5372,10 +5596,10 @@ function rs(e, t, n, r = new URL(n).origin) {
 	if (a.origin !== r) throw TypeError(`lander: opts.${t} must be on this page's origin (${r}), not ${a.origin}: a module worker loads only from the page's own origin, so serve dist/lander from the site`);
 	return a.href.replace(/\/+$/, "/");
 }
-var is = (e) => typeof e == "object" && !!e && !Array.isArray(e);
-function as(e, t, n) {
+var As = (e) => typeof e == "object" && !!e && !Array.isArray(e);
+function js(e, t, n) {
 	if (e === void 0) return {};
-	if (!is(e)) throw TypeError(`lander: opts.${n} must be an object when given`);
+	if (!As(e)) throw TypeError(`lander: opts.${n} must be an object when given`);
 	let r = {};
 	for (let i of t) {
 		let t = e[i];
@@ -5386,36 +5610,36 @@ function as(e, t, n) {
 	}
 	return r;
 }
-var os = ["wasm", "webgpu"];
-function ss(e, t, n) {
+var Ms = ["wasm", "webgpu"];
+function Ns(e, t, n) {
 	if (e === void 0) return {
 		wasm: null,
 		webgpu: null
 	};
 	if (typeof e == "string") {
-		let r = rs(e, "ortBase", t, n);
+		let r = ks(e, "ortBase", t, n);
 		return {
 			wasm: r,
 			webgpu: r
 		};
 	}
-	if (!is(e)) throw TypeError("lander: opts.ortBase must be a string or an object { wasm?, webgpu? } when given");
-	let r = Object.keys(e).filter((e) => !os.includes(e));
+	if (!As(e)) throw TypeError("lander: opts.ortBase must be a string or an object { wasm?, webgpu? } when given");
+	let r = Object.keys(e).filter((e) => !Ms.includes(e));
 	if (r.length > 0) throw TypeError(`lander: opts.ortBase has unknown key ${r.map((e) => JSON.stringify(e)).join(", ")}; the keys are wasm and webgpu`);
 	let i = {
 		wasm: null,
 		webgpu: null
 	};
-	for (let r of os) {
+	for (let r of Ms) {
 		let a = e[r];
 		if (a !== void 0) {
 			if (typeof a != "string") throw TypeError(`lander: opts.ortBase.${r} must be a string when given`);
-			i[r] = rs(a, `ortBase.${r}`, t, n);
+			i[r] = ks(a, `ortBase.${r}`, t, n);
 		}
 	}
 	return i;
 }
-function cs(e, t, n) {
+function Ps(e, t, n) {
 	if (!e || typeof e != "object") throw TypeError("lander: mount(container, opts) needs an options object");
 	if (e.reducedMotion !== void 0 && typeof e.reducedMotion != "boolean") throw TypeError("lander: opts.reducedMotion must be a boolean when given");
 	if (e.onEvent !== void 0 && typeof e.onEvent != "function") throw TypeError("lander: opts.onEvent must be a function when given");
@@ -5426,10 +5650,10 @@ function cs(e, t, n) {
 	if (r !== "fill" && !(typeof r == "number" && Number.isFinite(r) && r > 0)) throw TypeError("lander: opts.aspect must be a positive finite number or 'fill'");
 	let i = e.zoom ?? 1;
 	if (!(typeof i == "number" && Number.isFinite(i) && i >= 1 && i <= 4)) throw TypeError("lander: opts.zoom must be a finite number in [1, 4] when given");
-	let a = rs(e.assetBase, "assetBase", t, n), o = e.modelsBase === void 0 ? `${a}models/` : rs(e.modelsBase, "modelsBase", t, n), s = ss(e.ortBase, t, n), c = as(e.theme, dr, "theme"), l;
+	let a = ks(e.assetBase, "assetBase", t, n), o = e.modelsBase === void 0 ? `${a}models/` : ks(e.modelsBase, "modelsBase", t, n), s = Ns(e.ortBase, t, n), c = js(e.theme, fr, "theme"), l;
 	return l = e.text === !1 ? null : {
-		...V,
-		...as(e.text, fr, "text")
+		...B,
+		...js(e.text, pr, "text")
 	}, {
 		assetBase: a,
 		modelsBase: o,
@@ -5445,24 +5669,24 @@ function cs(e, t, n) {
 		onState: e.onState
 	};
 }
-var ls = .001, us = {
+var Fs = .001, Is = {
 	now: () => performance.now(),
 	setTimer: (e, t) => setTimeout(e, t),
 	clearTimer: (e) => clearTimeout(e)
-}, $ = (e, t) => Math.abs(e - t) <= ls;
-function ds(e, t) {
+}, $ = (e, t) => Math.abs(e - t) <= Fs;
+function Ls(e, t) {
 	if (e.mode !== t.mode || e.attract !== t.attract || e.hop !== t.hop || e.level !== t.level || e.model !== t.model || e.planner !== t.planner || e.display !== t.display || e.outcome !== t.outcome) return !1;
 	let n = e.flight, r = t.flight;
 	return !$(n.agl, r.agl) || !$(n.vx, r.vx) || !$(n.vy, r.vy) || !$(n.tiltDeg, r.tiltDeg) || !$(n.energy, r.energy) || !$(n.windMs, r.windMs) ? !1 : e.landing === null || t.landing === null ? e.landing === t.landing : $(e.landing.pSafe, t.landing.pSafe) && $(e.landing.tGo, t.landing.tGo);
 }
-function fs(e) {
+function Rs(e) {
 	return Object.freeze({
 		...e,
 		flight: Object.freeze({ ...e.flight }),
 		landing: e.landing ? Object.freeze({ ...e.landing }) : null
 	});
 }
-var ps = class {
+var zs = class {
 	onState;
 	clock;
 	last = null;
@@ -5470,12 +5694,12 @@ var ps = class {
 	pending = null;
 	timer = null;
 	closed = !1;
-	constructor(e, t = us) {
+	constructor(e, t = Is) {
 		this.onState = e, this.clock = t;
 	}
 	push(e) {
 		if (this.closed) return;
-		if (this.last && ds(this.last, e)) {
+		if (this.last && Ls(this.last, e)) {
 			this.pending = null;
 			return;
 		}
@@ -5496,26 +5720,26 @@ var ps = class {
 	send(e, t) {
 		this.pending = null, this.last = e, this.lastAt = t;
 		try {
-			this.onState(fs(e));
+			this.onState(Rs(e));
 		} catch (e) {
 			console.error("lander: onState threw", e);
 		}
 	}
-}, ms = /* @__PURE__ */ new WeakSet();
-function hs(e, t, n) {
+}, Bs = /* @__PURE__ */ new WeakSet();
+function Vs(e, t, n) {
 	let { doc: r } = n;
 	if (!e || e.nodeType !== 1) throw TypeError("lander: mount(container) needs an HTMLElement");
-	let i = cs(t, r.baseURI, r.location?.origin ?? new URL(r.baseURI).origin), a = es(t);
-	if (ms.has(e)) throw Error("lander: this container already holds a mounted lander; await handle.unload() first");
+	let i = Ps(t, r.baseURI, r.location?.origin ?? new URL(r.baseURI).origin), a = Es(t);
+	if (Bs.has(e)) throw Error("lander: this container already holds a mounted lander; await handle.unload() first");
 	let o = i.assetBase, s = r.createElement("div");
-	s.dataset.lander = "root", s.style.position = "relative", s.style.width = "100%", i.ui === "none" ? (s.style.display = "block", i.aspect === "fill" && (s.style.height = "100%")) : s.style.height = "100%", e.appendChild(s), ms.add(e);
-	let c = i.onEvent, l = new ns((e) => {
+	s.dataset.lander = "root", s.style.position = "relative", s.style.width = "100%", i.ui === "none" ? (s.style.display = "block", i.aspect === "fill" && (s.style.height = "100%")) : s.style.height = "100%", e.appendChild(s), Bs.add(e);
+	let c = i.onEvent, l = new Os((e) => {
 		if (c) try {
 			c(e);
 		} catch (e) {
 			console.error("lander: onEvent threw", e);
 		}
-	}), u = i.onState ? new ps(i.onState, n.clock) : null, d;
+	}), u = i.onState ? new zs(i.onState, n.clock) : null, d;
 	try {
 		let e = () => n.createWorker(o);
 		d = n.createApp(s, {
@@ -5537,11 +5761,11 @@ function hs(e, t, n) {
 			features: n.features(e)
 		});
 	} catch (t) {
-		throw l.close(), u?.close(), s.remove(), ms.delete(e), t;
+		throw l.close(), u?.close(), s.remove(), Bs.delete(e), t;
 	}
 	let f = !1, p = null, m = null, h = {
-		...Object.fromEntries(Nn.map((e) => [e, (...t) => {
-			p || Mn[e](d.commands, ...t);
+		...Object.fromEntries(Pn.map((e) => [e, (...t) => {
+			p || Nn[e](d.commands, ...t);
 		}])),
 		pause() {
 			p || (f = !0, d.pause());
@@ -5556,12 +5780,12 @@ function hs(e, t, n) {
 				} catch (e) {
 					console.error("lander: teardown failed", e);
 				} finally {
-					s.remove(), ms.delete(e);
+					s.remove(), Bs.delete(e);
 				}
 			})(), p);
 		}
 	};
-	return Object.defineProperty(h, Zo, {
+	return Object.defineProperty(h, Cs, {
 		enumerable: !1,
 		value: () => ({
 			...m ?? d.debug(),
@@ -5573,19 +5797,19 @@ function hs(e, t, n) {
 }
 //#endregion
 //#region src/lib/workerFactory.ts
-function gs(e) {
+function Hs(e) {
 	if (!e.endsWith("/")) throw TypeError("lander: worker base must end in \"/\" (pass a normalized assetBase)");
 	return new Worker(`${e}lander-worker.js`, { type: "module" });
 }
 //#endregion
 //#region src/index.ts
-function _s(e, t) {
-	return hs(e, t, {
-		createApp: la,
-		createWorker: gs,
-		features: (e) => Xo(e),
+function Us(e, t) {
+	return Vs(e, t, {
+		createApp: Fa,
+		createWorker: Hs,
+		features: (e) => Ss(e),
 		doc: e?.ownerDocument ?? document
 	});
 }
 //#endregion
-export { _s as mount };
+export { Us as mount };

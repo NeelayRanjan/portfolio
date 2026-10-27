@@ -639,10 +639,15 @@ export function ChessPanel() {
         </div>
       ) : null}
 
+      {/* Board first on a phone (round 2, 2026-10-27): the board sat ~1.3
+          screens below the heading, behind the search controls and their
+          note. Below 880px the body takes order 1 and the controls follow
+          it; from 880px both keep DOM order. */}
+      <div className="flex flex-col">
       {/* Game-only, see `showGame`: in the interpretability view these
           configure a search that nothing on screen runs. */}
       {showGame ? (
-        <>
+        <div className="order-2 mt-6 min-[880px]:order-none min-[880px]:mt-0">
         {/*
          * The control row: which search is running, and what it spends.
          *
@@ -684,6 +689,10 @@ export function ChessPanel() {
             </div>
           </div>
 
+          {/* The sims box and its reset only while "let it think" is on
+              (round 2): one ply never reads them. */}
+          {sims > 0 ? (
+          <>
           <SimsField
             name="sims"
             value={thinkSims}
@@ -719,6 +728,8 @@ export function ChessPanel() {
               {copy.systems.chess.hint}
             </span>
           )}
+          </>
+          ) : null}
         </div>
 
         {/* The confirmation that the number did something. `role="status"`, because
@@ -750,11 +761,12 @@ export function ChessPanel() {
             </>
           )}
         </p>
-        </>
+        </div>
       ) : null}
 
       {/* Same `showGame`, inverted: one boolean decides the body and the
           controls above it, so they cannot drift apart. */}
+      <div className="order-1 min-[880px]:order-none">
       {!showGame ? (
         <>
           <p className="mb-6 max-w-2xl text-[15px] leading-relaxed text-mut">
@@ -967,6 +979,8 @@ export function ChessPanel() {
           </div>
         </div>
       )}
+      </div>
+      </div>
       </div>
     </InstrumentFigure>
   );

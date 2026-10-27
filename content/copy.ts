@@ -465,7 +465,7 @@ export const copy = {
      *  no-numerals rule; the References entry carries the full citation. */
     nasaProse: [
       "On SLAAC (space launch and air/airspace coordination) I trained a diffusion model on FAA radar tracks to reroute flights around closed airspace. It applies the airspace while it samples, so a new closure needs no retraining.",
-      "Since August I’ve been on SHIFT: speech-to-text for air traffic control that makes fewer errors than the Whisper system in use, and a generate-and-rank parser that turns the transcripts into a maneuver database. I’m writing the parser up with NASA as an extended abstract for AIAA AVIATION.",
+      "Since August I’ve been on SHIFT. My speech recognizer for air traffic control makes fewer errors than the Whisper system in use, and a generate-and-rank parser turns its transcripts into a maneuver database. I’m writing the parser up with NASA for AIAA AVIATION.",
     ],
     /** Figure S3 on /lab since the SLAAC round (2026-09-30): the flight-plan
      *  LM's synthesized day. Was Figure 3 on page 1; the key stays under

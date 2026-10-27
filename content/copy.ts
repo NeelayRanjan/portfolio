@@ -321,7 +321,7 @@ export const copy = {
        *  measure, in the same words, as the DIFFERENCES note's. */
       slaac: {
         tag: "slaac",
-        body: "From the SLAAC poster: under both lookahead policies, nearly every final reroute kept every leg the full buffer distance from the airspace, with small detours close to the geometric optimum. The median reroute added no waypoints, and under infinite lookahead removed one.",
+        body: "On the SLAAC poster, nearly every final reroute kept every leg the full buffer from the airspace, with small detours close to the geometric optimum.",
       },
       /** Owner's intent: data re-sourced from public data where possible,
        *  with some loss of quality. The airspace is the FAA's Special Use

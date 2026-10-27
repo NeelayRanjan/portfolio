@@ -798,6 +798,35 @@ own session. What changed, and the rules it leaves:
   it. The round-2 fix list (K1-K4, V1-V4,
   M1-M5, W2-W5) is also awaiting approval; B2 is still held. Verified
   after round 2 on a production build: 56/56 checks, 203/203 node tests.
+- **Round-2 fixes, branch `homepage-fixes-2` (2026-10-27, from
+  `homepage-fixes`; one commit per ID; owner: "start on round-2 fixes").**
+  L0 first, from an owner report ("the dev server is crashing after
+  scrolling pretty far down"): the lander chart read `view.origin.y` on a
+  view with no origin and, with no error boundary, React unmounted the
+  whole page. Git and production only ever held the v2 module that sends
+  `origin`; the likely source is a browser holding a stale cached v2 from
+  this machine (it was rebuilt in place before it shipped, and
+  `/lander/*` is immutable). Now LanderPanel shape-checks every `onModel`
+  view, and `DeferredMount` wraps each deferred figure in `FigureBoundary`
+  ("This figure stopped with an error. try again"), so one figure can't
+  take the page down. Then: V1+V2 (Figure 1's wide legend names at full
+  colour; wide viewBox 520 units with 12-unit type, 11-12px rendered), M1
+  (Figure 2 gets the same two-layout treatment), W4 (Figure 2's slider
+  opens at 0.5, where its caption argues; the cdf check follows), V3
+  (stale rerouter results keep full colour under "from the last run,
+  before the settings changed"), M3 (the rerouter table's scroller is a
+  focusable labelled region), K1 (DeferredMount: entered forward, focus
+  stays on the slot so Tab walks the figure in DOM order; entered
+  backward, focus lands on the figure's last control once it settles),
+  K2 (`HashScrollKeeper` in the layout re-aligns a hash target for 4s
+  while figures mount above it, for engines without scroll anchoring),
+  K3 (skip link hidden in stargaze), K4 (chess notes `aside` → div; "what
+  it saw" selections ink), V4 (range track mut 70%, ~3.5:1), M5 (the
+  lander chart is one line until its first view), M2 (chess: board first
+  below 880px via CSS order; the sims box only with "let it think"). Not
+  done on purpose: M4 and W5 (passed on before), W2/W3 (covered by T1 and
+  the copy pass), B2 (its own session). Verified on a production build:
+  56/56 checks (frame 3.18 ms), 203/203 node tests.
 
 **Open items, roughly in order:**
 

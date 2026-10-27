@@ -903,7 +903,7 @@ export const copy = {
       {
         when: "since Aug 2026",
         who: "NASA Ames · SHIFT",
-        what: "Speech-to-text for air traffic control, a generate-and-rank parser from transcripts to maneuvers, and a synthetic speech corpus that grows the recorded data about 20x.",
+        what: "Speech recognition for air traffic control, a generate-and-rank parser from transcripts to maneuvers, and a synthetic speech corpus about 20x the recorded data.",
         status: "active",
       },
       {

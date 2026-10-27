@@ -785,9 +785,17 @@ own session. What changed, and the rules it leaves:
   the stamp plus figure semantics (the headline numeral is gone). **Copy:**
   the 27 proposals that drop no fact are applied, one commit per P-number
   (no semicolons, colons or compound hyphens in them; "metres" fixed). The
-  ⚠️ ones (P1, P2, P5-P10, P12, P13, P15-P17, P21-P23, P27, P31, P35,
-  P48, P49) are NOT applied and wait on the owner, as do P3 (pairs with
-  P2) and P4 (Table 1's old caption). The round-2 fix list (K1-K4, V1-V4,
+  owner then approved the ⚠️ ones too (2026-10-27), each its own commit
+  whose message names what it drops: the abstract now opens "I build
+  diffusion and energy-based models" (the positioning, up front) and no
+  longer mentions chess; the Research paragraph leaves authors and status
+  to the PAPER note; the lander caption no longer carries the
+  "average prediction" line, which lives in `view.prediction` alone (shown
+  whenever a visitor flies by hand); the SLAAC note drops the waypoint
+  result and the lookahead names; the page title and share blurb are
+  shorter. P4-P6 targeted the old stat band and were moot. The share card
+  was regenerated; the shorter headshot caption put the stamp back inside
+  it. The round-2 fix list (K1-K4, V1-V4,
   M1-M5, W2-W5) is also awaiting approval; B2 is still held. Verified
   after round 2 on a production build: 56/56 checks, 203/203 node tests.
 

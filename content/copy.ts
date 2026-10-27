@@ -631,7 +631,7 @@ export const copy = {
       /** 2026-10-16, the diorama: the flight is 2D and the depth is drawing,
        *  said once here (the honesty rule for illustrative pieces). */
       figureCaption:
-        "An autopilot flies a rotorcraft shaped like NASA’s Dragonfly over Titan’s dunes. The flight is two-dimensional; the depth around it is drawing. The chart below the scene is the model’s side: from the last second of flight, a diffusion model predicts the next three seconds for each candidate plan, and the autopilot flies the first half second of the best one, then plans again. On a computer you can take the controls: your commands then cross a 2 s round-trip link to Earth (light takes 67-92 minutes each way), and the craft you see is the model’s average prediction of where it will be when your command arrives.",
+        "An autopilot flies a rotorcraft shaped like NASA’s Dragonfly over Titan’s dunes. The flight is 2D, and the depth around it is drawing. On a computer you can take the controls, through a 2 s round trip to Earth (light takes 67-92 minutes each way).",
       loadFailed: "The lander didn’t load. Reload the page to try again.",
       loading: "loading the model",
       /** Readout parts (the figure's amber corner): who is flying, height,

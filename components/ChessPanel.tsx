@@ -627,7 +627,7 @@ export function ChessPanel() {
               aria-pressed={v === view}
               className={`border px-3 py-1.5 font-mono text-xs transition-colors ${
                 v === view
-                  ? "border-link text-link"
+                  ? "border-ink text-ink"
                   : "border-rule text-mut hover:border-mut hover:text-ink"
               }`}
             >
@@ -946,7 +946,7 @@ export function ChessPanel() {
                   Boolean(outcome) ||
                   game.turn() !== "w"
                 }
-                className="border border-rule px-3 py-1.5 font-mono text-xs text-mut transition-colors hover:border-link hover:text-link disabled:opacity-40"
+                className="border border-rule px-3 py-1.5 font-mono text-xs text-mut transition-colors hover:border-mut hover:text-ink disabled:opacity-40"
               >
                 {hinting ? copy.systems.chess.thinking : copy.systems.chess.hintButton}
               </button>

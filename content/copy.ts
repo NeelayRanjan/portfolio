@@ -673,7 +673,7 @@ export const copy = {
        *  prediction; the onboard view and a confirmed touchdown are not). */
       view: {
         onboard: "The autopilot flies onboard, with no link delay. The faint shapes are the plans it’s weighing.",
-        prediction: "You fly through a 2 s round trip, so the craft is the model’s average prediction of where it will be when your newest command arrives. The faint craft are other sampled futures, and the inset is the downlink, 1 s old.",
+        prediction: "You fly through a 2 s round trip, so the craft is the model’s average prediction of where it will be when your newest command arrives. The faint craft are other samples, and the inset is the downlink, 1 s old.",
         fallback: "Without the model, a physics predictor that ignores wind draws the craft.",
         touchdown: "Touchdown confirmed by the downlink.",
       },

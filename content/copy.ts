@@ -816,7 +816,7 @@ export const copy = {
       /** Shown while self-play runs at one ply, the only mode where it applies
        *  (lib/chess-selfplay.ts). The numbers are the rule's own constants. */
       selfPlayRule:
-        "At one ply it plays its top choice, except up to twice a game, when its second or third choice is nearly tied with the first (at least 80% as likely). Then it sometimes plays that one instead, so most games come out different.",
+        "Up to twice a game, when its second or third choice is at least 80% as likely as its first, it may play that instead, so games vary.",
       /** "took its second choice · p=0.211 vs 0.236", when a departure was just played. */
       selfPlayTookPre: "took its ",
       selfPlaySecond: "second choice",

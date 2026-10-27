@@ -229,7 +229,10 @@ export const copy = {
       },
       { value: "25/25", label: "paired runs ahead of every baseline at 16 labels" },
       { value: "~75%", label: "faster surgeon corrections" },
-      { value: "553 KB", label: "chess engine, roughly 1900-2200 Elo" },
+      /** The Elo is the engine WITH search on the Pi (owner-confirmed); the
+       *  page's own engine runs without it, "a few hundred Elo weaker", so
+       *  the cell says which (2026-10-26 audit). */
+      { value: "553 KB", label: "chess engine, roughly 1900-2200 Elo with search on a Raspberry Pi" },
     ],
   },
 

@@ -407,7 +407,7 @@ export const copy = {
       xAxisLabel: "per-image test Dice",
       yAxisLabel: "cumulative share of predictions",
       /** Says out loud what the 30% ceiling already does. */
-      clipNote: "y axis clipped at 30%. the tail is the whole finding.",
+      clipNote: "y axis clipped at 30%.",
       /** The readout row above the slider, wrapped around the cursor value. */
       sharePre: "share below ",
       sharePost: " dice",

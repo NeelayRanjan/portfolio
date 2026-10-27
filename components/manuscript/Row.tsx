@@ -35,7 +35,11 @@ export function Row({
     <div className="min-[880px]:grid min-[880px]:grid-cols-[minmax(0,560px)_minmax(200px,1fr)] min-[880px]:gap-x-12">
       <div>{children}</div>
       {rail ? (
-        <aside
+        // A plain div, not an <aside> (2026-10-26 audit): the page has a
+        // rail on most rows, and as asides they put five identical
+        // unlabelled "complementary" landmarks in a screen reader's list.
+        // The notes are part of the row's reading, not a sidebar to it.
+        <div
           className={[
             // Rail base type: serif italic-friendly, small, muted — matches
             // the mockup's `.rail` rule. Individual rail content (Stamp, nav
@@ -52,7 +56,7 @@ export function Row({
             .join(" ")}
         >
           {rail}
-        </aside>
+        </div>
       ) : null}
     </div>
   );

@@ -128,10 +128,7 @@ export const copy = {
        *  picture instead of restarting from noise, so the body has to say
        *  that or the old "new noise every press" line goes false. */
       captionBodyMorph:
-        "Press a face and a 1.3M-parameter diffusion model, overfit on three " +
-        "photos of me, samples it in your browser in 25 steps from fresh noise. " +
-        "After that, pressing a different face re-noises the picture on screen " +
-        "partway and pulls the new photo out of it; resample starts over from noise.",
+        "Press a face and a diffusion model with 1.3M parameters, overfit on three photos of me, samples it in your browser from noise in 25 steps. Another face starts from the current picture.",
       /** The canvas's accessible name: this, " 1 of 3", then the photo's own
        *  alt text. The alt has to ride along or a screen-reader user loses the
        *  description of what the author looks like the moment the canvas

@@ -788,7 +788,7 @@ export const copy = {
        *  limit (no search here, a few hundred Elo weaker) stays in the main
        *  column on purpose: a stated limit is what reads as real. */
       lede: {
-        a: "A 469K-parameter energy-based model: it scores the position each legal move leads to and plays the lowest-energy one. Energy models and diffusion are what I research, so I wanted to see how well a model that only scores positions could choose moves.",
+        a: "An energy-based model with 469K parameters scores the position after each legal move and plays the one it scores lowest. I research energy models and diffusion, and wanted to see how well scoring alone could pick moves.",
         b: "With MCTS on a Raspberry Pi Zero 2 W it plays at roughly 1900-2200 Elo against Stockfish’s limited modes. Here it runs without search, a few hundred Elo weaker.",
       },
       ledeNotes: [

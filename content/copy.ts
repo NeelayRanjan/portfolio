@@ -806,7 +806,7 @@ export const copy = {
       /** New for the manuscript chrome: v1's panel had no caption, so this one
        *  is drafted rather than carried over. */
       figureCaption:
-        "The 553 KB int8 engine. You play white: click a piece, then a square. The tint ranks every legal reply, and “what it saw” shows the model’s internals on eight preset positions.",
+        "The 553 KB int8 engine. The tint ranks every legal reply, and “what it saw” shows the model’s internals on eight preset positions.",
       statusLoading: "loading 553 KB…",
       statusSearchingPre: "searching · ",
       statusThinking: "thinking…",

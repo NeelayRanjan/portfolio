@@ -400,7 +400,7 @@ export const copy = {
      */
     figCdf: {
       caption:
-        "Every per-image test Dice at 16 labels, pooled over all seeds and folds (2,500 per line). At 0.5 Dice, 0.32% of x0-diffusion’s predictions fall below, against 5.4% for SAM and 13.5% for ResNet-UNet. x0-diffusion’s mean is only a few points ahead of the baselines, but it almost never fails outright. The images come from a seed-1 re-run, one per slider stop, chosen by SAM Dice near the cursor; SAM is stochastic, so its mask can score differently from its recorded run.",
+        "At 16 labels, 0.32% of x0-diffusion’s predictions fall below 0.5 Dice, against 5.4% for SAM and 13.5% for ResNet-UNet. x0-diffusion’s mean is only a few points ahead, but it almost never fails outright. Each slider stop shows the image whose SAM Dice is nearest the cursor. SAM is stochastic, so its mask can score differently from its recorded run.",
       /** Screen-reader name for the chart itself. The caption is the long form. */
       chartAria:
         "Cumulative share of per-image test Dice at 16 labels, for x0-diffusion, SAM and ResNet-UNet",

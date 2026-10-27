@@ -659,7 +659,7 @@ export const copy = {
         rest: "the rest, replanned before it’s flown",
         earlier: "earlier chunks, one per plan",
         actual: "the actual flight",
-        timeTitle: "height over time, metres",
+        timeTitle: "height over time, meters",
         now: "now",
         timeAria: "Height over time: the chunk of the plan being flown, the rest of the plan, the chunks earlier plans flew, and the actual flight",
       },

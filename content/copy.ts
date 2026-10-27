@@ -95,14 +95,7 @@ export const copy = {
     /** ~80 words, first person. Numbers here are load-bearing: keep them in
      *  sync with `research.prose` and CLAUDE.md's content facts. */
     abstract:
-      "I build generative models for domains where labeled data is scarce and a " +
-      "wrong prediction costs more than a missed one. My first-author paper on " +
-      "label-efficient vessel segmentation from catheter angiograms is in " +
-      "preparation. At NASA Ames I work on airspace coordination and a " +
-      "synthetic dataset for air traffic control speech; at Regenstrief I trained " +
-      "the diffusion model behind that paper. I also built a 553 KB chess engine; " +
-      "you can play it further down this page. I'm on a gap semester from my AI " +
-      "degree at Purdue, applying to master's programs for fall 2027.",
+      "I build diffusion and energy-based models. I’m first author on a Regenstrief paper, in preparation, on segmenting blood vessels from very few labels. At NASA Ames I built a diffusion model that reroutes flights around closed airspace, and now I work on speech recognition for air traffic control. I’m on a gap semester from Purdue, applying to master’s programs for fall 2027.",
     /**
      * The author photo, which is a live diffusion sample rather than a file
      * (`components/figures/HeadshotFigure.tsx`). Every claim below is checked:

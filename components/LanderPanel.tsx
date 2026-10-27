@@ -147,8 +147,19 @@ const LEVELS: ConditionsLevel[] = [0, 1, 2, 3];
 const CHIP =
   "rounded border border-rule bg-desk/60 px-2.5 py-1.5 text-[12px] text-ink transition-colors hover:border-mut disabled:cursor-not-allowed disabled:opacity-40";
 
+/** Whether a model view carries every field LanderModelChart reads. */
+function isDrawableView(v: LanderModelView): boolean {
+  const o = (v as Partial<LanderModelView>).origin;
+  return (
+    !!o && Number.isFinite(o.x) && Number.isFinite(o.y) &&
+    (v.execS === null || Number.isFinite(v.execS)) &&
+    Array.isArray(v.paths) && !!v.past && Number.isFinite(v.t) && Number.isFinite(v.dt)
+  );
+}
+
 export function LanderPanel() {
   const hostRef = useRef<HTMLDivElement>(null);
+  const warnedShapeRef = useRef(false);
   const handleRef = useRef<LanderHandle | null>(null);
   // A remount (Strict Mode, a stargaze round trip) waits for the previous
   // unload, so two landers never share the container (mount throws if one is
@@ -204,7 +215,18 @@ export function LanderPanel() {
         theme: siteTheme(),
         scene: "diorama",
         text: { ...copy.systems.lander.canvas },
-        onModel: (v) => setView(v),
+        // Shape-checked before it reaches the chart (2026-10-27): a browser
+        // holding a stale cached module (/lander/* is immutable, and v2 was
+        // rebuilt in place on this machine before it shipped) sends views
+        // with no `origin`, and the chart threw on them and took the page
+        // down. A view the chart can't draw is dropped, with one warning.
+        onModel: (v) => {
+          if (isDrawableView(v)) setView(v);
+          else if (!warnedShapeRef.current) {
+            warnedShapeRef.current = true;
+            console.warn("lander: dropped a model view the chart can't draw (a stale cached module?)", v);
+          }
+        },
         onState: (s) => {
           hook.state = s;
           stateRef.current = s;

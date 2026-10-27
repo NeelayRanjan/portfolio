@@ -1128,6 +1128,9 @@ export const copy = {
    *  between Tab reaching the slot and the figure's first control taking
    *  focus. */
   deferredFigure: "Live figure, loading",
+  /** A live figure that threw while rendering (FigureBoundary.tsx). */
+  figureCrashed: "This figure stopped with an error.",
+  figureRetry: "try again",
 
   /** The line at the foot of every page (components/manuscript/Colophon.tsx). */
   colophon: {

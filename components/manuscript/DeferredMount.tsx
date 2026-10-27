@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { copy } from "@/content/copy";
+import { FigureBoundary } from "./FigureBoundary";
 
 /**
  * Mount `children` only once this slot first reaches the viewport.
@@ -116,7 +117,7 @@ export function DeferredMount({
             }
       }
     >
-      {shown ? children : null}
+      {shown ? <FigureBoundary>{children}</FigureBoundary> : null}
     </div>
   );
 }

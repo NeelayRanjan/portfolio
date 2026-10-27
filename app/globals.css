@@ -44,6 +44,9 @@ body { background: transparent; color: var(--color-ink); }
 /* The skip link's target (layout.tsx) takes focus only so the next Tab
    starts inside the page; ringing the whole page would say nothing. */
 main:focus-visible { outline: none; }
+/* Stargaze makes main inert, so the skip link has nowhere to go; activating
+   it there only scrolled the page to the top (round 2, 2026-10-27). */
+body[data-stargaze] [data-skip-link] { display: none; }
 
 /* Range inputs (2026-10-26 audit). The browser's own slider drew in its
    default blue and white, and took touch only on its 4px line: a tap 8px

@@ -366,7 +366,7 @@ export const copy = {
      */
     figLabelEff: {
       caption:
-        "Mean test Dice at each label budget, pooled over every seed and fold (2,500 predictions per point). At 16 labels x0-diffusion leads the next best model, zero-shot SAM, by 0.047; by 32 labels DeepLabV3 and ResNet-UNet have caught up. ε-diffusion (~0.23) is left off the axes.",
+        "Mean test Dice over every seed and fold. At 16 labels x0-diffusion leads the next best, zero-shot SAM, by 0.047. By 32, DeepLabV3 and ResNet-UNet catch up. ε-diffusion (about 0.23) is off the chart.",
       /** Screen-reader name for the chart itself. The caption is the long form. */
       chartAria:
         "Mean test Dice against label budget for x0-diffusion and five baselines",

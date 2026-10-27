@@ -718,8 +718,9 @@ that ground strip ONLY when some commands are not given, so an autopilot
 plan's futures never saw the ground (the planner checks them against it);
 manual futures do read it. Contracts under "Titan lander (Figure 5)".
 
-**2026-10-26: the homepage audit round, branch `homepage-fixes` (NOT merged;
-one commit per approved fix, labelled with its ID, so any can be reverted or
+**2026-10-26: the homepage audit round, LIVE since 2026-10-27** (branches
+`homepage-fixes` then `homepage-fixes-2`, fast-forwarded into `main` at
+dad1e4e after the owner reviewed both on the `dev` preview; one commit per approved fix, labelled with its ID, so any can be reverted or
 cherry-picked).** An impeccable critique and technical audit of `/`
 (`audit-hallmark.md` at the repo root, untracked) produced a numbered fix
 list; the owner approved a subset, and B2 (chess board accessibility: one

@@ -686,7 +686,7 @@ export const copy = {
         insetLabel: "downlink, {s} s old",
         targetLabel: "{label} (illustrative)",
         simplePilot: "Planner too slow on this device, so a simple pilot is flying",
-        noModel: "The model didn’t load: a physics predictor that ignores wind draws the craft",
+        noModel: "The model didn’t load, so a physics predictor that ignores wind draws the craft",
       },
     },
 

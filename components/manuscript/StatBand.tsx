@@ -13,6 +13,9 @@
  * `hot` is the ONE other place on the page besides `Stamp` allowed to use
  * `--red-ink` (see CLAUDE.md/spec red-discipline rule) — it marks the
  * headline finding (0.882 Dice), not a decoration choice per cell.
+ *
+ * Two columns below 880px (2026-10-26 audit): auto-fit at 190px stacked
+ * the four cells into one ~600px column on a phone.
  */
 export function StatBand({
   caption,
@@ -26,7 +29,7 @@ export function StatBand({
       <div className="py-2.5 font-mono text-xs text-mut">
         <b className="font-semibold text-ink">Table 1.</b> {caption}
       </div>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] border-t border-rule">
+      <div className="grid grid-cols-2 border-t border-rule min-[880px]:grid-cols-[repeat(auto-fit,minmax(190px,1fr))]">
         {cells.map((cell, i) => (
           <div key={i} className="py-6 pr-[22px]">
             <b

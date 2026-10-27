@@ -895,7 +895,7 @@ export const copy = {
     heading: "Experience",
     /** Figure 6's caption: the one instrument figure that wraps `MissionRows`. */
     figureCaption:
-      "Green is active now; amber is paused until January.",
+      "Green is active now. Amber is paused until January.",
     rows: [
       /** Two NASA roles, per the 2026-09-30 resume (reverse chronological,
        *  as the resume lists them). SLAAC ended in August, so its lamp is

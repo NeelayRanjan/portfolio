@@ -124,7 +124,7 @@ const FALLBACK_COLOURS: MapColours = {
   rule: "42, 40, 35",
   ink: "234, 229, 218",
   mut: "154, 148, 138",
-  red: "229, 53, 43",
+  red: "232, 68, 58",
   ok: "99, 198, 140",
   panel: "23, 21, 17",
 };

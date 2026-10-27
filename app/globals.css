@@ -15,7 +15,13 @@
   --color-faint: #857f76;
   --color-rule: #2a2823;
   --color-hair: #1d1c18;
-  --color-red-ink: #e5352b;
+  /* Lifted from #e5352b (2026-10-26 audit): small red text (the 11px stamp,
+     Figure 2's SAM readout, error lines) read 4.23:1 on panel and 4.38 on
+     paper, just under AA. This is the nearest step on the same hue that
+     clears it: 4.62 on panel, 4.78 paper, 4.98 desk. The favicon's
+     corner brackets (scripts/gen-icons.py) keep the old red; they are
+     artwork, not text. */
+  --color-red-ink: #e8443a;
   --color-link: #7ba7dc;
   --color-ok: #63c68c;
   --color-warm: #d9a45b;

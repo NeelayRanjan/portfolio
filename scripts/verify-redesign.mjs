@@ -1929,7 +1929,7 @@ async function checkSlaacLaunchPreset(browser) {
         const s = c.width / c.getBoundingClientRect().width;
         return [...c.getContext("2d").getImageData(Math.round(x * s), Math.round(y * s), 1, 1).data];
       }, [x, y]);
-    // The airspace fill is --color-red-ink (229, 53, 43) at 0.18 alpha
+    // The airspace fill is --color-red-ink (232, 68, 58) at 0.18 alpha
     // (~46/255), its outline the same red at full; getImageData returns it
     // un-premultiplied, so the hue survives the low alpha.
     const isRed = ([r, g, b, a]) => a >= 30 && r >= 180 && g <= 90 && b <= 90;

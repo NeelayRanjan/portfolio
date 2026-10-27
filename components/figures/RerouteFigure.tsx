@@ -1182,7 +1182,16 @@ export function RerouteFigure() {
         ) : null}
 
         {!isAll && done ? (
-          <div className="mt-2 overflow-x-auto" data-stale={fresh ? undefined : ""}>
+          // A 390px phone gives this table 248px and its no-wrap cells need
+          // ~255, so it can scroll sideways; the scroller is a focusable,
+          // labelled region so a keyboard can scroll it too (round 2).
+          <div
+            className="mt-2 overflow-x-auto"
+            data-stale={fresh ? undefined : ""}
+            tabIndex={0}
+            role="region"
+            aria-label={t.tableAria}
+          >
             {fresh ? null : <p className="mb-1 font-mono text-[11px] text-warm">{t.staleTag}</p>}
             <table className="w-full border-collapse font-mono text-[11px] tabular-nums">
               <thead>

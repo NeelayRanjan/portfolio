@@ -541,6 +541,8 @@ export const copy = {
         viewFocus: "focus",
         viewUs: "whole US",
       },
+      /** The single-route table's scroll region (it can be wider than a phone). */
+      tableAria: "Rerouted flights, one row per route",
       table: {
         flight: "route",
         added: "added",

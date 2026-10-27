@@ -395,9 +395,17 @@ export function LabelEfficiencyFigure() {
               <li
                 key={m}
                 className="flex items-center gap-1.5 whitespace-nowrap"
-                style={{ color: SERIES[m].color, opacity: m === "x0diffusion" ? 1 : 0.75 }}
+                style={{ color: SERIES[m].color }}
               >
-                <svg width="20" height="6" aria-hidden className="shrink-0">
+                {/* Only the sample fades with its line; the name stays at full
+                    colour, or SAM's red falls to ~3.1:1. */}
+                <svg
+                  width="20"
+                  height="6"
+                  aria-hidden
+                  className="shrink-0"
+                  opacity={m === "x0diffusion" ? 1 : BASELINE_OPACITY}
+                >
                   <line
                     x1="0"
                     x2="20"

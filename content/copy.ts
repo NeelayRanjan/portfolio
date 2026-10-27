@@ -476,7 +476,7 @@ export const copy = {
       },
       /** Under the single-route table and a picked flight's numbers. */
       tableNote:
-        "Clearance turns red under the margin. Added distance goes negative where a reroute straightens a bend in the filed route. A flight can’t clear when its airport sits inside the airspace, or, rarely, when a snapped leg still crosses.",
+        "Clearance turns red under the margin. Added distance goes negative where a reroute straightens a bend in the filed route. A flight can’t clear when its airport is inside the airspace, or rarely when a snapped leg still crosses.",
       unavailable: "The rerouter’s data or model didn’t load, so there’s nothing to run.",
       runFailed: "The reroute stopped with an error. Try again.",
       ringTooFew: "A shape needs at least three corners.",

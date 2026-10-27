@@ -38,7 +38,7 @@ export const metadata: Metadata = { alternates: { canonical: "/lab" } };
 // No redirects are built for this; it's a known gap, not a solved one.
 export default function LabPage() {
   return (
-    <main className="flex-1 px-4 pb-24">
+    <main id="main" tabIndex={-1} className="flex-1 px-4 pb-24">
       <Sheet>
         <Link
           href="/"

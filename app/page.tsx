@@ -39,7 +39,7 @@ export default function Home() {
   const notes = copy.research.notes;
 
   return (
-    <main className="flex-1 px-4 pb-24">
+    <main id="main" tabIndex={-1} className="flex-1 px-4 pb-24">
       <Sheet>
         <Masthead />
 

@@ -1062,6 +1062,10 @@ export const copy = {
    *  second trim (2026-09-16); if one ever does again, it must match
    *  SKY_SPEEDUP in lib/sky-math.ts (180) and stay out of `creditStill`. The
    *  ISS card's `issClock` still states it, and must match too. */
+  /** The skip link, the first stop on every page (app/layout.tsx). It jumps
+   *  past the night sky's controls to the page's own `main#main`. */
+  skipLink: "Skip to content",
+
   /** The line at the foot of every page (components/manuscript/Colophon.tsx). */
   colophon: {
     rights: "© 2026 Neelay Ranjan",

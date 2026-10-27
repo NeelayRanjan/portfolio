@@ -19,7 +19,7 @@ export default function NotFound() {
   const t = copy.notFound;
 
   return (
-    <main className="flex-1 px-4 pb-24">
+    <main id="main" tabIndex={-1} className="flex-1 px-4 pb-24">
       <Sheet>
         <h1 className="mt-[60px] mb-5 text-[22px] font-semibold text-ink">
           {t.heading}

@@ -88,6 +88,16 @@ export default function RootLayout({
       <head />
 
       <body className="min-h-full flex flex-col font-serif">
+        {/* The first tab stop on every page: past the sky's controls to the
+            sheet. Off-screen until focused, then a pill on the desk at the
+            top left, where the sky's own chrome sits. Every page's `main`
+            carries id="main" and tabIndex -1 so focus lands inside it. */}
+        <a
+          href="#main"
+          className="fixed top-3 left-3 z-50 -translate-y-[200%] rounded-md bg-desk/90 px-3 py-2 font-mono text-[12px] text-ink shadow-[0_0_8px_4px_rgb(12_11_9/0.85)] focus:translate-y-0"
+        >
+          {copy.skipLink}
+        </a>
         <NightSky />
         <StargazeToggle />
         {children}

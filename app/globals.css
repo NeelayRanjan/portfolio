@@ -32,6 +32,9 @@
 html { background: var(--color-desk); color-scheme: dark; }
 body { background: transparent; color: var(--color-ink); }
 :focus-visible { outline: 2px solid var(--color-red-ink); outline-offset: 3px; }
+/* The skip link's target (layout.tsx) takes focus only so the next Tab
+   starts inside the page; ringing the whole page would say nothing. */
+main:focus-visible { outline: none; }
 
 /* Paper grain on the sheet (Sheet.tsx). An opaque 256px tile of fractal
    noise whose every channel is the paper token plus 0.1 x (noise - 0.5), so

@@ -463,7 +463,7 @@ export const copy = {
        *  each line style means moved to `key`, drawn beside the map; what the
        *  table's numbers mean moved to `tableNote`, shown with the table. */
       caption:
-        "My flight-plan model wrote the filed routes ahead of time; on your device, my diffusion model samples an arc around each conflict and snaps it onto named fixes. Press reroute to run every route at once, or pick a single route first.",
+        "My flight plan model wrote the filed routes ahead of time. On your device, my diffusion model samples an arc around each conflict and snaps it to named fixes. Press reroute, or pick one route first.",
       /** The map's key, under the canvas, each entry beside a sample of its
        *  own line style (reroute-map.ts's drawPlan). */
       key: {

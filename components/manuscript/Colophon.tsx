@@ -6,13 +6,16 @@ import { TrackedLink } from "./TrackedLink";
  * component; the two links are tracked through the same `outbound_link`
  * leaf the masthead uses, and "Resume" carries the same label so the
  * resume-pdf check covers it. Each separator trails its item, so a wrapped line never opens with one.
+ * The links' vertical padding is hit area only (inline padding doesn't move
+ * the line); the 12px row gap keeps a wrapped line's targets from
+ * overlapping (2026-10-26 audit: they were 14px tall).
  */
 export function Colophon() {
   const t = copy.colophon;
   return (
     <footer
       data-colophon
-      className="mt-6 flex flex-wrap gap-x-2 gap-y-1 font-mono text-[11px] leading-relaxed text-mut"
+      className="mt-6 flex flex-wrap gap-x-2 gap-y-3 font-mono text-[11px] leading-relaxed text-mut"
     >
       <span>{t.rights} <span aria-hidden="true">·</span></span>
       {t.links.map((l, i) => (
@@ -20,7 +23,7 @@ export function Colophon() {
           <TrackedLink
             label={l.label}
             href={l.href}
-            className="underline decoration-dotted underline-offset-[3px] transition-colors hover:text-ink"
+            className="py-2 underline decoration-dotted underline-offset-[3px] transition-colors hover:text-ink"
           >
             {l.text}
           </TrackedLink>

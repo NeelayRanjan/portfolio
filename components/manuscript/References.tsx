@@ -5,7 +5,9 @@ import { TrackedLink } from "@/components/manuscript/TrackedLink";
  * The bibliography: `copy.references.items` rendered as a numbered list,
  * mirroring the approved mockup's `ol.refs`. A reference with no `href`
  * (the first-author paper and the MWSCAS oral, both still unlinkable) renders as
- * plain text rather than a dead or placeholder link.
+ * plain text rather than a dead or placeholder link. A link's vertical
+ * padding is hit area only: inline padding doesn't move the line, and 6px
+ * a side stays inside the list's own spacing, so neighbours don't overlap.
  */
 export function References() {
   const t = copy.references;
@@ -22,7 +24,7 @@ export function References() {
               <TrackedLink
                 label={item.label}
                 href={item.href}
-                className="text-link hover:underline hover:underline-offset-[3px]"
+                className="py-1.5 text-link hover:underline hover:underline-offset-[3px]"
               >
                 {item.label}
               </TrackedLink>

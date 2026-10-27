@@ -834,7 +834,7 @@ export const copy = {
         },
       ],
       activationsLede:
-        "The model’s internals on eight positions I picked, precomputed from the same weights. This works for the chess model and not the diffusion models because the backbone never downsamples below 8x8, so every layer stays aligned with the squares. A UNet’s pooled middle layers don’t.",
+        "Eight positions I picked, precomputed from the same weights. The backbone never downsamples below 8x8, so every layer lines up with the squares.",
       checkmatePre: "checkmate · ",
       checkmateWinsBlack: "black wins",
       checkmateWinsWhite: "white wins",

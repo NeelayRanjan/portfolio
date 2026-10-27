@@ -953,9 +953,12 @@ export const copy = {
     /** The section's `<h2>`, added for Task 8's page assembly. */
     heading: "References",
     items: [
+      /** Authors and the full title, as the PAPER note gives them, in the
+       *  same form as the two citations below (2026-10-26 audit: it was the
+       *  only one with no authors). No link until the arXiv preprint. */
       {
         label:
-          "Bootstrapping surgeon labeling campaigns with x0-diffusion (in preparation)",
+          "N. Ranjan, S. Dev, A. Gonzalez, “Bootstrapping surgeon labeling campaigns with x0-diffusion: label-efficient vessel segmentation of catheter-based angiograms” (in preparation)",
         href: "",
       },
       /** The SHIFT paper (owner, 2026-10-05; resume commit "AIAA"). Both

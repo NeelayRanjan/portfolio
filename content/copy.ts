@@ -464,7 +464,7 @@ export const copy = {
      *  for AIAA AVIATION 2027, in preparation", year dropped here for the
      *  no-numerals rule; the References entry carries the full citation. */
     nasaProse: [
-      "On SLAAC, space launch and air/airspace coordination, I trained a diffusion model on FAA radar tracks to reroute flights around closed airspace. It learns what routes look like offline and applies the airspace while it samples, so a new closure needs no retraining. A reroute has to come back as an ordered list of named fixes a controller would accept, and the operator chooses how far ahead it may look; the figure below has both settings.",
+      "On SLAAC (space launch and air/airspace coordination) I trained a diffusion model on FAA radar tracks to reroute flights around closed airspace. It applies the airspace while it samples, so a new closure needs no retraining.",
       "Since August I’ve been on SHIFT: speech-to-text for air traffic control that makes fewer errors than the Whisper system in use, and a generate-and-rank parser that turns the transcripts into a maneuver database. I’m writing the parser up with NASA as an extended abstract for AIAA AVIATION.",
     ],
     /** Figure S3 on /lab since the SLAAC round (2026-09-30): the flight-plan

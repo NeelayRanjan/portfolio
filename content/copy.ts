@@ -942,7 +942,7 @@ export const copy = {
       {
         when: "2024-2025",
         who: "V2X aircraft maintenance LLM",
-        what: "Led the two-stage RAG design; cut hallucinations from about 40% to about 5%.",
+        what: "Led the two-stage RAG design, which cut hallucinations from about 40% to about 5%.",
         status: "complete",
       },
     ],

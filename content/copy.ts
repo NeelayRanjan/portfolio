@@ -339,7 +339,7 @@ export const copy = {
       yAxisLabel: "mean test Dice",
       /** Mono note under the chart; the budgets and train size are read from
        *  the file and spliced between these pieces. */
-      logNotePre: "x axis is log-spaced. budgets ",
+      logNotePre: "log x axis. budgets ",
       logNoteAnd: " and ",
       logNotePost: " labels of the ",
       logNoteEnd: " training images.",

@@ -307,7 +307,7 @@ export const copy = {
       },
       scope: {
         tag: "scope",
-        body: "The claim is label efficiency, not peak accuracy: given far more than 16 labels, some baselines match it.",
+        body: "Label efficiency is the claim. With more labels, some baselines catch up.",
       },
       /** The poster's result in words (owner, 2026-10-01: "remove the
        *  numbers, and just keep the high-level"; no numerals anywhere in the

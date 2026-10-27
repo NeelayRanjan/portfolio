@@ -2861,8 +2861,8 @@ async function checkDiceCdf(browser) {
   return withPage(browser, { viewport: { width: 1280, height: 1600 } }, async (page) => {
     const cdf = await (await fetch(`${BASE}/research/cdf.json`)).json();
     const models = cdf.models;
-    const defaultIdx = cdf.stops.findIndex((s) => s.t === 0.3);
-    if (defaultIdx < 0) throw new Error("cdf.json has no 0.3 stop to default to");
+    const defaultIdx = cdf.stops.findIndex((s) => s.t === 0.5);
+    if (defaultIdx < 0) throw new Error("cdf.json has no 0.5 stop to default to");
     const otherIdx = cdf.stops.findIndex((s) => s.t === 0.8);
     if (otherIdx < 0) throw new Error("cdf.json has no 0.8 stop to pan to");
     const fmtShare = (s) => `${(s * 100).toFixed(s >= 0.1 ? 1 : 2)}%`;
@@ -2876,7 +2876,7 @@ async function checkDiceCdf(browser) {
 
     if ((await slider.inputValue()) !== String(defaultIdx)) {
       throw new Error(
-        `slider does not default to the 0.3 stop (index ${defaultIdx}); got ${await slider.inputValue()}`,
+        `slider does not default to the 0.5 stop (index ${defaultIdx}); got ${await slider.inputValue()}`,
       );
     }
 

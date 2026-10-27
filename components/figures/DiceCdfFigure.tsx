@@ -398,7 +398,9 @@ function CdfChart({ g, stop }: { g: Geo; stop: Stop }) {
 export function DiceCdfFigure() {
   const defaultIdx = Math.max(
     0,
-    STOPS.findIndex((s) => s.t === 0.3),
+    // 0.5, the threshold the caption argues at (round 2, 2026-10-27: it
+    // opened at 0.30 while the caption quoted the shares at 0.5).
+    STOPS.findIndex((s) => s.t === 0.5),
   );
   const [idx, setIdx] = useState(defaultIdx);
   const stop = STOPS[idx];

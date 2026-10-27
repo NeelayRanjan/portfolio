@@ -772,6 +772,24 @@ own session. What changed, and the rules it leaves:
   (owner-tuned, left as is). Still open by choice: 10-11px instrument text
   (C4, not approved), and captions at ~87-96 characters a line (capped at
   the prose column's 560px, down from 137-146; the prose itself runs ~90).
+- **Round 2 (same day, same branch).** A second critique and audit (audit
+  16/20, critique 25/36; `audit-hallmark.md` holds both rounds) and a copy
+  pass (`copy-proposal.md`, P1-P50, both untracked at the repo root).
+  **Table 1 is a findings ledger now** (`FindingsTable.tsx`; `StatBand` is
+  deleted): owner's pick "C" of three, because the four-cell stat band
+  read as the hero-metric template. Six rows of finding, result sentence
+  and a "Shown in" link; numbers at body size, no red, nothing the page
+  doesn't already state, no numerals in the NASA row. Its links target ids
+  that exist at load: `DeferredMount` takes an `id` (`fig-reroute`,
+  `chess`, `lander`), Figure 2 is `fig-cdf`. The red-ink discipline is now
+  the stamp plus figure semantics (the headline numeral is gone). **Copy:**
+  the 27 proposals that drop no fact are applied, one commit per P-number
+  (no semicolons, colons or compound hyphens in them; "metres" fixed). The
+  ⚠️ ones (P1, P2, P5-P10, P12, P13, P15-P17, P21-P23, P27, P31, P35,
+  P48, P49) are NOT applied and wait on the owner, as do P3 (pairs with
+  P2) and P4 (Table 1's old caption). The round-2 fix list (K1-K4, V1-V4,
+  M1-M5, W2-W5) is also awaiting approval; B2 is still held. Verified
+  after round 2 on a production build: 56/56 checks, 203/203 node tests.
 
 **Open items, roughly in order:**
 

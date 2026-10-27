@@ -1066,6 +1066,11 @@ export const copy = {
   /** The skip link, the first stop on every page (app/layout.tsx). It jumps
    *  past the night sky's controls to the page's own `main#main`. */
   skipLink: "Skip to content",
+  /** The accessible name of a live figure's slot before it mounts
+   *  (components/manuscript/DeferredMount.tsx). Heard only for the moment
+   *  between Tab reaching the slot and the figure's first control taking
+   *  focus. */
+  deferredFigure: "Live figure, loading",
 
   /** The line at the foot of every page (components/manuscript/Colophon.tsx). */
   colophon: {

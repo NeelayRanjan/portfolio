@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { copy } from "@/content/copy";
 
 /**
  * Mount `children` only once this slot first reaches the viewport.
@@ -22,6 +23,15 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
  * The pre-mount wrapper carries a `min-h` so the observer has a real box to
  * intersect: a zero-height div wedged between two sections can be scrolled past
  * without ever satisfying the callback on some layouts.
+ *
+ * KEYBOARD (2026-10-26 audit): an unmounted slot has nothing focusable in it,
+ * so Tab went from Figure 2's slider straight to References and a keyboard
+ * visitor never met the rerouter, chess or the lander. The empty slot is now a
+ * tab stop. Focusing it mounts the children (a focus also scrolls it into
+ * view, so the observer would have fired anyway), keeps focus on the same
+ * wrapper element (now tabIndex -1), and moves it to the first focusable
+ * control inside once one renders, if focus hasn't gone elsewhere first.
+ * Mounting is still only ever caused by the visitor reaching the slot.
  */
 export function DeferredMount({
   children,
@@ -32,6 +42,40 @@ export function DeferredMount({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(false);
+  // Set only by a keyboard mount: the wrapper then stays programmatically
+  // focusable (tabIndex -1) so focus can sit on it until a control renders.
+  // A scroll mount leaves the wrapper a plain div, as it always was.
+  const [viaFocus, setViaFocus] = useState(false);
+  const focusInside = useRef(false);
+
+  // After a keyboard mount: hand focus to the first control inside as soon as
+  // the children render one (they may load in stages), for up to 5 s.
+  useEffect(() => {
+    if (!shown || !focusInside.current) return;
+    focusInside.current = false;
+    const el = ref.current;
+    if (!el) return;
+    const FOCUSABLE =
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const tryFocus = () => {
+      if (document.activeElement !== el) return true; // the visitor moved on
+      const target = el.querySelector<HTMLElement>(FOCUSABLE);
+      if (!target) return false;
+      target.focus();
+      return true;
+    };
+    if (tryFocus()) return;
+    const mo = new MutationObserver(() => {
+      if (tryFocus()) stop();
+    });
+    const timer = window.setTimeout(() => stop(), 5000);
+    const stop = () => {
+      mo.disconnect();
+      window.clearTimeout(timer);
+    };
+    mo.observe(el, { childList: true, subtree: true, attributes: true, attributeFilter: ["disabled"] });
+    return stop;
+  }, [shown]);
 
   useEffect(() => {
     if (shown) return;
@@ -50,7 +94,23 @@ export function DeferredMount({
   }, [shown, rootMargin]);
 
   return (
-    <div ref={ref} className={shown ? undefined : "min-h-[200px]"}>
+    <div
+      ref={ref}
+      className={shown ? undefined : "min-h-[200px]"}
+      tabIndex={shown ? (viaFocus ? -1 : undefined) : 0}
+      role={shown ? undefined : "group"}
+      aria-label={shown ? undefined : copy.deferredFigure}
+      onFocus={
+        shown
+          ? undefined
+          : (e) => {
+              if (e.target !== e.currentTarget) return;
+              focusInside.current = true;
+              setViaFocus(true);
+              setShown(true);
+            }
+      }
+    >
       {shown ? children : null}
     </div>
   );

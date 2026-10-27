@@ -909,7 +909,7 @@ export const copy = {
         hottest: "hottest:",
         depthPrefix: "depth · ",
         shallowToDeep:
-          "shallow to deep. Early layers are local and edge-like; deep layers concentrate onto the squares that decide the eval.",
+          "shallow to deep. Early layers are local, and deep ones gather on the squares that decide the eval.",
         topChannels: "top channels",
         mean: "mean",
         channelCaveat:

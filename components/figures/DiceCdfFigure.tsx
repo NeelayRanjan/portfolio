@@ -71,18 +71,64 @@ const SERIES: Record<ModelKey, { color: string; dash?: string; width: number; ti
   resnet: { color: "var(--color-warm)", dash: "1.6 3.2", width: 1.6, tint: "--color-warm" },
 };
 
-const WIDTH = 680;
-const HEIGHT = 300;
-const MARGIN = { top: 12, right: 18, bottom: 40, left: 48 };
-const PLOT_W = WIDTH - MARGIN.left - MARGIN.right;
-const PLOT_H = HEIGHT - MARGIN.top - MARGIN.bottom;
+/** Chart geometry, in viewBox units. Two layouts of the same chart, chosen
+ *  by CSS at 880px (round 2, 2026-10-27, Figure 1's pattern): the SVG
+ *  scales to its box, so one 680-unit viewBox drew its 10.5-unit type at
+ *  ~4px on a phone and ~8px in the desktop's ~518px column. Wide is 520
+ *  units with 12-unit type (11-12px rendered); narrow is 360 units with
+ *  15-unit type, capped at 400px wide. Wide comes first in the DOM: it is
+ *  the layout the suite's cdf check reads. */
+type Geo = {
+  width: number;
+  height: number;
+  margin: { top: number; right: number; bottom: number; left: number };
+  font: number;
+  tickGap: number;
+  yTickDy: number;
+  xTickDy: number;
+  yTitleX: number;
+  legendRow: number;
+  legendLine: number;
+};
+const WIDE: Geo = {
+  width: 520,
+  height: 260,
+  margin: { top: 12, right: 14, bottom: 44, left: 52 },
+  font: 12,
+  tickGap: 8,
+  yTickDy: 4,
+  xTickDy: 17,
+  yTitleX: 13,
+  legendRow: 17,
+  legendLine: 30,
+};
+const NARROW: Geo = {
+  width: 360,
+  height: 270,
+  margin: { top: 14, right: 12, bottom: 50, left: 56 },
+  font: 15,
+  tickGap: 7,
+  yTickDy: 5,
+  xTickDy: 20,
+  yTitleX: 15,
+  legendRow: 20,
+  legendLine: 26,
+};
 /** The paper's ceiling. Read from nothing: it IS the editorial decision. */
 const Y_MAX = 0.3;
 const REF_DICE = 0.5;
 
-const xScale = (dice: number) => MARGIN.left + dice * PLOT_W;
-const yScale = (share: number) => MARGIN.top + (1 - Math.min(share, Y_MAX) / Y_MAX) * PLOT_H;
-const bottomEdge = MARGIN.top + PLOT_H;
+function scales(g: Geo) {
+  const plotW = g.width - g.margin.left - g.margin.right;
+  const plotH = g.height - g.margin.top - g.margin.bottom;
+  return {
+    plotW,
+    plotH,
+    x: (dice: number) => g.margin.left + dice * plotW,
+    y: (share: number) => g.margin.top + (1 - Math.min(share, Y_MAX) / Y_MAX) * plotH,
+    bottomEdge: g.margin.top + plotH,
+  };
+}
 
 const Y_TICKS = [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3];
 const X_TICKS = [0, 0.2, 0.4, 0.6, 0.8, 1];
@@ -94,7 +140,7 @@ const X_TICKS = [0, 0.2, 0.4, 0.6, 0.8, 1];
  * line at a clipped axis, and the alternative (an SVG clip-path) hides the fact
  * that the line kept going.
  */
-function clippedPoints(pts: number[][]): string {
+function clippedPoints(pts: number[][], xScale: (d: number) => number, yScale: (s: number) => number): string {
   const out: string[] = [];
   for (let i = 0; i < pts.length; i++) {
     const [dice, share] = pts[i];
@@ -204,6 +250,151 @@ function MaskPanel({
   );
 }
 
+/** One layout of the chart (see Geo). `paths` are recomputed per layout,
+ *  since the clipped polylines are in each layout's own units. */
+function CdfChart({ g, stop }: { g: Geo; stop: Stop }) {
+  const sc = scales(g);
+  const paths = useMemo(
+    () => MODELS.map((m) => ({ model: m, points: clippedPoints(curves[m], sc.x, sc.y) })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [g],
+  );
+  return (
+    <svg viewBox={`0 0 ${g.width} ${g.height}`} className="w-full" role="img" aria-label={t.chartAria} fontSize={g.font}>
+      {/* axes */}
+      <line
+        x1={g.margin.left}
+        y1={g.margin.top}
+        x2={g.margin.left}
+        y2={sc.bottomEdge}
+        stroke="currentColor"
+        strokeOpacity={0.4}
+      />
+      <line
+        x1={g.margin.left}
+        y1={sc.bottomEdge}
+        x2={g.margin.left + sc.plotW}
+        y2={sc.bottomEdge}
+        stroke="currentColor"
+        strokeOpacity={0.4}
+      />
+
+      {Y_TICKS.map((v) => (
+        <g key={v}>
+          <line
+            x1={g.margin.left}
+            x2={g.margin.left + sc.plotW}
+            y1={sc.y(v)}
+            y2={sc.y(v)}
+            stroke="currentColor"
+            strokeOpacity={0.1}
+          />
+          <text
+            x={g.margin.left - g.tickGap}
+            y={sc.y(v) + g.yTickDy}
+            textAnchor="end"
+            fill="currentColor"
+          >
+            {`${Math.round(v * 100)}%`}
+          </text>
+        </g>
+      ))}
+
+      {X_TICKS.map((v) => (
+        <text
+          key={v}
+          x={sc.x(v)}
+          y={sc.bottomEdge + g.xTickDy}
+          textAnchor="middle"
+          fill="currentColor"
+        >
+          {v.toFixed(1)}
+        </text>
+      ))}
+      <text
+        x={g.margin.left + sc.plotW / 2}
+        y={g.height - 6}
+        textAnchor="middle"
+        fill="currentColor"
+      >
+        {t.xAxisLabel}
+      </text>
+      <text
+        x={g.yTitleX}
+        y={g.margin.top + sc.plotH / 2}
+        textAnchor="middle"
+        fill="currentColor"
+        transform={`rotate(-90 ${g.yTitleX} ${g.margin.top + sc.plotH / 2})`}
+      >
+        {t.yAxisLabel}
+      </text>
+
+      {/* The paper's reference line. */}
+      <line
+        x1={sc.x(REF_DICE)}
+        x2={sc.x(REF_DICE)}
+        y1={g.margin.top}
+        y2={sc.bottomEdge}
+        stroke="currentColor"
+        strokeOpacity={0.45}
+      />
+      <text
+        x={sc.x(REF_DICE) + 4}
+        y={g.margin.top + g.font * 0.85}
+        fill="currentColor"
+        fillOpacity={0.6}
+      >
+        {REF_DICE}
+      </text>
+
+      {/* The slider's threshold, marked across the plot. Blue: the three
+          series already own green, red and amber. */}
+      <line
+        x1={sc.x(stop.t)}
+        x2={sc.x(stop.t)}
+        y1={g.margin.top}
+        y2={sc.bottomEdge}
+        stroke="var(--color-link)"
+        strokeWidth={1.4}
+        strokeDasharray="3 3"
+      />
+
+      {paths.map(({ model, points }) => (
+        <polyline
+          key={model}
+          points={points}
+          fill="none"
+          stroke={SERIES[model].color}
+          strokeWidth={SERIES[model].width}
+          strokeDasharray={SERIES[model].dash}
+          strokeLinecap="butt"
+        />
+      ))}
+
+      {/* Legend: line sample + name, in the paper's position. */}
+      {MODELS.map((model, i) => {
+        const y = g.margin.top + g.legendRow * 0.7 + i * g.legendRow;
+        return (
+          <g key={model}>
+            <line
+              x1={g.margin.left + 10}
+              x2={g.margin.left + 10 + g.legendLine}
+              y1={y}
+              y2={y}
+              stroke={SERIES[model].color}
+              strokeWidth={SERIES[model].width}
+              strokeDasharray={SERIES[model].dash}
+            />
+            <text x={g.margin.left + 16 + g.legendLine} y={y + g.yTickDy} fill={SERIES[model].color}>
+              {t.modelLabels[model]}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
 export function DiceCdfFigure() {
   const defaultIdx = Math.max(
     0,
@@ -212,11 +403,6 @@ export function DiceCdfFigure() {
   const [idx, setIdx] = useState(defaultIdx);
   const stop = STOPS[idx];
 
-  const paths = useMemo(
-    () => MODELS.map((m) => ({ model: m, points: clippedPoints(curves[m]) })),
-    [],
-  );
-
   return (
     <InstrumentFigure
       n="2"
@@ -224,139 +410,15 @@ export function DiceCdfFigure() {
       caption={t.caption}
       readout={`${t.readoutLabel} ${stop.t.toFixed(2)}`}
     >
-      <div className="text-mut font-mono text-[10.5px]">
-        <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full" role="img" aria-label={t.chartAria}>
-          {/* axes */}
-          <line
-            x1={MARGIN.left}
-            y1={MARGIN.top}
-            x2={MARGIN.left}
-            y2={bottomEdge}
-            stroke="currentColor"
-            strokeOpacity={0.4}
-          />
-          <line
-            x1={MARGIN.left}
-            y1={bottomEdge}
-            x2={MARGIN.left + PLOT_W}
-            y2={bottomEdge}
-            stroke="currentColor"
-            strokeOpacity={0.4}
-          />
-
-          {Y_TICKS.map((v) => (
-            <g key={v}>
-              <line
-                x1={MARGIN.left}
-                x2={MARGIN.left + PLOT_W}
-                y1={yScale(v)}
-                y2={yScale(v)}
-                stroke="currentColor"
-                strokeOpacity={0.1}
-              />
-              <text
-                x={MARGIN.left - 8}
-                y={yScale(v) + 3}
-                textAnchor="end"
-                fill="currentColor"
-              >
-                {`${Math.round(v * 100)}%`}
-              </text>
-            </g>
-          ))}
-
-          {X_TICKS.map((v) => (
-            <text
-              key={v}
-              x={xScale(v)}
-              y={bottomEdge + 15}
-              textAnchor="middle"
-              fill="currentColor"
-            >
-              {v.toFixed(1)}
-            </text>
-          ))}
-          <text
-            x={MARGIN.left + PLOT_W / 2}
-            y={HEIGHT - 6}
-            textAnchor="middle"
-            fill="currentColor"
-          >
-            {t.xAxisLabel}
-          </text>
-          <text
-            x={12}
-            y={MARGIN.top + PLOT_H / 2}
-            textAnchor="middle"
-            fill="currentColor"
-            transform={`rotate(-90 12 ${MARGIN.top + PLOT_H / 2})`}
-          >
-            {t.yAxisLabel}
-          </text>
-
-          {/* The paper's reference line. */}
-          <line
-            x1={xScale(REF_DICE)}
-            x2={xScale(REF_DICE)}
-            y1={MARGIN.top}
-            y2={bottomEdge}
-            stroke="currentColor"
-            strokeOpacity={0.45}
-          />
-          <text
-            x={xScale(REF_DICE) + 4}
-            y={MARGIN.top + 9}
-            fill="currentColor"
-            fillOpacity={0.6}
-          >
-            {REF_DICE}
-          </text>
-
-          {/* The slider's threshold, marked across the plot. Blue: the three
-              series already own green, red and amber. */}
-          <line
-            x1={xScale(stop.t)}
-            x2={xScale(stop.t)}
-            y1={MARGIN.top}
-            y2={bottomEdge}
-            stroke="var(--color-link)"
-            strokeWidth={1.4}
-            strokeDasharray="3 3"
-          />
-
-          {paths.map(({ model, points }) => (
-            <polyline
-              key={model}
-              points={points}
-              fill="none"
-              stroke={SERIES[model].color}
-              strokeWidth={SERIES[model].width}
-              strokeDasharray={SERIES[model].dash}
-              strokeLinecap="butt"
-            />
-          ))}
-
-          {/* Legend: line sample + name, in the paper's position. */}
-          {MODELS.map((model, i) => {
-            const y = MARGIN.top + 12 + i * 14;
-            return (
-              <g key={model}>
-                <line
-                  x1={MARGIN.left + 10}
-                  x2={MARGIN.left + 40}
-                  y1={y}
-                  y2={y}
-                  stroke={SERIES[model].color}
-                  strokeWidth={SERIES[model].width}
-                  strokeDasharray={SERIES[model].dash}
-                />
-                <text x={MARGIN.left + 46} y={y + 3.5} fill={SERIES[model].color}>
-                  {t.modelLabels[model]}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
+      <div className="text-mut font-mono">
+        <div className="hidden min-[880px]:block">
+          <CdfChart g={WIDE} stop={stop} />
+        </div>
+        {/* pt-5: the figure's amber readout sits in the top-right corner,
+            over the narrow chart's plot otherwise. */}
+        <div className="mx-auto max-w-[400px] pt-5 min-[880px]:hidden">
+          <CdfChart g={NARROW} stop={stop} />
+        </div>
       </div>
 
       <p className="mt-1 font-mono text-[10.5px] text-mut">{t.clipNote}</p>

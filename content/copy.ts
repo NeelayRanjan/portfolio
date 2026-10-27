@@ -880,7 +880,7 @@ export const copy = {
         channelCaveat:
           "Most single channels light up on nothing nameable. Trust the mean map and the attribution view.",
         saliencyBody:
-          "The model outputs a single scalar energy. The gradient of that energy with respect to the board shows which squares move the evaluation most, like a hanging piece or a passed pawn.",
+          "The gradient of the model’s one energy with respect to the board shows which squares move the evaluation most, like a hanging piece or a passed pawn.",
         valueHeadPre: "value head: ",
         valueHeadPost: " for white",
         valueHeadLevel: " · about level",

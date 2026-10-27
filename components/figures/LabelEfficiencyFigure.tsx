@@ -97,19 +97,68 @@ const RUNNER_UP = BASELINES.reduce((a, b) =>
 const RUNNER_LOW = SERIES_POINTS[RUNNER_UP][0];
 const LEAD = X0_LOW.diceMean - RUNNER_LOW.diceMean;
 
-const WIDTH = 680;
-const HEIGHT = 320;
-const MARGIN = { top: 12, right: 18, bottom: 44, left: 48 };
-const PLOT_W = WIDTH - MARGIN.left - MARGIN.right;
-const PLOT_H = HEIGHT - MARGIN.top - MARGIN.bottom;
+/** Chart geometry, in viewBox units. The figure renders TWO layouts of the
+ *  same data, chosen by CSS at the site's 880px breakpoint (2026-10-26
+ *  audit): the SVG scales to its box, so the desktop layout's 10.5-unit
+ *  text came out ~4px tall in a phone's ~280px figure. The narrow layout
+ *  is a smaller viewBox with larger type, capped at 400px wide so it never
+ *  blows its type up on a tablet, and its legend moves out of the plot to
+ *  a list under it (six rows 14 units apart overlapped once scaled down).
+ *  The wide layout is the original, unchanged. */
+type Geo = {
+  width: number;
+  height: number;
+  margin: { top: number; right: number; bottom: number; left: number };
+  /** Inner padding on the x range, so the end budgets don't sit on the y axis
+   *  and the right edge, and the shaded column has room either side. */
+  xPad: number;
+  font: number;
+  valueFont: number;
+  leadFont: number;
+  colHalf: number;
+  /** How far ticks and labels sit off their anchors. */
+  tickGap: number;
+  yTickDy: number;
+  xTickDy: number;
+  leadDy: number;
+  yTitleX: number;
+  legendInPlot: boolean;
+};
+const WIDE: Geo = {
+  width: 680,
+  height: 320,
+  margin: { top: 12, right: 18, bottom: 44, left: 48 },
+  xPad: 26,
+  font: 10.5,
+  valueFont: 13,
+  leadFont: 12,
+  colHalf: 22,
+  tickGap: 8,
+  yTickDy: 3,
+  xTickDy: 15,
+  leadDy: 4,
+  yTitleX: 12,
+  legendInPlot: true,
+};
+const NARROW: Geo = {
+  width: 360,
+  height: 290,
+  margin: { top: 14, right: 12, bottom: 50, left: 52 },
+  xPad: 22,
+  font: 15,
+  valueFont: 16,
+  leadFont: 15,
+  colHalf: 18,
+  tickGap: 7,
+  yTickDy: 5,
+  xTickDy: 20,
+  leadDy: 5,
+  yTitleX: 15,
+  legendInPlot: false,
+};
 
-/** Inner padding on the x range, so the end budgets don't sit on the y axis
- *  and the right edge, and the shaded column has room either side. */
-const X_PAD = 26;
 const LOG_MIN = Math.log(BUDGETS[0]);
 const LOG_SPAN = Math.log(BUDGETS[BUDGETS.length - 1]) - LOG_MIN;
-const xScale = (labels: number) =>
-  MARGIN.left + X_PAD + ((Math.log(labels) - LOG_MIN) / LOG_SPAN) * (PLOT_W - 2 * X_PAD);
 /** The axis floor. 0.6 clears every displayed mean (the lowest is
  *  DeepLabV3's 0.657 at 16 labels); it was 0.4 while the one-σ whiskers
  *  needed the room, and raising it spreads the lines half again further
@@ -117,8 +166,19 @@ const xScale = (labels: number) =>
  *  ε-diffusion lives below it. A regenerated export with a mean under 0.6
  *  throws below rather than drawing off the axis. */
 const Y_MIN = 0.6;
-const yScale = (dice: number) => MARGIN.top + ((1 - dice) / (1 - Y_MIN)) * PLOT_H;
-const bottomEdge = MARGIN.top + PLOT_H;
+
+function scales(g: Geo) {
+  const plotW = g.width - g.margin.left - g.margin.right;
+  const plotH = g.height - g.margin.top - g.margin.bottom;
+  return {
+    plotW,
+    plotH,
+    x: (labels: number) =>
+      g.margin.left + g.xPad + ((Math.log(labels) - LOG_MIN) / LOG_SPAN) * (plotW - 2 * g.xPad),
+    y: (dice: number) => g.margin.top + ((1 - dice) / (1 - Y_MIN)) * plotH,
+    bottomEdge: g.margin.top + plotH,
+  };
+}
 
 const Y_TICKS = [0.6, 0.7, 0.8, 0.9, 1];
 for (const m of MODELS) {
@@ -132,154 +192,166 @@ for (const m of MODELS) {
 /** Series draw order: baselines first, x0 last, so it sits on top. */
 const DRAW_ORDER: ModelKey[] = [...BASELINES, "x0diffusion"];
 
-export function LabelEfficiencyFigure() {
-  const lowX = xScale(BUDGETS[0]);
-  const x0Y = yScale(X0_LOW.diceMean);
-  const runnerY = yScale(RUNNER_LOW.diceMean);
+/** One layout of the chart. The wide one carries the verify suite's hooks
+ *  (`data-series`, `data-eff-*`); the narrow one carries the same marks under
+ *  a `-narrow` suffix, so the suite can hold both to the json. */
+function Chart({ g, narrow }: { g: Geo; narrow: boolean }) {
+  const sc = scales(g);
+  const sfx = narrow ? "-narrow" : "";
+  const lowX = sc.x(BUDGETS[0]);
+  const x0Y = sc.y(X0_LOW.diceMean);
+  const runnerY = sc.y(RUNNER_LOW.diceMean);
   const bracketX = lowX + 9;
+  const hook = (name: string, value: string | boolean = "") => ({ [`data-${name}${sfx}`]: value });
 
   return (
-    <InstrumentFigure n="1" id="fig-eff" caption={t.caption}>
-      <div className="text-mut font-mono text-[10.5px]">
-        <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full" role="img" aria-label={t.chartAria}>
-          {/* The smallest budget's column, where the claim lives, shaded in
-              x0's own green. */}
-          <rect
-            data-eff-highlight
-            x={lowX - 22}
-            y={MARGIN.top}
-            width={44}
-            height={PLOT_H}
-            fill="var(--color-ok)"
-            fillOpacity={0.08}
-          />
+    <svg
+      viewBox={`0 0 ${g.width} ${g.height}`}
+      className="w-full"
+      role="img"
+      aria-label={t.chartAria}
+      fontSize={g.font}
+    >
+      {/* The smallest budget's column, where the claim lives, shaded in
+          x0's own green. */}
+      <rect
+        {...hook("eff-highlight")}
+        x={lowX - g.colHalf}
+        y={g.margin.top}
+        width={g.colHalf * 2}
+        height={sc.plotH}
+        fill="var(--color-ok)"
+        fillOpacity={0.08}
+      />
 
-          {/* axes */}
-          <line
-            x1={MARGIN.left}
-            y1={MARGIN.top}
-            x2={MARGIN.left}
-            y2={bottomEdge}
-            stroke="currentColor"
-            strokeOpacity={0.4}
-          />
-          <line
-            x1={MARGIN.left}
-            y1={bottomEdge}
-            x2={MARGIN.left + PLOT_W}
-            y2={bottomEdge}
-            stroke="currentColor"
-            strokeOpacity={0.4}
-          />
+      {/* axes */}
+      <line
+        x1={g.margin.left}
+        y1={g.margin.top}
+        x2={g.margin.left}
+        y2={sc.bottomEdge}
+        stroke="currentColor"
+        strokeOpacity={0.4}
+      />
+      <line
+        x1={g.margin.left}
+        y1={sc.bottomEdge}
+        x2={g.margin.left + sc.plotW}
+        y2={sc.bottomEdge}
+        stroke="currentColor"
+        strokeOpacity={0.4}
+      />
 
-          {Y_TICKS.map((v) => (
-            <g key={v}>
-              <line
-                x1={MARGIN.left}
-                x2={MARGIN.left + PLOT_W}
-                y1={yScale(v)}
-                y2={yScale(v)}
-                stroke="currentColor"
-                strokeOpacity={0.1}
+      {Y_TICKS.map((v) => (
+        <g key={v}>
+          <line
+            x1={g.margin.left}
+            x2={g.margin.left + sc.plotW}
+            y1={sc.y(v)}
+            y2={sc.y(v)}
+            stroke="currentColor"
+            strokeOpacity={0.1}
+          />
+          <text x={g.margin.left - g.tickGap} y={sc.y(v) + g.yTickDy} textAnchor="end" fill="currentColor">
+            {v.toFixed(1)}
+          </text>
+        </g>
+      ))}
+
+      {BUDGETS.map((b) => (
+        <text
+          key={b}
+          x={sc.x(b)}
+          y={sc.bottomEdge + g.xTickDy}
+          textAnchor="middle"
+          fill="currentColor"
+        >
+          {b}
+        </text>
+      ))}
+      <text
+        x={g.margin.left + sc.plotW / 2}
+        y={g.height - 6}
+        textAnchor="middle"
+        fill="currentColor"
+      >
+        {t.xAxisLabel}
+      </text>
+      <text
+        x={g.yTitleX}
+        y={g.margin.top + sc.plotH / 2}
+        textAnchor="middle"
+        fill="currentColor"
+        transform={`rotate(-90 ${g.yTitleX} ${g.margin.top + sc.plotH / 2})`}
+      >
+        {t.yAxisLabel}
+      </text>
+
+      {/* series lines + points, x0 on top and at full strength */}
+      {DRAW_ORDER.map((m) => {
+        const isX0 = m === "x0diffusion";
+        return (
+          <g key={m} {...hook("series", m)} opacity={isX0 ? 1 : BASELINE_OPACITY}>
+            <polyline
+              points={SERIES_POINTS[m]
+                .map((p) => `${sc.x(p.labels)},${sc.y(p.diceMean)}`)
+                .join(" ")}
+              fill="none"
+              stroke={SERIES[m].color}
+              strokeWidth={SERIES[m].width}
+              strokeDasharray={SERIES[m].dash}
+              strokeLinecap="butt"
+            />
+            {SERIES_POINTS[m].map((p, i) => (
+              <circle
+                key={p.labels}
+                cx={sc.x(p.labels)}
+                cy={sc.y(p.diceMean)}
+                r={isX0 ? (i === 0 ? 4.6 : 3.4) : 2.2}
+                fill={SERIES[m].color}
               />
-              <text x={MARGIN.left - 8} y={yScale(v) + 3} textAnchor="end" fill="currentColor">
-                {v.toFixed(1)}
-              </text>
-            </g>
-          ))}
+            ))}
+          </g>
+        );
+      })}
 
-          {BUDGETS.map((b) => (
-            <text
-              key={b}
-              x={xScale(b)}
-              y={bottomEdge + 15}
-              textAnchor="middle"
-              fill="currentColor"
-            >
-              {b}
-            </text>
-          ))}
+      {/* x0's value on its smallest-budget point, and (only while it
+          actually leads there) a bracket down to the next-best model
+          carrying the lead. */}
+      <text
+        {...hook("eff-x0-value")}
+        x={lowX - 10}
+        y={x0Y - 11}
+        fill="var(--color-ok)"
+        fontSize={g.valueFont}
+        fontWeight={600}
+      >
+        {t.modelLabels.x0diffusion} {X0_LOW.diceMean.toFixed(3)}
+      </text>
+      {LEAD > 0 ? (
+        <g {...hook("eff-lead")} stroke="var(--color-ok)" strokeWidth={1.2}>
+          <line x1={bracketX} x2={bracketX} y1={x0Y + 5} y2={runnerY} />
+          <line x1={bracketX - 3} x2={bracketX + 3} y1={runnerY} y2={runnerY} />
           <text
-            x={MARGIN.left + PLOT_W / 2}
-            y={HEIGHT - 6}
-            textAnchor="middle"
-            fill="currentColor"
-          >
-            {t.xAxisLabel}
-          </text>
-          <text
-            x={12}
-            y={MARGIN.top + PLOT_H / 2}
-            textAnchor="middle"
-            fill="currentColor"
-            transform={`rotate(-90 12 ${MARGIN.top + PLOT_H / 2})`}
-          >
-            {t.yAxisLabel}
-          </text>
-
-          {/* series lines + points, x0 on top and at full strength */}
-          {DRAW_ORDER.map((m) => {
-            const isX0 = m === "x0diffusion";
-            return (
-              <g key={m} data-series={m} opacity={isX0 ? 1 : BASELINE_OPACITY}>
-                <polyline
-                  points={SERIES_POINTS[m]
-                    .map((p) => `${xScale(p.labels)},${yScale(p.diceMean)}`)
-                    .join(" ")}
-                  fill="none"
-                  stroke={SERIES[m].color}
-                  strokeWidth={SERIES[m].width}
-                  strokeDasharray={SERIES[m].dash}
-                  strokeLinecap="butt"
-                />
-                {SERIES_POINTS[m].map((p, i) => (
-                  <circle
-                    key={p.labels}
-                    cx={xScale(p.labels)}
-                    cy={yScale(p.diceMean)}
-                    r={isX0 ? (i === 0 ? 4.6 : 3.4) : 2.2}
-                    fill={SERIES[m].color}
-                  />
-                ))}
-              </g>
-            );
-          })}
-
-          {/* x0's value on its smallest-budget point, and (only while it
-              actually leads there) a bracket down to the next-best model
-              carrying the lead. */}
-          <text
-            data-eff-x0-value
-            x={lowX - 10}
-            y={x0Y - 11}
+            x={bracketX + 6}
+            y={(x0Y + runnerY) / 2 + g.leadDy}
             fill="var(--color-ok)"
-            fontSize={13}
+            stroke="none"
+            fontSize={g.leadFont}
             fontWeight={600}
           >
-            {t.modelLabels.x0diffusion} {X0_LOW.diceMean.toFixed(3)}
+            +{LEAD.toFixed(3)}
           </text>
-          {LEAD > 0 ? (
-            <g data-eff-lead stroke="var(--color-ok)" strokeWidth={1.2}>
-              <line x1={bracketX} x2={bracketX} y1={x0Y + 5} y2={runnerY} />
-              <line x1={bracketX - 3} x2={bracketX + 3} y1={runnerY} y2={runnerY} />
-              <text
-                x={bracketX + 6}
-                y={(x0Y + runnerY) / 2 + 4}
-                fill="var(--color-ok)"
-                stroke="none"
-                fontSize={12}
-                fontWeight={600}
-              >
-                +{LEAD.toFixed(3)}
-              </text>
-            </g>
-          ) : null}
+        </g>
+      ) : null}
 
-          {/* Legend, line sample + name, in the lower-right band the data
-              leaves empty (right of 32 labels every series is above 0.83). */}
-          {MODELS.map((m, i) => {
-            const x = MARGIN.left + PLOT_W * 0.56;
-            const y = yScale(0.79) + i * 14;
+      {/* Legend, line sample + name, in the lower-right band the data
+          leaves empty (right of 32 labels every series is above 0.83).
+          The narrow layout lists it under the chart instead. */}
+      {g.legendInPlot
+        ? MODELS.map((m, i) => {
+            const x = g.margin.left + sc.plotW * 0.56;
+            const y = sc.y(0.79) + i * 14;
             return (
               <g key={m} opacity={m === "x0diffusion" ? 1 : 0.75}>
                 <line
@@ -296,11 +368,54 @@ export function LabelEfficiencyFigure() {
                 </text>
               </g>
             );
-          })}
-        </svg>
+          })
+        : null}
+    </svg>
+  );
+}
+
+export function LabelEfficiencyFigure() {
+  return (
+    <InstrumentFigure n="1" id="fig-eff" caption={t.caption}>
+      <div className="text-mut font-mono">
+        {/* Wide first in the DOM: it is the layout the suite's original
+            hooks read. `hidden` removes the other one from the
+            accessibility tree too, so a screen reader meets one chart. */}
+        <div className="hidden min-[880px]:block">
+          <Chart g={WIDE} narrow={false} />
+        </div>
+        <div className="mx-auto max-w-[400px] min-[880px]:hidden">
+          <Chart g={NARROW} narrow />
+          <ul
+            data-eff-legend-narrow
+            aria-hidden
+            className="mt-2 grid grid-cols-1 justify-between gap-x-3 min-[380px]:grid-cols-[auto_auto] gap-y-1.5 text-[11px]"
+          >
+            {MODELS.map((m) => (
+              <li
+                key={m}
+                className="flex items-center gap-1.5 whitespace-nowrap"
+                style={{ color: SERIES[m].color, opacity: m === "x0diffusion" ? 1 : 0.75 }}
+              >
+                <svg width="20" height="6" aria-hidden className="shrink-0">
+                  <line
+                    x1="0"
+                    x2="20"
+                    y1="3"
+                    y2="3"
+                    stroke={SERIES[m].color}
+                    strokeWidth={SERIES[m].width}
+                    strokeDasharray={SERIES[m].dash}
+                  />
+                </svg>
+                {t.modelLabels[m]}
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
 
-      <p className="mt-1 font-mono text-[10.5px] text-mut">
+      <p className="mt-2 font-mono text-[11px] text-mut min-[880px]:mt-1 min-[880px]:text-[10.5px]">
         {t.logNotePre}
         {BUDGETS.map((b, i) => {
           const frac = SERIES_POINTS.x0diffusion[i].fraction;

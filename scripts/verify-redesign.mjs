@@ -1426,6 +1426,17 @@ async function checkLabelEfficiency(browser) {
         lead: el.querySelector("g[data-eff-lead] text")?.textContent?.trim() ?? null,
         rectCenter: rect ? Number(rect.getAttribute("x")) + Number(rect.getAttribute("width")) / 2 : null,
         legend: [...(svg?.querySelectorAll("text") ?? [])].map((n) => n.textContent),
+        // The narrow (<880px) layout of the same chart (2026-10-26 audit):
+        // the same marks under -narrow hooks, its legend a list under it.
+        narrow: {
+          series: [...el.querySelectorAll("g[data-series-narrow]")].map((g) => ({
+            id: g.getAttribute("data-series-narrow"),
+            points: g.querySelectorAll("circle").length,
+          })),
+          value: el.querySelector("[data-eff-x0-value-narrow]")?.textContent?.trim() ?? null,
+          lead: el.querySelector("g[data-eff-lead-narrow] text")?.textContent?.trim() ?? null,
+          legend: [...el.querySelectorAll("[data-eff-legend-narrow] li")].map((n) => n.textContent.trim()),
+        },
       };
     });
 
@@ -1459,6 +1470,16 @@ async function checkLabelEfficiency(browser) {
     }
     for (const m of models) {
       if (!shape.legend.includes(EFF_LABELS[m])) throw new Error(`legend has no entry ${JSON.stringify(EFF_LABELS[m])}`);
+    }
+    const n = shape.narrow;
+    const nIds = n.series.map((s) => s.id);
+    if (JSON.stringify(nIds) !== JSON.stringify(ids)) throw new Error(`narrow layout draws ${JSON.stringify(nIds)}, wide ${JSON.stringify(ids)}`);
+    if (n.series.some((s) => s.points !== budgets.length)) throw new Error(`narrow layout point counts ${JSON.stringify(n.series)}`);
+    if (n.value !== shape.value || n.lead !== shape.lead) {
+      throw new Error(`narrow layout value/lead ${JSON.stringify([n.value, n.lead])} != wide ${JSON.stringify([shape.value, shape.lead])}`);
+    }
+    for (const m of models) {
+      if (!n.legend.includes(EFF_LABELS[m])) throw new Error(`narrow legend has no entry ${JSON.stringify(EFF_LABELS[m])}`);
     }
 
     return (

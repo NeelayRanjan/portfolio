@@ -930,7 +930,7 @@ export const copy = {
       {
         when: "2026",
         who: "Alzheimer’s stimulation antenna",
-        what: "Led the PCB design team on a helical antenna for electromagnetic field stimulation; presented as an oral at IEEE MWSCAS 2026.",
+        what: "Led the PCB design team on a helical antenna for electromagnetic field stimulation, presented as an oral at IEEE MWSCAS 2026.",
         status: "complete",
       },
       {

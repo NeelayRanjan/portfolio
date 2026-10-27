@@ -827,7 +827,7 @@ export const copy = {
       mapNoteMcts:
         "Where the search actually spent its simulations, summed onto the square each move lands on.",
       mapNoteArgmin:
-        "Its ranking of every legal reply, summed onto the square each one lands on. It comes from the same forward pass that picked the move, so it costs nothing extra.",
+        "Its ranking of every legal reply, summed onto the square each lands on, from the same forward pass that picked the move.",
       promoteTo: "promote to",
       promoteAria: "promote to",
       top3: "the engine’s top 3",

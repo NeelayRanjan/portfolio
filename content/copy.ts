@@ -442,7 +442,7 @@ export const copy = {
       /** The rail tag over the citation, which sits beside the prose. */
       citeTag: "reference",
       prose:
-        "I also led the PCB design team for a helical antenna for electromagnetic field stimulation in Alzheimer’s disease therapy; we presented it as an oral at IEEE MWSCAS 2026 in Cincinnati on August 11.",
+        "I also led the PCB design team for a helical stimulation antenna for Alzheimer’s therapy, presented as an oral at IEEE MWSCAS 2026.",
       citation:
         "F. Perez, J. Morisaki, H. Kanakri, M. Rizkalla, et al. (incl. N. Ranjan), “Helical Antenna for Electromagnetic Field Stimulation in Alzheimer’s Disease Therapy,” IEEE MWSCAS 2026 (oral).",
     },

@@ -601,13 +601,15 @@ export function ChessPanel() {
             {copy.systems.chess.lede.b}
           </p>
         </div>
-        <aside className="mt-4 space-y-4 border-t border-hair pt-3 min-[880px]:mt-0 min-[880px]:border-t-0 min-[880px]:border-l min-[880px]:pt-0 min-[880px]:pl-6">
+        {/* A div, like the Row rails (round 2): as an <aside> it was the
+            page's one unlabelled "complementary" landmark. */}
+        <div className="mt-4 space-y-4 border-t border-hair pt-3 min-[880px]:mt-0 min-[880px]:border-t-0 min-[880px]:border-l min-[880px]:pt-0 min-[880px]:pl-6">
           {copy.systems.chess.ledeNotes.map((n) => (
             <Note key={n.tag} tag={n.tag}>
               {n.body}
             </Note>
           ))}
-        </aside>
+        </div>
       </div>
 
       {err ? (

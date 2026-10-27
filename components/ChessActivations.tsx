@@ -97,7 +97,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
                 aria-pressed={m === mode}
                 className={`border px-3 py-1.5 font-mono text-xs transition-colors ${
                   m === mode
-                    ? "border-link text-link"
+                    ? "border-ink text-ink"
                     : "border-rule text-mut hover:border-mut hover:text-ink"
                 }`}
               >
@@ -197,7 +197,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
                 aria-pressed={active}
                 className={`border px-3 py-2.5 text-left transition-colors ${
                   active
-                    ? "border-ok bg-desk"
+                    ? "border-ink bg-desk"
                     : "border-rule hover:border-mut"
                 }`}
               >

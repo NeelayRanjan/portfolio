@@ -333,7 +333,7 @@ export const copy = {
        *  could", not "all public". */
       data: {
         tag: "data",
-        body: "Public where I could, at some loss of quality: the airspace is the FAA’s Special Use Airspace layer, plus past launch TFRs for the sites with nothing charted, since NASA’s airspace file isn’t public. With no historical route database, the filed routes are my flight-plan model’s.",
+        body: "Public data where I could, at some loss of quality. NASA’s airspace file isn’t public, so the airspace is the FAA’s Special Use Airspace layer. With no historical route database, the filed routes are my model’s.",
       },
       /** The owner's disclaimer, made concrete (the word "approximation" is
        *  out by ruling; the owner rewords later). No numerals since

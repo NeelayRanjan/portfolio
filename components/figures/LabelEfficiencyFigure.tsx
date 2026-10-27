@@ -104,7 +104,9 @@ const LEAD = X0_LOW.diceMean - RUNNER_LOW.diceMean;
  *  is a smaller viewBox with larger type, capped at 400px wide so it never
  *  blows its type up on a tablet, and its legend moves out of the plot to
  *  a list under it (six rows 14 units apart overlapped once scaled down).
- *  The wide layout is the original, unchanged. */
+ *  The wide layout renders in the prose column (~468-518px from 880px up),
+ *  so its viewBox is that wide too (round 2, 2026-10-27): at 680 units its
+ *  10.5-unit type came out 7.2-8px; at 520 units 12-unit type is 10.8-12px. */
 type Geo = {
   width: number;
   height: number;
@@ -123,22 +125,25 @@ type Geo = {
   leadDy: number;
   yTitleX: number;
   legendInPlot: boolean;
+  /** Spacing of the in-plot legend's rows. */
+  legendRow: number;
 };
 const WIDE: Geo = {
-  width: 680,
-  height: 320,
-  margin: { top: 12, right: 18, bottom: 44, left: 48 },
-  xPad: 26,
-  font: 10.5,
-  valueFont: 13,
-  leadFont: 12,
-  colHalf: 22,
+  width: 520,
+  height: 300,
+  margin: { top: 12, right: 14, bottom: 46, left: 52 },
+  xPad: 22,
+  font: 12,
+  valueFont: 14,
+  leadFont: 13,
+  colHalf: 18,
   tickGap: 8,
-  yTickDy: 3,
-  xTickDy: 15,
-  leadDy: 4,
-  yTitleX: 12,
+  yTickDy: 4,
+  xTickDy: 17,
+  leadDy: 4.5,
+  yTitleX: 13,
   legendInPlot: true,
+  legendRow: 17,
 };
 const NARROW: Geo = {
   width: 360,
@@ -155,6 +160,7 @@ const NARROW: Geo = {
   leadDy: 5,
   yTitleX: 15,
   legendInPlot: false,
+  legendRow: 0,
 };
 
 const LOG_MIN = Math.log(BUDGETS[0]);
@@ -351,10 +357,13 @@ function Chart({ g, narrow }: { g: Geo; narrow: boolean }) {
       {g.legendInPlot
         ? MODELS.map((m, i) => {
             const x = g.margin.left + sc.plotW * 0.56;
-            const y = sc.y(0.79) + i * 14;
+            const y = sc.y(0.79) + i * g.legendRow;
+            // Only the sample fades with its line; the name stays at full
+            // colour (round 2: faded, SAM's red name read 3.08:1).
             return (
-              <g key={m} opacity={m === "x0diffusion" ? 1 : 0.75}>
+              <g key={m}>
                 <line
+                  opacity={m === "x0diffusion" ? 1 : BASELINE_OPACITY}
                   x1={x}
                   x2={x + 30}
                   y1={y}
@@ -363,7 +372,7 @@ function Chart({ g, narrow }: { g: Geo; narrow: boolean }) {
                   strokeWidth={SERIES[m].width}
                   strokeDasharray={SERIES[m].dash}
                 />
-                <text x={x + 36} y={y + 3.5} fill={SERIES[m].color}>
+                <text x={x + 36} y={y + g.yTickDy} fill={SERIES[m].color}>
                   {t.modelLabels[m]}
                 </text>
               </g>

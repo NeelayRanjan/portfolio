@@ -388,7 +388,7 @@ export function HeadshotToy({
           a press. */}
       <p
         className={`mt-2 font-mono text-[10px] leading-relaxed ${
-          failed ? "text-red-ink" : running || painted ? "text-warm" : "text-mut/60"
+          failed ? "text-red-ink" : running || painted ? "text-warm" : "text-faint"
         }`}
       >
         <span role="status">{liveStatus}</span>
@@ -397,7 +397,7 @@ export function HeadshotToy({
         ) : null}
       </p>
 
-      <figcaption className="mt-2 font-mono text-[10px] leading-relaxed text-mut/60">
+      <figcaption className="mt-2 font-mono text-[10px] leading-relaxed text-faint">
         {/* Capability is known once the model loads, which is always before
             any cross-class press could morph — the from-noise body stays true
             right up to the swap. */}

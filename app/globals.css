@@ -6,6 +6,13 @@
   --color-panel: #171511;
   --color-ink: #eae5da;
   --color-mut: #9a948a;
+  /* The quiet tier under mut: instrument notes, p=/v= numbers, captions of
+     captions. It replaced `text-faint` (2026-10-26 audit), which composited
+     to ~3.0:1 on every surface. This is the darkest grey that still clears
+     AA for small text on the lightest surface it sits on: 4.60:1 on panel,
+     4.76 on paper, 4.96 on desk. Don't drop below it with an alpha tint;
+     carry hierarchy with size and weight instead. */
+  --color-faint: #857f76;
   --color-rule: #2a2823;
   --color-hair: #1d1c18;
   --color-red-ink: #e5352b;

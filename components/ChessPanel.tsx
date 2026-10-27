@@ -611,7 +611,7 @@ export function ChessPanel() {
       </div>
 
       {err ? (
-        <p className="mb-4 font-mono text-[11px] leading-relaxed text-mut/60">
+        <p className="mb-4 font-mono text-[11px] leading-relaxed text-faint">
           <span className="text-red-ink">{copy.systems.chess.engineError}</span>: {err}
         </p>
       ) : null}
@@ -713,7 +713,7 @@ export function ChessPanel() {
           ) : (
             // aria-hidden: the box above is already an exposed labelled control
             // carrying its own range, so this would only repeat it.
-            <span aria-hidden="true" className="self-end py-1 text-mut/60">
+            <span aria-hidden="true" className="self-end py-1 text-faint">
               {copy.systems.chess.hint}
             </span>
           )}
@@ -728,7 +728,7 @@ export function ChessPanel() {
           </p>
         ) : null}
 
-        <p className="mb-6 max-w-2xl font-mono text-[11px] leading-relaxed text-mut/60">
+        <p className="mb-6 max-w-2xl font-mono text-[11px] leading-relaxed text-faint">
           {sims > 0 ? (
             <>
               {sims} {mode.about} · about {aboutTime(sims)} a move.
@@ -779,7 +779,7 @@ export function ChessPanel() {
               }
             />
 
-            <p className="mt-4 max-w-[296px] font-mono text-[11px] leading-relaxed text-mut/60">
+            <p className="mt-4 max-w-[296px] font-mono text-[11px] leading-relaxed text-faint">
               {outcome ? (
                 <span className="text-ok">{outcome}</span>
               ) : flash ? (
@@ -821,7 +821,7 @@ export function ChessPanel() {
             {/* The map is a move preference, not an activation. Saying "its
                 ranking" keeps it distinct from the "what it saw" view, which
                 shows internals. */}
-            <p className="mt-2 max-w-[296px] font-mono text-[11px] leading-relaxed text-mut/60">
+            <p className="mt-2 max-w-[296px] font-mono text-[11px] leading-relaxed text-faint">
               {lastReply?.mode === "mcts"
                 ? copy.systems.chess.mapNoteMcts
                 : copy.systems.chess.mapNoteArgmin}
@@ -831,7 +831,7 @@ export function ChessPanel() {
           <div className="min-w-[220px] flex-1">
             {pendingPromo ? (
               <div className="mb-6">
-                <span className="font-mono text-xs text-mut/60">{copy.systems.chess.promoteTo}</span>
+                <span className="font-mono text-xs text-faint">{copy.systems.chess.promoteTo}</span>
                 <div className="mt-2 flex gap-2">
                   {PROMOTIONS.map((p) => (
                     <button
@@ -847,7 +847,7 @@ export function ChessPanel() {
               </div>
             ) : null}
 
-            <span className="font-mono text-xs text-mut/60">
+            <span className="font-mono text-xs text-faint">
               {copy.systems.chess.top3}
             </span>
             <div
@@ -870,14 +870,14 @@ export function ChessPanel() {
                     {/* n= is what the search decided, p= is what the model
                         guessed before it ran. Showing both is the whole point:
                         where they disagree, that disagreement IS the search. */}
-                    <span className="text-mut/60">
+                    <span className="text-faint">
                       {m.visits !== undefined ? `n=${m.visits} · ` : ""}p=
                       {m.prior.toFixed(3)} · v={m.value.toFixed(2)}
                     </span>
                   </div>
                 ))
               ) : (
-                <span className="text-mut/60">
+                <span className="text-faint">
                   {ready ? copy.systems.chess.makeMove : copy.systems.chess.loadingEngine}
                 </span>
               )}
@@ -897,7 +897,7 @@ export function ChessPanel() {
               </p>
             ) : null}
             {lastReply ? (
-              <p className="mt-2 font-mono text-[11px] text-mut/60">
+              <p className="mt-2 font-mono text-[11px] text-faint">
                 {lastReply.mode === "mcts"
                   ? `${lastReply.sims} simulations · ${(lastReply.ms / 1000).toFixed(1)}s`
                   : `one forward pass · ${Math.round(lastReply.ms)}ms`}
@@ -953,12 +953,12 @@ export function ChessPanel() {
             </div>
 
             {selfPlay && sims === 0 ? (
-              <p data-chess-self-play-rule className="mt-4 max-w-sm font-mono text-[11px] leading-relaxed text-mut/60">
+              <p data-chess-self-play-rule className="mt-4 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
                 {copy.systems.chess.selfPlayRule}
               </p>
             ) : null}
 
-            <p className="mt-4 max-w-sm font-mono text-[11px] leading-relaxed text-mut/60">
+            <p className="mt-4 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
               <span className="text-ok">{copy.systems.chess.searchNote.letItThink}</span>
               {copy.systems.chess.searchNote.post}
             </p>

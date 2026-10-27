@@ -214,7 +214,7 @@ export function DiffusionVisualizer() {
         ) : null}
 
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <span className="mr-1 font-mono text-xs text-mut/60">{copy.lab.diffusion.modelLabel}</span>
+          <span className="mr-1 font-mono text-xs text-faint">{copy.lab.diffusion.modelLabel}</span>
           {(["pixel", "ascii"] as Mode[]).map((m) => {
             // ascii is gated on the file being present, not stubbed.
             const ready = m === "pixel" || ascii !== null;
@@ -243,10 +243,10 @@ export function DiffusionVisualizer() {
           })}
         </div>
 
-        <p className="mb-6 font-mono text-[11px] text-mut/60">{copy.lab.diffusion.frozenNote}</p>
+        <p className="mb-6 font-mono text-[11px] text-faint">{copy.lab.diffusion.frozenNote}</p>
 
         <div className="mb-6 flex flex-wrap items-center gap-2">
-          <span className="mr-1 font-mono text-xs text-mut/60">{copy.lab.diffusion.digitLabel}</span>
+          <span className="mr-1 font-mono text-xs text-faint">{copy.lab.diffusion.digitLabel}</span>
           {DIGITS.map((d) => {
             const available =
               mode === "ascii" ? Boolean(ascii?.byDigit[d]) : !data || Boolean(data.byDigit[d]);
@@ -294,13 +294,13 @@ export function DiffusionVisualizer() {
             {error}
           </p>
         ) : missing ? (
-          <p className="py-16 text-center font-mono text-xs text-mut/60">
+          <p className="py-16 text-center font-mono text-xs text-faint">
             {copy.lab.diffusion.missingPre}
             {digit}
             {copy.lab.diffusion.missingPost}
           </p>
         ) : !grids && !asciiLines ? (
-          <p className="py-16 text-center font-mono text-xs text-mut/60">
+          <p className="py-16 text-center font-mono text-xs text-faint">
             {copy.lab.diffusion.loadingTrajectories}
           </p>
         ) : (
@@ -323,7 +323,7 @@ export function DiffusionVisualizer() {
                   label={`Noisy state x_t at step ${shownStep} of ${total}`}
                 />
               )}
-              <figcaption className="text-center font-mono text-[11px] text-mut/60">
+              <figcaption className="text-center font-mono text-[11px] text-faint">
                 <span className="text-mut">{copy.lab.diffusion.xtLabel}</span> ·{" "}
                 {mode === "ascii" ? copy.lab.diffusion.xtCommitted : copy.lab.diffusion.xtNoisy}
               </figcaption>
@@ -345,7 +345,7 @@ export function DiffusionVisualizer() {
                   label={`Predicted clean image x-hat-0 at step ${shownStep} of ${total}`}
                 />
               )}
-              <figcaption className="text-center font-mono text-[11px] text-mut/60">
+              <figcaption className="text-center font-mono text-[11px] text-faint">
                 <span className="text-ok">{copy.lab.diffusion.x0Label}</span> ·{" "}
                 {mode === "ascii" ? copy.lab.diffusion.x0Guess : copy.lab.diffusion.x0Predicted}
               </figcaption>

@@ -167,7 +167,7 @@ function NeighborBlock({
     <div>
       <div className="mb-2 flex flex-wrap items-baseline gap-x-2 font-mono text-[11px]">
         <span className="text-ink">{name}</span>
-        <span className="text-mut/60">{target}</span>
+        <span className="text-faint">{target}</span>
         {/* The readout the whole block exists to produce. */}
         <span className="ml-auto text-mut">
           {hits}/{m.k}
@@ -241,7 +241,7 @@ function Retrieval({
           />
         </div>
         <figcaption className="mt-2 font-mono text-[11px]">
-          <span className="text-mut/60">{C.queryLabel}</span>{" "}
+          <span className="text-faint">{C.queryLabel}</span>{" "}
           <span className="text-ink">{m.classes[m.labels[query]]}</span>
         </figcaption>
       </figure>
@@ -253,7 +253,7 @@ function Retrieval({
           neighbour and the two would compete. */}
       <div className="mx-auto mt-8 max-w-2xl">
         <div className="mb-2 flex items-baseline gap-2 font-mono text-[11px]">
-          <span className="text-mut/60">{C.presetsLabel}</span>
+          <span className="text-faint">{C.presetsLabel}</span>
           <button
             type="button"
             onClick={random}
@@ -274,7 +274,7 @@ function Retrieval({
             />
           ))}
         </div>
-        <p className="mt-2 font-mono text-[10px] text-mut/60">{C.queryCaption}</p>
+        <p className="mt-2 font-mono text-[10px] text-faint">{C.queryCaption}</p>
       </div>
 
       {/* The two answers, adjacent. See NeighborBlock for why this is not two
@@ -299,7 +299,7 @@ function Retrieval({
       </div>
 
       {m.meanPurity ? (
-        <p className="mt-6 font-mono text-[11px] text-mut/60">
+        <p className="mt-6 font-mono text-[11px] text-faint">
           {C.meanPurityPre}
           {m.n.toLocaleString("en-US")}
           {C.meanPurityMid}
@@ -423,7 +423,7 @@ export function JepaSection() {
           {error}
         </p>
       ) : !ready ? (
-        <p className="py-16 text-center font-mono text-xs text-mut/60">{C.statusLoading}</p>
+        <p className="py-16 text-center font-mono text-xs text-faint">{C.statusLoading}</p>
       ) : (
         <Retrieval m={m} query={query} onPick={pick} />
       )}

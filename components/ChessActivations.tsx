@@ -70,7 +70,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
       <div className="flex flex-wrap items-start gap-8">
         <div>
           <ChessBoard fen={position.fen} overlay={overlay} />
-          <p className="mt-4 max-w-[296px] font-mono text-[11px] leading-relaxed text-mut/60">
+          <p className="mt-4 max-w-[296px] font-mono text-[11px] leading-relaxed text-faint">
             <span className={mode === "saliency" ? "text-link" : "text-ok"}>
               {mode === "saliency" ? C.attribution : `${C.activationPrefix}${layer}`}
               {mode === "activation" && channel !== null ? `${C.channelPrefix}${channel}` : ""}
@@ -79,7 +79,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
             {toMoveLabel(position.fen)}
           </p>
           {hottest.length ? (
-            <p className="mt-2 max-w-[296px] font-mono text-[11px] leading-relaxed text-mut/60">
+            <p className="mt-2 max-w-[296px] font-mono text-[11px] leading-relaxed text-faint">
               {C.hottest} <span className="text-ink">{hottest.join(" ")}</span>
             </p>
           ) : null}
@@ -124,13 +124,13 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
                 }}
                 className="mt-2 h-1 w-full accent-link"
               />
-              <p className="mt-2 font-mono text-[11px] leading-relaxed text-mut/60">
+              <p className="mt-2 font-mono text-[11px] leading-relaxed text-faint">
                 {C.shallowToDeep}
               </p>
 
               {channels.length ? (
                 <div className="mt-4">
-                  <span className="font-mono text-xs text-mut/60">{C.topChannels}</span>
+                  <span className="font-mono text-xs text-faint">{C.topChannels}</span>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button
                       onClick={() => setChannel(null)}
@@ -159,14 +159,14 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
                     ))}
                   </div>
                   {/* Being straight about this reads as competence, not weakness. */}
-                  <p className="mt-2 max-w-sm font-mono text-[11px] leading-relaxed text-mut/60">
+                  <p className="mt-2 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
                     {C.channelCaveat}
                   </p>
                 </div>
               ) : null}
             </div>
           ) : (
-            <p className="mb-6 max-w-sm font-mono text-[11px] leading-relaxed text-mut/60">
+            <p className="mb-6 max-w-sm font-mono text-[11px] leading-relaxed text-faint">
               {C.saliencyBody}
             </p>
           )}
@@ -175,7 +175,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
               meaningful only against the other candidate moves from one parent, and
               nonsense across positions. eval_white is the value head, comparable
               across positions, already sign-flipped to White. */}
-          <p className="font-mono text-[11px] leading-relaxed text-mut/60">
+          <p className="font-mono text-[11px] leading-relaxed text-faint">
             {C.valueHeadPre}{position.eval_white > 0 ? "+" : ""}
             {position.eval_white.toFixed(2)}{C.valueHeadPost}
             {Math.abs(position.eval_white) < 0.15 ? C.valueHeadLevel : ""}
@@ -186,7 +186,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
       {/* The scenarios, given the room they deserve: the label is the teaching
           moment, not the id. */}
       <div className="mt-8">
-        <span className="font-mono text-xs text-mut/60">{C.scenarios}</span>
+        <span className="font-mono text-xs text-faint">{C.scenarios}</span>
         <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
           {data.positions.map((p, i) => {
             const active = p.id === position.id;

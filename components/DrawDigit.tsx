@@ -756,7 +756,7 @@ export function DrawDigit({ n }: { n: string }) {
       </p>
 
       {loadErr ? (
-        <p className="mb-4 font-mono text-[11px] leading-relaxed text-mut/60">
+        <p className="mb-4 font-mono text-[11px] leading-relaxed text-faint">
           <span className="text-red-ink">{copy.systems.draw.loadFailed}</span>: {loadErr}
         </p>
       ) : null}
@@ -798,7 +798,7 @@ export function DrawDigit({ n }: { n: string }) {
         ) : (
           // aria-hidden: every box above is already an exposed labelled control
           // carrying its own range, so this would only repeat them.
-          <span aria-hidden="true" className="self-end py-1 text-mut/60">
+          <span aria-hidden="true" className="self-end py-1 text-faint">
             {copy.systems.draw.hint}
           </span>
         )}
@@ -830,7 +830,7 @@ export function DrawDigit({ n }: { n: string }) {
             aria-label={`${copy.systems.draw.canvasAria} ${digit}`}
             role="img"
           />
-          <figcaption className="mt-4 w-full max-w-[280px] font-mono text-[11px] leading-relaxed text-mut/60">
+          <figcaption className="mt-4 w-full max-w-[280px] font-mono text-[11px] leading-relaxed text-faint">
             {copy.systems.draw.canvasCaption}
           </figcaption>
         </figure>
@@ -847,7 +847,7 @@ export function DrawDigit({ n }: { n: string }) {
                 label={`${frame.phase} frame ${frame.step + 1} of ${frame.total}`}
               />
             ) : (
-              <span className="px-6 text-center font-mono text-[11px] leading-relaxed text-mut/60">
+              <span className="px-6 text-center font-mono text-[11px] leading-relaxed text-faint">
                 {loading
                   ? copy.systems.draw.resultFetching
                   : ready
@@ -856,7 +856,7 @@ export function DrawDigit({ n }: { n: string }) {
               </span>
             )}
           </div>
-          <figcaption className="mt-4 w-full max-w-[280px] font-mono text-[11px] leading-relaxed text-mut/60">
+          <figcaption className="mt-4 w-full max-w-[280px] font-mono text-[11px] leading-relaxed text-faint">
             {frame ? (
               <>
                 <span className={frame.phase === "dissolve" ? "text-ink" : "text-ok"}>
@@ -893,12 +893,12 @@ export function DrawDigit({ n }: { n: string }) {
                 label={`the model's guess at the finished digit, step ${frame.step + 1} of ${frame.total}`}
               />
             ) : (
-              <span className="px-6 text-center font-mono text-[11px] leading-relaxed text-mut/60">
+              <span className="px-6 text-center font-mono text-[11px] leading-relaxed text-faint">
                 {copy.systems.draw.x0Placeholder}
               </span>
             )}
           </div>
-          <figcaption className="mt-4 w-full max-w-[280px] font-mono text-[11px] leading-relaxed text-mut/60">
+          <figcaption className="mt-4 w-full max-w-[280px] font-mono text-[11px] leading-relaxed text-faint">
             {frame ? (
               <>
                 <span className="text-ink">{copy.systems.draw.x0Label}</span>
@@ -915,7 +915,7 @@ export function DrawDigit({ n }: { n: string }) {
       </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-2">
-        <span className="mr-1 font-mono text-xs text-mut/60">
+        <span className="mr-1 font-mono text-xs text-faint">
           {copy.systems.draw.label_}
           {autoLabel ? (
             <span className="ml-2 text-ok">
@@ -989,7 +989,7 @@ export function DrawDigit({ n }: { n: string }) {
                 ? copy.systems.draw.predictingHint
                 : undefined
           }
-          className="border border-ok/60 px-3 py-1.5 font-mono text-xs text-ok transition-colors hover:border-ok disabled:cursor-not-allowed disabled:border-rule disabled:text-mut/60"
+          className="border border-ok/60 px-3 py-1.5 font-mono text-xs text-ok transition-colors hover:border-ok disabled:cursor-not-allowed disabled:border-rule disabled:text-faint"
         >
           {running
             ? copy.systems.draw.sampling
@@ -999,7 +999,7 @@ export function DrawDigit({ n }: { n: string }) {
         </button>
       </div>
 
-      <p className="mt-4 max-w-2xl font-mono text-[11px] leading-relaxed text-mut/60">
+      <p className="mt-4 max-w-2xl font-mono text-[11px] leading-relaxed text-faint">
         {copy.systems.draw.classify.a}
         {fit ? (
           <>

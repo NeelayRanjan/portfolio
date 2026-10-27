@@ -98,7 +98,7 @@ export function ChessBoard({
         {RANKS.map((r) => (
           <span
             key={r}
-            className="flex items-center justify-end font-mono text-[9px] text-mut/60"
+            className="flex items-center justify-end font-mono text-[9px] text-faint"
           >
             {r}
           </span>
@@ -170,7 +170,7 @@ export function ChessBoard({
         style={{ gridTemplateColumns: "repeat(8, minmax(0, 1fr))" }}
       >
         {FILES.map((f) => (
-          <span key={f} className="text-center font-mono text-[9px] text-mut/60">
+          <span key={f} className="text-center font-mono text-[9px] text-faint">
             {f}
           </span>
         ))}

@@ -104,12 +104,16 @@ export function StargazeToggle() {
         className="pointer-events-none absolute inset-x-0 top-0 z-10 px-4"
       >
         <div className="mx-auto flex h-14 max-w-[1000px] items-center justify-end">
+          {/* The padding and its matching negative margin make a ~44px touch
+              target out of a 16px line without moving it (2026-10-26
+              audit): on a phone this and the footer door are the only ways
+              in. */}
           <button
             ref={enterRef}
             type="button"
             hidden={on}
             onClick={() => setStargazing(true, "toggle")}
-            className="pointer-events-auto inline-flex items-baseline font-mono text-[11px] text-mut underline decoration-dotted underline-offset-[3px] transition-colors hover:text-ink"
+            className="pointer-events-auto -my-[14px] inline-flex items-baseline py-[14px] font-mono text-[11px] text-mut underline decoration-dotted underline-offset-[3px] transition-colors hover:text-ink"
           >
             <StarMark />
             {t.enter}

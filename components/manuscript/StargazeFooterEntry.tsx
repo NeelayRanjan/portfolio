@@ -27,11 +27,13 @@ export function StargazeFooterEntry() {
       className="mt-14 border-t border-hair pt-6 font-mono text-[11px] leading-relaxed text-mut"
     >
       {t.footerLead}{" "}
+      {/* Padded to a ~44px touch target, the padding cancelled by a negative
+          margin so the line doesn't move (2026-10-26 audit). */}
       <button
         type="button"
         data-stargaze-footer-enter
         onClick={() => setStargazing(true, "footer")}
-        className="inline-flex items-baseline whitespace-nowrap text-ink underline decoration-dotted underline-offset-[3px] transition-colors hover:text-warm"
+        className="-my-[13px] inline-flex items-baseline whitespace-nowrap py-[13px] text-ink underline decoration-dotted underline-offset-[3px] transition-colors hover:text-warm"
       >
         <StarMark />
         {t.enter}

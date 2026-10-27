@@ -844,7 +844,7 @@ export const copy = {
       searchNoteTo: " to ",
       searchNotePiRuns: ". The Pi runs ",
       searchNoteFloor:
-        ". Below 250 simulations the search returns this same move almost every time (23 of 24 positions measured), so the sims box refuses to go below 250.",
+        ". Below 250 simulations the search almost always returns this same move (23 of 24 positions measured), so the box starts at 250.",
       newGame: "new game",
       engineVsEngine: "engine vs engine",
       stop: "stop",

@@ -268,12 +268,7 @@ export const copy = {
     /** Two paragraphs. Every number matches CLAUDE.md's content facts and
      *  `masthead.abstract` exactly. */
     prose: [
-      "In my first-author paper, in preparation with Shantanu Dev and Andrew " +
-        "Gonzalez at Regenstrief Institute, I trained a diffusion model to " +
-        "predict the clean segmentation mask directly instead of the noise. It " +
-        "reaches 0.882 Dice from 16 labels, ahead of five baselines in 25 of 25 " +
-        "paired runs. Trained the usual way, predicting noise, the same " +
-        "architecture stays near 0.23 Dice at every budget.",
+      "At Regenstrief I trained a diffusion model to predict the vessel mask directly. From 16 labels it reaches 0.882 Dice, ahead of five baselines in all 25 paired runs. Trained to predict noise, the same architecture stays near 0.23.",
       "The same model made a surgeon ~75% faster at correcting its output.",
     ],
     /** Margin notes (2026-09-30): the reference detail that used to sit in

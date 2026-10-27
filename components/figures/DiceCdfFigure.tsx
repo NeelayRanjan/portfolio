@@ -220,6 +220,7 @@ export function DiceCdfFigure() {
   return (
     <InstrumentFigure
       n="2"
+      id="fig-cdf"
       caption={t.caption}
       readout={`${t.readoutLabel} ${stop.t.toFixed(2)}`}
     >

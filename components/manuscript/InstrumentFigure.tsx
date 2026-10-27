@@ -32,7 +32,7 @@ export function InstrumentFigure({
   id?: string;
 }) {
   return (
-    <figure id={id} className="relative my-8 border border-rule bg-panel p-5">
+    <figure id={id} className="relative my-8 scroll-mt-6 border border-rule bg-panel p-5">
       <span
         aria-hidden
         className="absolute -top-px -left-px h-2.5 w-2.5 border-t-2 border-l-2 border-mut"

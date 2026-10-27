@@ -36,9 +36,13 @@ import { copy } from "@/content/copy";
 export function DeferredMount({
   children,
   rootMargin = "200px",
+  id,
 }: {
   children: ReactNode;
   rootMargin?: string;
+  /** An anchor that exists before the children mount (Table 1 links to the
+   *  deferred figures through it), with scroll margin like the headings. */
+  id?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(false);
@@ -96,7 +100,8 @@ export function DeferredMount({
   return (
     <div
       ref={ref}
-      className={shown ? undefined : "min-h-[200px]"}
+      id={id}
+      className={[shown ? "" : "min-h-[200px]", id ? "scroll-mt-6" : ""].filter(Boolean).join(" ") || undefined}
       tabIndex={shown ? (viaFocus ? -1 : undefined) : 0}
       role={shown ? undefined : "group"}
       aria-label={shown ? undefined : copy.deferredFigure}

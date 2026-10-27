@@ -3,7 +3,7 @@ import { Row, Note } from "@/components/manuscript/Row";
 import { Masthead } from "@/components/manuscript/Masthead";
 import { InstrumentFigure } from "@/components/manuscript/InstrumentFigure";
 import { DeferredMount } from "@/components/manuscript/DeferredMount";
-import { StatBand } from "@/components/manuscript/StatBand";
+import { FindingsTable } from "@/components/manuscript/FindingsTable";
 import { MissionRows } from "@/components/manuscript/MissionRows";
 import { References } from "@/components/manuscript/References";
 import { Colophon } from "@/components/manuscript/Colophon";
@@ -43,10 +43,7 @@ export default function Home() {
       <Sheet>
         <Masthead />
 
-        <StatBand
-          caption={copy.table1.caption}
-          cells={[...copy.table1.cells]}
-        />
+        <FindingsTable />
 
         <Row
           rail={
@@ -137,7 +134,7 @@ export default function Home() {
               </p>
             ))}
           </Row>
-          <DeferredMount>
+          <DeferredMount id="fig-reroute">
             <RerouteFigure />
           </DeferredMount>
           <div
@@ -180,10 +177,10 @@ export default function Home() {
             each component swapped with them, so numbering stays in page
             order). */}
         <div className="flex flex-col gap-5">
-          <DeferredMount>
+          <DeferredMount id="chess">
             <ChessPanel />
           </DeferredMount>
-          <DeferredMount>
+          <DeferredMount id="lander">
             <LanderFigure />
           </DeferredMount>
         </div>

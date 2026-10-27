@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
 /**
- * The reviewer's-ink stamp (the paper's status, "IN PREPARATION" since 2026-09-14). One of exactly two places on the
- * page allowed to use `--red-ink` (the other is `StatBand`'s `hot` cell) —
+ * The reviewer's-ink stamp (the paper's status, "IN PREPARATION" since 2026-09-14). The one place in the
+ * page's furniture that uses `--red-ink` (Table 1's red headline numeral went with the stat band, 2026-10-26) —
  * see CLAUDE.md/spec's red-discipline rule. A claim, not decoration: when
  * the manuscript's status changes, the words inside change with it.
  *

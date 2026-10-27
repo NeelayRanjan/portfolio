@@ -218,21 +218,56 @@ export const copy = {
     ],
   },
 
-  /** Table 1: the full-span stat band under the masthead. */
+  /** Table 1: a ledger of what the page shows and where (2026-10-26, owner
+   *  pick "C" of three; it replaced a four-cell stat band that read as the
+   *  generic hero-metric template). One row per finding, its result in a
+   *  sentence, and a link to the figure that shows it. Every number is one
+   *  the page already states: 0.882 / 16 labels / 25 of 25 (Research,
+   *  Figure 1), 0.32% vs 5.4% under 0.5 Dice (Figure 2's caption), ~75%
+   *  with one surgeon (Research, STUDY note), the Elo with search on the Pi
+   *  (owner-confirmed, Figure 4). The NASA row carries no numerals, like
+   *  the NASA box. Hrefs point at ids that exist at load: the deferred
+   *  figures' DeferredMount slots, not the figures inside them. */
   table1: {
-    caption: "Headline numbers from the paper and the chess engine.",
-    cells: [
+    caption: "What the page shows, and where.",
+    head: { finding: "Finding", result: "Result", where: "Shown in" },
+    rows: [
       {
-        value: "0.882",
-        label: "Dice at 16 labeled angiograms, from my paper in preparation",
-        hot: true,
+        finding: "Label efficiency",
+        result: "0.882 Dice from 16 labeled angiograms, ahead of five baselines in 25 of 25 paired runs (paper in preparation)",
+        where: "Figure 1",
+        href: "#fig-eff",
       },
-      { value: "25/25", label: "paired runs ahead of every baseline at 16 labels" },
-      { value: "~75%", label: "faster surgeon corrections" },
-      /** The Elo is the engine WITH search on the Pi (owner-confirmed); the
-       *  page's own engine runs without it, "a few hundred Elo weaker", so
-       *  the cell says which (2026-10-26 audit). */
-      { value: "553 KB", label: "chess engine, roughly 1900-2200 Elo with search on a Raspberry Pi" },
+      {
+        finding: "Failures",
+        result: "0.32% of predictions under 0.5 Dice, against 5.4% for SAM",
+        where: "Figure 2",
+        href: "#fig-cdf",
+      },
+      {
+        finding: "Surgeon time",
+        result: "~75% faster corrections, measured with one surgeon",
+        where: "Research",
+        href: "#research",
+      },
+      {
+        finding: "Airspace rerouting",
+        result: "A diffusion model reroutes flights around closed airspace with no retraining",
+        where: "Figure 3",
+        href: "#fig-reroute",
+      },
+      {
+        finding: "Chess engine",
+        result: "Roughly 1900-2200 Elo with search on a Raspberry Pi, from a 553 KB model",
+        where: "Figure 4",
+        href: "#chess",
+      },
+      {
+        finding: "Titan lander",
+        result: "An autopilot that plans inside a diffusion model of its own flight",
+        where: "Figure 5",
+        href: "#lander",
+      },
     ],
   },
 

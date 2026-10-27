@@ -13,9 +13,18 @@ import { Geist_Mono } from "next/font/google";
  * Geist Mono, scoped to exactly the elements that need its measured metrics,
  * imported from this one tiny module rather than wired into `--font-mono`
  * site-wide (see the comment at the top of components/AsciiGrid.tsx).
+ *
+ * `preload: false` (2026-10-26 audit): the only grids are /lab's, behind a
+ * DeferredMount, so a preload never pays off on /lab, and on `/` the
+ * masthead's /lab link prefetches the route and its preload hint with it,
+ * which Firefox flagged as "preloaded but not used". The font still loads
+ * the moment a grid renders. The route's 2 KB @font-face stylesheet is
+ * still prefetched with /lab; that is Next's route prefetch, kept on
+ * purpose (turning it off would slow the /lab navigation).
  */
 export const gridMono = Geist_Mono({
   subsets: ["latin"],
   weight: ["400"],
+  preload: false,
   variable: "--font-grid-mono",
 });

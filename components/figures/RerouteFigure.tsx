@@ -1079,7 +1079,11 @@ export function RerouteFigure() {
         </div>
 
         {summary ? (
-          <div data-reroute-summary className={`mt-2 font-mono text-[11px] ${fresh ? "" : "opacity-50"}`}>
+          // A stale result keeps full colour and says so in words (round 2,
+          // 2026-10-27): faded to 50% its numbers read 2.1-2.9:1, and a
+          // result someone is still reading is content, not a disabled control.
+          <div data-reroute-summary data-stale={fresh ? undefined : ""} className="mt-2 font-mono text-[11px]">
+            {fresh ? null : <p className="mb-1 text-warm">{t.staleTag}</p>}
             <dl className="grid grid-cols-[auto_auto] gap-x-4 gap-y-0.5 min-[880px]:grid-cols-[auto_auto_auto_auto] min-[880px]:gap-x-6">
               {(
                 [
@@ -1178,7 +1182,8 @@ export function RerouteFigure() {
         ) : null}
 
         {!isAll && done ? (
-          <div className={`mt-2 overflow-x-auto ${fresh ? "" : "opacity-50"}`}>
+          <div className="mt-2 overflow-x-auto" data-stale={fresh ? undefined : ""}>
+            {fresh ? null : <p className="mb-1 font-mono text-[11px] text-warm">{t.staleTag}</p>}
             <table className="w-full border-collapse font-mono text-[11px] tabular-nums">
               <thead>
                 <tr className="border-b border-rule text-left text-mut">

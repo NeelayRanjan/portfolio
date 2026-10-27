@@ -501,6 +501,8 @@ export const copy = {
       untouched: "unchanged",
       noConflict: "No filed route comes within the margin of any airspace, so there’s nothing to reroute.",
       stale: "The settings changed since this run. Press reroute to run it again.",
+      /** Above a stale summary or table, which keeps full colour. */
+      staleTag: "from the last run, before the settings changed",
       loading: "fetching the weights",
       running: "rerouting",
       runtimePre: "",

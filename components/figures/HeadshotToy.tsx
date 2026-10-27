@@ -5,6 +5,7 @@ import { trackDemoOnce } from "@/lib/track";
 import { copy } from "@/content/copy";
 import { loadHeadshotModel, unloadHeadshotModel, PHOTO_BASE, type HeadshotModel } from "@/lib/headshot-model";
 import { StargazeAbort, isStargazing, subscribeStargaze } from "@/lib/stargaze";
+import { MODULE_SUPPORTS_TRANSITIONS } from "@/lib/headshot-module-info";
 
 /**
  * The author photo, sampled live.
@@ -398,10 +399,13 @@ export function HeadshotToy({
       </p>
 
       <figcaption className="mt-2 font-mono text-[10px] leading-relaxed text-faint">
-        {/* Capability is known once the model loads, which is always before
-            any cross-class press could morph — the from-noise body stays true
-            right up to the swap. */}
-        {model?.canMorph ? t.captionBodyMorph : t.captionBody}
+        {/* Read from the vendored module's declared capability, not from the
+            loaded model (2026-10-26 audit): keyed on `model`, the caption grew
+            two lines on the first press and pushed the stamp and the links
+            below it down ~50px. `canMorph` is this same constant, and the
+            morph wording ("After that, pressing a different face…") is true
+            before any press too. */}
+        {MODULE_SUPPORTS_TRANSITIONS ? t.captionBodyMorph : t.captionBody}
       </figcaption>
     </figure>
   );

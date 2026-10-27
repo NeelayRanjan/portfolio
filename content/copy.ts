@@ -68,7 +68,7 @@ const EMAIL = "neelay.ranjan@outlook.com";
 export const copy = {
   /** <title>, meta description, and the share-card (OG/Twitter) text. */
   meta: {
-    title: "Neelay Ranjan · generative modeling for data-scarce, safety-critical systems",
+    title: "Neelay Ranjan · generative modeling for scarce data and costly mistakes",
     siteName: "neelayranjan.dev",
     /** The unfurl description. Concrete, because a share card is the one place a
      *  recruiter or admissions reader sees before deciding whether to click. */

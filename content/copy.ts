@@ -76,8 +76,9 @@ export const copy = {
       "I build generative models for domains where labels are scarce and mistakes " +
       "are expensive: vessel segmentation from 16 labeled angiograms, a chess " +
       "engine that fits in 553 KB, a transformer that synthesizes a day of FAA " +
-      "flight traffic. You can play the chess engine on the page, and draw a " +
-      "digit for a diffusion model to clean up.",
+      "flight traffic. On the page you can play the chess engine, or watch an " +
+      "autopilot fly a lander on Titan by planning inside a learned model of " +
+      "the flight.",
     ogImageAlt: "Neelay Ranjan, generative-modeling researcher",
   },
 

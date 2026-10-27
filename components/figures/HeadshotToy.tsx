@@ -403,7 +403,7 @@ export function HeadshotToy({
             loaded model (2026-10-26 audit): keyed on `model`, the caption grew
             two lines on the first press and pushed the stamp and the links
             below it down ~50px. `canMorph` is this same constant, and the
-            morph wording ("After that, pressing a different face…") is true
+            morph wording ("Another face starts from the current picture.") is true
             before any press too. */}
         {MODULE_SUPPORTS_TRANSITIONS ? t.captionBodyMorph : t.captionBody}
       </figcaption>

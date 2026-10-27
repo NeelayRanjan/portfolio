@@ -295,9 +295,10 @@ export const copy = {
        *  25 nm buffer ("nearly every"); +23 nm (3.4%) / +10 nm (1.1%) median
        *  added ("small detours"); within 2.3% / 1.2% of the geometric optimum
        *  ("close to"); median waypoints added 0 / -1 ("added no waypoints, and
-       *  under infinite lookahead removed one"). "Kept every leg the full
-       *  buffer distance from the airspace" is the same
-       *  measure, in the same words, as the DIFFERENCES note's. */
+       *  under infinite lookahead removed one"; cut in the 2026-10-26 copy
+       *  pass, with "under both lookahead policies"). "Kept every leg the
+       *  full buffer from the airspace" is the same measure, in the same
+       *  words, as the DIFFERENCES note's "keep the full buffer". */
       slaac: {
         tag: "slaac",
         body: "On the SLAAC poster, nearly every final reroute kept every leg the full buffer from the airspace, with small detours close to the geometric optimum.",
@@ -597,7 +598,9 @@ export const copy = {
      *  67-92 minutes is the one-way light time from NASA's Saturn fact sheet
      *  (1,205.5-1,658.6 million km); in manual flight the main craft is the
      *  dream's average prediction of where the craft is when the newest
-     *  command arrives (a required line). No build-specific number (the
+     *  command arrives (a required line; since the 2026-10-26 copy pass,
+     *  owner-approved, it lives only in `view.prediction`, shown the whole
+     *  time a visitor flies by hand, not in the caption). No build-specific number (the
      *  autopilot's landing rates, the parameter count) until the release
      *  build, whose numbers will differ. */
     lander: {

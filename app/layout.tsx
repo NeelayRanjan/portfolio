@@ -8,6 +8,7 @@ import { NightSky } from "@/components/manuscript/NightSky";
 import { SkyCredit } from "@/components/manuscript/SkyCredit";
 import { StargazeToggle } from "@/components/manuscript/StargazeToggle";
 import { ReloadBeacon } from "@/components/ReloadBeacon";
+import { HashScrollKeeper } from "@/components/manuscript/HashScrollKeeper";
 import { SITE } from "@/lib/site";
 
 const stix = STIX_Two_Text({
@@ -113,6 +114,9 @@ export default function RootLayout({
         {/* The page_reload event: the one field signal a silent tab crash
             leaves. See lib/track.ts. */}
         <ReloadBeacon />
+        {/* Holds an in-page jump on its target while deferred figures mount
+            above it, for engines without CSS scroll anchoring. */}
+        <HashScrollKeeper />
       </body>
     </html>
   );

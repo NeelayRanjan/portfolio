@@ -352,7 +352,7 @@ export const copy = {
        *  count that app/page.tsx used to inject left with the numbers. */
       disclaimer: {
         tag: "differences",
-        body: "My SLAAC models are integrated into the simulation software NASA and the FAA use to evaluate future air traffic management strategies. This demo keeps the diffusion model’s weights but samples in fewer steps than my pipeline does, on public airspace and routes written ahead of time. A reroute takes seconds on my laptop, longer with more airspace or every flight at once. On this demo’s test cases, fewer final reroutes keep every leg the full buffer distance from the airspace than the poster reports, though almost none cross it.",
+        body: "My SLAAC models are integrated into the simulation software NASA and the FAA use to evaluate future air traffic management. This demo samples the same weights in fewer steps on public airspace, in seconds on my laptop and longer with more airspace or every flight at once. Fewer reroutes keep the full buffer than on the poster, though almost none cross the airspace.",
       },
     },
     /**

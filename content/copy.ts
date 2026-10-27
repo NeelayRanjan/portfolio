@@ -909,7 +909,7 @@ export const copy = {
       {
         when: "May-Aug 2026",
         who: "NASA Ames · SLAAC",
-        what: "Diffusion rerouting around closed airspace, and a flight-plan language model that writes a day of about 44,000 flights.",
+        what: "Diffusion rerouting around closed airspace, and a flight plan language model that writes a day of about 44,000 flights.",
         status: "complete",
       },
       {

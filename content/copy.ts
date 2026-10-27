@@ -853,7 +853,7 @@ export const copy = {
       hintButton: "hint",
       searchNote: {
         letItThink: "let it think",
-        post: " runs the same MCTS the Pi runs, in a worker so the page stays responsive. It’s slow here: scoring one position costs ~6.6ms in WASM no matter how many threads you give it. The Pi gets through its 500 sims in about 2 seconds.",
+        post: " runs the Pi’s MCTS in a worker. At ~6.6ms a position in WASM, whatever the thread count, it’s slow here. The Pi does 500 sims in about 2 seconds.",
       },
       hint: "how long it thinks",
       simsEchoWhenThink: " · applies when you let it think",

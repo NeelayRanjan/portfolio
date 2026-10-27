@@ -685,7 +685,7 @@ export const copy = {
         awaitingTouchdown: "touchdown predicted, waiting for the downlink",
         insetLabel: "downlink, {s} s old",
         targetLabel: "{label} (illustrative)",
-        simplePilot: "Planner too slow on this device: a simple pilot is flying",
+        simplePilot: "Planner too slow on this device, so a simple pilot is flying",
         noModel: "The model didn’t load: a physics predictor that ignores wind draws the craft",
       },
     },

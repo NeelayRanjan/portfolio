@@ -1182,7 +1182,7 @@ export const copy = {
       "The sky over NASA Ames when you opened the page.",
     /** The eyes-see-grey reason lives on each coloured card's `colourNote`,
      *  with its source; the credit only says where the colour comes from. */
-    creditTail: " Objects are drawn enlarged, in long-exposure color.",
+    creditTail: " Objects are drawn enlarged, colored as in long exposures.",
     /** The stargaze card (components/manuscript/SkyCard.tsx). Numbers and
      *  dates between these fragments come from the data files; the facts
      *  themselves live in content/sky-facts.ts. */

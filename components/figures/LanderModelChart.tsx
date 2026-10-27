@@ -252,7 +252,10 @@ export function LanderModelChart({ view: given, simplePilot = false }: { view: L
           {timeline}
           </div>
         ) : (
-          <p style={{ height: h }} className="flex items-center justify-center font-mono text-[11px] text-mut">
+          // One line, not the chart's full height (round 2, 2026-10-27): an
+          // empty 200px box under the scene read as broken while the model
+          // loaded. The chart takes its height when the first view lands.
+          <p className="px-3 py-2.5 font-mono text-[11px] text-mut">
             {simplePilot ? c.simplePilot : c.waiting}
           </p>
         )}

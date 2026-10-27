@@ -794,7 +794,7 @@ export const copy = {
       ledeNotes: [
         { tag: "training", body: "About 30M positions from Lichess games between players rated 1800+." },
         {
-          tag: "on-device",
+          tag: "pi",
           body: "int8 quantization cost -14 ±59 Elo, but fp32 runs faster on the Pi’s ARM cores, so the Pi ships fp32 and this page the 553 KB int8 file.",
         },
       ],

@@ -29,10 +29,20 @@ import { FigureBoundary } from "./FigureBoundary";
  * so Tab went from Figure 2's slider straight to References and a keyboard
  * visitor never met the rerouter, chess or the lander. The empty slot is now a
  * tab stop. Focusing it mounts the children (a focus also scrolls it into
- * view, so the observer would have fired anyway), keeps focus on the same
- * wrapper element (now tabIndex -1), and moves it to the first focusable
- * control inside once one renders, if focus hasn't gone elsewhere first.
- * Mounting is still only ever caused by the visitor reaching the slot.
+ * view, so the observer would have fired anyway) and keeps focus on the same
+ * wrapper element (now tabIndex -1). Mounting is still only ever caused by
+ * the visitor reaching the slot.
+ *
+ * Round 2 (2026-10-27): the first version then moved focus to "the first
+ * control that exists right now", which skipped controls that render a
+ * moment later (the rerouter's route select is disabled until its JSON
+ * lands; chess's "what it saw" toggle appears once its file loads), so Tab
+ * never reached them. Now:
+ * - entered FORWARD, focus stays on the wrapper, and the next Tab walks the
+ *   figure in DOM order with whatever has rendered by then;
+ * - entered BACKWARD (Shift+Tab from below), focus goes to the figure's LAST
+ *   control once its rendering settles (no DOM change for 400ms, at most
+ *   5s), so the reverse walk doesn't skip the whole figure.
  */
 export function DeferredMount({
   children,
@@ -48,37 +58,39 @@ export function DeferredMount({
   const ref = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(false);
   // Set only by a keyboard mount: the wrapper then stays programmatically
-  // focusable (tabIndex -1) so focus can sit on it until a control renders.
+  // focusable (tabIndex -1), so focus can sit on it while the figure renders.
   // A scroll mount leaves the wrapper a plain div, as it always was.
   const [viaFocus, setViaFocus] = useState(false);
-  const focusInside = useRef(false);
+  // Set by a keyboard mount entered from below: focus the last control once
+  // the figure's rendering settles.
+  const focusLast = useRef(false);
 
-  // After a keyboard mount: hand focus to the first control inside as soon as
-  // the children render one (they may load in stages), for up to 5 s.
   useEffect(() => {
-    if (!shown || !focusInside.current) return;
-    focusInside.current = false;
+    if (!shown || !focusLast.current) return;
+    focusLast.current = false;
     const el = ref.current;
     if (!el) return;
     const FOCUSABLE =
       'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-    const tryFocus = () => {
-      if (document.activeElement !== el) return true; // the visitor moved on
-      const target = el.querySelector<HTMLElement>(FOCUSABLE);
-      if (!target) return false;
-      target.focus();
-      return true;
+    let settle = 0;
+    const finish = () => {
+      stop();
+      if (document.activeElement !== el) return; // the visitor moved on
+      const all = el.querySelectorAll<HTMLElement>(FOCUSABLE);
+      all[all.length - 1]?.focus();
     };
-    if (tryFocus()) return;
     const mo = new MutationObserver(() => {
-      if (tryFocus()) stop();
+      window.clearTimeout(settle);
+      settle = window.setTimeout(finish, 400);
     });
-    const timer = window.setTimeout(() => stop(), 5000);
+    const cap = window.setTimeout(finish, 5000);
     const stop = () => {
       mo.disconnect();
-      window.clearTimeout(timer);
+      window.clearTimeout(settle);
+      window.clearTimeout(cap);
     };
     mo.observe(el, { childList: true, subtree: true, attributes: true, attributeFilter: ["disabled"] });
+    settle = window.setTimeout(finish, 400);
     return stop;
   }, [shown]);
 
@@ -111,7 +123,9 @@ export function DeferredMount({
           ? undefined
           : (e) => {
               if (e.target !== e.currentTarget) return;
-              focusInside.current = true;
+              const from = e.relatedTarget as Node | null;
+              focusLast.current =
+                !!from && !!(e.currentTarget.compareDocumentPosition(from) & Node.DOCUMENT_POSITION_FOLLOWING);
               setViaFocus(true);
               setShown(true);
             }

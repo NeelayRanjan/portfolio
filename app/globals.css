@@ -53,7 +53,8 @@ body[data-stargaze] [data-skip-link] { display: none; }
    off the line hit the label instead. The input is now a 24px box (set
    per use with h-6) whose track is drawn 4px tall inside it, so the whole
    box takes the pointer. The thumb is an ink bar, the same cursor the
-   figures draw; colour stays reserved for what the figures encode. */
+   figures draw; colour stays reserved for what the figures encode. The
+   track is mut at 70% (~3.5:1 on panel, round 2; it was 40%, 2.0:1). */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
@@ -63,11 +64,11 @@ input[type="range"] {
 input[type="range"]:disabled { cursor: not-allowed; opacity: 0.4; }
 input[type="range"]::-webkit-slider-runnable-track {
   height: 4px;
-  background: color-mix(in srgb, var(--color-mut) 40%, transparent);
+  background: color-mix(in srgb, var(--color-mut) 70%, transparent);
 }
 input[type="range"]::-moz-range-track {
   height: 4px;
-  background: color-mix(in srgb, var(--color-mut) 40%, transparent);
+  background: color-mix(in srgb, var(--color-mut) 70%, transparent);
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;

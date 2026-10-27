@@ -140,7 +140,10 @@ function readoutFor(s: LanderState | null, status: Status): string | null {
 }
 
 const LEVELS: ConditionsLevel[] = [0, 1, 2, 3];
-/** The controls' chip: the mockup's dark pill, in the figure's own rule colour. */
+/** The controls' chip: the mockup's dark pill, in the figure's own rule colour.
+ *  Every chip shares it, "new flight" included: it wore the model's green
+ *  until 2026-10-26, and green on this page means x0-diffusion, the lander's
+ *  own model, or an active state, not "the main button". */
 const CHIP =
   "rounded border border-rule bg-desk/60 px-2.5 py-1.5 text-[12px] text-ink transition-colors hover:border-mut disabled:cursor-not-allowed disabled:opacity-40";
 
@@ -429,7 +432,7 @@ export function LanderPanel() {
               onClick={() => state && freshFlight(state.level)}
               disabled={!state}
               data-lander-new
-              className={`${CHIP} border-ok/70 text-ok hover:border-ok hover:text-ok`}
+              className={CHIP}
             >
               {c.newFlight}
             </button>

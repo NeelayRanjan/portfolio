@@ -137,7 +137,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
                       aria-pressed={channel === null}
                       className={`border px-2 py-1 font-mono text-[11px] transition-colors ${
                         channel === null
-                          ? "border-ok text-ok"
+                          ? "border-ink text-ink"
                           : "border-rule text-mut hover:border-mut hover:text-ink"
                       }`}
                     >
@@ -150,7 +150,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
                         aria-pressed={channel === c.ch}
                         className={`border px-2 py-1 font-mono text-[11px] transition-colors ${
                           channel === c.ch
-                            ? "border-ok text-ok"
+                            ? "border-ink text-ink"
                             : "border-rule text-mut hover:border-mut hover:text-ink"
                         }`}
                       >

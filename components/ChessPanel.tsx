@@ -672,7 +672,7 @@ export function ChessPanel() {
                     i > 0 ? "-ml-px" : ""
                   } ${
                     d.id === level
-                      ? "relative border-ok text-ok"
+                      ? "relative border-ink text-ink"
                       : "border-rule text-mut hover:border-mut hover:text-ink"
                   }`}
                 >
@@ -811,7 +811,7 @@ export function ChessPanel() {
               aria-pressed={showMap}
               className={`mt-4 border px-3 py-1.5 font-mono text-xs transition-colors ${
                 showMap
-                  ? "border-ok text-ok"
+                  ? "border-ink text-ink"
                   : "border-rule text-mut hover:border-mut hover:text-ink"
               }`}
             >
@@ -920,7 +920,7 @@ export function ChessPanel() {
                 aria-pressed={selfPlay}
                 className={`border px-3 py-1.5 font-mono text-xs transition-colors disabled:opacity-40 ${
                   selfPlay
-                    ? "border-ok text-ok"
+                    ? "border-ink text-ink"
                     : "border-rule text-mut hover:border-mut hover:text-ink"
                 }`}
               >

@@ -939,7 +939,7 @@ export function RerouteFigure() {
                     disabled={busy}
                     onClick={() => setHug(h)}
                     className={`${btn} ${i > 0 ? "-ml-px" : ""} ${
-                      hug === h ? "relative border-ok text-ok" : idleBtn
+                      hug === h ? "relative border-ink text-ink" : idleBtn
                     }`}
                   >
                     {label}

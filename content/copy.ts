@@ -878,7 +878,7 @@ export const copy = {
         topChannels: "top channels",
         mean: "mean",
         channelCaveat:
-          "Most single channels don’t light up on anything nameable. The mean map and the attribution view are the ones to trust.",
+          "Most single channels light up on nothing nameable. Trust the mean map and the attribution view.",
         saliencyBody:
           "The model outputs a single scalar energy. The gradient of that energy with respect to the board shows which squares move the evaluation most, like a hanging piece or a passed pawn.",
         valueHeadPre: "value head: ",

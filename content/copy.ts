@@ -456,8 +456,24 @@ export const copy = {
      *  `unavailable` is for a load that failed; `runFailed` for a run that
      *  threw after the data and model had loaded. */
     figReroute: {
+      /** Two sentences since the 2026-10-26 audit (it ran ~110 words). What
+       *  each line style means moved to `key`, drawn beside the map; what the
+       *  table's numbers mean moved to `tableNote`, shown with the table. */
       caption:
-        "Press reroute to run every filed route at once, or pick one route, and draw an airspace or turn off the launch sites. My flight-plan model wrote the filed routes (grey) ahead of time; on your device, my diffusion model samples an arc around each conflict and snaps it onto named fixes (green; the faint dotted line is the arc before snapping, and a hollow dot is a bend with no fix close enough). In a single route’s table, clearance turns red under the margin, added distance goes negative where a reroute straightens a bend in the filed route, and a flight whose airport sits inside the airspace can’t clear and draws dashed, as does the rare plan whose snapped leg still crosses.",
+        "My flight-plan model wrote the filed routes ahead of time; on your device, my diffusion model samples an arc around each conflict and snaps it onto named fixes. Press reroute to run every route at once, or pick a single route first.",
+      /** The map's key, under the canvas, each entry beside a sample of its
+       *  own line style (reroute-map.ts's drawPlan). */
+      key: {
+        filed: "filed route",
+        plan: "reroute",
+        dense: "arc before snapping",
+        bend: "bend with no fix close enough",
+        cannotClear: "can’t clear",
+        crossing: "leg still crossing",
+      },
+      /** Under the single-route table and a picked flight's numbers. */
+      tableNote:
+        "Clearance turns red under the margin. Added distance goes negative where a reroute straightens a bend in the filed route. A flight can’t clear when its airport sits inside the airspace, or, rarely, when a snapped leg still crosses.",
       unavailable: "The rerouter’s data or model didn’t load, so there’s nothing to run.",
       runFailed: "The reroute stopped with an error. Try again.",
       ringTooFew: "A shape needs at least three corners.",

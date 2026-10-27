@@ -1005,6 +1005,44 @@ export function RerouteFigure() {
           />
         </div>
 
+        {/* The map's key, beside the map rather than in the caption
+            (2026-10-26 audit: the caption explained five line styles in
+            ~110 words under the figure). Each sample is drawn with the
+            styles drawPlan uses (reroute-map.ts): solid green plan with a
+            filled dot on a named fix, the faint [1,3] arc under it, a
+            hollow dot for a BEND, the [3,3] dashes of a plan that can't
+            clear, and its crossing legs in red. aria-hidden: the canvas is
+            role="img", and these name only what it draws. */}
+        <ul
+          data-reroute-key
+          aria-hidden="true"
+          className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px] text-mut"
+        >
+          {(
+            [
+              ["filed", <line key="l" x1="0" x2="22" y1="5" y2="5" stroke="var(--color-ink)" strokeOpacity={0.35} strokeWidth={1.5} />],
+              [
+                "plan",
+                <g key="g">
+                  <line x1="0" x2="22" y1="5" y2="5" stroke="var(--color-ok)" strokeWidth={2} />
+                  <circle cx="11" cy="5" r="3" fill="var(--color-ok)" />
+                </g>,
+              ],
+              ["dense", <line key="l" x1="0" x2="22" y1="5" y2="5" stroke="var(--color-ok)" strokeOpacity={0.55} strokeWidth={1} strokeDasharray="1 3" />],
+              ["bend", <circle key="c" cx="11" cy="5" r="3" fill="var(--color-panel)" stroke="var(--color-ok)" strokeWidth={1.25} />],
+              ["cannotClear", <line key="l" x1="0" x2="22" y1="5" y2="5" stroke="var(--color-ok)" strokeOpacity={0.55} strokeWidth={2} strokeDasharray="3 3" />],
+              ["crossing", <line key="l" x1="0" x2="22" y1="5" y2="5" stroke="var(--color-red-ink)" strokeWidth={2} />],
+            ] as const
+          ).map(([k, sample]) => (
+            <li key={k} className="flex items-center gap-1.5">
+              <svg width="22" height="10" className="shrink-0">
+                {sample}
+              </svg>
+              {t.key[k]}
+            </li>
+          ))}
+        </ul>
+
         {/* The one primary action, bottom left under the map (owner, Task
             12e), right above the readout it drives. Amber until the result
             on screen answers the current settings in full, green when it
@@ -1135,6 +1173,7 @@ export function RerouteFigure() {
             ) : (
               <p className="mt-2 text-mut">{t.pickHint}</p>
             )}
+            {pickedRef ? <p className="mt-2 max-w-[560px] leading-relaxed text-mut">{t.tableNote}</p> : null}
           </div>
         ) : null}
 
@@ -1164,6 +1203,7 @@ export function RerouteFigure() {
                 ))}
               </tbody>
             </table>
+            <p className="mt-2 max-w-[560px] font-mono text-[11px] leading-relaxed text-mut">{t.tableNote}</p>
           </div>
         ) : null}
 

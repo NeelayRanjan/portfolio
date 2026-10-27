@@ -394,7 +394,7 @@ export const copy = {
      *  thousands separator ("2,500"). */
       scopeNotePre: "curve: every test prediction at ",
       scopeNoteMid: " labels, ",
-      scopeNotePost: " per model. panels: seed-1, fold-1 re-run at the same budget.",
+      scopeNotePost: " per model. panels: a rerun of seed 1, fold 1, same budget.",
       modelLabels: {
         x0diffusion: "x0-diffusion",
         sam: "SAM (zero-shot)",

@@ -394,7 +394,7 @@ export function DiceCdfFigure() {
           value={idx}
           onChange={(e) => setIdx(Number(e.target.value))}
           aria-label={`${t.sliderAriaPre}${stop.t.toFixed(2)}${t.sliderAriaPost}`}
-          className="h-1 flex-1 accent-link"
+          className="h-6 flex-1"
         />
       </label>
 

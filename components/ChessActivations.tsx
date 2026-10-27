@@ -122,7 +122,7 @@ export function ChessActivations({ data }: { data: ActivationSet }) {
                   setLayerIndex(Number(e.target.value));
                   setChannel(null);
                 }}
-                className="mt-2 h-1 w-full accent-link"
+                className="mt-1 h-6 w-full"
               />
               <p className="mt-2 font-mono text-[11px] leading-relaxed text-faint">
                 {C.shallowToDeep}

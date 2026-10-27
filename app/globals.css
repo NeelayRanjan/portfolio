@@ -36,6 +36,45 @@ body { background: transparent; color: var(--color-ink); }
    starts inside the page; ringing the whole page would say nothing. */
 main:focus-visible { outline: none; }
 
+/* Range inputs (2026-10-26 audit). The browser's own slider drew in its
+   default blue and white, and took touch only on its 4px line: a tap 8px
+   off the line hit the label instead. The input is now a 24px box (set
+   per use with h-6) whose track is drawn 4px tall inside it, so the whole
+   box takes the pointer. The thumb is an ink bar, the same cursor the
+   figures draw; colour stays reserved for what the figures encode. */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]:disabled { cursor: not-allowed; opacity: 0.4; }
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  background: color-mix(in srgb, var(--color-mut) 40%, transparent);
+}
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  background: color-mix(in srgb, var(--color-mut) 40%, transparent);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 8px;
+  height: 18px;
+  margin-top: -7px;
+  border: 0;
+  border-radius: 1px;
+  background: var(--color-ink);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 8px;
+  height: 18px;
+  border: 0;
+  border-radius: 1px;
+  background: var(--color-ink);
+}
+
 /* Paper grain on the sheet (Sheet.tsx). An opaque 256px tile of fractal
    noise whose every channel is the paper token plus 0.1 x (noise - 0.5), so
    the sheet's MEAN tone stays exactly --color-paper (measured: mean 18.15 vs

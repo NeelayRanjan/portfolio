@@ -919,7 +919,7 @@ export function RerouteFigure() {
               value={margin}
               disabled={busy}
               onChange={(e) => setMargin(Number(e.target.value))}
-              className="h-1 w-24 accent-link"
+              className="h-6 w-24"
             />
             <span className="w-11 text-warm tabular-nums">{`${margin} ${c.marginUnit}`}</span>
           </label>

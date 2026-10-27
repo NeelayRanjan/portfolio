@@ -79,7 +79,7 @@ export const copy = {
       "flight traffic. On the page you can play the chess engine, or watch an " +
       "autopilot fly a lander on Titan by planning inside a learned model of " +
       "the flight.",
-    ogImageAlt: "Neelay Ranjan, generative-modeling researcher",
+    ogImageAlt: "Neelay Ranjan, generative modeling researcher",
   },
 
   /** The masthead: paper title, affiliation line, bio-as-abstract, and the

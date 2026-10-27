@@ -31,7 +31,10 @@
 }
 html { background: var(--color-desk); color-scheme: dark; }
 body { background: transparent; color: var(--color-ink); }
-:focus-visible { outline: 2px solid var(--color-red-ink); outline-offset: 3px; }
+/* Ink, not red (2026-10-26 audit): red on this page means SAM, a miss, an
+   alert or the reviewer's stamp, and a red ring on a chess square or a
+   figure read as an error. Ink on desk/paper/panel is 14.5:1 or better. */
+:focus-visible { outline: 2px solid var(--color-ink); outline-offset: 3px; }
 /* The skip link's target (layout.tsx) takes focus only so the next Tab
    starts inside the page; ringing the whole page would say nothing. */
 main:focus-visible { outline: none; }

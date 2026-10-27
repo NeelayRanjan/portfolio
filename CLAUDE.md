@@ -718,6 +718,61 @@ that ground strip ONLY when some commands are not given, so an autopilot
 plan's futures never saw the ground (the planner checks them against it);
 manual futures do read it. Contracts under "Titan lander (Figure 5)".
 
+**2026-10-26: the homepage audit round, branch `homepage-fixes` (NOT merged;
+one commit per approved fix, labelled with its ID, so any can be reverted or
+cherry-picked).** An impeccable critique and technical audit of `/`
+(`audit-hallmark.md` at the repo root, untracked) produced a numbered fix
+list; the owner approved a subset, and B2 (chess board accessibility: one
+tab stop, arrow keys, readable square names, a live region) is held for its
+own session. What changed, and the rules it leaves:
+- **Colour.** `--color-faint` (#857f76) replaces every `text-mut/60`
+  (which composited to ~3.0:1); it is the darkest grey that clears AA on
+  panel (4.60:1). Don't tint below it with alpha. `--color-red-ink` went
+  #e5352b → #e8443a so 11px red text clears 4.5:1 (4.62 on panel); the
+  favicon keeps the old red. The global `:focus-visible` ring is ink, not
+  red (red means SAM, a miss, an alert). Selected toggles use one neutral
+  style, `border-ink text-ink`, as the rerouter's view toggle already did;
+  green stays for x0, the lander's model and true status (the reroute
+  button's all-clear), link-blue for links and the chess hint. /lab's own
+  toggles still use green. Range inputs are styled globally in
+  `globals.css` (ink bar thumb, 4px track drawn in a 24px `h-6` box).
+- **Masthead.** The identity links moved from the rail's foot to the line
+  under the affiliation (all four together); a mono contents line under
+  the abstract jumps to `#research`, `#nasa`, `#systems`, `#experience`,
+  `#references` (`copy.masthead.contents`; keep it in step with page-1
+  sections). The headshot caption shows the morph wording from the start
+  (`MODULE_SUPPORTS_TRANSITIONS`), so it no longer grows on the first
+  press; the cost is that the OG card now cuts the stamp at its bottom edge.
+- **Keyboard.** A skip link is the first stop on every page (`main#main`,
+  tabIndex -1). `DeferredMount`'s empty slot is a tab stop ("Live figure,
+  loading"): focusing it mounts the figure and hands focus to its first
+  control, so Tab no longer skips the rerouter, chess and the lander.
+  Margin rails are plain divs (five unlabelled asides were landmark noise).
+- **Phones.** Figure 1 renders a second, narrow layout below 880px (360-unit
+  viewBox, 15-unit type, capped at 400px, legend as a list under the plot);
+  the wide layout is unchanged and `fig-eff` checks both. Table 1 is two
+  columns. The stargaze doors are ~44px touch targets (padding cancelled by
+  negative margin), References and colophon links get hit-area padding.
+  Rerouter site names keep a 3px gap and never cross another site's
+  airspace (four of six label at 390, all six at 1280).
+- **Copy.** Figure 3's caption is two sentences; its line styles became a
+  key under the map (`copy.research.figReroute.key`) and the table's
+  meaning a note shown with the table (`tableNote`). ⚠️ That is NASA-box
+  copy: reworded, no claim added, but ask the owner whether it wants
+  another look before merge. Table 1's Elo cell says "with search on a
+  Raspberry Pi"; References item 1 carries its authors; the share blurb
+  names the lander instead of the draw demo.
+- **Measured, not fixed:** Known bug 0 (stargaze from the footer scrolls to
+  the top) did NOT reproduce in Playwright Firefox at 1280 (scrollY 7500 →
+  7457 → 7513); re-test on WebKit before fixing or striking it.
+- **Verified on the branch (production build, :3100):** all 56 verify
+  checks pass (`sky-animates-1280` median 3.98 ms), all 203 node tests
+  pass. The detector's URL scan went from 51 → 43 findings at 1440 and
+  54 → 43 at 390; low-contrast from 8 (+2 advisory) to 1, the sky credit
+  (owner-tuned, left as is). Still open by choice: 10-11px instrument text
+  (C4, not approved), and captions at ~87-96 characters a line (capped at
+  the prose column's 560px, down from 137-146; the prose itself runs ~90).
+
 **Open items, roughly in order:**
 
 The lander's own, ahead of the list (LIVE since 2026-10-16):

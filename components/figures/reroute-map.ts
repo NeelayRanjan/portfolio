@@ -515,7 +515,12 @@ export function drawMap(ctx: CanvasRenderingContext2D, v: MapView, s: MapState, 
   // site's name to the right of its airspace, else to the left; a name that
   // fits neither side without leaving the map or touching a label already
   // placed is dropped rather than squeezed (a narrow phone map can't hold
-  // all six; the airspace itself still draws).
+  // all six; the airspace itself still draws). Two rules from the
+  // 2026-10-26 audit, both for a phone's ~250px map, where "Wallops Flight
+  // Facility", set left of its East Coast airspace, ran across the map and
+  // sat flush on top of "Vandenberg SFB": labels keep a 3px gap, and a
+  // site's name never crosses ANOTHER site's airspace, so no name reads as
+  // belonging to the wrong place.
   ctx.font = font;
   ctx.textBaseline = "middle";
   const placed: LabelBox[] = [];
@@ -527,9 +532,21 @@ export function drawMap(ctx: CanvasRenderingContext2D, v: MapView, s: MapState, 
     ctx.fillText(text, x, y);
     placed.push({ x: x - 2, y: y - 6, w: tw + 4, h: 12 });
   };
-  const fits = (x: number, y: number, tw: number) =>
+  const GAP = 3;
+  const hits = (x: number, y: number, tw: number, b: LabelBox, gap: number) =>
+    x - 2 - gap < b.x + b.w && x + tw + 2 + gap > b.x && y - 6 - gap < b.y + b.h && y + 6 + gap > b.y;
+  const siteBoxes = s.sites.map((site) => {
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const r of site.rings) for (const [la, lo] of r) {
+      const [x, y] = toScreen(v, la, lo);
+      x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+    }
+    return { x0, x1, y0, y1 };
+  });
+  const fits = (x: number, y: number, tw: number, own = -1) =>
     x >= 2 && x + tw <= v.w - 2 && y >= 7 && y <= v.h - 7 &&
-    !placed.some((p) => x - 2 < p.x + p.w && x + tw + 2 > p.x && y - 6 < p.y + p.h && y + 6 > p.y);
+    !placed.some((p) => hits(x, y, tw, p, GAP)) &&
+    !siteBoxes.some((b, i) => i !== own && hits(x, y, tw, { x: b.x0, y: b.y0, w: b.x1 - b.x0, h: b.y1 - b.y0 }, 0));
 
   for (const e of s.endpoints) {
     const [x, y] = toScreen(v, e.lat, e.lon);
@@ -537,18 +554,14 @@ export function drawMap(ctx: CanvasRenderingContext2D, v: MapView, s: MapState, 
     put(e.code, x + 5 + tw <= v.w - 2 ? x + 5 : x - 5 - tw, y, rgba(c.mut, 1));
   }
   const labelled: string[] = [];
-  for (const site of s.sites) {
-    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-    for (const r of site.rings) for (const [la, lo] of r) {
-      const [x, y] = toScreen(v, la, lo);
-      x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
-    }
+  s.sites.forEach((site, i) => {
+    const { x0, x1, y0, y1 } = siteBoxes[i];
     const tw = ctx.measureText(site.name).width;
     const y = (y0 + y1) / 2;
-    const x = [x1 + 5, x0 - 5 - tw].find((cx) => fits(cx, y, tw));
-    if (x === undefined) continue;
+    const x = [x1 + 5, x0 - 5 - tw].find((cx) => fits(cx, y, tw, i));
+    if (x === undefined) return;
     put(site.name, x, y, rgba(c.red, 1));
     labelled.push(site.id);
-  }
+  });
   return { labelled, labelBoxes: placed };
 }

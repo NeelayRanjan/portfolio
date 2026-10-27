@@ -15,6 +15,8 @@ import type { ReactNode } from "react";
  * - The caption is always `Figure {n}.` in bold ink, followed by serif
  *   `text-mut` prose — never mono. The figure NUMBER is data (`n`), not the
  *   word "Figure", since later figures are strings like "S1" (/lab).
+ * - The caption's measure is capped at the prose column's 560px (2026-10-26
+ *   audit): spanning a full-width panel it ran 137-146 characters a line.
  */
 export function InstrumentFigure({
   n,
@@ -45,7 +47,7 @@ export function InstrumentFigure({
         </span>
       ) : null}
       {children}
-      <figcaption className="mt-3.5 text-sm leading-relaxed text-mut">
+      <figcaption className="mt-3.5 max-w-[560px] text-sm leading-relaxed text-mut">
         <b className="font-semibold text-ink">Figure {n}.</b> {caption}
       </figcaption>
     </figure>

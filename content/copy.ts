@@ -122,8 +122,7 @@ export const copy = {
        *  describes what a press does, so it never claims the at-rest file
        *  is a sample. */
       captionBody:
-        "Press a face and a 1.3M-parameter diffusion model, overfit on three " +
-        "photos of me, samples it in your browser in 25 steps from fresh noise.",
+        "Press a face and a diffusion model with 1.3M parameters, overfit on three photos of me, samples it in your browser from noise in 25 steps.",
       /** The v2-module variant (rendered only when the vendored sampler
        *  supports transitions): presses after the first morph the on-screen
        *  picture instead of restarting from noise, so the body has to say

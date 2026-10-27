@@ -14,7 +14,7 @@ export function References() {
 
   return (
     <div>
-      <h2 className="mt-[60px] mb-5 text-[22px] font-semibold text-ink">
+      <h2 id="references" className="mt-[60px] mb-5 scroll-mt-6 text-[22px] font-semibold text-ink">
         {t.heading}
       </h2>
       <ol className="list-decimal space-y-2 pl-7 text-[15px] text-mut marker:text-mut">

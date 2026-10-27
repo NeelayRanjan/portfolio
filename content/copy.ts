@@ -183,6 +183,24 @@ export const copy = {
     supplementContents:
       "diffusion trajectories · MAE vs I-JEPA · a day of synthesized flight plans · SDEdit on MNIST",
     date: "September 2026",
+    /** The in-page contents line under the abstract (2026-10-26 audit: the
+     *  page runs ~5,800px on a desktop and ~12,600px on a phone, and
+     *  Experience sat after four figures with no way to jump to it). The
+     *  hrefs are the sections' own heading ids; the labels are short forms
+     *  of their headings. If a page-1 section is added, renamed or removed,
+     *  update this list with it. */
+    contentsLabel: "Contents",
+    contents: [
+      { label: "Research", href: "#research" },
+      { label: "NASA Ames", href: "#nasa" },
+      { label: "Live systems", href: "#systems" },
+      { label: "Experience", href: "#experience" },
+      { label: "References", href: "#references" },
+    ],
+    /** The identity links, on the line under the affiliation since the
+     *  2026-10-26 audit (they sat at the foot of the rail, ~750px down on a
+     *  desktop and over a screen down on a phone; opening the resume is the
+     *  first visitor action that matters). */
     links: [
       {
         // Served by this site (owner call, 2026-09-22), not Drive: the resume

@@ -6,12 +6,18 @@ import { TrackedLink } from "@/components/manuscript/TrackedLink";
 import { copy } from "@/content/copy";
 
 /**
- * The masthead: paper title, affiliation, and the bio-as-abstract on the
- * left; the rail carries the headshot toy (if its bundle is deployed: the
- * photo there is sampled live by the owner's own diffusion model, see
- * `components/figures/HeadshotFigure.tsx`), the reviewer's-ink stamp,
- * the date, and the identity links. Mirrors the approved mockup's `header`
- * row (title+affiliation+abstract left; stamp, date, links in the rail).
+ * The masthead: paper title, affiliation, the identity links, the
+ * bio-as-abstract and the page's contents line on the left; the rail carries
+ * the headshot toy (if its bundle is deployed: the photo there is sampled
+ * live by the owner's own diffusion model, see
+ * `components/figures/HeadshotFigure.tsx`), the reviewer's-ink stamp, the
+ * /lab box and the date.
+ *
+ * 2026-10-26 audit: the identity links moved from the foot of the rail
+ * (~750px down at 1440, over a screen down on a phone) to the line under
+ * the affiliation, because opening the resume is the first visitor action
+ * that matters; and a contents line under the abstract jumps to each
+ * section (the page is ~5,800px tall on a desktop, ~12,600px on a phone).
  *
  * Self-contained like the figure components: reads `copy.masthead` directly
  * rather than taking props, since there is exactly one masthead on the page.
@@ -47,18 +53,6 @@ export function Masthead() {
           <span className="block font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-mut">
             {t.date}
           </span>
-          <nav className="flex flex-row flex-wrap gap-x-5 gap-y-2 text-[15px] min-[880px]:flex-col min-[880px]:gap-1.5">
-            {t.links.map((link) => (
-              <TrackedLink
-                key={link.label}
-                label={link.label}
-                href={link.href}
-                className="text-link hover:underline hover:underline-offset-[3px]"
-              >
-                {link.label}
-              </TrackedLink>
-            ))}
-          </nav>
         </div>
       }
     >
@@ -74,8 +68,51 @@ export function Masthead() {
           {t.titleTagline}
         </span>
       </h1>
-      <p className="mb-6 text-[15px] text-mut italic">{t.affiliation}</p>
+      <p className="mb-2 text-[15px] text-mut italic">{t.affiliation}</p>
+      {/* The links' vertical padding is hit area only (inline padding
+          doesn't move the line). */}
+      <p className="mb-6 flex flex-wrap gap-x-2 text-[15px]">
+        {t.links.map((link, i) => (
+          <span key={link.label}>
+            <TrackedLink
+              label={link.label}
+              href={link.href}
+              className="py-2 text-link hover:underline hover:underline-offset-[3px]"
+            >
+              {link.label}
+            </TrackedLink>
+            {i < t.links.length - 1 ? (
+              <span aria-hidden="true" className="ml-2 text-faint">
+                ·
+              </span>
+            ) : null}
+          </span>
+        ))}
+      </p>
       <p className="text-[16px] leading-relaxed text-ink">{t.abstract}</p>
+      <nav
+        aria-label={t.contentsLabel}
+        className="mt-8 flex flex-wrap items-baseline gap-y-2 border-t border-hair pt-3 font-mono text-[12px] leading-relaxed text-mut"
+      >
+        <span aria-hidden="true" className="mr-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink">
+          {t.contentsLabel}
+        </span>
+        {t.contents.map((item, i) => (
+          <span key={item.href} className="whitespace-nowrap">
+            <a
+              href={item.href}
+              className="py-1.5 underline decoration-dotted underline-offset-[3px] transition-colors hover:text-ink"
+            >
+              {item.label}
+            </a>
+            {i < t.contents.length - 1 ? (
+              <span aria-hidden="true" className="mx-2 text-faint">
+                ·
+              </span>
+            ) : null}
+          </span>
+        ))}
+      </nav>
     </Row>
   );
 }

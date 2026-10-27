@@ -61,7 +61,7 @@ export default function Home() {
         >
           <h2
             id="research"
-            className="mt-[60px] mb-5 text-[22px] font-semibold text-ink"
+            className="mt-[60px] mb-5 scroll-mt-6 text-[22px] font-semibold text-ink"
           >
             {copy.research.heading}
           </h2>
@@ -118,7 +118,7 @@ export default function Home() {
           aria-labelledby="nasa"
           className="mt-12 border border-rule px-3 pt-5 min-[880px]:px-6 min-[880px]:pt-6"
         >
-          <h3 id="nasa" className="mb-4 text-[18px] font-semibold text-ink">
+          <h3 id="nasa" className="mb-4 scroll-mt-6 text-[18px] font-semibold text-ink">
             {copy.research.nasaHeading}
           </h3>
           {/* The box's provenance (2026-09-30, SLAAC round), split around the
@@ -152,7 +152,7 @@ export default function Home() {
         <Row>
           <h2
             id="systems"
-            className="mt-[60px] mb-5 text-[22px] font-semibold text-ink"
+            className="mt-[60px] mb-5 scroll-mt-6 text-[22px] font-semibold text-ink"
           >
             {copy.systems.heading}
           </h2>
@@ -191,7 +191,7 @@ export default function Home() {
         <Row>
           <h2
             id="experience"
-            className="mt-[60px] mb-5 text-[22px] font-semibold text-ink"
+            className="mt-[60px] mb-5 scroll-mt-6 text-[22px] font-semibold text-ink"
           >
             {copy.experience.heading}
           </h2>

@@ -546,7 +546,7 @@ export const copy = {
       /** Starbase and Van Horn have no charted SUA (launch-sua-sources.md),
        *  so each is one past launch TFR, labelled as such per the spec. */
       launchNote:
-        "Red areas are launch airspace: each site’s charted restricted and warning areas, merged into one outline. Starbase and Van Horn have none charted, so each is drawn from a past launch TFR.",
+        "Red areas are each launch site’s charted restricted and warning areas, merged into one outline. Starbase and Van Horn have none charted, so each uses a past launch TFR.",
       canvasAria: "Map of the lower 48 with the filed routes, the airspace and any rerouted plans",
     },
     /** The margin note beside Figure 1: where the angiograms come from,

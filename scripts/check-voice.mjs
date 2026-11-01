@@ -45,6 +45,10 @@ const FILES = [
     rel: "content/sky-facts.ts",
     skipKeys: new Set(["author", "year", "title", "site", "url", "accessed", "citations"]),
   },
+  ...["pieces", "shell", "test-sheet", "hybrid-attention"].map((n) => ({
+    rel: `content/offprints/${n}.ts`,
+    skipKeys: new Set(["url", "href", "slug"]),
+  })),
 ];
 
 const BANNED_WORDS = [

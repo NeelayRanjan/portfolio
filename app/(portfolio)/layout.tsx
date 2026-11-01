@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import { STIX_Two_Text, Spline_Sans_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import "./globals.css";
+import "../globals.css";
 import { copy } from "@/content/copy";
 import { NightSky } from "@/components/manuscript/NightSky";
 import { SkyCredit } from "@/components/manuscript/SkyCredit";
@@ -10,18 +9,8 @@ import { StargazeToggle } from "@/components/manuscript/StargazeToggle";
 import { ReloadBeacon } from "@/components/ReloadBeacon";
 import { HashScrollKeeper } from "@/components/manuscript/HashScrollKeeper";
 import { SITE } from "@/lib/site";
+import { stix, splineMono } from "@/lib/fonts";
 
-const stix = STIX_Two_Text({
-  variable: "--font-stix",
-  subsets: ["latin"],
-  weight: ["400", "600"],
-  style: ["normal", "italic"],
-});
-const splineMono = Spline_Sans_Mono({
-  variable: "--font-spline-mono",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-});
 
 export const metadata: Metadata = {
   // Required for the relative OG image below to resolve to an absolute URL —

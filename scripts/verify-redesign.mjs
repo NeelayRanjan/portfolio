@@ -7279,6 +7279,9 @@ const OP_SITE = "https://offprints.neelayranjan.dev";
 async function checkOffprintsFeed(browser) {
   return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
     const expect = Number(process.env.OFFPRINTS_EXPECT_ENTRIES ?? 2);
+    if (expect !== 0 && expect !== 2) {
+      throw new Error(`OFFPRINTS_EXPECT_ENTRIES must be 0 (production-env build) or 2 (local build), got ${process.env.OFFPRINTS_EXPECT_ENTRIES}`);
+    }
     const res = await page.request.get(`${OFFPRINTS_BASE}/feed.xml`);
     const type = res.headers()["content-type"] ?? "";
     const xml = await res.text();

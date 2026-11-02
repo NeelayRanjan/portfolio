@@ -32,7 +32,7 @@ test("two pieces give two entries, in the order given (newest first)", () => {
 
 test("a revisit moves the entry's and the feed's updated", () => {
   const rev = { verdict: "held up", date: "2027-02-03", line: "" };
-  const xml = atomFeed([mk("a", 1, "2026-11-01", { revisit: rev }), mk("b", 2, "2026-12-01")], FALLBACK);
+  const xml = atomFeed([mk("b", 2, "2026-12-01"), mk("a", 1, "2026-11-01", { revisit: rev })], FALLBACK);
   assert.ok(xml.includes("<updated>2027-02-03T00:00:00Z</updated>"));
   assert.ok(xml.includes("<published>2026-11-01T00:00:00Z</published>"));
   const feedUpdated = xml.split("<entry>")[0].match(/<updated>([^<]+)<\/updated>/)[1];

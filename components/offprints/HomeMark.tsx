@@ -1,3 +1,4 @@
+import { TrackedLink } from "@/components/manuscript/TrackedLink";
 import { shell } from "@/content/offprints/shell";
 
 /**
@@ -8,7 +9,8 @@ import { shell } from "@/content/offprints/shell";
  */
 export function HomeMark() {
   return (
-    <a
+    <TrackedLink
+      label="Portfolio"
       href="https://neelayranjan.dev"
       title={shell.homeMark.title}
       aria-label={shell.homeMark.title}
@@ -35,6 +37,6 @@ export function HomeMark() {
           fill="var(--color-ink)"
         />
       </svg>
-    </a>
+    </TrackedLink>
   );
 }

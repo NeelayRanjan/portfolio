@@ -7262,6 +7262,126 @@ async function checkOffprintsPeel(browser) {
   return notes.join("; ");
 }
 
+/* ---------------------------------------------------------------------- */
+/* Offprints: search-facing metadata, icons, robots, sitemap, analytics   */
+/* ---------------------------------------------------------------------- */
+
+const OP_SITE = "https://offprints.neelayranjan.dev";
+const OP_ICONS = [
+  { rel: "icon", href: "/offprints/icons/favicon.ico", type: "image/x-icon", sizes: "16x16 32x32" },
+  { rel: "icon", href: "/offprints/icons/icon-192.png", type: "image/png", sizes: "192x192" },
+  { rel: "apple-touch-icon", href: "/offprints/icons/apple-icon.png", type: "image/png", sizes: "180x180" },
+];
+
+/**
+ * offprints-search: on the Offprints host, one canonical per page naming the
+ * subdomain, the piece title through the "· Offprints" template, exactly the
+ * three icon links at stable /offprints/icons paths (no query string) each
+ * served with its claimed type, the browser's automatic /favicon.ico, the
+ * host's own robots.txt and sitemap.xml, a resolving og:image, and the
+ * analytics beforeSend that prefixes every recorded URL with /offprints
+ * (the tracker 404s locally, so the queued function is called directly).
+ * The portfolio's own search-basics is a separate check and must still pass.
+ * Proved to bite by pointing the layout's icon links at /icon-192.png.
+ */
+async function checkOffprintsSearch(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    const notes = [];
+    const headOf = async (path) => {
+      await page.goto(OFFPRINTS_BASE + path, { waitUntil: "domcontentloaded" });
+      return page.evaluate(() => ({
+        title: document.title,
+        canonicals: [...document.querySelectorAll('link[rel="canonical"]')].map((l) => l.getAttribute("href")),
+        ogImage: document.querySelector('meta[property="og:image"]')?.getAttribute("content") ?? null,
+        twImage: document.querySelector('meta[name="twitter:image"]')?.getAttribute("content") ?? null,
+        icons: [...document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"], link[rel="shortcut icon"]')].map((l) => ({
+          rel: l.getAttribute("rel"),
+          href: l.getAttribute("href"),
+          type: l.getAttribute("type"),
+          sizes: l.getAttribute("sizes"),
+        })),
+      }));
+    };
+    for (const [path, canonical] of [["/", `${OP_SITE}/hybrid-attention`], ["/all", `${OP_SITE}/all`], ["/hybrid-attention", `${OP_SITE}/hybrid-attention`]]) {
+      const h = await headOf(path);
+      if (h.canonicals.length !== 1 || h.canonicals[0] !== canonical) {
+        throw new Error(`${path}: canonical ${JSON.stringify(h.canonicals)}, expected exactly ${canonical}`);
+      }
+      if (JSON.stringify(h.icons) !== JSON.stringify(OP_ICONS)) {
+        throw new Error(`${path}: icon links ${JSON.stringify(h.icons)}, expected ${JSON.stringify(OP_ICONS)}`);
+      }
+    }
+    const piece = await headOf("/hybrid-attention");
+    if (piece.title !== `Hybrid attention · ${offprintsShell.meta.siteName}`) {
+      throw new Error(`/hybrid-attention title is ${JSON.stringify(piece.title)}`);
+    }
+    notes.push(`canonicals on ${OP_SITE}, title "${piece.title}"`);
+
+    for (const icon of [...OP_ICONS, { href: "/favicon.ico", type: "image/x-icon", sizes: "16x16 32x32" }]) {
+      const res = await page.request.get(OFFPRINTS_BASE + icon.href);
+      if (res.status() !== 200 || res.headers()["content-type"] !== icon.type) {
+        throw new Error(`${icon.href}: ${res.status()} ${res.headers()["content-type"]}, expected 200 ${icon.type}`);
+      }
+      const buf = await res.body();
+      if (icon.type === "image/png") {
+        const [w, h] = icon.sizes.split("x").map(Number);
+        const got = pngSize(buf);
+        if (!got || got.w !== w || got.h !== h) throw new Error(`${icon.href} is ${JSON.stringify(got)}, its link says ${icon.sizes}`);
+      } else {
+        const n = buf.readUInt16LE(4);
+        const sizes = Array.from({ length: n }, (_, i) => buf[6 + 16 * i] || 256).sort((a, b) => a - b);
+        if (sizes.join(",") !== "16,32") throw new Error(`${icon.href} holds ${sizes.join(",")}, expected 16,32`);
+      }
+    }
+    notes.push("three icon links at stable paths serve their types, /favicon.ico too");
+
+    const robots = await page.request.get(`${OFFPRINTS_BASE}/robots.txt`);
+    const robotsText = await robots.text();
+    if (robots.status() !== 200 || !robots.headers()["content-type"]?.startsWith("text/plain")) {
+      throw new Error(`/robots.txt: ${robots.status()} ${robots.headers()["content-type"]}`);
+    }
+    for (const line of ["User-Agent: *", "Allow: /", `Sitemap: ${OP_SITE}/sitemap.xml`]) {
+      if (!robotsText.split("\n").map((l) => l.trim()).includes(line)) throw new Error(`/robots.txt lacks ${JSON.stringify(line)}: ${JSON.stringify(robotsText)}`);
+    }
+    const sitemap = await page.request.get(`${OFFPRINTS_BASE}/sitemap.xml`);
+    const locs = [...(await sitemap.text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]).sort();
+    const want = [OP_SITE, `${OP_SITE}/all`, `${OP_SITE}/hybrid-attention`, `${OP_SITE}/test-sheet`].sort();
+    if (sitemap.status() !== 200 || JSON.stringify(locs) !== JSON.stringify(want)) {
+      throw new Error(`/sitemap.xml: ${sitemap.status()}, locs ${JSON.stringify(locs)}, expected ${JSON.stringify(want)}`);
+    }
+    notes.push(`robots.txt and sitemap.xml are Offprints' own (${locs.length} URLs)`);
+
+    for (const [name, url] of [["og:image", piece.ogImage], ["twitter:image", piece.twImage]]) {
+      if (!url) throw new Error(`no ${name}`);
+      const u = new URL(url, OP_SITE);
+      const res = await page.request.get(OFFPRINTS_BASE + u.pathname);
+      const size = pngSize(await res.body());
+      if (res.status() !== 200 || !size || size.w !== 1200 || size.h !== 630) {
+        throw new Error(`${name} ${url}: ${res.status()} ${JSON.stringify(size)}, expected a 1200x630 PNG`);
+      }
+    }
+    notes.push("share card resolves at 1200x630");
+
+    // Analytics: the tracker 404s locally, so the queue holds the beforeSend
+    // the page registered; call it with fake events.
+    await page.goto(`${OFFPRINTS_BASE}/hybrid-attention`, { waitUntil: "networkidle" });
+    await page.waitForFunction(() => (window.vaq ?? []).some(([k]) => k === "beforeSend"), null, { timeout: 10000 });
+    const out = await page.evaluate((base) => {
+      const fn = window.vaq.find(([k]) => k === "beforeSend")[1];
+      return [`${base}/hybrid-attention`, `${base}/`, `${base}/offprints/hybrid-attention`, `${base}/offprints`].map(
+        (url) => new URL(fn({ type: "pageview", url }).url).pathname,
+      );
+    }, OFFPRINTS_BASE);
+    const wantPaths = ["/offprints/hybrid-attention", "/offprints", "/offprints/hybrid-attention", "/offprints"];
+    if (JSON.stringify(out) !== JSON.stringify(wantPaths)) {
+      throw new Error(`beforeSend recorded ${JSON.stringify(out)}, expected ${JSON.stringify(wantPaths)}`);
+    }
+    notes.push("beforeSend prefixes recorded URLs with /offprints");
+    return notes.join("; ");
+  });
+}
+
+
 const CHECKS = [
   ["sky-animates-1280", skyAnimatesAt1280],
   ["sky-static-reduced-motion", skyStaticUnderReducedMotion],
@@ -7276,6 +7396,7 @@ const CHECKS = [
   ["no-early-heavy-payload-400", checkNoEarlyHeavyPayload],
   ["lab-box-navigates", checkLabBoxNavigates],
   ["search-basics", checkSearchBasics],
+  ["offprints-search", checkOffprintsSearch],
   ["resume-pdf", checkResumePdf],
   ["stamp-no-link-ancestor", checkStampNoLinkAncestor],
   ["references-lab-link-resolves", checkReferencesLabLinkResolves],

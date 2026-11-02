@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import "./offprints.css";
 import { shell } from "@/content/offprints/shell";
-import { OFFPRINTS_SITE } from "@/lib/offprints/site";
+import { OFFPRINTS_OG_IMAGE, OFFPRINTS_SITE } from "@/lib/offprints/site";
+import { OffprintsAnalytics } from "@/components/offprints/OffprintsAnalytics";
 import { stix, splineMono } from "@/lib/fonts";
 
 /**
@@ -22,7 +23,22 @@ export const metadata: Metadata = {
   metadataBase: new URL(OFFPRINTS_SITE),
   title: { default: shell.meta.title, template: `%s · ${shell.meta.siteName}` },
   description: shell.meta.description,
-  openGraph: { type: "article", siteName: shell.meta.siteName },
+  // Stable public paths, no query string (the same rule as the portfolio's
+  // icons). /offprints/<file.ext> passes through proxy.ts on every host.
+  icons: {
+    icon: [
+      { url: "/offprints/icons/favicon.ico", sizes: "16x16 32x32", type: "image/x-icon" },
+      { url: "/offprints/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/offprints/icons/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  robots: { index: true },
+  openGraph: {
+    type: "article",
+    siteName: shell.meta.siteName,
+    images: [OFFPRINTS_OG_IMAGE],
+  },
+  twitter: { card: "summary_large_image", images: [OFFPRINTS_OG_IMAGE.url] },
 };
 
 export default function OffprintsRootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -30,6 +46,7 @@ export default function OffprintsRootLayout({ children }: Readonly<{ children: R
     <html lang="en" className={`${stix.variable} ${splineMono.variable}`}>
       <body className="font-serif" data-op-paper>
         {children}
+        <OffprintsAnalytics />
       </body>
     </html>
   );

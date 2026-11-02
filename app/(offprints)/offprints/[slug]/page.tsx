@@ -5,7 +5,7 @@ import { componentFor } from "@/components/offprints/pieces";
 import { IndexPage } from "@/components/offprints/IndexPage";
 import { Shell } from "@/components/offprints/Shell";
 import { pieceBySlug, visiblePieces } from "@/lib/offprints/pieces";
-import { pieceUrl } from "@/lib/offprints/site";
+import { OFFPRINTS_OG_IMAGE, pieceUrl } from "@/lib/offprints/site";
 
 // Only the visible pieces exist: every other slug, a draft on a production
 // build included, is a 404 (dynamicParams = false), never rendered on demand.
@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: piece.title,
     description: piece.claim,
     alternates: { canonical: pieceUrl(piece.slug) },
-    openGraph: { url: pieceUrl(piece.slug), title: piece.title, description: piece.claim },
+    openGraph: { url: pieceUrl(piece.slug), title: piece.title, description: piece.claim, images: [OFFPRINTS_OG_IMAGE] },
   };
 }
 

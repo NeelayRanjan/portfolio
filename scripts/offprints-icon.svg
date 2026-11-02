@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Offprints' mark: a sheet of paper with its top-left corner folded.
+       Tokens: paper #efebe3, paper-under #e6e1d7, flap #d8d2c5, ink #1d1b17. -->
+  <rect x="0.5" y="0.5" width="63" height="63" fill="#efebe3" stroke="#1d1b17" stroke-width="1"/>
+  <path d="M0 0H22L0 22Z" fill="#e6e1d7"/>
+  <path d="M22 0V22H0Z" fill="#d8d2c5" stroke="#1d1b17" stroke-width="1" stroke-linejoin="miter"/>
+</svg>

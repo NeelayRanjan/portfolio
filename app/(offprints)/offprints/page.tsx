@@ -6,7 +6,7 @@ import { componentFor } from "@/components/offprints/pieces";
 import { IndexPage } from "@/components/offprints/IndexPage";
 import { Shell } from "@/components/offprints/Shell";
 import { latestPiece, visiblePieces } from "@/lib/offprints/pieces";
-import { pieceUrl } from "@/lib/offprints/site";
+import { OFFPRINTS_OG_IMAGE, pieceUrl } from "@/lib/offprints/site";
 
 /**
  * The Offprints root: the latest visible piece (spec §4). Its canonical is
@@ -23,7 +23,7 @@ export function generateMetadata(): Metadata {
     title: { absolute: `${piece.title} · ${shell.meta.siteName}` },
     description: piece.claim,
     alternates: { canonical: pieceUrl(piece.slug) },
-    openGraph: { url: pieceUrl(piece.slug), title: piece.title, description: piece.claim },
+    openGraph: { url: pieceUrl(piece.slug), title: piece.title, description: piece.claim, images: [OFFPRINTS_OG_IMAGE] },
   };
 }
 

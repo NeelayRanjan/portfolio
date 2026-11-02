@@ -7267,6 +7267,47 @@ async function checkOffprintsPeel(browser) {
 /* ---------------------------------------------------------------------- */
 
 const OP_SITE = "https://offprints.neelayranjan.dev";
+/**
+ * offprints-feed: /feed.xml on the Offprints host is 200, served as
+ * application/atom+xml, a single Atom <feed> with the canonical self and
+ * alternate links, and one <entry> per VISIBLE piece, each naming its piece URL
+ * on the canonical host. Env knob OFFPRINTS_EXPECT_ENTRIES (default 2: a local
+ * build shows both drafts; use 0 against a VERCEL_ENV=production build, where
+ * drafts are hidden and the feed must carry none). Proved to bite by building
+ * the route with PIECES instead of visiblePieces under VERCEL_ENV=production.
+ */
+async function checkOffprintsFeed(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    const expect = Number(process.env.OFFPRINTS_EXPECT_ENTRIES ?? 2);
+    const res = await page.request.get(`${OFFPRINTS_BASE}/feed.xml`);
+    const type = res.headers()["content-type"] ?? "";
+    const xml = await res.text();
+    if (res.status() !== 200 || !type.startsWith("application/atom+xml")) {
+      throw new Error(`/feed.xml: ${res.status()} ${type}`);
+    }
+    const n = (t) => xml.split(t).length - 1;
+    if (n("<feed ") !== 1 || n("</feed>") !== 1) throw new Error("not exactly one <feed>");
+    for (const needle of [
+      `<link rel="self" href="https://offprints.neelayranjan.dev/feed.xml"/>`,
+      `<link rel="alternate" href="https://offprints.neelayranjan.dev/"/>`,
+      "<author><name>Neelay Ranjan</name></author>",
+    ]) {
+      if (!xml.includes(needle)) throw new Error(`feed lacks ${needle}`);
+    }
+    if (n("<entry>") !== expect || n("</entry>") !== expect) {
+      throw new Error(`${n("<entry>")} entries, expected ${expect}`);
+    }
+    const ids = [...xml.matchAll(/<entry>\s*<id>([^<]+)<\/id>/g)].map((m) => m[1]);
+    const want = expect === 2
+      ? ["https://offprints.neelayranjan.dev/hybrid-attention", "https://offprints.neelayranjan.dev/test-sheet"]
+      : [];
+    if (JSON.stringify(ids) !== JSON.stringify(want)) {
+      throw new Error(`entry ids ${JSON.stringify(ids)}, expected ${JSON.stringify(want)}`);
+    }
+    return `/feed.xml is application/atom+xml with ${expect} entries${want.length ? " (newest first)" : ""}`;
+  });
+}
+
 const OP_ICONS = [
   { rel: "icon", href: "/offprints/icons/favicon.ico", type: "image/x-icon", sizes: "16x16 32x32" },
   { rel: "icon", href: "/offprints/icons/icon-192.png", type: "image/png", sizes: "192x192" },
@@ -7397,6 +7438,7 @@ const CHECKS = [
   ["lab-box-navigates", checkLabBoxNavigates],
   ["search-basics", checkSearchBasics],
   ["offprints-search", checkOffprintsSearch],
+  ["offprints-feed", checkOffprintsFeed],
   ["resume-pdf", checkResumePdf],
   ["stamp-no-link-ancestor", checkStampNoLinkAncestor],
   ["references-lab-link-resolves", checkReferencesLabLinkResolves],

@@ -7441,9 +7441,58 @@ async function checkOffprintsSearch(browser) {
  * touch: no horizontal scroll, the chips wrap, the three definitions stack
  * in one column.
  *
+ * Every chip's text clears 4.5:1 on its own background (spec §5), read from
+ * getComputedStyle and resolved to sRGB in the page: at rest, after the
+ * "cat" click, and then for every one of the 15 selections. Contrast
+ * failures are collected and thrown together at the end of the desktop
+ * pass, so one run names every failing chip.
+ *
  * Proved to bite: the readout's {to} hard-coded to "fence" whatever is
- * selected fails the "cat" step ("after clicking cat the readout is ...").
+ * selected fails the "cat" step ("after clicking cat the readout is ...");
+ * the old single tint curve (paper text above 0.45, no 40% cap on the light
+ * regime) fails the contrast sweep, naming "fence" under "through" (w 0.687).
  */
+async function opFig1Contrast(page, FIG) {
+  return page.evaluate((FIG) => {
+    const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+    const rgba = (c) => {
+      ctx.clearRect(0, 0, 1, 1);
+      ctx.fillStyle = "#010203";
+      ctx.fillStyle = c;
+      ctx.fillRect(0, 0, 1, 1);
+      const px = ctx.getImageData(0, 0, 1, 1).data;
+      if (px[0] === 1 && px[1] === 2 && px[2] === 3) throw new Error(`unparseable colour ${c}`);
+      return px;
+    };
+    const lum = (px) => {
+      const f = (v) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+      return 0.2126 * f(px[0]) + 0.7152 * f(px[1]) + 0.0722 * f(px[2]);
+    };
+    // A transparent chip (a future token) shows its nearest painted ancestor.
+    const bgOf = (el) => {
+      for (let e = el; e; e = e.parentElement) {
+        const c = getComputedStyle(e).backgroundColor;
+        if (rgba(c)[3] === 255) return c;
+      }
+      return getComputedStyle(document.documentElement).backgroundColor;
+    };
+    const chips = [...document.querySelectorAll(`${FIG} [data-op-chip]`)];
+    const asking = chips.find((c) => c.getAttribute("aria-pressed") === "true")?.textContent;
+    const fails = [];
+    for (const c of chips) {
+      const fg = getComputedStyle(c).color;
+      const bg = bgOf(c);
+      const a = lum(rgba(fg));
+      const b = lum(rgba(bg));
+      const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+      if (ratio < 4.5) {
+        fails.push(`"${c.textContent}" (${c.title || "asking"}) ${fg} on ${bg} = ${ratio.toFixed(2)}:1, "${asking}" asking`);
+      }
+    }
+    return fails;
+  }, FIG);
+}
+
 const OP_FIG1 = JSON.parse(
   readFileSync(new URL("../content/offprints/hybrid-attention/figure1.json", import.meta.url), "utf8"),
 );
@@ -7539,8 +7588,10 @@ async function checkOffprintsFigure1(browser) {
     if (st.readout !== want0) throw new Error(`readout ${JSON.stringify(st.readout)}, expected ${JSON.stringify(want0)}`);
     if (st.undo !== 0) throw new Error("undo shows before any change");
     notes.push(`"it" asks, outlined in q; "fence" darkest; readout "${want0}"; no undo at rest`);
+    const contrastFails = new Set(await opFig1Contrast(page, FIG));
 
     await page.locator(`${FIG} [data-op-chip]`).nth(CAT).click();
+    for (const f of await opFig1Contrast(page, FIG)) contrastFails.add(f);
     st = await state(page);
     const wantCat = opFig1Expect(CAT);
     if (st.readout !== wantCat) throw new Error(`after clicking cat the readout is ${JSON.stringify(st.readout)}, expected ${JSON.stringify(wantCat)}`);
@@ -7562,6 +7613,15 @@ async function checkOffprintsFigure1(browser) {
     const n = await used(page);
     if (n !== 1) throw new Error(`demo_used{offprints/hybrid-attention/figure-1} queued ${n}x after two activations, expected 1`);
     notes.push(`Enter on dog: "${wantDog}"; demo_used once`);
+
+    // Contrast for every selection, after the analytics count (these clicks
+    // would not add events anyway: once per load).
+    for (let i = 0; i < T; i++) {
+      await page.locator(`${FIG} [data-op-chip]`).nth(i).click();
+      for (const f of await opFig1Contrast(page, FIG)) contrastFails.add(f);
+    }
+    if (contrastFails.size) throw new Error(`chip text under 4.5:1: ${[...contrastFails].join("; ")}`);
+    notes.push(`every chip >= 4.5:1 in all ${T} selections`);
   });
 
   await withPage(browser, { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: false }, async (page) => {

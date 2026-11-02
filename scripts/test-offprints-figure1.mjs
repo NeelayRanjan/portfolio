@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { bestKey, fillReadout, pctOf, readoutParts, tintWidth } from "../lib/offprints/figure1.ts";
+import { bestKey, fillReadout, paperText, pctOf, readoutParts, tintWidth } from "../lib/offprints/figure1.ts";
 
 const DATA = JSON.parse(
   readFileSync(new URL("../content/offprints/hybrid-attention/figure1.json", import.meta.url), "utf8"),
@@ -13,10 +13,19 @@ test("0.896 rounds to 90", () => {
   assert.equal(pctOf(0.504), "50");
 });
 
-test("tint width for w = 0.896 is 6 + 0.896^0.6 * 100, capped at 92", () => {
-  assert.equal(tintWidth(0.896), 92); // 6 + 93.62 caps
-  assert.ok(Math.abs(tintWidth(0.25) - (6 + Math.pow(0.25, 0.6) * 100)) < 1e-9);
+test("tint width has two regimes: min(40, 6 + w^0.6 * 100) below 0.45, a solid 92 from it", () => {
+  assert.equal(tintWidth(0.896), 92);
+  assert.equal(tintWidth(0.687), 92);
+  assert.equal(tintWidth(0.45), 92);
+  assert.equal(tintWidth(0.25), 40); // 6 + 43.5 caps at 40
+  assert.ok(Math.abs(tintWidth(0.05) - (6 + Math.pow(0.05, 0.6) * 100)) < 1e-9);
   assert.equal(tintWidth(0), 6);
+});
+
+test("paper text exactly in the solid regime", () => {
+  assert.equal(paperText(0.4499), false);
+  assert.equal(paperText(0.45), true);
+  assert.equal(paperText(0.896), true);
 });
 
 test("the best key is taken over the causal prefix only", () => {

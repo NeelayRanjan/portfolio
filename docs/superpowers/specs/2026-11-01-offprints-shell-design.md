@@ -126,8 +126,9 @@ Rules
   be measured and darkened if it misses. The three role hues must clear AA as
   text and pass the dataviz skill's palette validator for colour-vision
   deficiency (`scripts/validate_palette.js`) as a categorical set, before the
-  first piece ships. A single sequential ramp for "how much" (attention
-  weight, memory strength) is ink mixed into paper; it is the only ramp.
+  first piece ships. A sequential ramp for "how much" is the role's own hue
+  mixed into paper (Figure 1 uses the K green), in two regimes so chip text
+  always clears AA; there is no other ramp.
 - Grain: the portfolio's SVG fractal-noise tile (256px, baseFrequency 0.8,
   3 octaves, `color-interpolation-filters="sRGB"`), with the colour matrix set
   so each channel is the surface token plus 0.1 x (noise - 0.5), one tile for

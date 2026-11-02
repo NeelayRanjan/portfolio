@@ -1,12 +1,26 @@
 // Pure helpers behind No. 1's Figure 1 (Figure1Attention.tsx). No imports,
 // so plain node can test them (scripts/test-offprints-figure1.mjs).
 
-/** Above this weight a tinted chip's text turns paper (the tint is dark). */
+/**
+ * Two regimes so every chip's text clears AA (controller ruling, Task 10
+ * fix round; spec §5). Below TEXT_FLIP: ink text on at most 40% of k in
+ * paper (ink on the 40% mix reads ~7.7:1). At or above it: paper text on the
+ * solid 92% mix (~4.6:1 with k #146b55). A single curve flipping at 0.45 left
+ * paper text at 2.9-4.2:1 between 0.45 and 0.85.
+ */
 export const TEXT_FLIP = 0.45;
+export const LIGHT_CAP = 40;
+export const SOLID = 92;
 
-/** Percent of k mixed into paper for a key of weight w: min(92, 6 + w^0.6 * 100). */
+/** Whether a key of weight w carries paper text (the solid regime). */
+export function paperText(w: number): boolean {
+  return w >= TEXT_FLIP;
+}
+
+/** Percent of k mixed into paper for a key of weight w. */
 export function tintWidth(w: number): number {
-  return Math.min(92, 6 + Math.pow(Math.max(0, w), 0.6) * 100);
+  if (paperText(w)) return SOLID;
+  return Math.min(LIGHT_CAP, 6 + Math.pow(Math.max(0, w), 0.6) * 100);
 }
 
 /** The key the query at `sel` weighs most, over its causal prefix 0..sel (first on a tie). */

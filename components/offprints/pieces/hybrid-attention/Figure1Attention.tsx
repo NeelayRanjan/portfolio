@@ -5,7 +5,7 @@ import type { hybridAttention } from "@/content/offprints/hybrid-attention";
 import { Definition } from "@/components/offprints/Definition";
 import { useUndo } from "@/components/offprints/useUndo";
 import { trackDemoOnce } from "@/lib/track";
-import { bestKey, pctOf, readoutParts, tintWidth, TEXT_FLIP } from "@/lib/offprints/figure1";
+import { bestKey, paperText, pctOf, readoutParts, tintWidth } from "@/lib/offprints/figure1";
 
 export type Figure1Data = {
   model: string;
@@ -88,7 +88,7 @@ export function Figure1Attention({ data, copy }: { data: Figure1Data; copy: Copy
                 tinted
                   ? {
                       background: `color-mix(in oklab, var(--color-k) ${tintWidth(w)}%, var(--color-paper))`,
-                      color: w > TEXT_FLIP ? "var(--color-paper)" : undefined,
+                      color: paperText(w) ? "var(--color-paper)" : undefined,
                     }
                   : undefined
               }

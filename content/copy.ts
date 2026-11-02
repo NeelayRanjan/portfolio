@@ -166,6 +166,11 @@ export const copy = {
     supplementLabel: "Supplementary material",
     supplementContents:
       "diffusion trajectories · MAE vs I-JEPA · a day of synthesized flight plans · SDEdit on MNIST",
+    /** The door to Offprints (the second site, offprints.neelayranjan.dev),
+     *  a bordered box under the lab box. Under the label the box prints the
+     *  newest visible piece's claim; `lead` stands in only when there is none
+     *  (a production build with nothing published). */
+    offprintsBox: { label: "Offprints", lead: "Recent favorite ideas, drawn." },
     date: "September 2026",
     /** The in-page contents line under the abstract (2026-10-26 audit: the
      *  page runs ~5,800px on a desktop and ~12,600px on a phone, and
@@ -1004,6 +1009,7 @@ export const copy = {
       { label: "LinkedIn", href: "https://linkedin.com/in/neelayranjan" },
       { label: "Email", href: `mailto:${EMAIL}` },
       { label: "Supplementary material", href: "/lab" },
+      { label: "Offprints", href: "https://offprints.neelayranjan.dev" },
     ],
   },
 

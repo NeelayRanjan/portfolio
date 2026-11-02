@@ -39,6 +39,7 @@ import { register } from "node:module";
 import { EMISSION_LINE_COLOUR, SKY_FACTS } from "../content/sky-facts.ts";
 import { EDGE_DEC_DEG, moonEquatorial, planetEquatorial } from "../lib/sky-math.ts";
 import { copy } from "../content/copy.ts";
+import { PIECES as OFFPRINTS_PIECES } from "../content/offprints/pieces.ts";
 import { SITE } from "../lib/site.ts";
 import { fitLower48, fromScreen, toScreen } from "../components/figures/reroute-map.ts";
 import { albers } from "../lib/slaac/albers.ts";
@@ -1337,9 +1338,10 @@ async function checkStampNoLinkAncestor(browser) {
 
 async function checkReferencesLabLinkResolves(browser) {
   const items = copy.references.items;
-  const last = items[items.length - 1];
-  if (last.href !== "/lab") {
-    throw new Error(`References' last item is ${JSON.stringify(last)}, expected the supplementary-material entry with href "/lab"`);
+  // The supplementary-material entry, wherever it sits (Offprints follows it).
+  const last = items.find((it) => it.href === "/lab");
+  if (!last) {
+    throw new Error(`References has no entry with href "/lab": ${JSON.stringify(items.map((it) => it.href))}`);
   }
   const res = await fetch(`${BASE}${last.href}`);
   if (res.status !== 200) throw new Error(`GET ${BASE}${last.href} returned ${res.status}, expected 200`);
@@ -1351,7 +1353,7 @@ async function checkReferencesLabLinkResolves(browser) {
       last.label,
     );
     if (!inReferences) throw new Error(`References' list has no <a> reading ${JSON.stringify(last.label)}`);
-    return `References' last entry ("${last.label}" -> ${last.href}) rendered as a link and GET ${last.href} returned 200`;
+    return `References' lab entry ("${last.label}" -> ${last.href}) rendered as a link and GET ${last.href} returned 200`;
   });
 }
 
@@ -7725,6 +7727,131 @@ async function checkOffprintsFigure1(browser) {
   return notes.join("; ");
 }
 
+/**
+ * offprints-400: Offprints at a phone's width and without JavaScript.
+ * 390x800 with touch: no horizontal scroll on a piece; a finger drag on the
+ * ear (touch pointer events) follows the finger to the far corner and
+ * springs back on release; a tap opens the index, which also fits 390px and
+ * lists both titles. Then JS off on /all: both titles are in the HTML and
+ * the ear is a plain link whose server-rendered href is /offprints/all.
+ */
+async function checkOffprints400(browser) {
+  const notes = [];
+  const url = `${OFFPRINTS_BASE}/hybrid-attention`;
+  await withPage(browser, { viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true }, async (page) => {
+    await page.goto(url, { waitUntil: "load" });
+    await page.waitForFunction(() => !!window.__offprints, null, { timeout: 5000 });
+    const sw = await page.evaluate(() => document.documentElement.scrollWidth);
+    if (sw > 390) throw new Error(`the piece scrolls sideways at 390px: scrollWidth ${sw}`);
+    const fire = (type, x, y) =>
+      page.evaluate(
+        ([type, x, y]) => {
+          document.querySelector("[data-op-ear]").dispatchEvent(
+            new PointerEvent(type, {
+              bubbles: true,
+              cancelable: true,
+              pointerId: 7,
+              pointerType: "touch",
+              isPrimary: true,
+              clientX: x,
+              clientY: y,
+              button: 0,
+              buttons: type === "pointerup" ? 0 : 1,
+            }),
+          );
+        },
+        [type, x, y],
+      );
+    const snap = (p) => p.evaluate(() => ({ cut: window.__offprints.cut, open: window.__offprints.open }));
+    await page.waitForFunction(() => window.__offprints.cut === 40, null, { timeout: 5000 });
+    await fire("pointerdown", 8, 8);
+    for (let i = 1; i <= 8; i++) await fire("pointermove", 8 + (192 * i) / 8, 8 + (152 * i) / 8);
+    const held = (await snap(page)).cut;
+    if (Math.abs(held - 360) > 10) throw new Error(`a finger at (200,160) cut ${held}, not within 10 of 360`);
+    await fire("pointerup", 200, 160);
+    try {
+      await page.waitForFunction(() => window.__offprints.cut === 40 && !window.__offprints.open, null, { timeout: 3000 });
+    } catch {
+      throw new Error(`release did not return to rest: ${JSON.stringify(await snap(page))}`);
+    }
+    notes.push(`finger drag cut ${held.toFixed(0)}, released to 40`);
+    await page.touchscreen.tap(8, 8);
+    try {
+      await page.waitForFunction(() => window.__offprints.open === true, null, { timeout: 3000 });
+    } catch {
+      throw new Error(`a tap did not open the index: ${JSON.stringify(await snap(page))}`);
+    }
+    const open = await page.evaluate(() => {
+      const nav = document.querySelector("[data-op-index]");
+      return { sw: document.documentElement.scrollWidth, navSw: nav.scrollWidth, text: nav.textContent };
+    });
+    if (open.sw > 390 || open.navSw > 390) throw new Error(`the open index overflows 390px: page ${open.sw}, nav ${open.navSw}`);
+    for (const title of ["Hybrid attention", "A test sheet"])
+      if (!open.text.includes(title)) throw new Error(`the open index lacks "${title}": ${open.text.slice(0, 200)}`);
+    notes.push(`tap opened; index width ${open.navSw}`);
+  });
+  await withPage(browser, { viewport: { width: 390, height: 800 }, javaScriptEnabled: false }, async (page) => {
+    // /all is the index itself (no ear there); a piece carries the ear.
+    await page.goto(`${OFFPRINTS_BASE}/all`, { waitUntil: "load" });
+    const allText = await page.evaluate(() => document.body.textContent);
+    for (const title of ["Hybrid attention", "A test sheet"])
+      if (!allText.includes(title)) throw new Error(`without JS, /all lacks "${title}"`);
+    await page.goto(`${OFFPRINTS_BASE}/hybrid-attention`, { waitUntil: "load" });
+    const r = await page.evaluate(() => ({
+      href: document.querySelector("[data-op-ear]")?.getAttribute("href") ?? null,
+      tag: document.querySelector("[data-op-ear]")?.tagName ?? null,
+    }));
+    if (r.tag !== "A" || r.href !== "/offprints/all")
+      throw new Error(`without JS the ear is ${r.tag} href ${JSON.stringify(r.href)}, not A /offprints/all`);
+    notes.push(`no-JS: /all lists both titles, piece ear href ${r.href}`);
+  });
+  return notes.join("; ");
+}
+
+/**
+ * offprints-door: page 1's bordered Offprints box under the lab box, and
+ * the References entry. A local build shows drafts, so the box prints the
+ * newest piece's claim from the registry.
+ */
+async function checkOffprintsDoor(browser) {
+  const hyb = OFFPRINTS_PIECES.find((p) => p.slug === "hybrid-attention");
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.goto(BASE + "/", { waitUntil: "load" });
+    const r = await page.evaluate(() => {
+      const boxes = [...document.querySelectorAll("[data-offprints-box]")];
+      const lab = document.querySelector("[data-lab-box]");
+      const b = boxes[0];
+      return {
+        n: boxes.length,
+        after: !!(b && lab && lab.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING),
+        text: b?.textContent ?? "",
+        href: b?.getAttribute("href"),
+        label: b?.getAttribute("data-track-label"),
+        refs: [...document.querySelectorAll("#references ~ ol a")].map((a) => a.textContent.trim()),
+      };
+    });
+    if (r.n !== 1) throw new Error(`expected one [data-offprints-box], found ${r.n}`);
+    if (!r.after) throw new Error("the Offprints box does not follow the lab box in DOM order");
+    if (!r.text.includes("Offprints")) throw new Error(`box text lacks "Offprints": ${JSON.stringify(r.text)}`);
+    if (r.href !== "https://offprints.neelayranjan.dev") throw new Error(`box href is ${r.href}`);
+    if (r.label !== "Offprints") throw new Error(`box data-track-label is ${r.label}`);
+    if (!r.text.includes(hyb.claim)) throw new Error(`box does not print the claim: ${JSON.stringify(r.text)}`);
+    if (!r.refs.includes("Offprints")) throw new Error(`References has no "Offprints" link: ${JSON.stringify(r.refs)}`);
+    await page.route("https://offprints.neelayranjan.dev/**", (route) => route.abort());
+    await page.locator("[data-offprints-box]").click({ noWaitAfter: true });
+    const ev = await page.evaluate(
+      () =>
+        (window.vaq ?? []).filter(([k, e]) => k === "event" && e?.name === "outbound_link" && e?.data?.label === "Offprints")
+          .length,
+    );
+    if (ev !== 1) throw new Error(`expected one outbound_link{Offprints}, queued ${ev}`);
+    const res = await page.request.get(BASE + "/og.png");
+    const size = pngSize(await res.body());
+    if (!size || size.w !== 1200 || size.h !== 630) throw new Error(`/og.png is ${JSON.stringify(size)}, not 1200x630`);
+    return `one box after the lab box, href and label right, claim printed, References link, one outbound_link, og.png ${size.w}x${size.h}`;
+  });
+}
+
 const CHECKS = [
   ["sky-animates-1280", skyAnimatesAt1280],
   ["sky-static-reduced-motion", skyStaticUnderReducedMotion],
@@ -7786,6 +7913,8 @@ const CHECKS = [
   ["stargaze-chrome", checkStargazeChrome],
   ["stargaze-secret-door", checkStargazeSecretDoor],
   ["offprints-peel", checkOffprintsPeel],
+  ["offprints-400", checkOffprints400],
+  ["offprints-door", checkOffprintsDoor],
 ];
 
 async function main() {

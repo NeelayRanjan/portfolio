@@ -4,6 +4,8 @@ import { Stamp } from "@/components/manuscript/Stamp";
 import { HeadshotFigure } from "@/components/figures/HeadshotFigure";
 import { TrackedLink } from "@/components/manuscript/TrackedLink";
 import { copy } from "@/content/copy";
+import { PIECES } from "@/content/offprints/pieces";
+import { latestPiece } from "@/lib/offprints/pieces";
 
 /**
  * The masthead: paper title, affiliation, the identity links, the
@@ -24,6 +26,9 @@ import { copy } from "@/content/copy";
  */
 export function Masthead() {
   const t = copy.masthead;
+  // Server component: a production build prints only a published piece's
+  // claim (latestPiece hides drafts there), else the static lead.
+  const latest = latestPiece(PIECES, process.env.VERCEL_ENV);
 
   return (
     <Row
@@ -50,6 +55,22 @@ export function Masthead() {
               {t.supplementContents}
             </span>
           </Link>
+          <TrackedLink
+            href="https://offprints.neelayranjan.dev"
+            label="Offprints"
+            data-offprints-box
+            className="group block w-full border border-rule px-3.5 py-3 transition-colors hover:border-mut focus-visible:border-mut"
+          >
+            <span className="flex items-baseline gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-ink transition-colors group-hover:text-link group-focus-visible:text-link">
+              {t.offprintsBox.label}
+              <span aria-hidden className="inline-block transition-transform group-hover:translate-x-0.5 group-focus-visible:translate-x-0.5">
+                &rarr;
+              </span>
+            </span>
+            <span className="mt-1.5 block text-[12.5px] leading-snug text-mut">
+              {latest ? latest.claim : t.offprintsBox.lead}
+            </span>
+          </TrackedLink>
           <span className="block font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-mut">
             {t.date}
           </span>

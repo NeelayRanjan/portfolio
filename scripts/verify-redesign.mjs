@@ -7441,7 +7441,9 @@ async function checkOffprintsSearch(browser) {
  * touch: no horizontal scroll, the chips wrap, the three definitions stack
  * in one column.
  *
- * Every chip's text clears 4.5:1 on its own background (spec §5), read from
+ * The not-yet-seen chips are opaque mut text on plain paper with a dashed
+ * rule border (active text, so no opacity fade). Every chip's text, those
+ * included, clears 4.5:1 on its own background (spec §5), read from
  * getComputedStyle and resolved to sRGB in the page: at rest, after the
  * "cat" click, and then for every one of the 15 selections. Contrast
  * failures are collected and thrown together at the end of the desktop
@@ -7548,6 +7550,10 @@ async function checkOffprintsFigure1(browser) {
             bg,
             lum: 0.2126 * bg.r + 0.7152 * bg.g + 0.0722 * bg.b,
             opacity: cs.opacity,
+            color: cs.color,
+            borderStyle: cs.borderTopStyle,
+            borderColor: cs.borderTopColor,
+            bgRaw: cs.backgroundColor,
             title: c.title,
             top: c.getBoundingClientRect().top,
           };
@@ -7583,7 +7589,27 @@ async function checkOffprintsFigure1(browser) {
     if (st.chips[5].title !== offprintsHybrid.figure1.weight.replace("{w}", "0.896")) {
       throw new Error(`"fence" title ${JSON.stringify(st.chips[5].title)} does not show its weight`);
     }
-    if (st.chips[14].opacity !== "0.35") throw new Error(`the future chip "." has opacity ${st.chips[14].opacity}`);
+    {
+      // The not-yet-seen chip is active text: opaque mut on plain paper, a
+      // dashed rule border, no tint (it stays clickable).
+      const tok = await page.evaluate((FIG) => {
+        const fig = document.querySelector(FIG);
+        const read = (v) => {
+          const e = document.createElement("span");
+          e.style.color = `var(${v})`;
+          fig.appendChild(e);
+          const c = getComputedStyle(e).color;
+          e.remove();
+          return c;
+        };
+        return { mut: read("--color-mut"), paper: read("--color-paper"), rule: read("--color-rule") };
+      }, FIG);
+      const f = st.chips[14];
+      if (f.opacity !== "1" || f.color !== tok.mut || f.bgRaw !== tok.paper || f.borderStyle !== "dashed" || f.borderColor !== tok.rule) {
+        throw new Error(`the future chip "." reads ${JSON.stringify({ opacity: f.opacity, color: f.color, bg: f.bgRaw, border: `${f.borderStyle} ${f.borderColor}` })}, expected opaque ${tok.mut} on ${tok.paper}, dashed ${tok.rule}`);
+      }
+      if (f.title !== offprintsHybrid.figure1.future) throw new Error(`the future chip title is ${JSON.stringify(f.title)}`);
+    }
     const want0 = opFig1Expect(IT);
     if (st.readout !== want0) throw new Error(`readout ${JSON.stringify(st.readout)}, expected ${JSON.stringify(want0)}`);
     if (st.undo !== 0) throw new Error("undo shows before any change");

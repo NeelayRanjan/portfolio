@@ -31,7 +31,8 @@ const VALUE_BAR = 55; // fixed: the value is what gets handed back
  * data.defaultHead) reading the cat sentence, with the weights extracted from
  * the model (figure1.json, derived by scripts/offprints/derive-hybrid-
  * attention.mjs). Click a token to ask from it: every token it has already
- * seen is tinted by the weight it gets; the ones after it are faded, since a
+ * seen is tinted by the weight it gets; the ones after it are plain mut with a
+ * dashed border (still active text, so no opacity fade), since a
  * causal head cannot look ahead. Every number on screen is read from the
  * json, never computed from a stand-in.
  */
@@ -79,11 +80,13 @@ export function Figure1Attention({ data, copy }: { data: Figure1Data; copy: Copy
               aria-pressed={asking}
               onClick={() => pick(j)}
               title={future ? f.future : asking ? undefined : f.weight.replace("{w}", String(w))}
-              className={`rounded-none border p-2 font-mono text-[16px] leading-none text-ink ${
+              className={`rounded-none border p-2 font-mono text-[16px] leading-none ${
                 asking
-                  ? "border-transparent bg-paper outline-2 outline-q outline-solid focus-visible:shadow-[0_0_0_4px_var(--color-paper),0_0_0_6px_var(--color-ink)]"
-                  : "border-rule"
-              } ${future ? "opacity-35" : ""}`}
+                  ? "border-transparent bg-paper text-ink outline-2 outline-q outline-solid focus-visible:shadow-[0_0_0_4px_var(--color-paper),0_0_0_6px_var(--color-ink)]"
+                  : future
+                    ? "border-dashed border-rule bg-paper text-mut"
+                    : "border-rule text-ink"
+              }`}
               style={
                 tinted
                   ? {

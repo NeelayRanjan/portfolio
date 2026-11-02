@@ -7,6 +7,7 @@ import {
   pieceBySlug,
   numberLabel,
   monthYear,
+  dayMonthYear,
 } from "../lib/offprints/pieces.ts";
 import { pieceUrl } from "../lib/offprints/site.ts";
 
@@ -59,6 +60,8 @@ test("labels", () => {
   assert.equal(numberLabel(1), "No. 1");
   assert.equal(numberLabel(0), "No. 0");
   assert.equal(monthYear("2026-11-01"), "November 2026");
+  assert.equal(dayMonthYear("2026-11-01"), "1 Nov 2026");
+  assert.equal(dayMonthYear("2027-09-30"), "30 Sep 2027");
 });
 
 test("registry shape", () => {

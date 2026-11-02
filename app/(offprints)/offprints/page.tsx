@@ -1,0 +1,33 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { PIECES } from "@/content/offprints/pieces";
+import { shell } from "@/content/offprints/shell";
+import { componentFor } from "@/components/offprints/pieces";
+import { latestPiece } from "@/lib/offprints/pieces";
+import { pieceUrl } from "@/lib/offprints/site";
+
+/**
+ * The Offprints root: the latest visible piece (spec §4). Its canonical is
+ * the piece's own URL, so the root never competes with it in search. With
+ * no visible piece (a production build before the first piece is
+ * published) it is a 404, never an empty sheet (spec §10.1).
+ */
+export function generateMetadata(): Metadata {
+  const piece = latestPiece(PIECES, process.env.VERCEL_ENV);
+  if (!piece) return {};
+  return {
+    // A layout's title template skips a page in its own segment, so the
+    // root spells the template out itself ("Hybrid attention · Offprints").
+    title: { absolute: `${piece.title} · ${shell.meta.siteName}` },
+    description: piece.claim,
+    alternates: { canonical: pieceUrl(piece.slug) },
+    openGraph: { url: pieceUrl(piece.slug), title: piece.title, description: piece.claim },
+  };
+}
+
+export default function OffprintsHome() {
+  const piece = latestPiece(PIECES, process.env.VERCEL_ENV);
+  if (!piece) notFound();
+  const Body = componentFor(piece);
+  return <Body piece={piece} />;
+}

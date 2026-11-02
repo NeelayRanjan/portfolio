@@ -23,6 +23,11 @@ export const shell = {
     home: "neelayranjan.dev",
   },
   piece: {
+    author: "Neelay Ranjan",
+    affiliation: "neelayranjan.dev",
+    // The cite block's author, in the reference style the block uses.
+    citeAuthor: "Ranjan, N.",
+    figure: "Figure",
     abstract: "Abstract",
     references: "References",
     cite: "cite this piece",

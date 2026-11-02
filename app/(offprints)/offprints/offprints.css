@@ -1,0 +1,60 @@
+/* Offprints' own Tailwind entry, imported only by the Offprints root layout
+   (app/(offprints)/offprints/layout.tsx), so none of the portfolio's dark
+   tokens or globals reach it. Light only: the paper is the design (spec §5). */
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #efebe3;
+  --color-paper-under: #e6e1d7;
+  --color-fill: #e7e2d8;
+  --color-ink: #1d1b17;
+  --color-mut: #625d54;
+  --color-rule: #cbc5b8;
+  --color-link: #0B5394;
+  --color-stamp: #b9311f;
+  --color-q: #3f55c9;
+  --color-k: #1e8468;
+  --color-v: #b86a12;
+  --font-serif: var(--font-stix);
+  --font-mono: var(--font-spline-mono);
+}
+
+@layer base {
+  html { background: var(--color-paper); color-scheme: light; }
+  body {
+    color: var(--color-ink);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible { outline: 2px solid var(--color-ink); outline-offset: 2px; }
+  /* main takes focus only so the next Tab starts inside it. */
+  main:focus-visible { outline: none; }
+  a { color: var(--color-link); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 2px; }
+  h1, h2, h3, h4 { letter-spacing: -0.01em; }
+}
+
+/* Small capitals for keyword labels (the index's stamp lines, the foot). */
+@utility sc {
+  font-variant: small-caps;
+  letter-spacing: 0.05em;
+}
+
+/* Paper grain, the portfolio's technique (app/globals.css [data-sheet]): an
+   opaque 256px fractal-noise tile whose every channel is the surface token
+   plus 0.1 x (noise - 0.5), so the mean tone stays the token and only the
+   texture is new. Offsets are surface/255 - 0.05 per channel:
+   paper #efebe3 → 0.887 0.872 0.840; paper-under #e6e1d7 → 0.852 0.833 0.793.
+   color-interpolation-filters="sRGB" is load-bearing (linearRGB greys it).
+   Re-derive the offsets if either token changes. */
+[data-op-paper] {
+  background-color: var(--color-paper);
+  background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="256" height="256"%3E%3Cfilter id="g" x="0" y="0" color-interpolation-filters="sRGB"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/%3E%3CfeColorMatrix values="0.1 0 0 0 0.887 0.1 0 0 0 0.872 0.1 0 0 0 0.840 0 0 0 0 1"/%3E%3C/filter%3E%3Crect width="256" height="256" filter="url(%23g)"/%3E%3C/svg%3E');
+  background-size: 256px 256px;
+}
+[data-op-under] {
+  background-color: var(--color-paper-under);
+  background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="256" height="256"%3E%3Cfilter id="g" x="0" y="0" color-interpolation-filters="sRGB"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/%3E%3CfeColorMatrix values="0.1 0 0 0 0.852 0.1 0 0 0 0.833 0.1 0 0 0 0.793 0 0 0 0 1"/%3E%3C/filter%3E%3Crect width="256" height="256" filter="url(%23g)"/%3E%3C/svg%3E');
+  background-size: 256px 256px;
+}

@@ -68,6 +68,10 @@ export function usePeel(currentSlug?: string) {
     hintFired: false,
     touched: false, // pressed or hovered: the hint is skipped
     pushed: false, // the history entry on top is ours
+    // This mount's history marker. Next preserves custom history state
+    // across a reload and a traversal, so a bare `opIndex: true` left by an
+    // earlier load would read as ours; only this token does.
+    token: "",
     raf: 0,
     press: null as Press | null,
     suppressClick: false,
@@ -82,6 +86,9 @@ export function usePeel(currentSlug?: string) {
   const api = useRef<ReturnType<typeof makeApi> | null>(null);
 
   function makeApi() {
+    const isOurs = (state: unknown) =>
+      s.token !== "" && (state as { opIndex?: unknown } | null)?.opIndex === s.token;
+
     const apply = (c: number) => {
       s.cut = c;
       const nav = navRef.current;
@@ -108,7 +115,9 @@ export function usePeel(currentSlug?: string) {
         cr.setAttribute("x1", String(c));
         cr.setAttribute("y2", String(c));
       }
-      const full = c >= far();
+      // Only an open the reader asked for counts: a drag past the far corner
+      // stays a peek (index inert, piece visible) until its release.
+      const full = s.expanded && c >= far();
       if (full !== s.open) {
         s.open = full;
         setOpen(full);
@@ -154,7 +163,7 @@ export function usePeel(currentSlug?: string) {
       if (!s.expanded) setExp(true);
       if (push && !s.pushed) {
         // Same URL: the entry exists so a phone's Back closes the index.
-        history.pushState({ opIndex: true }, "");
+        history.pushState({ opIndex: s.token }, "");
         s.pushed = true;
       }
       // The window may have grown while the fold travelled.
@@ -171,7 +180,7 @@ export function usePeel(currentSlug?: string) {
       setExp(false);
       // Take our entry back off the stack, so the URL never changes and Back
       // from a fresh load still leaves the site.
-      if (!fromPop && s.pushed && history.state?.opIndex) history.back();
+      if (!fromPop && s.pushed && isOurs(history.state)) history.back();
       s.pushed = false;
       // The piece is still visibility: hidden here, so it takes focus in the
       // commit that shows it again (the layout effect below).
@@ -192,8 +201,44 @@ export function usePeel(currentSlug?: string) {
       setHovering(v);
     };
 
+    // Ends the press in hand, from pointerup, pointercancel, lost capture, a
+    // stale press found by a fresh pointerdown, or a window blur. Every path
+    // clears `dragging`; only a drag settles the fold (a click's own click
+    // event toggles).
+    const endPress = (x: number | null, y: number | null, pointerType: string) => {
+      const p = s.press;
+      if (!p) return;
+      s.press = null;
+      if (s.dragging) {
+        s.dragging = false;
+        setDragging(false);
+      }
+      if (!p.drag) return;
+      // The click that follows a drag's own up is swallowed. A drag ended
+      // without its up (a blur) keeps swallowing until the next press or key,
+      // so the late up's click can't toggle the index open.
+      s.suppressClick = true;
+      if (x !== null)
+        setTimeout(() => {
+          s.suppressClick = false;
+        }, 0);
+      setHover(x !== null && y !== null && s.canHover && pointerType !== "touch" && inEar(x, y));
+      if (releaseTarget(s.cut, window.innerWidth, window.innerHeight) === "open") openIndex();
+      else if (s.expanded) closeIndex();
+      else animateTo(restValue());
+    };
+
     const onPointerDown = (e: PointerEvent<HTMLAnchorElement>) => {
       if (e.pointerType === "mouse" && e.button !== 0) return;
+      // A modified click opens /all in a new tab or window, as a link does.
+      if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+      if (s.press) {
+        // A second finger on the corner is ignored; the same pointer pressing
+        // again means its last up never arrived, so that press ends first.
+        if (s.press.id !== e.pointerId) return;
+        endPress(null, null, e.pointerType);
+      }
+      s.suppressClick = false;
       // No native link drag, no text selection, no focus-on-press.
       if (e.pointerType === "mouse") e.preventDefault();
       s.touched = true;
@@ -221,25 +266,14 @@ export function usePeel(currentSlug?: string) {
     const onPointerEnd = (e: PointerEvent<HTMLAnchorElement>) => {
       const p = s.press;
       if (!p || e.pointerId !== p.id) return;
-      s.press = null;
       // A press that never moved past the slop is a click: the click event
       // that follows toggles, so a keyboard or assistive-tech click does too.
-      if (!p.drag) return;
-      s.dragging = false;
-      setDragging(false);
-      s.suppressClick = true;
-      setTimeout(() => {
-        s.suppressClick = false;
-      }, 0);
-      setHover(s.canHover && e.pointerType !== "touch" && inEar(e.clientX, e.clientY));
-      const W = window.innerWidth;
-      const H = window.innerHeight;
-      if (releaseTarget(s.cut, W, H) === "open") openIndex();
-      else if (s.expanded) closeIndex();
-      else animateTo(restValue());
+      endPress(e.clientX, e.clientY, e.pointerType);
     };
 
     const onClick = (e: MouseEvent<HTMLAnchorElement>) => {
+      // Ctrl/Cmd/Shift or a middle click: the browser opens /all itself.
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
       e.preventDefault();
       if (s.suppressClick) {
         s.suppressClick = false;
@@ -251,6 +285,7 @@ export function usePeel(currentSlug?: string) {
     const onKeyDown = (e: KeyboardEvent<HTMLAnchorElement>) => {
       // Enter activates the link natively (a click, handled above); Space
       // would scroll the page.
+      s.suppressClick = false;
       if (e.key === " ") {
         e.preventDefault();
         toggle();
@@ -283,10 +318,12 @@ export function usePeel(currentSlug?: string) {
     };
 
     return {
+      isOurs,
       apply,
       animateTo,
       openIndex,
       closeIndex,
+      endPress,
       handlers: { onPointerDown, onPointerMove, onPointerUp: onPointerEnd, onPointerCancel: onPointerEnd, onLostPointerCapture: onPointerEnd, onClick, onKeyDown, onPointerEnter, onPointerLeave },
       onIndexClick,
     };
@@ -316,17 +353,40 @@ export function usePeel(currentSlug?: string) {
       a.animateTo(PEEL.hintTo, PEEL.hintOutMs, () => a.animateTo(PEEL.rest, PEEL.hintBackMs));
     }, PEEL.hintDelayMs);
 
+    // A marker this mount did not write (left by an earlier load and kept by
+    // Next across the reload or traversal) is scrubbed, Next's own keys kept,
+    // so a stale entry never reads as an open index under us.
+    const scrubStale = () => {
+      const st = history.state as { opIndex?: unknown } | null;
+      if (st?.opIndex !== undefined && !a.isOurs(st)) history.replaceState({ ...st, opIndex: undefined }, "");
+    };
+    s.token = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    scrubStale();
+
     const onPop = (e: PopStateEvent) => {
-      if (e.state?.opIndex) {
+      if (a.isOurs(e.state)) {
         // Forward onto our entry: reopen without pushing another.
         s.pushed = true;
         a.openIndex(false);
-      } else if (s.expanded) {
-        a.closeIndex({ fromPop: true });
-      } else {
-        s.pushed = false;
+        return;
+      }
+      scrubStale();
+      if (s.expanded) a.closeIndex({ fromPop: true });
+      else s.pushed = false;
+    };
+    // A press held through a window blur (an alt-tab mid-drag) ends as a
+    // release, so it can never leave the fold stuck to a pointer.
+    const onBlur = () => {
+      const id = s.press?.id;
+      if (id === undefined) return;
+      a.endPress(null, null, "mouse");
+      try {
+        earRef.current?.releasePointerCapture(id);
+      } catch {
+        // Capture already gone with the pointer.
       }
     };
+    window.addEventListener("blur", onBlur);
     const onKey = (e: globalThis.KeyboardEvent) => {
       if (e.key === "Escape" && s.expanded) {
         e.preventDefault();
@@ -372,6 +432,7 @@ export function usePeel(currentSlug?: string) {
       reduce.removeEventListener("change", sync);
       hover.removeEventListener("change", sync);
       window.removeEventListener("popstate", onPop);
+      window.removeEventListener("blur", onBlur);
       document.removeEventListener("keydown", onKey);
       window.removeEventListener("resize", fit);
       ro?.disconnect();

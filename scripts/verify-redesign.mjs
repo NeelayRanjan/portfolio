@@ -7007,6 +7007,10 @@ async function checkLander360(browser) {
  *    "release at exactly the threshold (880) did not open" fails.
  *  - the Shell's history.pushState on open dropped: page.goBack() leaves
  *    the page instead of closing the index, so the Back step fails.
+ *  - the history marker un-scoped (a bare `opIndex: true`, any opIndex read
+ *    as ours, no scrub on mount): after open + reload, a fresh open's Escape
+ *    goes back onto the stale entry and reopens, so "after a reload, open
+ *    then Escape did not close the index" fails.
  */
 async function checkOffprintsPeel(browser) {
   const W = 1280;
@@ -7187,6 +7191,41 @@ async function checkOffprintsPeel(browser) {
     if (s.navHidden !== "true" || s.navInert !== true) throw new Error(`the closed index is not inert again: ${JSON.stringify(s)}`);
     if (!(await page.evaluate(() => document.querySelector("main#main").__opMark === 1))) throw new Error("the piece's main was remounted");
 
+    // Next keeps custom history state across a reload, so the history
+    // marker must belong to this load: open, reload, then a fresh open and
+    // Escape must close and stay closed (a stale marker underneath used to
+    // read as ours, so Escape's history.back() landed on it and reopened).
+    const isOpen = (far) => window.__offprints?.open === true && window.__offprints.cut >= far;
+    await page.mouse.click(10, 10);
+    await waitFor(page, "a click before the reload did not open the index", isOpen, FAR);
+    await page.reload({ waitUntil: "load" });
+    await waitFor(page, "no window.__offprints hook after the reload", () => !!window.__offprints, null, 5000);
+    await page.mouse.click(10, 10);
+    await waitFor(page, "a click after the reload did not open the index", isOpen, FAR);
+    await page.keyboard.press("Escape");
+    const closedAfterReload = () =>
+      window.__offprints.open === false &&
+      document.querySelector("[data-op-ear]").getAttribute("aria-expanded") === "false" &&
+      window.__offprints.cut <= 52;
+    await waitFor(page, "after a reload, open then Escape did not close the index", closedAfterReload);
+    await page.waitForTimeout(800);
+    s = await opState(page);
+    if (s.open !== false || s.expanded !== "false" || s.path !== "/")
+      throw new Error(`after a reload, open then Escape did not stay closed: ${JSON.stringify(s)}`);
+
+    // Open, reload, Back: the reloaded entry's marker is stale, so Back
+    // stays on the piece with the index closed.
+    await page.mouse.click(10, 10);
+    await waitFor(page, "a click before the second reload did not open the index", isOpen, FAR);
+    await page.reload({ waitUntil: "load" });
+    await waitFor(page, "no window.__offprints hook after the second reload", () => !!window.__offprints, null, 5000);
+    await page.goBack();
+    if (!page.url().startsWith(url)) throw new Error(`open, reload, Back left the piece: now at ${page.url()}`);
+    await page.waitForTimeout(800);
+    s = await opState(page);
+    if (s.open !== false || s.expanded !== "false" || s.mainVis !== "visible" || s.path !== "/")
+      throw new Error(`open, reload, Back did not leave the piece closed and in place: ${JSON.stringify(s)}`);
+
     // A click (no movement) opens; Escape closes and returns focus to the ear.
     await page.mouse.click(10, 10);
     await waitFor(page, "a click on the ear did not open the index", (far) => window.__offprints.open === true && window.__offprints.cut >= far, FAR);
@@ -7202,7 +7241,7 @@ async function checkOffprintsPeel(browser) {
     s = await opState(page);
     if (s.active !== "ear") throw new Error(`focus after Escape is on ${s.active}, not the ear`);
     if (s.path !== "/") throw new Error(`the URL changed after Escape: ${s.path}`);
-    notes.push(`drag 500 → back to 40 in ${backMs}ms; 880 opens; 1400 opens, Back and Escape close with focus on the ear`);
+    notes.push(`drag 500 → back to 40 in ${backMs}ms; 880 opens; 1400 opens, Back and Escape close with focus on the ear; after a reload Escape stays closed and Back stays on the piece`);
   });
 
   // 3. Reduced motion: no hint, every change instant.

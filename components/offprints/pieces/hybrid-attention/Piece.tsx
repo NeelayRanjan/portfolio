@@ -3,11 +3,13 @@ import { hybridAttention as copy } from "@/content/offprints/hybrid-attention";
 import { Figure } from "@/components/offprints/Figure";
 import { Equation } from "@/components/offprints/Equation";
 import { PieceFrame, withCites } from "@/components/offprints/PieceFrame";
+import { Figure1Attention } from "./Figure1Attention";
+import figure1 from "@/content/offprints/hybrid-attention/figure1.json";
 
 /**
- * No. 1, Hybrid attention. Figure 1 is a placeholder box until Task 10
- * builds the real attention figure; its caption and nudge are already the
- * real copy. The displayed equation uses the Equation environment.
+ * No. 1, Hybrid attention. Figure 1 is one attention head of the model
+ * reading a sentence, from weights extracted by the derive script (see
+ * Figure1Attention). The displayed equation uses the Equation environment.
  */
 export function HybridAttentionPiece({ piece }: { piece: Piece }) {
   return (
@@ -26,9 +28,7 @@ export function HybridAttentionPiece({ piece }: { piece: Piece }) {
       }
     >
       <Figure n={1} caption={copy.figure1.caption} tryText={copy.figure1.nudge}>
-        <div className="grid h-[220px] place-items-center border border-dashed border-rule text-mut italic">
-          {copy.figure1.placeholder}
-        </div>
+        <Figure1Attention data={figure1} copy={{ figure1: copy.figure1, definitions: copy.definitions }} />
       </Figure>
     </PieceFrame>
   );

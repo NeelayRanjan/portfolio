@@ -33,11 +33,25 @@ const demosSeen = new Set<string>();
  * slider must not burn quota. Call only AFTER the work succeeds, never on the
  * button press, so a failed model load doesn't count as use.
  */
-export function trackDemoOnce(demo: "headshot" | "draw" | "chess" | "stargaze" | "slaac" | "lander", via?: StargazeVia) {
+export function trackDemoOnce(demo: DemoName, via?: StargazeVia) {
   if (demosSeen.has(demo)) return;
   demosSeen.add(demo);
   track("demo_used", via ? { demo, via } : { demo });
 }
+
+/**
+ * The portfolio's demos by name, plus any Offprints figure as
+ * "offprints/<piece>/<figure>" (one name per figure, so the dashboard can
+ * split them; still once per name per page load).
+ */
+export type DemoName =
+  | "headshot"
+  | "draw"
+  | "chess"
+  | "stargaze"
+  | "slaac"
+  | "lander"
+  | `offprints/${string}`;
 
 /**
  * Which door a visitor used into stargaze (discoverability spec §5): the

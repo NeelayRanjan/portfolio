@@ -47,6 +47,7 @@ import { planArcs, mayConflict, uniqueArcCount } from "../lib/slaac/arcs.ts";
 import { rerouteOpts } from "../lib/slaac/run.ts";
 import { fmtSigned, summarizeFlights } from "../lib/slaac/summary.ts";
 import { shell as offprintsShell } from "../content/offprints/shell.ts";
+import { hybridAttention as offprintsHybrid } from "../content/offprints/hybrid-attention.ts";
 import { PEEL as OFFPRINTS_PEEL, farCorner as offprintsFarCorner } from "../lib/offprints/peel.ts";
 
 /**
@@ -7426,6 +7427,167 @@ async function checkOffprintsSearch(browser) {
 }
 
 
+/**
+ * offprints-figure1: No. 1's Figure 1, one attention head reading the cat
+ * sentence, on the Offprints host. The expected numbers come from the
+ * committed figure1.json on disk (the same bytes the page imports), never
+ * from the page: 15 chips; "it" asks at load, outlined in the computed `q`
+ * token; "fence" carries the darkest tint among the other chips; the readout
+ * is the copy's template filled with "it", "90", "fence"; no undo before a
+ * change. A click on "cat" moves the readout to cat's own best key and
+ * brings undo; undo returns to "it" and hides itself again; Enter on a
+ * focused chip asks from it (keyboard); after two chip activations
+ * `window.vaq` holds exactly one demo_used for this figure. At 390px with
+ * touch: no horizontal scroll, the chips wrap, the three definitions stack
+ * in one column.
+ *
+ * Proved to bite: the readout's {to} hard-coded to "fence" whatever is
+ * selected fails the "cat" step ("after clicking cat the readout is ...").
+ */
+const OP_FIG1 = JSON.parse(
+  readFileSync(new URL("../content/offprints/hybrid-attention/figure1.json", import.meta.url), "utf8"),
+);
+
+function opFig1Expect(sel) {
+  const { tokens, attention } = OP_FIG1.sentence;
+  const row = attention[OP_FIG1.defaultHead][sel];
+  let best = 0;
+  for (let j = 0; j <= sel; j++) if (row[j] > row[best]) best = j;
+  return offprintsHybrid.figure1.readout
+    .replace("{from}", tokens[sel].trim())
+    .replace("{pct}", String(Math.round(row[best] * 100)))
+    .replace("{to}", tokens[best].trim());
+}
+
+async function checkOffprintsFigure1(browser) {
+  const notes = [];
+  const url = `${OFFPRINTS_BASE}/hybrid-attention`;
+  const T = OP_FIG1.sentence.tokens.length;
+  const IT = 13;
+  const CAT = 1;
+  const DOG = 9;
+  const FIG = "#fig-1";
+  const state = (page) =>
+    page.evaluate((FIG) => {
+      const fig = document.querySelector(FIG);
+      const chips = [...fig.querySelectorAll("[data-op-chip]")];
+      // Resolve any CSS colour (color-mix, oklab...) to sRGB through a canvas.
+      const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+      const rgb = (c) => {
+        ctx.clearRect(0, 0, 1, 1);
+        ctx.fillStyle = "#010203";
+        ctx.fillStyle = c;
+        ctx.fillRect(0, 0, 1, 1);
+        const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+        return { r, g, b, a, ok: !(r === 1 && g === 2 && b === 3) };
+      };
+      const probe = document.createElement("span");
+      probe.style.color = "var(--color-q)";
+      fig.appendChild(probe);
+      const q = getComputedStyle(probe).color;
+      probe.remove();
+      return {
+        q,
+        chips: chips.map((c) => {
+          const cs = getComputedStyle(c);
+          const bg = rgb(cs.backgroundColor);
+          return {
+            text: c.textContent,
+            pressed: c.getAttribute("aria-pressed"),
+            outline: cs.outlineStyle === "none" ? null : cs.outlineColor,
+            outlineW: cs.outlineWidth,
+            bg,
+            lum: 0.2126 * bg.r + 0.7152 * bg.g + 0.0722 * bg.b,
+            opacity: cs.opacity,
+            title: c.title,
+            top: c.getBoundingClientRect().top,
+          };
+        }),
+        readout: fig.querySelector("[data-op-readout]")?.textContent ?? null,
+        undo: fig.querySelectorAll("[data-op-undo]").length,
+      };
+    }, FIG);
+  const used = (page) =>
+    page.evaluate(
+      () =>
+        (window.vaq ?? []).filter(
+          ([k, ev]) =>
+            k === "event" && ev?.name === "demo_used" && ev?.data?.demo === "offprints/hybrid-attention/figure-1",
+        ).length,
+    );
+
+  await withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    await page.goto(url, { waitUntil: "networkidle" });
+    await page.locator(`${FIG} [data-op-chip]`).first().waitFor({ timeout: 10000 });
+    let st = await state(page);
+    if (st.chips.length !== T) throw new Error(`${st.chips.length} chips, expected ${T}`);
+    const pressed = st.chips.flatMap((c, i) => (c.pressed === "true" ? [i] : []));
+    if (JSON.stringify(pressed) !== JSON.stringify([IT])) throw new Error(`selected chips ${JSON.stringify(pressed)}, expected [${IT}]`);
+    if (st.chips[IT].text !== "it") throw new Error(`the selected chip reads ${JSON.stringify(st.chips[IT].text)}`);
+    if (st.chips[IT].outline !== st.q || st.chips[IT].outlineW !== "2px") {
+      throw new Error(`"it" outline ${st.chips[IT].outline} ${st.chips[IT].outlineW}, expected 2px ${st.q}`);
+    }
+    if (st.chips.some((c) => !c.bg.ok)) throw new Error("a chip background did not resolve to a colour");
+    const others = st.chips.map((c, i) => ({ ...c, i })).filter((c) => c.i <= IT && c.i !== IT);
+    const darkest = others.reduce((a, b) => (b.lum < a.lum ? b : a));
+    if (darkest.text !== "fence") throw new Error(`darkest other chip is ${JSON.stringify(darkest.text)}, expected "fence"`);
+    if (st.chips[5].title !== offprintsHybrid.figure1.weight.replace("{w}", "0.896")) {
+      throw new Error(`"fence" title ${JSON.stringify(st.chips[5].title)} does not show its weight`);
+    }
+    if (st.chips[14].opacity !== "0.35") throw new Error(`the future chip "." has opacity ${st.chips[14].opacity}`);
+    const want0 = opFig1Expect(IT);
+    if (st.readout !== want0) throw new Error(`readout ${JSON.stringify(st.readout)}, expected ${JSON.stringify(want0)}`);
+    if (st.undo !== 0) throw new Error("undo shows before any change");
+    notes.push(`"it" asks, outlined in q; "fence" darkest; readout "${want0}"; no undo at rest`);
+
+    await page.locator(`${FIG} [data-op-chip]`).nth(CAT).click();
+    st = await state(page);
+    const wantCat = opFig1Expect(CAT);
+    if (st.readout !== wantCat) throw new Error(`after clicking cat the readout is ${JSON.stringify(st.readout)}, expected ${JSON.stringify(wantCat)}`);
+    if (st.chips[CAT].pressed !== "true") throw new Error("cat is not selected after its click");
+    if (st.undo !== 1) throw new Error("no undo after a change");
+    notes.push(`cat: "${wantCat}", undo appears`);
+
+    await page.locator(`${FIG} [data-op-undo]`).click();
+    st = await state(page);
+    if (st.readout !== want0 || st.chips[IT].pressed !== "true") throw new Error(`undo left ${JSON.stringify(st.readout)}`);
+    if (st.undo !== 0) throw new Error("undo still shows with nothing left to undo");
+    notes.push("undo returns to it and hides");
+
+    await page.locator(`${FIG} [data-op-chip]`).nth(DOG).focus();
+    await page.keyboard.press("Enter");
+    st = await state(page);
+    const wantDog = opFig1Expect(DOG);
+    if (st.readout !== wantDog) throw new Error(`Enter on dog: readout ${JSON.stringify(st.readout)}, expected ${JSON.stringify(wantDog)}`);
+    const n = await used(page);
+    if (n !== 1) throw new Error(`demo_used{offprints/hybrid-attention/figure-1} queued ${n}x after two activations, expected 1`);
+    notes.push(`Enter on dog: "${wantDog}"; demo_used once`);
+  });
+
+  await withPage(browser, { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: false }, async (page) => {
+    await page.goto(url, { waitUntil: "networkidle" });
+    await page.locator(`${FIG} [data-op-chip]`).first().waitFor({ timeout: 10000 });
+    const m = await page.evaluate((FIG) => {
+      const fig = document.querySelector(FIG);
+      const tops = new Set([...fig.querySelectorAll("[data-op-chip]")].map((c) => Math.round(c.getBoundingClientRect().top)));
+      const defs = [...fig.querySelectorAll(".op-def")].map((d) => d.getBoundingClientRect());
+      return {
+        sw: document.documentElement.scrollWidth,
+        iw: window.innerWidth,
+        rows: tops.size,
+        defs: defs.map((r) => ({ left: Math.round(r.left), top: Math.round(r.top), bottom: Math.round(r.bottom) })),
+      };
+    }, FIG);
+    if (m.sw > m.iw) throw new Error(`390px: scrollWidth ${m.sw} > ${m.iw}`);
+    if (m.rows < 2) throw new Error(`390px: the chips sit on ${m.rows} row, expected them to wrap`);
+    if (m.defs.length !== 3) throw new Error(`390px: ${m.defs.length} definitions in the figure, expected 3`);
+    const stacked = m.defs.every((d, i) => d.left === m.defs[0].left && (i === 0 || d.top >= m.defs[i - 1].bottom));
+    if (!stacked) throw new Error(`390px: definitions not one column: ${JSON.stringify(m.defs)}`);
+    notes.push(`390px: no h-scroll, chips on ${m.rows} rows, definitions stacked`);
+  });
+  return notes.join("; ");
+}
+
 const CHECKS = [
   ["sky-animates-1280", skyAnimatesAt1280],
   ["sky-static-reduced-motion", skyStaticUnderReducedMotion],
@@ -7442,6 +7604,7 @@ const CHECKS = [
   ["search-basics", checkSearchBasics],
   ["offprints-search", checkOffprintsSearch],
   ["offprints-feed", checkOffprintsFeed],
+  ["offprints-figure1", checkOffprintsFigure1],
   ["resume-pdf", checkResumePdf],
   ["stamp-no-link-ancestor", checkStampNoLinkAncestor],
   ["references-lab-link-resolves", checkReferencesLabLinkResolves],

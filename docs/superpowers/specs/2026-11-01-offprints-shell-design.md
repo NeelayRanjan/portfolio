@@ -116,7 +116,9 @@ final, values to be confirmed by measurement, see below):
 | `mut` | `#6b665d` | captions, eyebrows, secondary text |
 | `rule` | `#cbc5b8` | hairlines |
 | `stamp` | `#b9311f` | the call stamp, "aged badly" |
-| `q` / `k` / `v` | `#3f55c9` / `#1e8468` / `#b86a12` | the recurring demo roles |
+| `q` / `k` / `v` | `#3f55c9` / `#146b55` / `#8f4f08` | the recurring demo roles |
+
+`k` and `v` were darkened for AA (Task 10, measured): `#1e8468` read 3.88:1 on `paper` and `#b86a12` 3.46:1; the shipped values read 5.41 / 4.98 and 5.37 / 4.94 on `paper` / `fill`, and `q` 5.27 / 4.85.
 
 Rules
 - Every text colour clears WCAG AA (4.5:1) on the surface it sits on, measured,

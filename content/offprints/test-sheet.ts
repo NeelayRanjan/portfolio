@@ -13,4 +13,17 @@ export const testSheet = {
     nudge: "Nothing to try here.",
     placeholder: "no figure",
   },
+  definition: {
+    term: "fixture",
+    symbol: "F",
+    body: "a page that exists only so the checks have something to read.",
+  },
+  table: {
+    caption: "Two made-up rows.",
+    head: ["row", "count"],
+    rows: [
+      ["first", "12"],
+      ["second", "345"],
+    ],
+  },
 } as const;

@@ -1,13 +1,13 @@
 import type { Piece } from "@/content/offprints/pieces";
 import { hybridAttention as copy } from "@/content/offprints/hybrid-attention";
 import { Figure } from "@/components/offprints/Figure";
+import { Equation } from "@/components/offprints/Equation";
 import { PieceFrame, withCites } from "@/components/offprints/PieceFrame";
 
 /**
  * No. 1, Hybrid attention. Figure 1 is a placeholder box until Task 10
  * builds the real attention figure; its caption and nudge are already the
- * real copy. The displayed equation is a plain centred line until Task 7's
- * Equation environment exists.
+ * real copy. The displayed equation uses the Equation environment.
  */
 export function HybridAttentionPiece({ piece }: { piece: Piece }) {
   return (
@@ -18,9 +18,9 @@ export function HybridAttentionPiece({ piece }: { piece: Piece }) {
       words={
         <>
           <p className="my-2.5">{withCites(copy.words.before)}</p>
-          <p className="my-5 text-center text-[17px] italic">
+          <Equation n={1}>
             {copy.words.equation.lhs} = {copy.words.equation.rhs}
-          </p>
+          </Equation>
           <p className="my-2.5">{withCites(copy.words.after)}</p>
         </>
       }

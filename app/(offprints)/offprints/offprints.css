@@ -86,3 +86,38 @@
 /* The index heading takes focus only so a screen reader lands there when
    the peel opens (as main does on a page); it is not a control. */
 [data-op-index] h1:focus-visible { outline: none; }
+
+/* Figure controls (components/offprints/Toggle.tsx, StepControls.tsx):
+   square, 1px ink, serif; they invert when pressed or hovered. */
+.op-tool {
+  font-family: var(--font-serif);
+  font-size: 13px;
+  line-height: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--color-ink);
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.op-tool[aria-pressed="true"],
+.op-tool:hover { background: var(--color-ink); color: var(--color-paper); }
+.op-tool--primary { background: var(--color-ink); color: var(--color-paper); }
+input[type="range"].op-min {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  background: transparent;
+  border-radius: 0;
+}
+input[type="range"].op-min::-webkit-slider-runnable-track { height: 1px; background: var(--color-ink); }
+input[type="range"].op-min::-moz-range-track { height: 1px; background: var(--color-ink); }
+input[type="range"].op-min::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px; height: 10px; margin-top: -4.5px;
+  background: var(--color-ink); border: 0; border-radius: 0;
+}
+input[type="range"].op-min::-moz-range-thumb {
+  width: 10px; height: 10px;
+  background: var(--color-ink); border: 0; border-radius: 0;
+}

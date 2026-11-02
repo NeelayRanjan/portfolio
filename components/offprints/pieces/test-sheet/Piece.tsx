@@ -1,6 +1,9 @@
 import type { Piece } from "@/content/offprints/pieces";
 import { testSheet as copy } from "@/content/offprints/test-sheet";
 import { Figure } from "@/components/offprints/Figure";
+import { Definition } from "@/components/offprints/Definition";
+import { Booktabs } from "@/components/offprints/Booktabs";
+import { Equation } from "@/components/offprints/Equation";
 import { PieceFrame } from "@/components/offprints/PieceFrame";
 
 /**
@@ -14,7 +17,23 @@ export function TestSheetPiece({ piece }: { piece: Piece }) {
     <PieceFrame
       piece={piece}
       abstract={copy.abstract}
-      sections={[{ heading: copy.section.heading, body: <p>{copy.section.body}</p> }]}
+      sections={[
+        {
+          heading: copy.section.heading,
+          body: (
+            <>
+              <p>{copy.section.body}</p>
+              <Definition n={1} term={copy.definition.term} symbol={copy.definition.symbol} role="ink">
+                {copy.definition.body}
+              </Definition>
+              <Booktabs n={1} caption={copy.table.caption} head={[...copy.table.head]} rows={copy.table.rows.map((r) => [...r])} align={["left", "right"]} />
+              <Equation n={1}>
+                F<sub>t</sub> = F<sub>t−1</sub> + 1
+              </Equation>
+            </>
+          ),
+        },
+      ]}
       why={<p>{copy.why}</p>}
     >
       <Figure n={1} caption={copy.figure1.caption} tryText={copy.figure1.nudge}>

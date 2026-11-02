@@ -7452,7 +7452,15 @@ async function checkOffprintsSearch(browser) {
  * Proved to bite: the readout's {to} hard-coded to "fence" whatever is
  * selected fails the "cat" step ("after clicking cat the readout is ...");
  * the old single tint curve (paper text above 0.45, no 40% cap on the light
- * regime) fails the contrast sweep, naming "fence" under "through" (w 0.687).
+ * regime) fails the contrast sweep, naming "fence" under "through" (w 0.687);
+ * the best key taken over the full causal prefix (self included) again fails
+ * the "cat" step, which must name "The" (cat's best EARLIER token).
+ *
+ * The readout's {to} and {pct} are over EARLIER tokens only (the set the
+ * figure tints); the first token reads readoutFirst; across all 15
+ * selections the chip the readout names is the darkest earlier chip. The
+ * caption, filled from figure1.json, names its model, layer, head and date.
+ * A click on the chip already asking shows no undo and queues no event.
  */
 async function opFig1Contrast(page, FIG) {
   return page.evaluate((FIG) => {
@@ -7499,11 +7507,19 @@ const OP_FIG1 = JSON.parse(
   readFileSync(new URL("../content/offprints/hybrid-attention/figure1.json", import.meta.url), "utf8"),
 );
 
+/** The best EARLIER key (j < sel), first on a tie; -1 for the first token. */
+function opFig1Best(sel) {
+  const row = OP_FIG1.sentence.attention[OP_FIG1.defaultHead][sel];
+  let best = -1;
+  for (let j = 0; j < sel; j++) if (best < 0 || row[j] > row[best]) best = j;
+  return best;
+}
+
 function opFig1Expect(sel) {
   const { tokens, attention } = OP_FIG1.sentence;
   const row = attention[OP_FIG1.defaultHead][sel];
-  let best = 0;
-  for (let j = 0; j <= sel; j++) if (row[j] > row[best]) best = j;
+  const best = opFig1Best(sel);
+  if (best < 0) return offprintsHybrid.figure1.readoutFirst.replace("{from}", tokens[sel].trim());
   return offprintsHybrid.figure1.readout
     .replace("{from}", tokens[sel].trim())
     .replace("{pct}", String(Math.round(row[best] * 100)))
@@ -7559,6 +7575,7 @@ async function checkOffprintsFigure1(browser) {
           };
         }),
         readout: fig.querySelector("[data-op-readout]")?.textContent ?? null,
+        caption: fig.querySelector("figcaption")?.textContent ?? null,
         undo: fig.querySelectorAll("[data-op-undo]").length,
       };
     }, FIG);
@@ -7614,7 +7631,23 @@ async function checkOffprintsFigure1(browser) {
     if (st.readout !== want0) throw new Error(`readout ${JSON.stringify(st.readout)}, expected ${JSON.stringify(want0)}`);
     if (st.undo !== 0) throw new Error("undo shows before any change");
     notes.push(`"it" asks, outlined in q; "fence" darkest; readout "${want0}"; no undo at rest`);
+    {
+      // The caption is filled from the json, so it names the data's layer, head and date.
+      const [y, m, d] = OP_FIG1.extracted.split("-").map(Number);
+      const date = `${d} ${offprintsHybrid.figure1.months[m - 1]} ${y}`;
+      const want = [OP_FIG1.model.split("/").pop(), `layer ${OP_FIG1.layer}`, `head ${OP_FIG1.defaultHead}`, `extracted ${date}`];
+      const miss = want.filter((w) => !st.caption?.includes(w));
+      if (miss.length) throw new Error(`caption ${JSON.stringify(st.caption)} lacks ${JSON.stringify(miss)}`);
+      notes.push(`caption names ${want.join(", ")}`);
+    }
     const contrastFails = new Set(await opFig1Contrast(page, FIG));
+
+    // Clicking the token already asking changes nothing: no undo, no event.
+    await page.locator(`${FIG} [data-op-chip]`).nth(IT).click();
+    st = await state(page);
+    if (st.undo !== 0 || (await used(page)) !== 0) {
+      throw new Error(`a click on the asking chip showed undo (${st.undo}) or queued demo_used (${await used(page)})`);
+    }
 
     await page.locator(`${FIG} [data-op-chip]`).nth(CAT).click();
     for (const f of await opFig1Contrast(page, FIG)) contrastFails.add(f);
@@ -7622,6 +7655,11 @@ async function checkOffprintsFigure1(browser) {
     const wantCat = opFig1Expect(CAT);
     if (st.readout !== wantCat) throw new Error(`after clicking cat the readout is ${JSON.stringify(st.readout)}, expected ${JSON.stringify(wantCat)}`);
     if (st.chips[CAT].pressed !== "true") throw new Error("cat is not selected after its click");
+    if (opFig1Best(CAT) !== 0 || !wantCat.includes("“The”")) throw new Error(`expected cat's best earlier key to be "The": ${wantCat}`);
+    {
+      const self = offprintsHybrid.figure1.selfWeight.replace("{w}", String(OP_FIG1.sentence.attention[OP_FIG1.defaultHead][CAT][CAT]));
+      if (st.chips[CAT].title !== self) throw new Error(`the asking chip title is ${JSON.stringify(st.chips[CAT].title)}, expected ${JSON.stringify(self)}`);
+    }
     if (st.undo !== 1) throw new Error("no undo after a change");
     notes.push(`cat: "${wantCat}", undo appears`);
 
@@ -7642,10 +7680,23 @@ async function checkOffprintsFigure1(browser) {
 
     // Contrast for every selection, after the analytics count (these clicks
     // would not add events anyway: once per load).
+    // Every selection: the readout, and the chip it names is the darkest
+    // earlier chip (the readout and the tint describe the same set).
     for (let i = 0; i < T; i++) {
       await page.locator(`${FIG} [data-op-chip]`).nth(i).click();
       for (const f of await opFig1Contrast(page, FIG)) contrastFails.add(f);
+      st = await state(page);
+      const want = opFig1Expect(i);
+      if (st.readout !== want) throw new Error(`selection ${i}: readout ${JSON.stringify(st.readout)}, expected ${JSON.stringify(want)}`);
+      const b = opFig1Best(i);
+      if (b >= 0) {
+        const minLum = Math.min(...st.chips.slice(0, i).map((c) => c.lum));
+        if (st.chips[b].lum > minLum + 0.5) {
+          throw new Error(`selection ${i}: the readout names "${st.chips[b].text}" (lum ${st.chips[b].lum.toFixed(1)}) but an earlier chip is darker (${minLum.toFixed(1)})`);
+        }
+      }
     }
+    notes.push(`all ${T} readouts match, each naming the darkest earlier chip; sel 0 reads "${opFig1Expect(0)}"`);
     if (contrastFails.size) throw new Error(`chip text under 4.5:1: ${[...contrastFails].join("; ")}`);
     notes.push(`every chip >= 4.5:1 in all ${T} selections`);
   });

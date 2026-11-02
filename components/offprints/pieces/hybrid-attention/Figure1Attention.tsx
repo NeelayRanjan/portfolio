@@ -5,7 +5,7 @@ import type { hybridAttention } from "@/content/offprints/hybrid-attention";
 import { Definition } from "@/components/offprints/Definition";
 import { useUndo } from "@/components/offprints/useUndo";
 import { trackDemoOnce } from "@/lib/track";
-import { bestKey, paperText, pctOf, readoutParts, tintWidth } from "@/lib/offprints/figure1";
+import { bestEarlier, paperText, pctOf, readoutParts, tintWidth } from "@/lib/offprints/figure1";
 
 export type Figure1Data = {
   model: string;
@@ -40,24 +40,26 @@ export function Figure1Attention({ data, copy }: { data: Figure1Data; copy: Copy
   const { tokens, attention } = data.sentence;
   const { value: sel, set, undo, canUndo } = useUndo(START);
   const row = attention[data.defaultHead][sel];
-  const best = bestKey(row, sel);
+  const best = bestEarlier(row, sel); // -1 for the first token
+  const bestW = best < 0 ? 0 : row[best];
   const word = (i: number) => tokens[i].trim();
   const f = copy.figure1;
 
   const pick = (i: number) => {
+    if (i === sel) return;
+    set(i);
     trackDemoOnce("offprints/hybrid-attention/figure-1");
-    if (i !== sel) set(i);
   };
 
   // The same fill as fillReadout, with the two words in their role colours.
-  const readout = readoutParts(f.readout).map((p, i) => (
+  const readout = readoutParts(best < 0 ? f.readoutFirst : f.readout).map((p, i) => (
     <Fragment key={i}>
       {p === "{from}" ? (
         <span className="text-q">{word(sel)}</span>
       ) : p === "{to}" ? (
         <span className="text-k">{word(best)}</span>
       ) : p === "{pct}" ? (
-        pctOf(row[best])
+        pctOf(bestW)
       ) : (
         p
       )}
@@ -79,7 +81,7 @@ export function Figure1Attention({ data, copy }: { data: Figure1Data; copy: Copy
               data-op-chip
               aria-pressed={asking}
               onClick={() => pick(j)}
-              title={future ? f.future : asking ? undefined : f.weight.replace("{w}", String(w))}
+              title={future ? f.future : (asking ? f.selfWeight : f.weight).replace("{w}", String(w))}
               className={`rounded-none border p-2 font-mono text-[16px] leading-none ${
                 asking
                   ? "border-transparent bg-paper text-ink outline-2 outline-q outline-solid focus-visible:shadow-[0_0_0_4px_var(--color-paper),0_0_0_6px_var(--color-ink)]"
@@ -117,7 +119,7 @@ export function Figure1Attention({ data, copy }: { data: Figure1Data; copy: Copy
       <div className="mt-2 grid gap-3 *:my-0 min-[640px]:grid-cols-3">
         {copy.definitions.map((d, i) => {
           const role = ROLES[i];
-          const pct = role === "q" ? QUERY_BAR : role === "k" ? Number(pctOf(row[best])) : VALUE_BAR;
+          const pct = role === "q" ? QUERY_BAR : role === "k" ? Number(pctOf(bestW)) : VALUE_BAR;
           return (
             <Definition key={d.term} n={i + 1} term={d.term} symbol={d.symbol} role={role}>
               {d.text}

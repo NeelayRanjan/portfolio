@@ -23,11 +23,37 @@ export function tintWidth(w: number): number {
   return Math.min(LIGHT_CAP, 6 + Math.pow(Math.max(0, w), 0.6) * 100);
 }
 
-/** The key the query at `sel` weighs most, over its causal prefix 0..sel (first on a tie). */
-export function bestKey(row: readonly number[], sel: number): number {
+/**
+ * The EARLIER key (j < sel) the query at `sel` weighs most, first on a tie;
+ * -1 for the first token, which has nothing earlier. Earlier only, because
+ * that is exactly the set the figure tints: a token's weight on itself goes
+ * in its title, never in the readout (review ruling, Task 10). The weight
+ * stays a share of the row's total attention, self included.
+ */
+export function bestEarlier(row: readonly number[], sel: number): number {
+  if (sel <= 0) return -1;
   let best = 0;
-  for (let j = 1; j <= sel; j++) if (row[j] > row[best]) best = j;
+  for (let j = 1; j < sel; j++) if (row[j] > row[best]) best = j;
   return best;
+}
+
+/** Month abbreviations come from the copy, so the caption stays in the copy file. */
+export function formatDate(iso: string, months: readonly string[]): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${d} ${months[m - 1]} ${y}`;
+}
+
+/** The caption template filled from figure1.json. "Qwen/X" shows as "X". */
+export function fillCaption(
+  template: string,
+  data: { model: string; layer: number; defaultHead: number; extracted: string },
+  months: readonly string[],
+): string {
+  return template
+    .replace("{model}", data.model.split("/").pop() ?? data.model)
+    .replace("{layer}", String(data.layer))
+    .replace("{head}", String(data.defaultHead))
+    .replace("{date}", formatDate(data.extracted, months));
 }
 
 /** A weight as a rounded whole percent: 0.896 → "90". */

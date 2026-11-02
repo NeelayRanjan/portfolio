@@ -15,13 +15,20 @@ export const hybridAttention = {
       "Reading is one multiplication, y_t = S_tᵀ q_t, so the cost per token never grows [2].",
   },
   figure1: {
+    // Filled from figure1.json (model, layer, defaultHead, extracted), so the
+    // caption can't go stale against the data.
     caption:
-      "One attention head reading a sentence. Qwen3.5-0.8B-Base, layer 7, head 1, actual weights, extracted 1 Nov 2026.",
+      "One attention head reading a sentence. {model}, layer {layer}, head {head}, actual weights, extracted {date}.",
+    months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     nudge: "Click any token to ask from it.",
+    // {to} and {pct} are the best EARLIER token and its share of all the
+    // asking token's attention; the first token has none, so it gets its own line.
     readout: "“{from}” puts {pct}% of its attention on “{to}”",
+    readoutFirst: "“{from}” is the first token and has nothing earlier to look at.",
     undo: "undo",
     // Chip titles: a seen token's weight, and a token after the asking one.
     weight: "weight {w}",
+    selfWeight: "weight on itself {w}",
     future: "not yet seen (causal)",
     // The figure's accessible name; the chips are its buttons.
     label: "Tokens of the sentence. Choose one to ask from it.",

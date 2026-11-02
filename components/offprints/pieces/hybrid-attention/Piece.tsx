@@ -5,6 +5,7 @@ import { Equation } from "@/components/offprints/Equation";
 import { PieceFrame, withCites } from "@/components/offprints/PieceFrame";
 import { Figure1Attention } from "./Figure1Attention";
 import figure1 from "@/content/offprints/hybrid-attention/figure1.json";
+import { fillCaption } from "@/lib/offprints/figure1";
 
 /**
  * No. 1, Hybrid attention. Figure 1 is one attention head of the model
@@ -27,7 +28,11 @@ export function HybridAttentionPiece({ piece }: { piece: Piece }) {
         </>
       }
     >
-      <Figure n={1} caption={copy.figure1.caption} tryText={copy.figure1.nudge}>
+      <Figure
+        n={1}
+        caption={fillCaption(copy.figure1.caption, figure1, copy.figure1.months)}
+        tryText={copy.figure1.nudge}
+      >
         <Figure1Attention data={figure1} copy={{ figure1: copy.figure1, definitions: copy.definitions }} />
       </Figure>
     </PieceFrame>

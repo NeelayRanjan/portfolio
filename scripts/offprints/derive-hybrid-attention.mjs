@@ -48,6 +48,9 @@ const tokens = s.tokens;
 const att = s.attention?.[String(LAYER)];
 if (!Array.isArray(tokens) || !Array.isArray(att)) fail(`sentence ${SENTENCE} lacks tokens or layer ${LAYER} attention`);
 const T = tokens.length;
+if (T !== 15) fail(`sentence ${SENTENCE} has ${T} tokens, expected 15 (the cat sentence)`);
+if (att.length !== 8) fail(`layer ${LAYER} has ${att.length} heads, expected 8`);
+if (typeof raw.model !== "string" || raw.model.trim() === "") fail("the extraction names no model");
 
 const attention = att.map((head, h) => {
   if (head.length !== T) fail(`head ${h} has ${head.length} rows, expected ${T}`);

@@ -20,8 +20,8 @@ export const hybridAttention = {
     nudge: "Click any token to ask from it.",
     readout: "“{from}” puts {pct}% of its attention on “{to}”",
     undo: "undo",
-    // Shown in Figure 1's box until Task 10 lands the real figure.
-    placeholder: "Figure 1 arrives in Task 10",
+    // Shown in Figure 1's box until the real figure lands.
+    placeholder: "Figure 1 is being built.",
   },
   definitions: [
     { term: "Query", symbol: "q", text: "What the asking token wants. Outlined in blue above." },

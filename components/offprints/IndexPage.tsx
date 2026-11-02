@@ -16,7 +16,8 @@ const REVISIT: Record<RevisitVerdict, string> = {
  * pieces newest first (the caller passes `visiblePieces(...)`, already
  * sorted and filtered), then the foot. No background of its own: `/all`
  * puts it on `paper-under` grain, and the Shell's index layer (Task 6) does
- * the same beneath a piece. The masthead's h1 takes focus when the peel
+ * the same beneath a piece. Each row's link is named by the title alone
+ * and stretched over the row. The masthead's h1 takes focus when the peel
  * opens, hence tabIndex -1.
  */
 export function IndexPage({
@@ -41,39 +42,44 @@ export function IndexPage({
         {pieces.map((p) => {
           const open = p.slug === currentSlug;
           return (
-            <li key={p.slug} data-op-entry={p.slug}>
-              <OffLink
-                href={`${OFFPRINTS_PREFIX}/${p.slug}`}
-                aria-current={open ? "page" : undefined}
-                className="group block min-h-11 px-1 py-3 text-ink hover:bg-ink/[0.04] hover:no-underline"
-              >
-                <span className="flex items-baseline gap-2 text-[18px]">
-                  <span className="min-w-[1.8em] tabular-nums">{`${p.number}.`}</span>
-                  <span className="group-hover:text-link group-hover:underline group-hover:underline-offset-2">
-                    {p.title}
-                  </span>
-                  {open ? <span className="text-[13px] text-mut">{t.open}</span> : null}
-                  <span
-                    aria-hidden="true"
-                    className="min-w-5 flex-1 -translate-y-[5px] border-b border-dotted border-mut"
-                  />
-                  <span className="text-[14px] whitespace-nowrap text-mut">{monthYear(p.published)}</span>
+            <li
+              key={p.slug}
+              data-op-entry={p.slug}
+              className="group relative min-h-11 px-1 py-3 hover:bg-ink/[0.04]"
+            >
+              <span className="flex items-baseline gap-2 text-[18px]">
+                <span className="min-w-[1.8em] tabular-nums">{`${p.number}.`}</span>
+                {/* The link's accessible name is the title alone; its ::after
+                    stretches over the whole row (the li is relative), so the
+                    row stays one 44px+ target. */}
+                <OffLink
+                  href={`${OFFPRINTS_PREFIX}/${p.slug}`}
+                  aria-current={open ? "page" : undefined}
+                  className="text-ink group-hover:text-link group-hover:underline group-hover:underline-offset-2 after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-ink"
+                >
+                  {p.title}
+                </OffLink>
+                {open ? <span className="text-[13px] text-mut">{t.open}</span> : null}
+                <span
+                  aria-hidden="true"
+                  className="min-w-5 flex-1 -translate-y-[5px] border-b border-dotted border-mut"
+                />
+                <span className="text-[14px] whitespace-nowrap text-mut">{monthYear(p.published)}</span>
+              </span>
+              <span className="flex flex-wrap gap-x-3.5 gap-y-1 pl-[2.2em] text-[14px] text-mut">
+                <span className="basis-full italic">{p.claim}</span>
+                <span className="sc call text-stamp">
+                  {t.callPrefix}
+                  {p.call.verdict}
                 </span>
-                <span className="flex flex-wrap gap-x-3.5 gap-y-1 pl-[2.2em] text-[14px] text-mut">
-                  <span className="basis-full italic">{p.claim}</span>
-                  <span className="sc call text-stamp">
-                    {t.callPrefix}
-                    {p.call.verdict}
+                {p.revisit ? (
+                  <span className={`sc ${REVISIT[p.revisit.verdict]}`}>
+                    {t.revisitPrefix}
+                    {p.revisit.verdict}
                   </span>
-                  {p.revisit ? (
-                    <span className={`sc ${REVISIT[p.revisit.verdict]}`}>
-                      {t.revisitPrefix}
-                      {p.revisit.verdict}
-                    </span>
-                  ) : null}
-                  {p.status === "draft" ? <span className="sc draft">{t.draft}</span> : null}
-                </span>
-              </OffLink>
+                ) : null}
+                {p.status === "draft" ? <span className="sc draft">{t.draft}</span> : null}
+              </span>
             </li>
           );
         })}

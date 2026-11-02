@@ -77,7 +77,7 @@ export function PieceFrame({
     <article className="mx-auto max-w-[720px] px-[18px] pt-[72px] pb-[110px] min-[880px]:px-[28px]">
       <header className="relative mb-[30px] text-center">
         <CallStamp piece={piece} />
-        <h1 className="mb-2.5 text-[32px] leading-[1.15] font-normal text-balance min-[880px]:px-[130px] min-[880px]:text-[44px]">
+        <h1 className="mb-2.5 text-[32px] leading-[1.15] font-normal text-balance min-[880px]:px-[138px] min-[880px]:text-[44px]">
           {piece.title}
         </h1>
         <p className="text-[17px]">

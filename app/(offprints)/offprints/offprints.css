@@ -1,7 +1,13 @@
 /* Offprints' own Tailwind entry, imported only by the Offprints root layout
    (app/(offprints)/offprints/layout.tsx), so none of the portfolio's dark
    tokens or globals reach it. Light only: the paper is the design (spec §5). */
-@import "tailwindcss";
+@import "tailwindcss" source(none);
+/* Scan only Offprints' own markup, so none of the portfolio's utilities
+   (and none of its stargaze or figure classes) land in this sheet. Paths are
+   relative to this file: "." is app/(offprints)/offprints itself. lib/ and
+   content/offprints hold no class names. */
+@source ".";
+@source "../../../components/offprints";
 
 @theme {
   --color-paper: #efebe3;

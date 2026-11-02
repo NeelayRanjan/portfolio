@@ -1,4 +1,8 @@
 @import "tailwindcss";
+/* Offprints has its own Tailwind entry (app/(offprints)/offprints/
+   offprints.css); keep its markup out of the portfolio's sheet. */
+@source not "../components/offprints";
+@source not "./(offprints)";
 
 @theme {
   --color-desk: #0c0b09;

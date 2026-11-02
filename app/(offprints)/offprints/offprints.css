@@ -64,3 +64,25 @@
   background-image: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="256" height="256"%3E%3Cfilter id="g" x="0" y="0" color-interpolation-filters="sRGB"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/%3E%3CfeColorMatrix values="0.1 0 0 0 0.852 0.1 0 0 0 0.833 0.1 0 0 0 0.793 0 0 0 0 1"/%3E%3C/filter%3E%3Crect width="256" height="256" filter="url(%23g)"/%3E%3C/svg%3E');
   background-size: 256px 256px;
 }
+
+/* The dog-ear (components/offprints/Shell.tsx): a 72px hit area clipped to
+   the corner triangle. Its own outline would be clipped away with it, so
+   keyboard focus shows as a 2px ink line just inside the triangle's
+   hypotenuse, visible over the flap and over the open index alike. */
+[data-op-ear] { clip-path: polygon(0 0, 100% 0, 0 100%); }
+[data-op-ear]:focus-visible { outline: none; }
+[data-op-ear]:focus-visible::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom right,
+    transparent calc(50% - 3px),
+    var(--color-ink) calc(50% - 3px),
+    var(--color-ink) calc(50% - 1px),
+    transparent calc(50% - 1px)
+  );
+}
+/* The index heading takes focus only so a screen reader lands there when
+   the peel opens (as main does on a page); it is not a control. */
+[data-op-index] h1:focus-visible { outline: none; }

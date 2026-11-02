@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./offprints.css";
 import { shell } from "@/content/offprints/shell";
-import { HomeMark } from "@/components/offprints/HomeMark";
 import { OFFPRINTS_SITE } from "@/lib/offprints/site";
 import { stix, splineMono } from "@/lib/fonts";
 
@@ -12,9 +11,10 @@ import { stix, splineMono } from "@/lib/fonts";
  * beacon, globals.css) reaches these pages. Navigating between the two
  * roots is a full page load, which is fine: they are two sites.
  *
- * Until Task 6's Shell (the dog-ear peel) arrives, the body is a plain main
- * and a static HomeMark. `data-op-paper` puts the paper grain on the body,
- * so every Offprints page sits on the sheet.
+ * The body holds only the page: a piece page renders the Shell (the
+ * dog-ear peel, its own `main#main` and the HomeMark); `/all` and the 404
+ * render their own plain `main#main` and HomeMark. `data-op-paper` puts the
+ * paper grain on the body, so every Offprints page sits on the sheet.
  */
 export const metadata: Metadata = {
   // Canonicals and og:url always name the subdomain (spec §10.3), whichever
@@ -29,10 +29,7 @@ export default function OffprintsRootLayout({ children }: Readonly<{ children: R
   return (
     <html lang="en" className={`${stix.variable} ${splineMono.variable}`}>
       <body className="font-serif" data-op-paper>
-        <main id="main" tabIndex={-1}>
-          {children}
-        </main>
-        <HomeMark />
+        {children}
       </body>
     </html>
   );

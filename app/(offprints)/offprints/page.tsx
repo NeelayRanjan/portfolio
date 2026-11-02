@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { PIECES } from "@/content/offprints/pieces";
 import { shell } from "@/content/offprints/shell";
 import { componentFor } from "@/components/offprints/pieces";
-import { latestPiece } from "@/lib/offprints/pieces";
+import { IndexPage } from "@/components/offprints/IndexPage";
+import { Shell } from "@/components/offprints/Shell";
+import { latestPiece, visiblePieces } from "@/lib/offprints/pieces";
 import { pieceUrl } from "@/lib/offprints/site";
 
 /**
@@ -29,5 +31,12 @@ export default function OffprintsHome() {
   const piece = latestPiece(PIECES, process.env.VERCEL_ENV);
   if (!piece) notFound();
   const Body = componentFor(piece);
-  return <Body piece={piece} />;
+  return (
+    <Shell
+      index={<IndexPage pieces={visiblePieces(PIECES, process.env.VERCEL_ENV)} currentSlug={piece.slug} />}
+      currentSlug={piece.slug}
+    >
+      <Body piece={piece} />
+    </Shell>
+  );
 }

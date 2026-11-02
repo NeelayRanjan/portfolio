@@ -46,6 +46,8 @@ import { loadSua, segCrossesPoly } from "../lib/slaac/geometry.ts";
 import { planArcs, mayConflict, uniqueArcCount } from "../lib/slaac/arcs.ts";
 import { rerouteOpts } from "../lib/slaac/run.ts";
 import { fmtSigned, summarizeFlights } from "../lib/slaac/summary.ts";
+import { shell as offprintsShell } from "../content/offprints/shell.ts";
+import { PEEL as OFFPRINTS_PEEL, farCorner as offprintsFarCorner } from "../lib/offprints/peel.ts";
 
 /**
  * The colour round's `sky-colour` and the card checks read the palette table
@@ -77,6 +79,9 @@ const { PAPER_SATURATION, PAPER_COLOUR_SHARE } = await import("../lib/sky-colour
 
 // VERIFY_BASE overrides the port when :3000 is taken; the default is unchanged.
 const BASE = process.env.VERIFY_BASE ?? "http://localhost:3000";
+// The Offprints host on the same server (Playwright's Firefox resolves
+// *.localhost to loopback); proxy.ts maps it onto /offprints.
+const OFFPRINTS_BASE = process.env.OFFPRINTS_BASE ?? BASE.replace("://", "://offprints.");
 
 /* ---------------------------------------------------------------------- */
 /* small harness                                                          */
@@ -6980,6 +6985,244 @@ async function checkLander360(browser) {
   });
 }
 
+/* ---------------------------------------------------------------------- */
+/* Offprints: the dog-ear peel (components/offprints/Shell.tsx)           */
+/* ---------------------------------------------------------------------- */
+
+/**
+ * offprints-peel: the Shell's one control, on the Offprints host at
+ * 1280x800 (far corner 2200, threshold 880). The ear, the triangle and the
+ * fold stay anchored to the viewport while the piece scrolls; a drag peeks
+ * exactly as far as the pointer and lays back down short of the threshold;
+ * a release AT the threshold opens; a release past it opens, hides the
+ * piece without unmounting it, un-inerts the index and locks the page's
+ * scroll; Back closes it without changing the URL; a click opens and
+ * Escape closes, focus returning to the ear; the hint runs once and comes
+ * back to rest; reduced motion makes every change instant and skips the
+ * hint.
+ *
+ * Proved to bite (each mutation, rebuilt, must FAIL this check):
+ *  - releaseTarget's `>=` swapped to `>` (lib/offprints/peel.ts): the drag
+ *    to exactly the threshold (480,400 → cut 880) lays back down, so
+ *    "release at exactly the threshold (880) did not open" fails.
+ *  - the Shell's history.pushState on open dropped: page.goBack() leaves
+ *    the page instead of closing the index, so the Back step fails.
+ */
+async function checkOffprintsPeel(browser) {
+  const W = 1280;
+  const H = 800;
+  const FAR = offprintsFarCorner(W, H);
+  const viewport = { width: W, height: H };
+  const url = `${OFFPRINTS_BASE}/`;
+  const opState = (page) =>
+    page.evaluate(() => {
+      const o = window.__offprints;
+      const ear = document.querySelector("[data-op-ear]");
+      const nav = document.querySelector("[data-op-index]");
+      const main = document.querySelector("main#main");
+      const a = document.activeElement;
+      return {
+        cut: o?.cut,
+        open: o?.open,
+        dragging: o?.dragging,
+        hintFired: o?.hintFired,
+        expanded: ear?.getAttribute("aria-expanded"),
+        mainVis: main ? getComputedStyle(main).visibility : null,
+        navHidden: nav?.getAttribute("aria-hidden"),
+        navInert: nav?.inert,
+        clip: nav ? getComputedStyle(nav).clipPath : null,
+        overflow: document.documentElement.style.overflow,
+        active: a?.matches("[data-op-ear]") ? "ear" : a?.closest("[data-op-index]") ? "index" : a?.tagName,
+        scrollY: window.scrollY,
+        path: location.pathname,
+      };
+    });
+  const waitFor = async (page, label, fn, arg, timeout = 2000) => {
+    try {
+      await page.waitForFunction(fn, arg, { timeout });
+    } catch {
+      let state;
+      try {
+        state = JSON.stringify(await opState(page));
+      } catch (err) {
+        state = `(page gone: ${err.message.split("\n")[0]})`;
+      }
+      throw new Error(`${label}: ${state}`);
+    }
+  };
+  const drag = async (page, x, y) => {
+    await page.mouse.move(10, 10);
+    await page.mouse.down();
+    await page.mouse.move(x, y, { steps: 8 });
+  };
+  const notes = [];
+
+  // 1. The hint: once per load, out and back, on a page nothing has touched.
+  await withPage(browser, { viewport }, async (page) => {
+    await page.goto(url, { waitUntil: "load" });
+    await waitFor(page, "no window.__offprints hook (no Shell?)", () => !!window.__offprints, null, 5000);
+    await page.evaluate(() => {
+      window.__opMaxCut = window.__offprints.cut;
+      const tick = () => {
+        window.__opMaxCut = Math.max(window.__opMaxCut, window.__offprints.cut);
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    });
+    await page.waitForTimeout(2500);
+    const s = await page.evaluate(() => ({ fired: window.__offprints.hintFired, max: window.__opMaxCut }));
+    if (s.fired !== true) throw new Error(`the hint had not fired 2.5s after load: ${JSON.stringify(s)}`);
+    await waitFor(page, "the hint did not come back to rest (40)", () => window.__offprints.cut === 40);
+    const max = await page.evaluate(() => window.__opMaxCut);
+    if (max < OFFPRINTS_PEEL.hintTo - 6 || max > OFFPRINTS_PEEL.hintTo + 0.5)
+      throw new Error(`the hint peaked at ${max}, not near ${OFFPRINTS_PEEL.hintTo}`);
+    notes.push(`hint peaked at ${max.toFixed(1)} and settled at 40`);
+  });
+
+  // 2. Drag, threshold, open, Back, click, Escape.
+  await withPage(browser, { viewport }, async (page) => {
+    await page.goto(url, { waitUntil: "load" });
+    const ear = page.locator("[data-op-ear]");
+    if ((await ear.count()) !== 1) throw new Error(`expected one [data-op-ear], found ${await ear.count()}`);
+    await waitFor(page, "no window.__offprints hook", () => !!window.__offprints, null, 5000);
+    const label = await ear.getAttribute("aria-label");
+    if (label !== offprintsShell.ear.label)
+      throw new Error(`the ear's aria-label is ${JSON.stringify(label)}, not ${JSON.stringify(offprintsShell.ear.label)}`);
+    let s = await opState(page);
+    if (s.expanded !== "false") throw new Error(`aria-expanded at rest is ${s.expanded}`);
+    if (s.cut !== OFFPRINTS_PEEL.rest) throw new Error(`cut at rest is ${s.cut}, not ${OFFPRINTS_PEEL.rest}`);
+    if (s.navHidden !== "true" || s.navInert !== true)
+      throw new Error(`the closed index is not hidden and inert: aria-hidden ${s.navHidden}, inert ${s.navInert}`);
+    // A marker on the piece's main proves it is the same element after a round trip.
+    await page.evaluate(() => {
+      document.querySelector("main#main").__opMark = 1;
+    });
+
+    // 600px, or as far as the piece goes (piece 1's placeholder body is
+    // ~540px taller than the viewport); at least 300 for the test to mean
+    // anything.
+    await page.evaluate(() => window.scrollTo(0, 600));
+    s = await opState(page);
+    const scrolled = s.scrollY;
+    const maxScroll = await page.evaluate(() => document.documentElement.scrollHeight - innerHeight);
+    if (scrolled < Math.min(590, maxScroll - 1) || scrolled < 300)
+      throw new Error(`the piece did not scroll as the document: scrollY ${scrolled} of ${maxScroll}`);
+    const box = await ear.boundingBox();
+    if (!box || box.x < 0 || box.y < 0 || box.x >= 72 || box.y >= 72)
+      throw new Error(`after scrolling ${scrolled}px the ear is not at the viewport's top-left: ${JSON.stringify(box)}`);
+    const foldBox = await page.locator("[data-op-fold]").boundingBox();
+    if (!foldBox || Math.abs(foldBox.x) > 0.5 || Math.abs(foldBox.y) > 0.5)
+      throw new Error(`the fold overlay moved with the scroll: ${JSON.stringify(foldBox)}`);
+
+    // A peek short of the threshold: the cut follows the pointer, then lays back down.
+    await drag(page, 300, 200);
+    s = await opState(page);
+    const fail = async (msg) => {
+      await page.mouse.up();
+      throw new Error(msg);
+    };
+    if (Math.abs(s.cut - 500) > 2) await fail(`dragging to (300,200) gave cut ${s.cut}, not 500`);
+    if (!s.clip?.includes("500px")) await fail(`the index's clip-path during the drag is ${s.clip}`);
+    if (s.dragging !== true) await fail(`__offprints.dragging is ${s.dragging} mid-drag`);
+    const t0 = Date.now();
+    await page.mouse.up();
+    await waitFor(page, "a release at 500 did not lay back down to 40 within 1.5s", () => window.__offprints.cut === 40, null, 1500);
+    const backMs = Date.now() - t0;
+    s = await opState(page);
+    if (s.expanded !== "false" || s.open !== false) throw new Error(`a release short of the threshold opened the index: ${JSON.stringify(s)}`);
+
+    // A release at exactly the threshold (480 + 400 = 0.4 x 2200) opens.
+    await drag(page, 480, 400);
+    s = await opState(page);
+    if (s.cut !== 880) await fail(`dragging to (480,400) gave cut ${s.cut}, not 880`);
+    await page.mouse.up();
+    await waitFor(page, "release at exactly the threshold (880) did not open", () => window.__offprints.open === true);
+    await page.keyboard.press("Escape");
+    await waitFor(page, "Escape after the threshold open did not close", () => window.__offprints.open === false && window.__offprints.cut === 40);
+
+    // A release past the threshold opens fully.
+    await drag(page, 900, 500);
+    await page.mouse.up();
+    await waitFor(
+      page,
+      "a release at 1400 did not open the index",
+      // main hidden: the commit that follows `open` has landed.
+      (far) =>
+        document.querySelector("[data-op-ear]").getAttribute("aria-expanded") === "true" &&
+        window.__offprints.open === true &&
+        window.__offprints.cut >= far &&
+        getComputedStyle(document.querySelector("main#main")).visibility === "hidden",
+      FAR,
+    );
+    s = await opState(page);
+    if (s.mainVis !== "hidden") throw new Error(`the open index left main ${s.mainVis}`);
+    if (s.active !== "index") throw new Error(`focus after opening is on ${s.active}, not inside the index`);
+    if (s.navHidden !== null || s.navInert !== false)
+      throw new Error(`the open index is still hidden or inert: aria-hidden ${s.navHidden}, inert ${s.navInert}`);
+    if (s.overflow !== "hidden") throw new Error(`the page's scroll is not locked while open: overflow ${JSON.stringify(s.overflow)}`);
+    const order = await page.evaluate(() => {
+      const t = document.querySelector("[data-op-index]").textContent;
+      return [t.indexOf("Hybrid attention"), t.indexOf("A test sheet")];
+    });
+    if (order[0] < 0 || order[1] < 0 || order[0] > order[1])
+      throw new Error(`the index does not list "Hybrid attention" before "A test sheet": positions ${order}`);
+
+    // Back closes it, same URL, focus on the ear.
+    await page.goBack();
+    if (!page.url().startsWith(url)) throw new Error(`Back left the page: now at ${page.url()}`);
+    await waitFor(
+      page,
+      "Back did not close the index",
+      () =>
+        window.__offprints?.open === false &&
+        document.querySelector("[data-op-ear]").getAttribute("aria-expanded") === "false" &&
+        getComputedStyle(document.querySelector("main#main")).visibility === "visible" &&
+        window.__offprints.cut === 40,
+    );
+    s = await opState(page);
+    if (s.path !== "/") throw new Error(`the URL changed: ${s.path}`);
+    if (s.active !== "ear") throw new Error(`focus after Back is on ${s.active}, not the ear`);
+    if (s.overflow !== "") throw new Error(`the scroll lock outlived the index: overflow ${JSON.stringify(s.overflow)}`);
+    if (Math.abs(s.scrollY - scrolled) > 1) throw new Error(`the piece's scroll position did not survive: scrollY ${s.scrollY}, was ${scrolled}`);
+    if (s.navHidden !== "true" || s.navInert !== true) throw new Error(`the closed index is not inert again: ${JSON.stringify(s)}`);
+    if (!(await page.evaluate(() => document.querySelector("main#main").__opMark === 1))) throw new Error("the piece's main was remounted");
+
+    // A click (no movement) opens; Escape closes and returns focus to the ear.
+    await page.mouse.click(10, 10);
+    await waitFor(page, "a click on the ear did not open the index", (far) => window.__offprints.open === true && window.__offprints.cut >= far, FAR);
+    await page.keyboard.press("Escape");
+    await waitFor(
+      page,
+      "Escape did not close the index",
+      () =>
+        window.__offprints.open === false &&
+        document.querySelector("[data-op-ear]").getAttribute("aria-expanded") === "false" &&
+        window.__offprints.cut <= 52,
+    );
+    s = await opState(page);
+    if (s.active !== "ear") throw new Error(`focus after Escape is on ${s.active}, not the ear`);
+    if (s.path !== "/") throw new Error(`the URL changed after Escape: ${s.path}`);
+    notes.push(`drag 500 → back to 40 in ${backMs}ms; 880 opens; 1400 opens, Back and Escape close with focus on the ear`);
+  });
+
+  // 3. Reduced motion: no hint, every change instant.
+  await withPage(browser, { viewport, reducedMotion: "reduce" }, async (page) => {
+    await page.goto(url, { waitUntil: "load" });
+    await waitFor(page, "no window.__offprints hook", () => !!window.__offprints, null, 5000);
+    await page.waitForTimeout(2500);
+    let s = await opState(page);
+    if (s.hintFired !== false || s.cut !== 40) throw new Error(`under reduced motion the hint ran: hintFired ${s.hintFired}, cut ${s.cut}`);
+    await page.mouse.click(10, 10);
+    const cut = await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r(window.__offprints.cut))));
+    if (cut !== FAR) throw new Error(`under reduced motion a click gave cut ${cut} on the next frame, not ${FAR}`);
+    s = await opState(page);
+    if (s.open !== true) throw new Error(`under reduced motion the click did not open: ${JSON.stringify(s)}`);
+    notes.push(`reduced motion: no hint, click → ${FAR} in one frame`);
+  });
+
+  return notes.join("; ");
+}
+
 const CHECKS = [
   ["sky-animates-1280", skyAnimatesAt1280],
   ["sky-static-reduced-motion", skyStaticUnderReducedMotion],
@@ -7037,6 +7280,7 @@ const CHECKS = [
   ["sky-invite", checkSkyInvite],
   ["stargaze-chrome", checkStargazeChrome],
   ["stargaze-secret-door", checkStargazeSecretDoor],
+  ["offprints-peel", checkOffprintsPeel],
 ];
 
 async function main() {

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PIECES } from "@/content/offprints/pieces";
 import { componentFor } from "@/components/offprints/pieces";
+import { IndexPage } from "@/components/offprints/IndexPage";
+import { Shell } from "@/components/offprints/Shell";
 import { pieceBySlug, visiblePieces } from "@/lib/offprints/pieces";
 import { pieceUrl } from "@/lib/offprints/site";
 
@@ -32,5 +34,12 @@ export default async function OffprintsPiece({ params }: Props) {
   const piece = pieceBySlug(PIECES, slug, process.env.VERCEL_ENV);
   if (!piece) notFound();
   const Body = componentFor(piece);
-  return <Body piece={piece} />;
+  return (
+    <Shell
+      index={<IndexPage pieces={visiblePieces(PIECES, process.env.VERCEL_ENV)} currentSlug={piece.slug} />}
+      currentSlug={piece.slug}
+    >
+      <Body piece={piece} />
+    </Shell>
+  );
 }

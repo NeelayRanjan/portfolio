@@ -1,17 +1,21 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { AnchorHTMLAttributes } from "react";
+import { publicHref } from "@/lib/offprints/host";
 
 /**
- * Every internal Offprints link. Server components always write the
- * internal prefix form (`/offprints/all`); on the Offprints host the public
- * URL has no prefix, so Task 4 swaps the href on mount through
- * `publicHref(href, location.hostname)` (lib/offprints/host.ts). Until then
- * this is a stub that renders the href unchanged.
+ * Every internal Offprints link. Server components write the internal prefix
+ * form (`/offprints/all`); on the Offprints host the public URL has no prefix,
+ * so the href is swapped after hydration through `publicHref`.
  */
 export function OffLink({
   href,
   ...a
 }: AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }) {
-  return <a href={href} {...a} />;
+  const [shown, setShown] = useState(href);
+  useEffect(() => {
+    setShown(publicHref(href, window.location.hostname));
+  }, [href]);
+  return <a href={shown} {...a} />;
 }

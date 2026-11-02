@@ -18,6 +18,11 @@ export const testSheet = {
     symbol: "F",
     body: "a page that exists only so the checks have something to read.",
   },
+  // Subscripts are composed in the piece: base letter, then sub.
+  equation: {
+    lhs: { base: "F", sub: "t" },
+    rhs: { base: "F", sub: "t−1", tail: "+ 1" },
+  },
   table: {
     caption: "Two made-up rows.",
     head: ["row", "count"],

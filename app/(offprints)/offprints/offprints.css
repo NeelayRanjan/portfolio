@@ -100,9 +100,12 @@
   color: var(--color-ink);
   cursor: pointer;
 }
-.op-tool[aria-pressed="true"],
-.op-tool:hover { background: var(--color-ink); color: var(--color-paper); }
+.op-tool[aria-pressed="true"] { background: var(--color-ink); color: var(--color-paper); }
 .op-tool--primary { background: var(--color-ink); color: var(--color-paper); }
+@media (hover: hover) {
+  .op-tool:hover { background: var(--color-ink); color: var(--color-paper); }
+  .op-tool--primary:hover { background: var(--color-mut); border-color: var(--color-mut); }
+}
 input[type="range"].op-min {
   -webkit-appearance: none;
   appearance: none;

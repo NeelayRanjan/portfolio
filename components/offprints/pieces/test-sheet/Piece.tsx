@@ -28,7 +28,7 @@ export function TestSheetPiece({ piece }: { piece: Piece }) {
               </Definition>
               <Booktabs n={1} caption={copy.table.caption} head={[...copy.table.head]} rows={copy.table.rows.map((r) => [...r])} align={["left", "right"]} />
               <Equation n={1}>
-                F<sub>t</sub> = F<sub>t−1</sub> + 1
+                {copy.equation.lhs.base}<sub>{copy.equation.lhs.sub}</sub> = {copy.equation.rhs.base}<sub>{copy.equation.rhs.sub}</sub> {copy.equation.rhs.tail}
               </Equation>
             </>
           ),

@@ -7665,6 +7665,7 @@ async function checkOffprintsFigure1(browser) {
     if (st.readout !== want0) throw new Error(`readout ${JSON.stringify(st.readout)}, expected ${JSON.stringify(want0)}`);
     if (st.undo !== 0) throw new Error("undo shows before any change");
     notes.push(`"it" asks, outlined in q; "fence" darkest; readout "${want0}"; no undo at rest`);
+    const wave = [];
     {
       // The caption is filled from the json, so it names the data's layer, head and date.
       const [y, m, d] = OP_FIG1.extracted.split("-").map(Number);
@@ -7672,8 +7673,52 @@ async function checkOffprintsFigure1(browser) {
       const want = [OP_FIG1.model.split("/").pop(), `layer ${OP_FIG1.layer}`, `head ${OP_FIG1.defaultHead}`, `extracted ${date}`];
       const miss = want.filter((w) => !st.caption?.includes(w));
       if (miss.length) throw new Error(`caption ${JSON.stringify(st.caption)} lacks ${JSON.stringify(miss)}`);
+      // No-self-vouching (CLAUDE.md 2026-09-30): the model, layer, head and
+      // date carry the claim; no assurance word on top of them. Proved to
+      // bite (2026-11-02) on the build before: "caption vouches for itself:
+      // "Figure 1: One attention head reading a sentence. Qwen3.5-0.8B-Base,
+      // layer 7, head 1, actual weights, extracted 1 Nov 2026. ...""
+      if (/\bactual\b|\breal\b/i.test(st.caption ?? "")) wave.push(`caption vouches for itself: ${JSON.stringify(st.caption)}`);
       notes.push(`caption names ${want.join(", ")}`);
     }
+    {
+      // Drawn vs measured (Constitution): the only bar in the definitions is
+      // K's, the measured share; Q and V carry no drawn bar. Proved to bite
+      // (2026-11-02) on the build with the fixed bars: "definition bars in
+      // q,k,v; expected K's alone".
+      const bars = await page.evaluate((FIG) => {
+        const fig = document.querySelector(FIG);
+        return [...fig.querySelectorAll('.op-def [style*="width"]')].map((b) => ({
+          role: (b.closest(".op-def").className.match(/op-def--(\w+)/) ?? [])[1],
+          width: b.style.width,
+        }));
+      }, FIG);
+      const best = opFig1Best(IT);
+      const wantW = `${Math.round(OP_FIG1.sentence.attention[OP_FIG1.defaultHead][IT][best] * 100)}%`;
+      if (bars.length !== 1 || bars[0].role !== "k") {
+        wave.push(`definition bars in ${bars.map((b) => b.role).join(",")}; expected K's alone`);
+      } else if (bars[0].width !== wantW) wave.push(`the K bar is ${bars[0].width}, expected ${wantW}`);
+      else notes.push(`one bar, K's, at ${wantW}`);
+    }
+    {
+      // The maths in "Words, if you want them" is composed with real <sub>
+      // and <sup>, never TeX source on the page. Proved to bite (2026-11-02)
+      // on the build before: "the words section prints TeX source:
+      // ["_","{","}","ᵀ"]".
+      const m = await page.evaluate(() => {
+        const d = document.querySelector("article details");
+        return d
+          ? { text: d.textContent, sub: d.querySelectorAll("sub").length, sup: d.querySelectorAll("sup").length }
+          : null;
+      });
+      if (!m) throw new Error("no <details> words section in the piece");
+      const tex = ["_", "{", "}", "\u1d40"].filter((c) => m.text.includes(c));
+      if (tex.length) wave.push(`the words section prints TeX source: ${JSON.stringify(tex)}`);
+      else if (m.sub < 10 || m.sup < 3) wave.push(`the words section has ${m.sub} <sub> and ${m.sup} <sup>, expected >= 10 and >= 3`);
+      else notes.push(`words maths composed: ${m.sub} sub, ${m.sup} sup, no TeX`);
+    }
+    // The three fix-wave assertions above gather, so one old build shows all.
+    if (wave.length) throw new Error(wave.join("; "));
     const contrastFails = new Set(await opFig1Contrast(page, FIG));
 
     // Clicking the token already asking changes nothing: no undo, no event.

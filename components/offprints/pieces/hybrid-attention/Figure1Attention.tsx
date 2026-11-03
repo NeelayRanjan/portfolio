@@ -22,9 +22,6 @@ type Copy = {
 
 const START = 13; // " it", the token the caption is about
 const ROLES = ["q", "k", "v"] as const;
-const BAR = { q: "bg-q", k: "bg-k", v: "bg-v" } as const;
-const QUERY_BAR = 70; // fixed: the query is the asker's own, nothing to weigh
-const VALUE_BAR = 55; // fixed: the value is what gets handed back
 
 /**
  * Figure 1 of No. 1: one attention head of Qwen3.5-0.8B-Base (layer 7, head
@@ -122,13 +119,17 @@ export function Figure1Attention({ data, copy }: { data: Figure1Data; copy: Copy
       <div className="mt-2 grid gap-3 *:my-0 min-[640px]:grid-cols-3">
         {copy.definitions.map((d, i) => {
           const role = ROLES[i];
-          const pct = role === "q" ? QUERY_BAR : role === "k" ? Number(pctOf(bestW)) : VALUE_BAR;
+          // Only K gets a bar: it is the measured share the readout names.
+          // Q and V had fixed, drawn bars once; drawn and measured never sit
+          // side by side as if alike (Constitution), so they have none.
           return (
             <Definition key={d.term} n={i + 1} term={d.term} symbol={d.symbol} role={role}>
               {d.text}
-              <span aria-hidden className="mt-2.5 block h-[6px] bg-paper">
-                <span className={`block h-full ${BAR[role]}`} style={{ width: `${pct}%` }} />
-              </span>
+              {role === "k" ? (
+                <span aria-hidden className="mt-2.5 block h-[6px] bg-paper">
+                  <span className="block h-full bg-k" style={{ width: `${pctOf(bestW)}%` }} />
+                </span>
+              ) : null}
             </Definition>
           );
         })}

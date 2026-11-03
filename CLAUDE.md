@@ -90,9 +90,10 @@ honest limit: the main-thread ORT wasm heap never actually shrinks, only the
 chess worker's termination truly frees memory. `window.__sky` and
 `window.__offload` are verify hooks, not UI.
 
-**Verification: `scripts/verify-redesign.mjs`** — 62 named checks on branch
-`offprints` (56 + the six `offprints-*`, all 62 passed on a production build,
-2026-11-02; see the Offprints entry below), 56 named checks on `main`
+**Verification: `scripts/verify-redesign.mjs`** — 63 named checks on branch
+`offprints` (56 + the seven `offprints-*`, all 63 passed on a production build
+after the final-review fix wave, 2026-11-02, which added `offprints-404`; 62
+before it; see the Offprints entry below), 56 named checks on `main`
 since the lander merge, 2026-10-16 (`lander-mounts`, `lander-360`; see the
 lander section; all 56 passed on the merged build, 2026-10-16), 54 before it
 (counted from the CHECKS array on 2026-10-15; this line read 53, already
@@ -322,7 +323,7 @@ star colour, 9) plus the rerouter's ten (`test-slaac-arcs` 16,
 `test-slaac-guidance` 4, `test-slaac-reroute` 37, `test-slaac-ring` 7,
 `test-slaac-sampler` 5, `test-slaac-summary` 5, `test-slaac-view` 8;
 `node --test scripts/test-*.mjs` runs them all, ~16 s) runs outside
-Playwright, in plain node (240 cases on branch `offprints`, the 203 `main` runs plus the six `test-offprints-*` files' 37; 202 cases total, 192 before Task 18, 188 before Task 17; 95 of them the rerouter's, which
+Playwright, in plain node (243 cases on branch `offprints`, the 203 `main` runs plus the six `test-offprints-*` files' 40, 37 before the fix wave; 202 cases total, 192 before Task 18, 188 before Task 17; 95 of them the rerouter's, which
 the SLAAC section describes; 180 before Task 12c; 93 before those, 3 of them the served resume's and
 10 the self-play rule's; 80 before those, 73 before the card
 photographs, 62 before the discoverability round and 47 before the colour
@@ -851,6 +852,15 @@ a preview has no Offprints host). Contract, tokens, checks and scripts:
 "Offprints" under the demos. Verified on a production build at :3100 on
 2026-11-02: 62 passed, 0 failed (56 + the six `offprints-*`; `sky-animates-1280` median
 4.04 ms against the 5.92 ms budget), 240 of 240 node tests (203 + 37), `tsc` and `check-voice` clean.
+**Final-review fix wave, 2026-11-02** (12 items, seven commits, items 3, 7 and 9 sharing one; report in
+the gitignored `.superpowers/sdd/2026-11-01-offprints-shell/fix-wave-report.md`):
+page 1's door gated on a visible piece, the feed and home links tracked, Q and
+V's drawn bars cut, 44px hit areas, `offprints-404`, `_vercel/` out of the
+proxy, the words' maths composed, label words into the shell copy, "actual"
+out of the caption, the portfolio CSS compared against production. Re-verified
+on a fresh production build at :3100: 63 passed, 0 failed (`sky-animates-1280`
+median 3.10 ms against 5.92), 243 of 243 node tests (203 + 40), `tsc` and
+`check-voice` clean.
 
 **Open items, roughly in order:**
 
@@ -3482,8 +3492,12 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 - **Hosting.** One Next project, two root layouts (route groups
   `app/(portfolio)/` and `app/(offprints)/offprints/`). The Offprints routes
   physically live under the `/offprints` prefix; `proxy.ts` (matcher
-  `/((?!_next/|api/).*)`, rules in `lib/offprints/host.ts`, no imports, pinned
-  by `test-offprints-host`) makes that invisible on the subdomain.
+  `/((?!_next/|_vercel/|api/).*)`, rules in `lib/offprints/host.ts`, no imports, pinned
+  by `test-offprints-host`) makes that invisible on the subdomain. `_vercel/`
+  is skipped (fix wave, 2026-11-02) because the analytics and Speed Insights
+  scripts load same-origin from `/_vercel/...`, which an `offprints.*` host
+  would otherwise rewrite to `/offprints/_vercel/...` and 404; `decide` never
+  sees those paths, so the matcher carries a comment, not a host-rules case.
   `decide(host, pathname, search)`: (1) an apex host (`neelayranjan.dev`,
   `www.`) with an `/offprints...` path answers 308 to
   `https://offprints.neelayranjan.dev` + the stripped path + query (a preview
@@ -3499,8 +3513,11 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   loopback); the suite derives `OFFPRINTS_BASE` from `VERIFY_BASE`.
 - **Drafts.** `content/offprints/pieces.ts` is the registry (`status: "draft" |
   "published"`); `lib/offprints/pieces.ts` has `visiblePieces`, `latestPiece`,
-  `pieceBySlug`, `numberLabel`, `monthYear`, all taking `VERCEL_ENV` as a
-  parameter. Drafts show on previews and local builds, never when
+  `pieceBySlug`, `numberLabel`, `monthYear`, `gateOffprintsLinks`, the
+  visibility ones taking `VERCEL_ENV` as a parameter. `numberLabel` reads its
+  word ("No.") from `shell.piece.numberLabel`; Booktabs and Definition read
+  "Table" and "Definition" from the same block (fix wave: they were literals
+  outside the voice gate's content files). Drafts show on previews and local builds, never when
   `VERCEL_ENV === "production"` (the index, the Atom feed, the piece route's
   static params and page 1's door read the same filter). A production build
   with only drafts prerenders no slug and `/offprints` 404s, by design. Two
@@ -3552,7 +3569,22 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   (`j < sel`, the set the figure tints), the first token has its own line
   (`readoutFirst`), the asking chip's title carries its own weight, and the
   percentage is of total attention. The caption is filled from the JSON (model,
-  layer, head, date) so a re-derive cannot leave it stale. `demo_used {demo:
+  layer, head, date) so a re-derive cannot leave it stale; since the fix wave it
+  reads "..., head {head}, weights extracted {date}." ("actual weights" was an
+  assurance word, the 2026-09-30 rule). **Only K has a bar** in the Definition
+  boxes, the measured share the readout names; Q and V had fixed 70% and 55%
+  bars, drawn beside a measured one, and have none now (no empty slot).
+  **Hit areas** (spec §3): chips (~34px) and every `.op-tool` (undo ~27px)
+  carry a transparent `::after` at least 44px each way centred on the
+  control, so the visible box is unchanged; between chip rows the extensions
+  share the 6px gap and never reach a neighbour's box. Narrow chips ("a",
+  ",") stay under 44px WIDE: widening them would overlap their neighbours.
+  `.op-min` ranges are 44px tall with -14px block margins (16px of layout).
+  **The words' maths** (`copy.words.before/equation/after`) is held as parts,
+  plain strings and `{ base, sub, sup }` terms, and `MathText`
+  (`components/offprints/MathText.tsx`) composes real `<sub>`/`<sup>`
+  ("⊤" for the transpose); prose parts still go through `withCites`. It used
+  to print TeX source (`S_{t−1}`). `demo_used {demo:
   "offprints/hybrid-attention/figure-1"}` once per load, only on a change
   (`trackDemoOnce` was widened to take the string).
 - **Metadata, icons, feed.** Per-host metadata in the Offprints layout: its own
@@ -3565,15 +3597,27 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   `icons/favicon.ico` for the browser's automatic `/favicon.ico` request, which
   the proxy rewrites to `/offprints/favicon.ico`; the declared links stay under
   `icons/`. `feed.xml` is an Atom feed of visible pieces (`lib/offprints/feed.ts`,
-  pinned by `test-offprints-feed`). `OffprintsAnalytics` mounts Vercel Analytics
+  pinned by `test-offprints-feed`). The feed links (/all's foot, a piece's foot)
+  and /all's neelayranjan.dev link are `TrackedOffLink`s (an `OffLink` that
+  calls `trackOutbound`), labels "RSS" and "Portfolio" (HomeMark's), so every
+  outbound link on the host queues `outbound_link` (spec §8; fix wave).
+  `OffprintsAnalytics` mounts Vercel Analytics
   with a `beforeSend` that prefixes `/offprints` onto every recorded URL, so the
   host's rewritten paths read as the real routes; the quota rule is unchanged.
 - **Page 1's door.** A bordered Offprints box (`[data-offprints-box]`) under
   the lab box, printing the newest VISIBLE piece's claim from the registry, plus
-  an Offprints entry in References. The OG card was not regenerated (the box
-  falls below the 1200x630 frame; the lab box is cut at its bottom edge as
-  before).
-- **Checks (six, in `scripts/verify-redesign.mjs`; each header carries its
+  an Offprints entry in References. **Both render only while a piece is visible**
+  (spec §10.1; fix wave, 2026-11-02): the Masthead gates the box on
+  `latestPiece(PIECES, VERCEL_ENV)` and References drops every link into the
+  Offprints host through `gateOffprintsLinks` on the same value, so a
+  `VERCEL_ENV=production` build with only drafts shows no door at all (the
+  static fallback lead is gone with the case it served). Checked on such a build:
+  no `[data-offprints-box]`, no `offprints.neelayranjan.dev` link and no
+  "Offprints" track label in page 1's HTML. `public/og.png` WAS regenerated in
+  4add0b7 (gen-og): the frame is unchanged because the headshot rail is tall, the
+  stamp is inside it, the lab box is cut at the bottom edge as before, and the
+  Offprints box falls below the card; only the sky differs.
+- **Checks (seven, in `scripts/verify-redesign.mjs`; each header carries its
   proved-to-bite note).** `offprints-peel` (1280x800: ear/triangle/fold stay
   viewport-anchored while the piece scrolls; a drag peeks exactly to the pointer
   and lays back below threshold; a release at exactly 880 opens; open hides the
@@ -3584,7 +3628,11 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   `offprints-feed` (200, `application/atom+xml`, one `<feed>`, canonical
   self/alternate links, one `<entry>` per visible piece on the canonical host;
   bit by building the route with `PIECES` instead of `visiblePieces` under
-  `VERCEL_ENV=production`). `offprints-search` (canonical per page, title
+  `VERCEL_ENV=production`; since the fix wave, on a local build, a click on
+  /all's and a piece's feed link each queues one `outbound_link{RSS}` and /all's
+  home link one `{Portfolio}`, navigation cancelled in the capture phase; bit
+  by the plain `OffLink`: "/all feed link: expected one outbound_link{RSS},
+  queued 0"). `offprints-search` (canonical per page, title
   template, exactly three icon links at stable paths each served as its claimed
   type, the automatic `/favicon.ico`, robots/sitemap, og:image resolves, the
   `beforeSend` prefix; bit by pointing the icon links at `/icon-192.png`).
@@ -3593,12 +3641,35 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   undo, Enter on a chip, one `demo_used` per load, every chip's text at 4.5:1
   or more at rest, after a click and for all 15 selections, 390px touch with no
   horizontal scroll; bit by hard-coding `{to}`, the old single tint curve, and
-  the best key over the full prefix). `offprints-400` (390px and without
+  the best key over the full prefix; since the fix wave also: no "actual" or
+  "real" in the caption, exactly one bar in the definitions, K's, at the
+  readout's share, and the words section free of TeX (`_`, `{`, `}`, `ᵀ`) with
+  real `<sub>`/`<sup>`, these three gathered so one old build showed all:
+  "caption vouches for itself: ... actual weights ...; definition bars in
+  q,k,v; expected K's alone; the words section prints TeX source:
+  ["_","{","}","ᵀ"]"). `offprints-400` (390px and without
   JavaScript: no horizontal scroll, `/all` lists the titles, the ear is an `A`
-  to `/offprints/all`). `offprints-door` (page 1's box follows the lab box,
-  prints the registry's claim, links the piece, plus the References entry).
-- **Node suites** (`scripts/test-offprints-*.mjs`, 37 cases): `host` 5,
-  `peel` 8, `pieces` 8, `feed` 6, `figure1` 6, `undo` 4.
+  to `/offprints/all`; since the fix wave the hit areas at 390px with touch: a
+  last-row chip's and the undo button's `::after` computed height >= 44 and
+  `elementFromPoint` 21px above and below the visible centre resolving to the
+  control, and an `.op-min` range the check mounts (no page renders
+  StepControls yet) 44px tall in 16px of layout; bit by the tree before:
+  "390px: chip "." hit area: ::after height none, probe 21px above hits DIV,
+  below hits DIV"). `offprints-door` (page 1's box follows the lab box,
+  prints the registry's claim, links the piece, plus the References entry;
+  the closed case, production with only drafts, is the node test's).
+  `offprints-404` (fix wave: on the Offprints host `/nope` and `/nope/deeper`
+  answer 404 with "No such piece" and never the portfolio's heading; on the
+  apex `/this-page-does-not-exist` answers 404 with "Reference not found" and
+  COOP/COEP; errors gathered; bit by one mutant build, the Offprints
+  not-found rendering the portfolio heading and the portfolio catch-all
+  returning its sheet: "offprints /nope: body lacks "No such piece"; offprints
+  /nope: body carries the portfolio's "Reference not found"; [the same for
+  /nope/deeper]; portfolio 404: status 200, expected 404").
+- **Node suites** (`scripts/test-offprints-*.mjs`, 40 cases): `host` 5,
+  `peel` 8, `pieces` 11 (the fix wave's three: the door gate's predicate,
+  production with only drafts closed and any other env open on the newest;
+  `gateOffprintsLinks`; the shell's label words), `feed` 6, `figure1` 6, `undo` 4.
 - **Hand-run scripts (never wired to prebuild; outputs committed).**
   `node scripts/offprints/derive-hybrid-attention.mjs` reads
   `external_materials/concepts/hybrid-attention/hybrid-data.json` (the owner's
@@ -3623,12 +3694,25 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
 - **Open for piece 1.** Figures 2+ of hybrid attention need their own spec and
   plan (Figure 1 is the only one built). Deferred minors, from the ledger:
   `START=13` hard-coded in Figure 1, `aria-pressed` versus a radiogroup on the
-  chips, `.op-tool` touch targets (~25px) and the range (16px), `beforeSend`'s
-  unguarded `new URL()`, page-level `openGraph` dropping `og:site_name` and
-  `og:type`, a node test for `latestPiece` null under production with only
-  drafts. Compare the portfolio CSS chunk against a pre-branch build before
-  merge (a Task 3 fix changed its bytes; the 56 portfolio checks cover
-  rendering).
+  chips, `beforeSend`'s unguarded `new URL()`, page-level `openGraph` dropping
+  `og:site_name` and `og:type`. (The touch targets and the `latestPiece` node
+  test were done in the fix wave.)
+- **The portfolio CSS against production, DONE (fix wave, 2026-11-02).** The
+  Task 3 `@source` scoping changed the portfolio chunk's bytes, so page 1's CSS
+  on this branch was compared with LIVE production (deployment
+  dpl_rgjQ2WEpAn2GwnnU6vyZRd6E4B83, `main` f97da44, confirmed through the Vercel
+  deployment list): production serves one chunk of 54,150 bytes (53,040 with its
+  `?dpl=` font-URL suffixes stripped), the branch build two, 43,742 + 9,296 =
+  53,038. Split into leaf rules (with their @layer/@media path), both hold the
+  same 706, identical as a multiset; the only textual differences are the four
+  next/font module class names' hashes (the layouts moved into route groups, -2
+  bytes), and the order differs only in that the 36 next/font rules (32
+  @font-face, 4 module classes) now sit in their own second chunk instead of
+  heading the one file; the html carries only the `__variable` classes, so their
+  position changes no cascade. Nothing from Offprints is in it: zero matches for
+  `.op-`, `offprints`, `paper-under`, `efebe3`, `--color-q/k/v`, `.bg-q`,
+  `.text-k`, nor the fix wave's own chip `after:` utilities. The Task 11 door
+  box adds no CSS (it reuses the lab box's classes).
 
 ## Model artifacts
 

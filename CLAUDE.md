@@ -90,7 +90,9 @@ honest limit: the main-thread ORT wasm heap never actually shrinks, only the
 chess worker's termination truly frees memory. `window.__sky` and
 `window.__offload` are verify hooks, not UI.
 
-**Verification: `scripts/verify-redesign.mjs`** — 56 named checks on `main`
+**Verification: `scripts/verify-redesign.mjs`** — 62 named checks on branch
+`offprints` (56 + the six `offprints-*`, all 62 passed on a production build,
+2026-11-02; see the Offprints entry below), 56 named checks on `main`
 since the lander merge, 2026-10-16 (`lander-mounts`, `lander-360`; see the
 lander section; all 56 passed on the merged build, 2026-10-16), 54 before it
 (counted from the CHECKS array on 2026-10-15; this line read 53, already
@@ -320,7 +322,7 @@ star colour, 9) plus the rerouter's ten (`test-slaac-arcs` 16,
 `test-slaac-guidance` 4, `test-slaac-reroute` 37, `test-slaac-ring` 7,
 `test-slaac-sampler` 5, `test-slaac-summary` 5, `test-slaac-view` 8;
 `node --test scripts/test-*.mjs` runs them all, ~16 s) runs outside
-Playwright, in plain node (202 cases total, 192 before Task 18, 188 before Task 17; 95 of them the rerouter's, which
+Playwright, in plain node (240 cases on branch `offprints`, the 203 `main` runs plus the six `test-offprints-*` files' 37; 202 cases total, 192 before Task 18, 188 before Task 17; 95 of them the rerouter's, which
 the SLAAC section describes; 180 before Task 12c; 93 before those, 3 of them the served resume's and
 10 the self-play rule's; 80 before those, 73 before the card
 photographs, 62 before the discoverability round and 47 before the colour
@@ -828,6 +830,27 @@ own session. What changed, and the rules it leaves:
   done on purpose: M4 and W5 (passed on before), W2/W3 (covered by T1 and
   the copy pass), B2 (its own session). Verified on a production build:
   56/56 checks (frame 3.18 ms), 203/203 node tests.
+
+**2026-11-01: Offprints, a second site in this repo, BUILT on branch
+`offprints`, NOT merged, subdomain NOT bound in Vercel.** The owner's concepts
+site (visual, interactive explainers of recent AI concepts; planning record
+`docs/superpowers/specs/2026-11-01-concepts-site-plan.md`, shell spec
+`docs/superpowers/specs/2026-11-01-offprints-shell-design.md`) lives beside the
+portfolio as a second root layout, `app/(offprints)/offprints/`, reached at
+`offprints.neelayranjan.dev` through a host-aware `proxy.ts`. The portfolio's
+root layout, page, `/lab` and 404 moved under `app/(portfolio)/` with no
+behaviour change (route groups; `robots.ts`, `sitemap.ts` and `api/` stay at
+the app root). Built as a 12-task SDD run from `origin/main` f97da44; nothing
+of it is deployed. **The shell ships only together with piece 1** (spec
+§10.1): production must never show an empty Offprints, so on
+`VERCEL_ENV=production` the registry shows published pieces only, and piece 1
+(No. 1, hybrid attention) is a DRAFT with only Figure 1 built. Figures 2 and up
+need their own spec and plan before the two ship together. Review happens on a
+`dev` preview at `<preview-host>/offprints/hybrid-attention` (the prefix, since
+a preview has no Offprints host). Contract, tokens, checks and scripts:
+"Offprints" under the demos. Verified on a production build at :3100 on
+2026-11-02: 62 passed, 0 failed (56 + the six `offprints-*`; `sky-animates-1280` median
+4.04 ms against the 5.92 ms budget), 240 of 240 node tests (203 + 37), `tsc` and `check-voice` clean.
 
 **Open items, roughly in order:**
 
@@ -3446,6 +3469,166 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   (the map melts into the panel, no border), and `clip-path: inset(2px)`
   shaves the source's not-quite-white edge row that survived inversion as a
   1px light border.
+
+### Offprints (offprints.neelayranjan.dev, branch `offprints`, NOT merged, subdomain NOT bound)
+- **State, plainly.** Built 2026-11-01 on branch `offprints` (worktree
+  `../portfolio-offprints`, a SIBLING directory: the native worktree tool nests
+  under `.claude/worktrees/`, beneath a second package-lock, which trips
+  Turbopack's root inference in `next build`). Not merged; `offprints.neelayranjan.dev`
+  is not added in Vercel. Do not merge the shell alone: it ships with piece 1
+  (spec §10.1). Ship order: Figures 2+ spec and plan, build, then merge, add the
+  domain in Vercel. The owner reviews at `<preview-host>/offprints/hybrid-attention`
+  (also `/offprints`, `/offprints/all`, `/offprints/feed.xml`).
+- **Hosting.** One Next project, two root layouts (route groups
+  `app/(portfolio)/` and `app/(offprints)/offprints/`). The Offprints routes
+  physically live under the `/offprints` prefix; `proxy.ts` (matcher
+  `/((?!_next/|api/).*)`, rules in `lib/offprints/host.ts`, no imports, pinned
+  by `test-offprints-host`) makes that invisible on the subdomain.
+  `decide(host, pathname, search)`: (1) an apex host (`neelayranjan.dev`,
+  `www.`) with an `/offprints...` path answers 308 to
+  `https://offprints.neelayranjan.dev` + the stripped path + query (a preview
+  host is neither, so previews keep the prefix and never redirect); (2) an
+  `offprints.*` host rewrites `/x` to `/offprints/x` (`/` to `/offprints`);
+  (3) on that host a path that already carries `/offprints` 308s to the
+  stripped URL, EXCEPT an asset path (`/offprints/icons/...`, `/offprints/og.png`:
+  a final segment with an extension, other than `robots.txt`, `sitemap.xml`,
+  `feed.xml`), which passes through; (4) everything else passes.
+  `publicHref(href, hostname)` (used by `OffLink`, which resolves after mount so
+  SSR emits the prefixed form) strips the prefix on the Offprints host. Locally
+  the host is `offprints.localhost` (Firefox resolves `*.localhost` to
+  loopback); the suite derives `OFFPRINTS_BASE` from `VERIFY_BASE`.
+- **Drafts.** `content/offprints/pieces.ts` is the registry (`status: "draft" |
+  "published"`); `lib/offprints/pieces.ts` has `visiblePieces`, `latestPiece`,
+  `pieceBySlug`, `numberLabel`, `monthYear`, all taking `VERCEL_ENV` as a
+  parameter. Drafts show on previews and local builds, never when
+  `VERCEL_ENV === "production"` (the index, the Atom feed, the piece route's
+  static params and page 1's door read the same filter). A production build
+  with only drafts prerenders no slug and `/offprints` 404s, by design. Two
+  pieces exist: `test-sheet` (a fixture exercising every primitive, dated
+  2026-10-31 so it sorts after No. 1) and `hybrid-attention`.
+- **The Shell and the peel** (`components/offprints/Shell.tsx`, the state
+  machine in `usePeel.ts`, geometry in `lib/offprints/peel.ts`, no imports).
+  One control, a dog-ear in the top-left of every piece that peels back to
+  reveal the index (`/offprints/all`; without JS the ear is a plain `A` with
+  that href). `PEEL` constants: rest 40, hover 52, slop 6, openMs 650,
+  threshold 0.4, hint to 66 after 1200 ms, out 900, back 700. The far corner is
+  `width + height + 120`; the fold distance is the pointer's `x + y` clamped to
+  [rest, far]; a release at or past `0.4 x far` (the `>=` is pinned) opens,
+  otherwise it lays back to rest. Click or Enter/Space opens, Escape closes with
+  focus back on the ear, reduced motion makes every change instant and skips the
+  hint. Opening hides the piece without unmounting it, un-inerts the index,
+  locks the page's scroll and moves focus to the index heading (a layout
+  effect). **History**: opening pushes one entry whose state carries a
+  per-mount nonce (`{ opIndex: <token> }`), because Next preserves custom
+  history state across a reload and a traversal and a bare `opIndex: true` left
+  a stale entry that reopened the index on the next Escape; mount scrubs a
+  foreign marker, and Back closes without changing the URL (Next documents
+  native `pushState` integration, so this is not a private-API reliance). A
+  second pointer or a lost pointer-up cannot leave a drag stuck; Ctrl/Cmd-click
+  on the ear opens `/all` in a new tab.
+- **Tokens** (`app/(offprints)/offprints/offprints.css`, spec §5/§5a as
+  amended): paper `#efebe3`, paper-under `#e6e1d7`, fill `#e7e2d8`, ink
+  `#1d1b17`, mut `#625d54`, rule `#cbc5b8`, link `#0B5394`, stamp `#b9311f`;
+  role hues q `#3f55c9` (5.27/4.80/4.85 on paper/under/fill), **k `#146b55`
+  and v `#8f4f08`**. **Palette ruling**: the spec's k `#1e8468` and v `#b86a12`
+  measured 3.88/3.54/3.57 and 3.46/3.15/3.18 and fail AA as text, so they were
+  darkened to 5.41/4.94/4.98 (k) and 5.37/4.90/4.94 (v) on paper/under/fill.
+  The `dataviz` validator passes CVD separation and the normal-vision floors for
+  (q, k, v) but flags the darker green under its chroma floor ("reads gray"), a
+  chart-MARK rule; accepted because every use of these hues as identity sits
+  beside a text label naming the role, and AA for text is binding. Costs a
+  duller green.
+- **Figure 1 and its two-regime tint** (`components/offprints/pieces/`,
+  `lib/offprints/figure1.ts`, data `content/offprints/hybrid-attention/figure1.json`
+  from the derive script). One attention head (Qwen3.5-0.8B-Base, layer 7, head
+  1) reading the cat sentence, 15 chips; a click makes a chip the asker, "it" at
+  load; `useUndo` for undo. The tint is NOT one curve: weights below 0.45 tint at
+  most 40% of k into paper with INK text (about 7.7:1), at or above 0.45 the
+  solid 92% mix with PAPER text (about 5:1); no single ramp clears AA through
+  0.45-0.85. Not-yet-seen (causally future) chips are plain paper, opaque `mut`
+  text and a 1px dashed rule border, no opacity fade. Spec §5's "the only ramp
+  is ink mixed into paper" is superseded by §11 (colour ties words to the
+  figure). The readout's `{to}` and `{pct}` are over EARLIER tokens only
+  (`j < sel`, the set the figure tints), the first token has its own line
+  (`readoutFirst`), the asking chip's title carries its own weight, and the
+  percentage is of total attention. The caption is filled from the JSON (model,
+  layer, head, date) so a re-derive cannot leave it stale. `demo_used {demo:
+  "offprints/hybrid-attention/figure-1"}` once per load, only on a change
+  (`trackDemoOnce` was widened to take the string).
+- **Metadata, icons, feed.** Per-host metadata in the Offprints layout: its own
+  canonical per page, title template "<piece> · Offprints", icons declared as
+  plain public paths `/offprints/icons/{favicon.ico,icon-192.png,apple-icon.png}`
+  (stable URLs; same trap as the portfolio's), `robots.txt` and `sitemap.xml`
+  for the host, the shared `OFFPRINTS_OG_IMAGE` (`/offprints/og.png`; a
+  page-level `openGraph` replaces the layout's wholesale, so pages share the
+  constant). **`public/offprints/favicon.ico` is a byte copy** of
+  `icons/favicon.ico` for the browser's automatic `/favicon.ico` request, which
+  the proxy rewrites to `/offprints/favicon.ico`; the declared links stay under
+  `icons/`. `feed.xml` is an Atom feed of visible pieces (`lib/offprints/feed.ts`,
+  pinned by `test-offprints-feed`). `OffprintsAnalytics` mounts Vercel Analytics
+  with a `beforeSend` that prefixes `/offprints` onto every recorded URL, so the
+  host's rewritten paths read as the real routes; the quota rule is unchanged.
+- **Page 1's door.** A bordered Offprints box (`[data-offprints-box]`) under
+  the lab box, printing the newest VISIBLE piece's claim from the registry, plus
+  an Offprints entry in References. The OG card was not regenerated (the box
+  falls below the 1200x630 frame; the lab box is cut at its bottom edge as
+  before).
+- **Checks (six, in `scripts/verify-redesign.mjs`; each header carries its
+  proved-to-bite note).** `offprints-peel` (1280x800: ear/triangle/fold stay
+  viewport-anchored while the piece scrolls; a drag peeks exactly to the pointer
+  and lays back below threshold; a release at exactly 880 opens; open hides the
+  piece, un-inerts the index, locks scroll; Back closes without changing the
+  URL; click opens, Escape closes with focus on the ear; the hint runs once and
+  returns; reduced motion instant; reloads leave no stale entry. Bit by: `>=`
+  to `>`, dropping the pushState, an un-scoped history marker).
+  `offprints-feed` (200, `application/atom+xml`, one `<feed>`, canonical
+  self/alternate links, one `<entry>` per visible piece on the canonical host;
+  bit by building the route with `PIECES` instead of `visiblePieces` under
+  `VERCEL_ENV=production`). `offprints-search` (canonical per page, title
+  template, exactly three icon links at stable paths each served as its claimed
+  type, the automatic `/favicon.ico`, robots/sitemap, og:image resolves, the
+  `beforeSend` prefix; bit by pointing the icon links at `/icon-192.png`).
+  `offprints-figure1` (15 chips, "it" asking in the computed `q`, the readout
+  from the copy template, the best-earlier-token rule across all 15 selections,
+  undo, Enter on a chip, one `demo_used` per load, every chip's text at 4.5:1
+  or more at rest, after a click and for all 15 selections, 390px touch with no
+  horizontal scroll; bit by hard-coding `{to}`, the old single tint curve, and
+  the best key over the full prefix). `offprints-400` (390px and without
+  JavaScript: no horizontal scroll, `/all` lists the titles, the ear is an `A`
+  to `/offprints/all`). `offprints-door` (page 1's box follows the lab box,
+  prints the registry's claim, links the piece, plus the References entry).
+- **Node suites** (`scripts/test-offprints-*.mjs`, 37 cases): `host` 5,
+  `peel` 8, `pieces` 8, `feed` 6, `figure1` 6, `undo` 4.
+- **Hand-run scripts (never wired to prebuild; outputs committed).**
+  `node scripts/offprints/derive-hybrid-attention.mjs` reads
+  `external_materials/concepts/hybrid-attention/hybrid-data.json` (the owner's
+  extraction; `external_materials` in this worktree is a SYMLINK to the main
+  checkout's gitignored directory, excluded in `.git/info/exclude` because the
+  `.gitignore` pattern doesn't match a symlink) and writes `figure1.json` (the
+  cat sentence, layer 7 as [head][query][key], 4 decimals); assert-before-write:
+  15 tokens, 8 heads, a present model field, every causal row summing to 1 +-
+  0.02, and head 1's "it" row at 0.85 or more on "fence".
+  `node scripts/gen-offprints-icons.mjs` rasterises `scripts/offprints-icon.svg`
+  through a Playwright Firefox canvas into `public/offprints/icons/` and the
+  favicon copy. `node scripts/gen-offprints-og.mjs` renders
+  `public/offprints/og.png` (a plain 1200x630 card, not a page screenshot; needs
+  the network for STIX Two). The last two need the repo's Playwright Firefox.
+- **Verify hooks and knobs.** `window.__offprints` (`cut`, `open`, `hintFired`,
+  `dragging`), the `data-op-*` attributes (`data-op-ear` and the figure's chips
+  and readout), `window.vaq` for events, and two env vars: `OFFPRINTS_BASE`
+  (default `VERIFY_BASE` with `offprints.` inserted after the scheme) and
+  **`OFFPRINTS_EXPECT_ENTRIES`** (default 2: a local build lists both pieces in
+  the feed; set 0 against a `VERCEL_ENV=production` build, where drafts are
+  hidden and the feed must hold none; any other value throws).
+- **Open for piece 1.** Figures 2+ of hybrid attention need their own spec and
+  plan (Figure 1 is the only one built). Deferred minors, from the ledger:
+  `START=13` hard-coded in Figure 1, `aria-pressed` versus a radiogroup on the
+  chips, `.op-tool` touch targets (~25px) and the range (16px), `beforeSend`'s
+  unguarded `new URL()`, page-level `openGraph` dropping `og:site_name` and
+  `og:type`, a node test for `latestPiece` null under production with only
+  drafts. Compare the portfolio CSS chunk against a pre-branch build before
+  merge (a Task 3 fix changed its bytes; the 56 portfolio checks cover
+  rendering).
 
 ## Model artifacts
 

@@ -10,7 +10,7 @@ import type { ReactNode } from "react";
  * clamped between 20-56px inline / 28-64px block). The outer 16px page gutter
  * that keeps the sheet's border off the viewport edge on narrow screens is a
  * page-shell concern, not this component's: it lives on whatever wraps Sheet
- * (see the smoke assembly in app/page.tsx for today's stand-in).
+ * (see the smoke assembly in app/(portfolio)/page.tsx for today's stand-in).
  */
 export function Sheet({ children }: { children: ReactNode }) {
   return (

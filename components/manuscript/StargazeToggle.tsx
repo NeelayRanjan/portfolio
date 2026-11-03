@@ -9,7 +9,7 @@ import { isListPanelOpen, setHintBottom, setListPanelOpen, useCardCounts, useLis
 /**
  * "stargaze for a bit?" in the desk margin above the sheet, and, while
  * stargazing, a fixed bar with a hint and "back to the page". Rendered once
- * from app/layout.tsx, so it exists on every page and no page becomes a
+ * from app/(portfolio)/layout.tsx, so it exists on every page and no page becomes a
  * client component.
  *
  * Focus follows the mode: entering moves focus to the exit control (the

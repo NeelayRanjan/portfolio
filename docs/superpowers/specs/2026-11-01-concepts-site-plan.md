@@ -6,8 +6,22 @@ session can plan and build one piece without re-deriving any of this. Update it
 whenever a question below is answered or a rule changes; this file wins over
 memory.
 
-Status: PLANNING. Nothing is built. Theme and template come first, then the
-first piece. Sections marked OPEN are the owner's to answer.
+Status: SHELL BUILT on branch `offprints` (2026-11-01), unmerged; next: the
+hybrid-attention figures' own spec and plan, then ship shell + piece together.
+Sections marked OPEN are the owner's to answer.
+
+What exists (branch `offprints`, not deployed, subdomain not bound):
+- The shell spec, `docs/superpowers/specs/2026-11-01-offprints-shell-design.md`
+  (§10 the settlements, §11 the interaction patterns), and its plan,
+  `docs/superpowers/plans/2026-11-01-offprints-shell.md`.
+- The site: `app/(offprints)/offprints/`, `proxy.ts` and `lib/offprints/host.ts`
+  (host mapping), `components/offprints/` (Shell with the dog-ear peel, paper
+  primitives), `lib/offprints/` (registry rules, feed, peel geometry),
+  `content/offprints/` (registry and copy).
+- Piece 1, hybrid attention, as a draft with Figure 1 only
+  (`content/offprints/hybrid-attention/figure1.json`).
+- Page 1's Offprints door and six `offprints-*` verify checks.
+- The contract and the numbers are in CLAUDE.md, "Offprints" under the demos.
 
 ## 1. What it is
 

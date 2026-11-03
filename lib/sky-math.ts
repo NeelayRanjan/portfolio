@@ -252,7 +252,7 @@ export function precessToJ2000(eq: Equatorial, ms: number): Equatorial {
 }
 
 /** Mirrors the layout: the sheet is at most 1000 px wide inside main's 16 px
- *  gutters (components/manuscript/Sheet.tsx, app/page.tsx) and starts 56 px
+ *  gutters (components/manuscript/Sheet.tsx, app/(portfolio)/page.tsx) and starts 56 px
  *  down (Sheet's mt-14). Change these with the layout. */
 export const SHEET_MAX_PX = 1000;
 export const PAGE_GUTTER_PX = 16;

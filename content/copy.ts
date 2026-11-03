@@ -278,7 +278,7 @@ export const copy = {
      *  the rail beside the NASA paragraphs, and `data` and `disclaimer` sit
      *  under Figure 3 as a footnote band (two columns from 880px): stacked
      *  in the rail they ran 725px against ~290px of prose. See the comment
-     *  in app/page.tsx's NASA box. Main column keeps the claims, the notes
+     *  in app/(portfolio)/page.tsx's NASA box. Main column keeps the claims, the notes
      *  keep the provenance. */
     notes: {
       paper: {
@@ -334,7 +334,7 @@ export const copy = {
        *  as the SLAAC note's, and "almost none cross" is its 99.3-99.6% with
        *  no leg crossing (20 steps, 25 nm margin, snapped plans; R10 rules
        *  the copy must not imply the full buffer is always held). The route
-       *  count that app/page.tsx used to inject left with the numbers. */
+       *  count that app/(portfolio)/page.tsx used to inject left with the numbers. */
       disclaimer: {
         tag: "differences",
         body: "My SLAAC models are integrated into the simulation software NASA and the FAA use to evaluate future air traffic management. This demo samples the same weights in fewer steps on public airspace, in seconds on my laptop and longer with more airspace or every flight at once. Fewer reroutes keep the full buffer than on the poster, though almost none cross the airspace.",
@@ -1130,7 +1130,7 @@ export const copy = {
    *  second trim (2026-09-16); if one ever does again, it must match
    *  SKY_SPEEDUP in lib/sky-math.ts (180) and stay out of `creditStill`. The
    *  ISS card's `issClock` still states it, and must match too. */
-  /** The skip link, the first stop on every page (app/layout.tsx). It jumps
+  /** The skip link, the first stop on every page (app/(portfolio)/layout.tsx). It jumps
    *  past the night sky's controls to the page's own `main#main`. */
   skipLink: "Skip to content",
   /** The accessible name of a live figure's slot before it mounts
@@ -1303,14 +1303,14 @@ export const copy = {
   },
 
   /** The 404 page, restyled to the "reference not found" conceit (spec §2).
-   *  `app/not-found.tsx` reads this shape directly. */
+   *  `app/(portfolio)/not-found.tsx` reads this shape directly. */
   notFound: {
     heading: "Reference not found",
     lede:
       "This citation doesn't resolve to a real page. The site only has two: the paper itself, and its supplementary material.",
     /** The struck-through entry standing in for whatever was requested.
      *  Generic on purpose: the site never echoes a visitor-supplied path
-     *  back into the page. See app/not-found.tsx. */
+     *  back into the page. See app/(portfolio)/not-found.tsx. */
     brokenLabel: "The page you asked for",
     links: [
       { label: "Back to the paper", href: "/" },

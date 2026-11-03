@@ -199,7 +199,7 @@ export function useListSlot(): HTMLElement | null {
   const [listSlot, setListSlot] = useState<HTMLElement | null>(null);
   useEffect(() => {
     // StargazeToggle renders the slot right after its exit control, so the
-    // list follows it in tab order; both are in app/layout.tsx, so it exists
+    // list follows it in tab order; both are in app/(portfolio)/layout.tsx, so it exists
     // by the time this runs.
     setListSlot(document.querySelector<HTMLElement>("[data-sky-list-slot]"));
   }, []);

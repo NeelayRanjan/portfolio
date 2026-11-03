@@ -154,7 +154,7 @@ async function scrollUntilAttached(page, selector, { maxScrolls = 20, step = 700
 /* 1. Night sky (components/manuscript/NightSky.tsx)                      */
 /* ---------------------------------------------------------------------- */
 
-/** The sky is the sole direct-child canvas of <body> (app/layout.tsx); every
+/** The sky is the sole direct-child canvas of <body> (app/(portfolio)/layout.tsx); every
  *  other canvas on the page lives inside <main>. */
 const SKY_CANVAS = "body > canvas";
 
@@ -815,7 +815,7 @@ function checkNoHorizontalScroll(route) {
 const HEAVY_RE = /\.(onnx|wasm)(\?|$)|\/ort\/|\/models\/flightdiff-|traj\.json(\?|$)|manifest\.json(\?|$)|sprites\.webp(\?|$)/i;
 /** Figure 3's small JSON (~230 KB): loaded when the figure scrolls in, never
  *  at first paint. Proved to bite (2026-09-30): unwrapping RerouteFigure from
- *  its DeferredMount in app/page.tsx failed with "Figure 3's data loaded
+ *  its DeferredMount in app/(portfolio)/page.tsx failed with "Figure 3's data loaded
  *  before it was scrolled to: .../slaac/meta.json, ...". */
 const SLAAC_DATA_RE = /\/slaac\/[^/?#]+\.json/;
 
@@ -1154,8 +1154,8 @@ async function checkChessSelfPlay(browser) {
 }
 
 /* ---------------------------------------------------------------------- */
-/* 3e. What search engines read (app/layout.tsx icons, app/page.tsx and   */
-/* app/lab/page.tsx canonicals, app/robots.ts, app/sitemap.ts,            */
+/* 3e. What search engines read (app/(portfolio)/layout.tsx icons, app/(portfolio)/page.tsx and   */
+/* app/(portfolio)/lab/page.tsx canonicals, app/robots.ts, app/sitemap.ts,            */
 /* lib/site.ts). 2026-09-17: search results still showed the old logo and */
 /* text. One host everywhere (neelayranjan.dev, owner's call); each page  */
 /* names itself as canonical and the 404 names nothing; the icons are the */
@@ -3072,7 +3072,7 @@ async function checkDiceCdf(browser) {
 }
 
 /* ---------------------------------------------------------------------- */
-/* 13. Vercel Web Analytics (app/layout.tsx + lib/track.ts)                */
+/* 13. Vercel Web Analytics (app/(portfolio)/layout.tsx + lib/track.ts)                */
 /* ---------------------------------------------------------------------- */
 
 /**

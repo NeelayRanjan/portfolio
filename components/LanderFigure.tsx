@@ -2,7 +2,7 @@ import { LanderPanel } from "@/components/LanderPanel";
 
 /**
  * Figure 5 since 2026-10-15 (the draw demo's slot; DrawDigit moved to /lab as
- * S4). Mounted in app/page.tsx behind `DeferredMount`, like chess. The panel
+ * S4). Mounted in app/(portfolio)/page.tsx behind `DeferredMount`, like chess. The panel
  * owns its `InstrumentFigure` (id `fig-lander`), as DrawDigit and ChessPanel
  * do, because its readout comes from the module's live state.
  *

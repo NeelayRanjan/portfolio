@@ -3,7 +3,7 @@ import { track } from "@vercel/analytics";
 /**
  * The site's custom analytics events, all in one place so the dashboard's
  * event names never drift between call sites. Page views need nothing here:
- * `<Analytics />` in app/layout.tsx records them, client navigations included.
+ * `<Analytics />` in app/(portfolio)/layout.tsx records them, client navigations included.
  *
  * Deliberately two events and no more. Custom events count against a
  * monthly quota, and the questions they answer are the two that matter in

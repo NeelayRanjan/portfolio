@@ -4,7 +4,7 @@
  * panel, and how tall the bar measures.
  *
  * A module-level store for the same reason as lib/stargaze.ts: the bar
- * (StargazeToggle) and the sky (NightSky) are siblings in app/layout.tsx,
+ * (StargazeToggle) and the sky (NightSky) are siblings in app/(portfolio)/layout.tsx,
  * and the sky's plain-module controllers read these values outside React.
  * Leaving stargaze closes the panel (NightSky's stargaze subscriber).
  */

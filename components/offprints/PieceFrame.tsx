@@ -5,7 +5,7 @@ import { OFFPRINTS_PREFIX, pieceUrl } from "@/lib/offprints/site";
 import { monthYear, numberLabel } from "@/lib/offprints/pieces";
 import { CallStamp } from "./CallStamp";
 import { CopyButton } from "./CopyButton";
-import { OffLink } from "./OffLink";
+import { TrackedOffLink } from "./TrackedOffLink";
 
 /** A section a piece supplies: its heading and its body. */
 export type PieceSection = { heading: string; body: ReactNode };
@@ -161,7 +161,9 @@ export function PieceFrame({
         <span>
           {numberLabel(piece.number)} · {monthYear(piece.published)}
         </span>
-        <OffLink href={`${OFFPRINTS_PREFIX}/feed.xml`}>{t.footRss}</OffLink>
+        <TrackedOffLink label="RSS" href={`${OFFPRINTS_PREFIX}/feed.xml`}>
+          {t.footRss}
+        </TrackedOffLink>
       </footer>
     </article>
   );

@@ -7278,6 +7278,15 @@ const OP_SITE = "https://offprints.neelayranjan.dev";
  * build shows both drafts; use 0 against a VERCEL_ENV=production build, where
  * drafts are hidden and the feed must carry none). Proved to bite by building
  * the route with PIECES instead of visiblePieces under VERCEL_ENV=production.
+ *
+ * Then (local build only, where pages exist) the outbound links (spec §8): a
+ * click on the feed link in /all's foot and in a piece's foot each queues
+ * exactly one outbound_link{RSS} in window.vaq, and /all's neelayranjan.dev
+ * link one outbound_link{Portfolio} (HomeMark's label). Navigation is
+ * cancelled by a capture-phase preventDefault so the queue survives; React's
+ * onClick still runs. Proved to bite (2026-11-02) by pointing /all's feed link
+ * back at the plain OffLink: "/all feed link: expected one
+ * outbound_link{RSS}, queued 0".
  */
 async function checkOffprintsFeed(browser) {
   return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
@@ -7310,7 +7319,27 @@ async function checkOffprintsFeed(browser) {
     if (JSON.stringify(ids) !== JSON.stringify(want)) {
       throw new Error(`entry ids ${JSON.stringify(ids)}, expected ${JSON.stringify(want)}`);
     }
-    return `/feed.xml is application/atom+xml with ${expect} entries${want.length ? " (newest first)" : ""}`;
+    let clicks = "";
+    if (expect === 2) {
+      const clickQueues = async (path, selector, label, what) => {
+        await page.goto(OFFPRINTS_BASE + path, { waitUntil: "load" });
+        await page.waitForFunction(() => Array.isArray(window.vaq) || typeof window.va === "function");
+        await page.evaluate(() => document.addEventListener("click", (e) => e.preventDefault(), { capture: true }));
+        await page.locator(selector).click();
+        const ev = await page.evaluate(
+          (l) =>
+            (window.vaq ?? []).filter(([k, e]) => k === "event" && e?.name === "outbound_link" && e?.data?.label === l)
+              .length,
+          label,
+        );
+        if (ev !== 1) throw new Error(`${what}: expected one outbound_link{${label}}, queued ${ev}`);
+      };
+      await clickQueues("/all", 'footer a[href$="feed.xml"]', "RSS", "/all feed link");
+      await clickQueues("/all", 'footer a[href="https://neelayranjan.dev"]', "Portfolio", "/all neelayranjan.dev link");
+      await clickQueues("/hybrid-attention", 'article footer a[href$="feed.xml"]', "RSS", "piece feed link");
+      clicks = "; feed links (/all, piece) queue outbound_link{RSS}, /all's home link {Portfolio}";
+    }
+    return `/feed.xml is application/atom+xml with ${expect} entries${want.length ? " (newest first)" : ""}${clicks}`;
   });
 }
 

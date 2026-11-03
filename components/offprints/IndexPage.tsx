@@ -3,6 +3,7 @@ import { shell } from "@/content/offprints/shell";
 import { OFFPRINTS_PREFIX } from "@/lib/offprints/site";
 import { monthYear } from "@/lib/offprints/pieces";
 import { OffLink } from "./OffLink";
+import { TrackedOffLink } from "./TrackedOffLink";
 
 // The revisit stamp's class and colour per verdict (spec §7).
 const REVISIT: Record<RevisitVerdict, string> = {
@@ -86,8 +87,13 @@ export function IndexPage({
       </ol>
 
       <footer className="mt-10 flex flex-wrap gap-4 border-t border-rule pt-3 text-[13px] text-mut">
-        <OffLink href={`${OFFPRINTS_PREFIX}/feed.xml`}>{t.feed}</OffLink>
-        <a href="https://neelayranjan.dev">{t.home}</a>
+        {/* Both are outbound_link (spec §8): "RSS", and "Portfolio" as the N mark. */}
+        <TrackedOffLink label="RSS" href={`${OFFPRINTS_PREFIX}/feed.xml`}>
+          {t.feed}
+        </TrackedOffLink>
+        <TrackedOffLink label="Portfolio" href="https://neelayranjan.dev">
+          {t.home}
+        </TrackedOffLink>
       </footer>
     </div>
   );

@@ -8,6 +8,7 @@ import {
   numberLabel,
   monthYear,
   dayMonthYear,
+  gateOffprintsLinks,
 } from "../lib/offprints/pieces.ts";
 import { pieceUrl } from "../lib/offprints/site.ts";
 
@@ -48,6 +49,30 @@ test("ties on date sort by number descending", () => {
 test("latestPiece", () => {
   assert.equal(latestPiece(PIECES, "production"), null);
   assert.equal(latestPiece(PIECES, undefined).slug, "hybrid-attention");
+});
+
+// Page 1's door gate (spec §10.1): page 1 links Offprints only once a piece
+// is published. Masthead and References gate on latestPiece(...) !== null.
+test("door gate: production with only drafts is closed, anywhere else opens on the newest", () => {
+  const draft = (slug, number, published) => ({ ...PIECES[0], slug, number, published, status: "draft" });
+  const drafts = [draft("old", 1, "2026-11-01"), draft("new", 2, "2026-12-01")];
+  assert.equal(latestPiece(drafts, "production"), null);
+  for (const env of ["preview", "development", undefined]) {
+    assert.equal(latestPiece(drafts, env).slug, "new", String(env));
+  }
+  const mixed = [...drafts, { ...draft("pub", 3, "2026-11-15"), status: "published" }];
+  assert.equal(latestPiece(mixed, "production").slug, "pub");
+});
+
+test("door gate: the References entry for Offprints drops while the door is closed", () => {
+  const items = [
+    { label: "Supplementary material", href: "/lab" },
+    { label: "Offprints", href: "https://offprints.neelayranjan.dev" },
+    { label: "A piece", href: "https://offprints.neelayranjan.dev/x" },
+  ];
+  assert.deepEqual(gateOffprintsLinks(items, null).map((i) => i.label), ["Supplementary material"]);
+  const open = gateOffprintsLinks(items, PIECES[1]);
+  assert.deepEqual(open.map((i) => i.label), ["Supplementary material", "Offprints", "A piece"]);
 });
 
 test("pieceBySlug", () => {

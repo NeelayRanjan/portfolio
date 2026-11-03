@@ -1,16 +1,22 @@
 import { copy } from "@/content/copy";
 import { TrackedLink } from "@/components/manuscript/TrackedLink";
+import { PIECES } from "@/content/offprints/pieces";
+import { gateOffprintsLinks, latestPiece } from "@/lib/offprints/pieces";
 
 /**
  * The bibliography: `copy.references.items` rendered as a numbered list,
  * mirroring the approved mockup's `ol.refs`. A reference with no `href`
  * (the first-author paper and the MWSCAS oral, both still unlinkable) renders as
- * plain text rather than a dead or placeholder link. A link's vertical
+ * plain text rather than a dead or placeholder link. The Offprints entry is
+ * dropped while no piece is visible (`gateOffprintsLinks`). A link's vertical
  * padding is hit area only: inline padding doesn't move the line, and 6px
  * a side stays inside the list's own spacing, so neighbours don't overlap.
  */
 export function References() {
   const t = copy.references;
+  // The Offprints entry shows only once a piece is visible (spec §10.1), on
+  // the same predicate as the Masthead's box.
+  const items = gateOffprintsLinks(t.items, latestPiece(PIECES, process.env.VERCEL_ENV));
 
   return (
     <div>
@@ -18,7 +24,7 @@ export function References() {
         {t.heading}
       </h2>
       <ol className="list-decimal space-y-2 pl-7 text-[15px] text-mut marker:text-mut">
-        {t.items.map((item) =>
+        {items.map((item) =>
           item.href ? (
             <li key={item.label}>
               <TrackedLink

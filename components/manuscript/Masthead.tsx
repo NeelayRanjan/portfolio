@@ -26,8 +26,10 @@ import { latestPiece } from "@/lib/offprints/pieces";
  */
 export function Masthead() {
   const t = copy.masthead;
-  // Server component: a production build prints only a published piece's
-  // claim (latestPiece hides drafts there), else the static lead.
+  // Server component. The Offprints door renders only once a piece is
+  // visible (spec §10.1): on VERCEL_ENV=production latestPiece hides drafts,
+  // so with nothing published there is no box (and References drops its
+  // entry through gateOffprintsLinks on the same predicate).
   const latest = latestPiece(PIECES, process.env.VERCEL_ENV);
 
   return (
@@ -55,22 +57,24 @@ export function Masthead() {
               {t.supplementContents}
             </span>
           </Link>
-          <TrackedLink
-            href="https://offprints.neelayranjan.dev"
-            label="Offprints"
-            data-offprints-box
-            className="group block w-full border border-rule px-3.5 py-3 transition-colors hover:border-mut focus-visible:border-mut"
-          >
-            <span className="flex items-baseline gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-ink transition-colors group-hover:text-link group-focus-visible:text-link">
-              {t.offprintsBox.label}
-              <span aria-hidden className="inline-block transition-transform group-hover:translate-x-0.5 group-focus-visible:translate-x-0.5">
-                &rarr;
+          {latest ? (
+            <TrackedLink
+              href="https://offprints.neelayranjan.dev"
+              label="Offprints"
+              data-offprints-box
+              className="group block w-full border border-rule px-3.5 py-3 transition-colors hover:border-mut focus-visible:border-mut"
+            >
+              <span className="flex items-baseline gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-ink transition-colors group-hover:text-link group-focus-visible:text-link">
+                {t.offprintsBox.label}
+                <span aria-hidden className="inline-block transition-transform group-hover:translate-x-0.5 group-focus-visible:translate-x-0.5">
+                  &rarr;
+                </span>
               </span>
-            </span>
-            <span className="mt-1.5 block text-[12.5px] leading-snug text-mut">
-              {latest ? latest.claim : t.offprintsBox.lead}
-            </span>
-          </TrackedLink>
+              <span className="mt-1.5 block text-[12.5px] leading-snug text-mut">
+                {latest.claim}
+              </span>
+            </TrackedLink>
+          ) : null}
           <span className="block font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-mut">
             {t.date}
           </span>

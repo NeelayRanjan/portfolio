@@ -7811,7 +7811,11 @@ async function checkOffprints400(browser) {
 /**
  * offprints-door: page 1's bordered Offprints box under the lab box, and
  * the References entry. A local build shows drafts, so the box prints the
- * newest piece's claim from the registry.
+ * newest piece's claim from the registry. Both render only while a piece is
+ * visible (spec §10.1, `latestPiece` + `gateOffprintsLinks`); the closed
+ * case, a VERCEL_ENV=production build with only drafts, is covered by the
+ * node test (`test-offprints-pieces`, "door gate"), not by this browser
+ * check, which always runs on a build where drafts show.
  */
 async function checkOffprintsDoor(browser) {
   const hyb = OFFPRINTS_PIECES.find((p) => p.slug === "hybrid-attention");

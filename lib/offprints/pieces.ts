@@ -1,5 +1,7 @@
-// Pure visibility and label helpers. The only import is the registry's types.
+// Pure visibility and label helpers. Imports: the registry's types and the
+// canonical host constant (site.ts, itself import-free but for host.ts).
 import type { Piece } from "../../content/offprints/pieces.ts";
+import { OFFPRINTS_SITE } from "./site.ts";
 
 export function visiblePieces(all: readonly Piece[], vercelEnv: string | undefined): Piece[] {
   return all
@@ -12,6 +14,17 @@ export function visiblePieces(all: readonly Piece[], vercelEnv: string | undefin
 
 export function latestPiece(all: readonly Piece[], vercelEnv: string | undefined): Piece | null {
   return visiblePieces(all, vercelEnv)[0] ?? null;
+}
+
+/** Page 1's door gate (spec §10.1): page 1 links Offprints only once a piece
+ *  is visible, i.e. `latestPiece(PIECES, VERCEL_ENV)` is non-null. With no
+ *  piece (`latest` null) every link into the Offprints host drops; the
+ *  Masthead's box is gated on the same `latest`. */
+export function gateOffprintsLinks<T extends { href: string }>(
+  items: readonly T[],
+  latest: Piece | null,
+): T[] {
+  return latest ? items.slice() : items.filter((i) => !i.href.startsWith(OFFPRINTS_SITE));
 }
 
 export function pieceBySlug(

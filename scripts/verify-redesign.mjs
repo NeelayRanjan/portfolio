@@ -7763,6 +7763,19 @@ async function checkOffprintsFigure1(browser) {
  * springs back on release; a tap opens the index, which also fits 390px and
  * lists both titles. Then JS off on /all: both titles are in the HTML and
  * the ear is a plain link whose server-rendered href is /offprints/all.
+ *
+ * Hit targets (spec §3, 44px on phones, fix wave 2026-11-02): at 390px with
+ * touch, a Figure 1 chip, the undo button and an `.op-min` range each take a
+ * 44px-tall hit area without a taller visible box. Chips and `.op-tool` grow
+ * it with a transparent ::after (computed height >= 44, and
+ * document.elementFromPoint 21px above and below the visible centre still
+ * resolves to the control); the range IS its hit box, so its own rect must be
+ * >= 44 tall while its layout footprint stays 16px (negative margins). No page
+ * renders a range yet (StepControls is unused), so the check mounts one
+ * `.op-min` input under the figure and measures that. Proved to bite
+ * (2026-11-02) by measuring the tree before the extensions: "390px: chip
+ * "." hit area: ::after height none, probe 21px above hits DIV, below hits
+ * DIV".
  */
 async function checkOffprints400(browser) {
   const notes = [];
@@ -7818,6 +7831,71 @@ async function checkOffprints400(browser) {
     for (const title of ["Hybrid attention", "A test sheet"])
       if (!open.text.includes(title)) throw new Error(`the open index lacks "${title}": ${open.text.slice(0, 200)}`);
     notes.push(`tap opened; index width ${open.navSw}`);
+  });
+  await withPage(browser, { viewport: { width: 390, height: 800 }, hasTouch: true, isMobile: true }, async (page) => {
+    await page.goto(url, { waitUntil: "load" });
+    await page.waitForFunction(() => !!window.__offprints, null, { timeout: 5000 });
+    // Make the undo button appear: ask from the first chip.
+    const first = page.locator("[data-op-chip]").first();
+    await first.scrollIntoViewIfNeeded();
+    await first.tap();
+    await page.locator("[data-op-undo]").waitFor({ timeout: 5000 });
+    const hits = await page.evaluate(() => {
+      // A range the way StepControls draws one, under the figure, with room
+      // around it so the probes can only land on it or on nothing.
+      const fig = document.querySelector("[data-op-readout]").parentElement;
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "display:flex;align-items:center;padding:40px 0";
+      const range = document.createElement("input");
+      range.type = "range";
+      range.className = "op-min";
+      range.style.flex = "1";
+      range.setAttribute("data-op-probe-range", "");
+      wrap.appendChild(range);
+      fig.appendChild(wrap);
+      const chips = [...document.querySelectorAll("[data-op-chip]")];
+      // A chip on the LAST row: a later chip's extension never sits below it.
+      const lastTop = Math.max(...chips.map((c) => Math.round(c.getBoundingClientRect().top)));
+      const chip = chips.find((c) => Math.round(c.getBoundingClientRect().top) === lastTop);
+      const probe = (el) => {
+        el.scrollIntoView({ block: "center" });
+        const r = el.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        const at = (dy) => {
+          const hit = document.elementFromPoint(cx, cy + dy);
+          return hit === el || el.contains(hit) ? "self" : hit ? hit.tagName : "nothing";
+        };
+        const after = getComputedStyle(el, "::after");
+        return {
+          text: el.textContent.trim() || el.tagName,
+          visible: Math.round(r.height * 10) / 10,
+          footprint: Math.round((r.height + parseFloat(getComputedStyle(el).marginTop) + parseFloat(getComputedStyle(el).marginBottom)) * 10) / 10,
+          afterH: after.content === "none" ? "none" : after.height,
+          up: at(-21),
+          down: at(21),
+        };
+      };
+      return {
+        chip: probe(chip),
+        undo: probe(document.querySelector("[data-op-undo]")),
+        range: probe(range),
+        sw: document.documentElement.scrollWidth,
+      };
+    });
+    const px = (v) => (typeof v === "string" && v.endsWith("px") ? parseFloat(v) : NaN);
+    for (const [name, h] of [["chip", hits.chip], ["undo", hits.undo]]) {
+      if (!(px(h.afterH) >= 44) || h.up !== "self" || h.down !== "self")
+        throw new Error(`390px: ${name} "${h.text}" hit area: ::after height ${h.afterH}, probe 21px above hits ${h.up}, below hits ${h.down}`);
+    }
+    const rg = hits.range;
+    if (!(rg.visible >= 44) || rg.up !== "self" || rg.down !== "self")
+      throw new Error(`390px: range hit box ${rg.visible}px tall (probe above ${rg.up}, below ${rg.down}), expected >= 44`);
+    if (rg.footprint > 16.5) throw new Error(`390px: range takes ${rg.footprint}px of layout, expected the old 16`);
+    if (hits.sw > 390) throw new Error(`390px: scrollWidth ${hits.sw} after the hit areas`);
+    notes.push(
+      `hit areas: chip "${hits.chip.text}" ${hits.chip.visible}px visible / ${hits.chip.afterH} hit, undo ${hits.undo.visible}px / ${hits.undo.afterH}, range ${rg.visible}px hit in ${rg.footprint}px of layout`,
+    );
   });
   await withPage(browser, { viewport: { width: 390, height: 800 }, javaScriptEnabled: false }, async (page) => {
     // /all is the index itself (no ear there); a piece carries the ear.

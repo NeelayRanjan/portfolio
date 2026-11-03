@@ -69,6 +69,9 @@ export function Figure1Attention({ data, copy }: { data: Figure1Data; copy: Copy
   return (
     <div className="bg-paper">
       <div role="group" aria-label={f.label} className="flex flex-wrap justify-center gap-1.5">
+        {/* Each chip's transparent ::after makes its hit area 44px tall
+            (spec §3) around a ~34px box; between rows the extensions share
+            the 6px gap and never reach a neighbour's visible box. */}
         {tokens.map((t, j) => {
           const w = row[j];
           const asking = j === sel;
@@ -82,7 +85,7 @@ export function Figure1Attention({ data, copy }: { data: Figure1Data; copy: Copy
               aria-pressed={asking}
               onClick={() => pick(j)}
               title={future ? f.future : (asking ? f.selfWeight : f.weight).replace("{w}", String(w))}
-              className={`rounded-none border p-2 font-mono text-[16px] leading-none ${
+              className={`relative rounded-none border p-2 font-mono text-[16px] leading-none after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:min-h-full after:-translate-y-1/2 after:content-[''] ${
                 asking
                   ? "border-transparent bg-paper text-ink outline-2 outline-q outline-solid focus-visible:shadow-[0_0_0_4px_var(--color-paper),0_0_0_6px_var(--color-ink)]"
                   : future

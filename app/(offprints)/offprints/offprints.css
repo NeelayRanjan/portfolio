@@ -99,6 +99,19 @@
   background: transparent;
   color: var(--color-ink);
   cursor: pointer;
+  position: relative;
+}
+/* A 44px hit area on phones (spec §3) without a bigger visible box: a
+   transparent extension centred on the button, at least 44x44 and never
+   smaller than the button itself. */
+.op-tool::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100%, 44px);
+  height: max(100%, 44px);
+  transform: translate(-50%, -50%);
 }
 .op-tool[aria-pressed="true"] { background: var(--color-ink); color: var(--color-paper); }
 .op-tool--primary { background: var(--color-ink); color: var(--color-paper); }
@@ -106,10 +119,14 @@
   .op-tool:hover { background: var(--color-ink); color: var(--color-paper); }
   .op-tool--primary:hover { background: var(--color-mut); border-color: var(--color-mut); }
 }
+/* The range's own box is its hit area: 44px tall for a finger (spec §3),
+   with -14px block margins so it still takes the old 16px of layout. The
+   track and thumb are centred in it, so nothing visible moves. */
 input[type="range"].op-min {
   -webkit-appearance: none;
   appearance: none;
-  height: 16px;
+  height: 44px;
+  margin-block: -14px;
   background: transparent;
   border-radius: 0;
 }

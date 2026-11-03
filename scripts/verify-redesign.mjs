@@ -7270,6 +7270,9 @@ async function checkOffprintsPeel(browser) {
 /* ---------------------------------------------------------------------- */
 
 const OP_SITE = "https://offprints.neelayranjan.dev";
+// Each 404's own heading, read from its copy (offprints-404).
+const OFFPRINTS_NOT_FOUND = offprintsShell.notFound.heading;
+const PORTFOLIO_NOT_FOUND = copy.notFound.heading;
 /**
  * offprints-feed: /feed.xml on the Offprints host is 200, served as
  * application/atom+xml, a single Atom <feed> with the canonical self and
@@ -7916,6 +7919,47 @@ async function checkOffprints400(browser) {
 }
 
 /**
+ * offprints-404: both 404s answer 404 with their OWN sheet. On the Offprints
+ * host, /nope (an unknown slug) and /nope/deeper (the catch-all) return 404
+ * with the Offprints not-found heading (`shell.notFound.heading`) and not the
+ * portfolio's; on the apex, /this-page-does-not-exist returns 404 with the
+ * portfolio's "Reference not found" sheet and the COOP/COEP headers (the WASM
+ * demos need them on every route, the 404 included). Errors from all three
+ * requests are gathered, so one mutant shows every failure. Proved to bite
+ * (2026-11-02) with one mutant build, the Offprints not-found rendering the
+ * portfolio's heading and the portfolio catch-all returning its NotFound sheet
+ * instead of calling notFound(): "offprints /nope: body lacks "No such
+ * piece"; offprints /nope: body carries the portfolio's "Reference not
+ * found"; [the same two for /nope/deeper]; portfolio 404: status 200,
+ * expected 404".
+ */
+async function checkOffprints404(browser) {
+  return withPage(browser, { viewport: { width: 1280, height: 900 } }, async (page) => {
+    const errors = [];
+    const notes = [];
+    for (const path of ["/nope", "/nope/deeper"]) {
+      const res = await page.request.get(`${OFFPRINTS_BASE}${path}`);
+      const body = await res.text();
+      if (res.status() !== 404) errors.push(`offprints ${path}: status ${res.status()}, expected 404`);
+      if (!body.includes(OFFPRINTS_NOT_FOUND)) errors.push(`offprints ${path}: body lacks "${OFFPRINTS_NOT_FOUND}"`);
+      if (body.includes(PORTFOLIO_NOT_FOUND)) errors.push(`offprints ${path}: body carries the portfolio's "${PORTFOLIO_NOT_FOUND}"`);
+      notes.push(`offprints ${path} ${res.status()}`);
+    }
+    const res = await page.request.get(`${BASE}/this-page-does-not-exist`);
+    const body = await res.text();
+    const h = res.headers();
+    if (res.status() !== 404) errors.push(`portfolio 404: status ${res.status()}, expected 404`);
+    if (!body.includes(PORTFOLIO_NOT_FOUND)) errors.push(`portfolio 404: body lacks "${PORTFOLIO_NOT_FOUND}"`);
+    if (body.includes(OFFPRINTS_NOT_FOUND)) errors.push(`portfolio 404: body carries Offprints' "${OFFPRINTS_NOT_FOUND}"`);
+    if (h["cross-origin-opener-policy"] !== "same-origin") errors.push(`portfolio 404: COOP ${h["cross-origin-opener-policy"]}`);
+    if (h["cross-origin-embedder-policy"] !== "require-corp") errors.push(`portfolio 404: COEP ${h["cross-origin-embedder-policy"]}`);
+    notes.push(`portfolio ${res.status()} with COOP/COEP`);
+    if (errors.length) throw new Error(errors.join("; "));
+    return notes.join(", ") + ", each with its own sheet";
+  });
+}
+
+/**
  * offprints-door: page 1's bordered Offprints box under the lab box, and
  * the References entry. A local build shows drafts, so the box prints the
  * newest piece's claim from the registry. Both render only while a piece is
@@ -8026,6 +8070,7 @@ const CHECKS = [
   ["offprints-peel", checkOffprintsPeel],
   ["offprints-400", checkOffprints400],
   ["offprints-door", checkOffprintsDoor],
+  ["offprints-404", checkOffprints404],
 ];
 
 async function main() {

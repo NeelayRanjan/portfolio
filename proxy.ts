@@ -18,4 +18,9 @@ export function proxy(req: NextRequest) {
   return NextResponse.next();
 }
 
-export const config = { matcher: ["/((?!_next/|api/).*)"] };
+// `_vercel/` is skipped like `_next/`: the analytics and Speed Insights
+// scripts are served same-origin from /_vercel/insights/ and
+// /_vercel/speed-insights/ on every host, and an offprints.* host would
+// otherwise rewrite them to /offprints/_vercel/... and 404 the tracker.
+// `decide` never sees these paths, so no host-rules case pins this.
+export const config = { matcher: ["/((?!_next/|_vercel/|api/).*)"] };

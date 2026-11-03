@@ -3709,7 +3709,11 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   bytes), and the order differs only in that the 36 next/font rules (32
   @font-face, 4 module classes) now sit in their own second chunk instead of
   heading the one file; the html carries only the `__variable` classes, so their
-  position changes no cascade. Nothing from Offprints is in it: zero matches for
+  position changes no cascade. The cost of that split, stated once: page 1
+  now makes TWO stylesheet requests instead of one, both render-blocking
+  (the second is the 9,296-byte font chunk); unmeasured in the field, and
+  a shared font module imported by both root layouts is what causes it.
+  Nothing from Offprints is in it: zero matches for
   `.op-`, `offprints`, `paper-under`, `efebe3`, `--color-q/k/v`, `.bg-q`,
   `.text-k`, nor the fix wave's own chip `after:` utilities. The Task 11 door
   box adds no CSS (it reuses the lab box's classes).

@@ -1,3 +1,5 @@
+import { shell } from "@/content/offprints/shell";
+
 /** A booktabs table: heavy top and bottom rules, one light rule under the header, no verticals. */
 export function Booktabs({
   n,
@@ -17,7 +19,7 @@ export function Booktabs({
     <div className="my-4 overflow-x-auto">
       <table className="w-full border-collapse text-[14px] [font-variant-numeric:tabular-nums]">
         <caption className="mb-1.5 text-left text-[13px]">
-          {`Table ${n}: ${caption}`}
+          {`${shell.piece.tableLabel} ${n}: ${caption}`}
         </caption>
         <thead>
           <tr className="border-t-2 border-t-ink border-b border-b-ink">

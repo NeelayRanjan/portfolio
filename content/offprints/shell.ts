@@ -40,6 +40,10 @@ export const shell = {
     callLine: "my call",
     revisitLine: "revisited",
     footRss: "RSS",
+    // Label words: "No. 1", "Table 1: ...", "Definition 1 (term, symbol)."
+    numberLabel: "No.",
+    tableLabel: "Table",
+    definitionLabel: "Definition",
   },
   homeMark: {
     title: "Back to neelayranjan.dev",

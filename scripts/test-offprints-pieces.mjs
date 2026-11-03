@@ -11,6 +11,7 @@ import {
   gateOffprintsLinks,
 } from "../lib/offprints/pieces.ts";
 import { pieceUrl } from "../lib/offprints/site.ts";
+import { shell } from "../content/offprints/shell.ts";
 
 test("production hides drafts; preview shows both, newest first", () => {
   assert.deepEqual(visiblePieces(PIECES, "production"), []);
@@ -79,6 +80,16 @@ test("pieceBySlug", () => {
   assert.equal(pieceBySlug(PIECES, "test-sheet", "production"), null);
   assert.equal(pieceBySlug(PIECES, "test-sheet", "development").number, 0);
   assert.equal(pieceBySlug(PIECES, "nope", "development"), null);
+});
+
+// Visitor-facing words live in content/offprints/*.ts (the voice gate scans
+// them): the number's word comes from the shell copy, as do the table's and
+// the definition's (read by Booktabs and Definition).
+test("label words come from the shell copy", () => {
+  assert.equal(shell.piece.numberLabel, "No.");
+  assert.equal(shell.piece.tableLabel, "Table");
+  assert.equal(shell.piece.definitionLabel, "Definition");
+  assert.equal(numberLabel(3), `${shell.piece.numberLabel} 3`);
 });
 
 test("labels", () => {

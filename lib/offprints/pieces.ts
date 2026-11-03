@@ -1,6 +1,8 @@
-// Pure visibility and label helpers. Imports: the registry's types and the
-// canonical host constant (site.ts, itself import-free but for host.ts).
+// Pure visibility and label helpers. Imports: the registry's types, the
+// canonical host constant (site.ts, itself import-free but for host.ts) and
+// the shell copy for the number's word (import-free, so node loads it).
 import type { Piece } from "../../content/offprints/pieces.ts";
+import { shell } from "../../content/offprints/shell.ts";
 import { OFFPRINTS_SITE } from "./site.ts";
 
 export function visiblePieces(all: readonly Piece[], vercelEnv: string | undefined): Piece[] {
@@ -36,7 +38,7 @@ export function pieceBySlug(
 }
 
 export function numberLabel(n: number): string {
-  return `No. ${n}`;
+  return `${shell.piece.numberLabel} ${n}`;
 }
 
 export function monthYear(iso: string): string {

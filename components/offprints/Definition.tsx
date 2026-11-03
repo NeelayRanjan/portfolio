@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { shell } from "@/content/offprints/shell";
 
 const RULE = {
   q: "border-l-q",
@@ -24,7 +25,7 @@ export function Definition({
   return (
     <div className={`op-def op-def--${role} my-4 border-l-2 bg-fill px-3.5 py-3 text-[14px] ${RULE[role]}`}>
       <b>
-        {`Definition ${n} (${term}, `}<span className="font-mono">{symbol}</span>{")."}
+        {`${shell.piece.definitionLabel} ${n} (${term}, `}<span className="font-mono">{symbol}</span>{")."}
       </b>{" "}
       <i>{children}</i>
     </div>

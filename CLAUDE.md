@@ -833,7 +833,9 @@ own session. What changed, and the rules it leaves:
   56/56 checks (frame 3.18 ms), 203/203 node tests.
 
 **2026-11-01: Offprints, a second site in this repo, BUILT on branch
-`offprints`, NOT merged, subdomain NOT bound in Vercel.** The owner's concepts
+`offprints`; MERGED into `main` 2026-11-03 (a fast-forward, after the owner
+reviewed the Vercel preview: "looks great, merge it"), subdomain NOT bound in
+Vercel, so production shows nothing of it yet.** The owner's concepts
 site (visual, interactive explainers of recent AI concepts; planning record
 `docs/superpowers/specs/2026-11-01-concepts-site-plan.md`, shell spec
 `docs/superpowers/specs/2026-11-01-offprints-shell-design.md`) lives beside the
@@ -841,8 +843,9 @@ portfolio as a second root layout, `app/(offprints)/offprints/`, reached at
 `offprints.neelayranjan.dev` through a host-aware `proxy.ts`. The portfolio's
 root layout, page, `/lab` and 404 moved under `app/(portfolio)/` with no
 behaviour change (route groups; `robots.ts`, `sitemap.ts` and `api/` stay at
-the app root). Built as a 12-task SDD run from `origin/main` f97da44; nothing
-of it is deployed. **The shell ships only together with piece 1** (spec
+the app root). Built as a 12-task SDD run from `origin/main` f97da44; on `main`
+since 2026-11-03, where the production build hides it (next sentence).
+**The shell ships only together with piece 1** (spec
 §10.1): production must never show an empty Offprints, so on
 `VERCEL_ENV=production` the registry shows published pieces only, and piece 1
 (No. 1, hybrid attention) is a DRAFT with only Figure 1 built. Figures 2 and up
@@ -3480,15 +3483,19 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   shaves the source's not-quite-white edge row that survived inversion as a
   1px light border.
 
-### Offprints (offprints.neelayranjan.dev, branch `offprints`, NOT merged, subdomain NOT bound)
+### Offprints (offprints.neelayranjan.dev, on `main` since 2026-11-03, subdomain NOT bound)
 - **State, plainly.** Built 2026-11-01 on branch `offprints` (worktree
   `../portfolio-offprints`, a SIBLING directory: the native worktree tool nests
   under `.claude/worktrees/`, beneath a second package-lock, which trips
-  Turbopack's root inference in `next build`). Not merged; `offprints.neelayranjan.dev`
-  is not added in Vercel. Do not merge the shell alone: it ships with piece 1
-  (spec §10.1). Ship order: Figures 2+ spec and plan, build, then merge, add the
-  domain in Vercel. The owner reviews at `<preview-host>/offprints/hybrid-attention`
-  (also `/offprints`, `/offprints/all`, `/offprints/feed.xml`).
+  Turbopack's root inference in `next build`), fast-forwarded into `main` on
+  2026-11-03 after the owner reviewed the preview. `offprints.neelayranjan.dev`
+  is NOT added in Vercel, and piece 1 is still a DRAFT, so production serves
+  no Offprints page, door or feed entry (the draft rule below); an apex
+  `/offprints...` URL 308s to the unbound host and fails to resolve until the
+  domain is added. Ship order from here: Figures 2+ spec and plan, build,
+  flip piece 1 to `published`, add the domain in Vercel. Until then the owner
+  reviews on previews at `<preview-host>/offprints/hybrid-attention` (also
+  `/offprints`, `/offprints/all`, `/offprints/feed.xml`), where drafts show.
 - **Hosting.** One Next project, two root layouts (route groups
   `app/(portfolio)/` and `app/(offprints)/offprints/`). The Offprints routes
   physically live under the `/offprints` prefix; `proxy.ts` (matcher

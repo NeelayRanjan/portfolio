@@ -1,7 +1,8 @@
 # CLAUDE.md — neelayranjan.dev
 
 Personal portfolio of Neelay Ranjan: AI/ML researcher (NASA Ames, Regenstrief
-Institute), applying to Fall 2027 MS programs. The site's claim, in every era of its
+Institute), graduating May 2027 and heading for full-time work (the site said
+"applying to Fall 2027 MS programs" until 2026-11-13). The site's claim, in every era of its
 design, is that **the work is real**: trained models run client-side, nothing is
 faked, and honest numbers beat impressive ones.
 
@@ -999,14 +1000,21 @@ The SLAAC round's own, ahead of the list (LIVE on `main` since 2026-10-01):
    of attack families). Needs a live-data seam the static site doesn't have;
    the systems figure column is trivially appendable when it comes.
 
-Deadline context: MS application season (materials due ~Nov 2026); the site
-and the owner's SOP tell one story.
+Deadline context: the owner graduates May 2027 and the site now says so, with
+full-time work after it (owner, 2026-11-13: the abstract's "applying to
+master's programs" close read as desperate; it was rewritten to "I'm on a gap
+semester from Purdue and graduate in May 2027. After that I want to keep doing
+this kind of work full time."). The MS-application framing below is kept as
+history; where it conflicts with the full-time framing, ask the owner before
+rewriting more copy.
 
 ## Mission and audience (settled)
 
 - Audience: industry recruiters AND masters admissions committees. **Admissions
   wins conflicts.** Visitor actions that matter, in order: open the resume, read
-  the paper.
+  the paper. ⚠️ Since 2026-11-13 the abstract no longer mentions applying to
+  master's programs (it names the May 2027 graduation and full-time work after);
+  the admissions-first ruling has not been re-decided by the owner.
 - **Public framing is "generative modeling" (owner call, 2026-09-13)**: the page
   title, the masthead tagline and the share blurb all say generative modeling,
   not diffusion. Diffusion stays the concrete specialty in the body copy and the
@@ -1159,6 +1167,8 @@ not a contradiction. The original drift list, for the record:
   **On leave Fall 2026 for NASA (the site says "gap semester", owner's
   wording); returns January 2027; graduates May 2027.** Rendered as its own
   Experience row on an amber "gap semester" lamp (owner call, 2026-09-14).
+  The abstract's last sentence names the May 2027 graduation and full-time
+  work after it (2026-11-13), matching the row's "expected May 2027".
 - **NASA Ames is two roles** (per the resume since 2026-09-30; NASA Ames,
   Aeronautics Directorate, Code AF, May 2026 to present; the NASA box and Experience rows follow it since the
   2026-10-01 merge, before which the site showed the older two-engagement

@@ -90,7 +90,7 @@ export const copy = {
     /** ~80 words, first person. Numbers here are load-bearing: keep them in
      *  sync with `research.prose` and CLAUDE.md's content facts. */
     abstract:
-      "I build diffusion and energy-based models. I’m first author on a Regenstrief paper, in preparation, on segmenting blood vessels from very few labels. At NASA Ames I built a diffusion model that reroutes flights around closed airspace, and now I work on speech recognition for air traffic control. I’m on a gap semester from Purdue, applying to master’s programs for fall 2027.",
+      "I build diffusion and energy-based models. I’m first author on a Regenstrief paper, in preparation, on segmenting blood vessels from very few labels. At NASA Ames I built a diffusion model that reroutes flights around closed airspace, and now I work on speech recognition for air traffic control. I’m on a gap semester from Purdue and graduate in May 2027. After that I want to keep doing this kind of work full time.",
     /**
      * The author photo, which is a live diffusion sample rather than a file
      * (`components/figures/HeadshotFigure.tsx`). Every claim below is checked:

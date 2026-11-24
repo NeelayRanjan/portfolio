@@ -53,7 +53,9 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        // The resume PDFs (2026-09-22): linkable, not indexable. The site's
+        // The resume PDF (2026-09-22): linkable, not indexable. Since
+        // 2026-11-24 /resume.pdf is a route (app/resume.pdf/route.ts), and
+        // this rule still applies to it, which `resume-pdf` verifies. The site's
         // own page is what should rank for the owner's name, and the PDF
         // carries a phone number that needn't be in a search index. This is
         // not privacy: anyone who opens the link still sees it. Two literal

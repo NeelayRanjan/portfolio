@@ -34,6 +34,7 @@
 import { firefox } from "playwright";
 import * as Astronomy from "astronomy-engine";
 import * as satellite from "satellite.js";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { register } from "node:module";
 import { EMISSION_LINE_COLOUR, SKY_FACTS } from "../content/sky-facts.ts";
@@ -1247,12 +1248,19 @@ async function checkSearchBasics(browser) {
 }
 
 /* ---------------------------------------------------------------------- */
-/* 3f. The resume the site serves (2026-09-22, owner call). It used to be  */
-/* a Google Drive link; the resume now lives in a PRIVATE GitHub repo,     */
-/* which can't serve a public link, so scripts/pull-resume.mjs copies the  */
-/* PDF into public/. Linkable but not indexable: the site's own page is    */
-/* what should rank for the owner's name, and the PDF carries a phone      */
-/* number that needn't be in a search index.                               */
+/* 3f. The resume the site serves. 2026-09-22: a static copy in public/,    */
+/* pulled by hand from a private repo. 2026-11-24 (owner: "have the site   */
+/* use the one from the repo"): app/resume.pdf/route.ts reads the owner's  */
+/* PUBLIC resume repo and revalidates, so the bytes must be the repo's     */
+/* current file (or, when the build couldn't reach GitHub, the committed   */
+/* fallback, and the response says which). Linkable but not indexable: the */
+/* site's own page is what should rank for the owner's name, and the PDF   */
+/* carries a phone number that needn't be in a search index.               */
+/* Proved to bite (2026-11-24), one mutant build each: the route serving   */
+/* the repo's bytes plus one, still labelled "repo": "/resume.pdf says it  */
+/* is the repo's file but its sha256 bb0d4ca11165 is not the repo's        */
+/* b9fc85c5ffe3"; and with content-disposition dropped: "/resume.pdf       */
+/* content-disposition is "", expected inline".                            */
 /* ---------------------------------------------------------------------- */
 
 async function checkResumePdf(browser) {
@@ -1281,12 +1289,45 @@ async function checkResumePdf(browser) {
     }
     const robots = res.headers()["x-robots-tag"] ?? "";
     if (!robots.includes("noindex")) throw new Error(`/resume.pdf has X-Robots-Tag ${JSON.stringify(robots)}, expected noindex`);
+    // It opens in the browser's viewer; GitHub's raw URL would download.
+    const disposition = res.headers()["content-disposition"] ?? "";
+    if (!disposition.startsWith("inline")) {
+      throw new Error(`/resume.pdf content-disposition is ${JSON.stringify(disposition)}, expected inline`);
+    }
+
+    // The bytes are the copy the response claims: the repo's current file,
+    // or the committed fallback when the build couldn't reach GitHub.
+    const sha = (b) => createHash("sha256").update(b).digest("hex");
+    const source = res.headers()["x-resume-source"] ?? "";
+    const { RESUME_RAW_URL, RESUME_FALLBACK } = await import("../lib/resume-source.ts");
+    let provenance;
+    if (source === "repo") {
+      let live = null;
+      try {
+        const r = await fetch(RESUME_RAW_URL, { signal: AbortSignal.timeout(15000) });
+        if (r.ok) live = Buffer.from(await r.arrayBuffer());
+      } catch {
+        // GitHub unreachable from the suite: said in the result, not a failure.
+      }
+      if (live && sha(live) !== sha(body)) {
+        throw new Error(
+          `/resume.pdf says it is the repo's file but its sha256 ${sha(body).slice(0, 12)} is not the repo's ${sha(live).slice(0, 12)} (a push inside the last revalidation window would also read this way)`,
+        );
+      }
+      provenance = live ? `the repo's current file (sha256 ${sha(body).slice(0, 12)})` : "labelled the repo's file; GitHub unreachable from the suite, bytes not compared";
+    } else if (source === "fallback") {
+      const fallback = readFileSync(new URL(`../${RESUME_FALLBACK}`, import.meta.url));
+      if (sha(fallback) !== sha(body)) throw new Error("/resume.pdf says it is the fallback but is not the committed fallback's bytes");
+      provenance = "the committed FALLBACK (the build could not reach GitHub)";
+    } else {
+      throw new Error(`/resume.pdf x-resume-source is ${JSON.stringify(source)}, expected repo or fallback`);
+    }
 
     // The sitemap lists pages, never the PDF.
     const sitemap = await (await page.request.get(`${BASE}/sitemap.xml`)).text();
     if (sitemap.includes("resume")) throw new Error("the sitemap lists the resume PDF");
 
-    return `${links.length} Resume link(s) at /resume.pdf, served ${(body.length / 1024).toFixed(1)} KB as ${type}, noindex, absent from the sitemap; no Drive link left`;
+    return `${links.length} Resume link(s) at /resume.pdf, served ${(body.length / 1024).toFixed(1)} KB as ${type}, inline, ${provenance}, noindex, absent from the sitemap; no Drive link left`;
   });
 }
 

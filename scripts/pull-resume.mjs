@@ -1,109 +1,95 @@
 /**
- * Copies the owner's resume PDF out of the private GitHub repo into public/.
+ * Refreshes the committed FALLBACK copy of the owner's resume.
  *
- * HAND-RUN, never wired to prebuild (Vercel's build has no `gh` and no access
- * to a private repo). Its output is committed, same rule as every other
- * generator here.
+ *   node scripts/pull-resume.mjs      # -> content/resume-fallback.pdf
  *
- *   node scripts/pull-resume.mjs              # the ATS resume      -> public/resume.pdf
- *   node scripts/pull-resume.mjs --designed   # the designed one    -> public/resume-designed.pdf
+ * Since 2026-11-24 this is no longer how the site gets its resume:
+ * app/resume.pdf/route.ts reads the owner's PUBLIC repo (lib/resume-source.ts)
+ * and revalidates every ten minutes, so a push there reaches /resume.pdf with
+ * no script and no deploy. This file only refreshes what a build prerenders
+ * when GitHub can't be reached at build time. Run it when the resume changes
+ * a lot, so that fallback never drifts far; skipping it breaks nothing.
  *
- * The served /resume.pdf is the ATS variant since 2026-10-05 (owner call;
- * it was the designed altacv one until then). The URL stayed the same, since
- * it is the one pasted into applications. The designed variant can still be
- * pulled, deliberately unlinked.
+ * HAND-RUN, never wired to prebuild; its output is committed, same rule as
+ * every other generator here. No `gh` needed: the repo is public, and the
+ * unauthenticated Contents API returns the file base64-encoded with its blob
+ * sha (fine well under its 1 MB limit; the PDF is ~140 KB).
  *
- * WHY the site hosts its own copy (owner call, 2026-09-22): the resume now
- * lives in `NeelayRanjan/SAVE`, which is PRIVATE, so the site cannot link it
- * there. A visitor would land on GitHub's login page, and a raw URL would need
- * a token the site must never carry. Hosting the PDF ourselves also drops the
- * Google Drive dependency the Resume link used to have, which went stale the
- * moment the owner started updating GitHub instead.
+ * History: 2026-09-22 to 2026-11-24 this copied the PDF out of the private
+ * `NeelayRanjan/SAVE` repo into public/resume.pdf, which the site served as a
+ * static file. That repo also held a transcript and NASA material; nothing
+ * here reads it any more. The designed (altacv) variant and its `--designed`
+ * flag went with it: the public repo ships the ATS resume only.
  *
- * Needs `gh` authenticated with `repo` scope (`gh auth status`). The Contents
- * API returns the file base64-encoded, which is fine well under its 1 MB
- * limit; these PDFs are ~60-110 KB.
- *
- * ⚠️ Pulls ONLY the file named below. That repo also holds
- * `Unofficial Transcript.pdf` and NASA material, none of which may ever be
- * served from this site.
- *
- * ⚠️ Both resumes print the owner's phone number, so it is public the moment
- * this PDF is. `next.config.ts` sends `X-Robots-Tag: noindex` for the PDF so
- * search engines don't index the file itself (the site page is the thing that
- * should rank), but that is not privacy: anyone who opens the link sees it.
- * If the owner wants the number off the public web, it comes out of the
- * resume, not out of this script.
+ * ⚠️ The resume prints the owner's phone number, so it is public the moment
+ * the PDF is (and the repo is public anyway). `next.config.ts` sends
+ * `X-Robots-Tag: noindex` for /resume.pdf so search engines don't index the
+ * file itself, which is about indexing, not privacy.
  */
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  RESUME_BRANCH,
+  RESUME_FALLBACK,
+  RESUME_FILE,
+  RESUME_REPO,
+  resumeProblem,
+} from "../lib/resume-source.ts";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
-const REPO = "NeelayRanjan/SAVE";
+const api = `https://api.github.com/repos/${RESUME_REPO}`;
 
-/** Which resume goes where. The served name is deliberately plain and stable:
- *  it is the URL people paste into applications. */
-const VARIANTS = {
-  public: { file: "Resume/NeelayRanjan_Resume_ATS.pdf", out: "public/resume.pdf" },
-  designed: { file: "Resume/NeelayRanjan_Resume_Public.pdf", out: "public/resume-designed.pdf" },
-};
-
-/** `public` is the record key for whatever /resume.pdf serves (the node test
- *  reads it by that name), not the repo's `_Public` filename. */
-const which = process.argv.includes("--designed") ? "designed" : "public";
-const { file, out } = VARIANTS[which];
-
-let raw;
-try {
-  raw = execFileSync("gh", ["api", `repos/${REPO}/contents/${file}`], {
-    encoding: "utf8",
-    maxBuffer: 32 * 1024 * 1024,
+async function gh(path) {
+  const res = await fetch(`${api}/${path}`, {
+    headers: { accept: "application/vnd.github+json" },
+    signal: AbortSignal.timeout(20000),
   });
+  if (!res.ok) throw new Error(`${api}/${path} answered ${res.status}`);
+  return res.json();
+}
+
+let meta;
+let commit;
+try {
+  meta = await gh(`contents/${RESUME_FILE}?ref=${RESUME_BRANCH}`);
+  [commit] = await gh(`commits?path=${RESUME_FILE}&sha=${RESUME_BRANCH}&per_page=1`);
 } catch (err) {
-  console.error(
-    `pull-resume: could not read ${file} from ${REPO}.\n` +
-      "Check `gh auth status` (needs repo scope on a private repo).\n" +
-      String(err.stderr || err.message),
-  );
+  console.error(`pull-resume: could not read ${RESUME_FILE} from ${RESUME_REPO}.\n${String(err.message ?? err)}`);
   process.exit(1);
 }
 
-const meta = JSON.parse(raw);
 const bytes = Buffer.from(meta.content, "base64");
 
-// Assert before writing: a truncated or wrong-typed file must not land in
-// public/ and get committed as "the resume".
-if (bytes.subarray(0, 5).toString("latin1") !== "%PDF-") {
-  console.error(`pull-resume: ${file} is not a PDF (starts ${JSON.stringify(bytes.subarray(0, 8).toString("latin1"))})`);
-  process.exit(1);
-}
-if (bytes.length < 20_000 || bytes.length > 2_000_000) {
-  console.error(`pull-resume: ${file} is ${bytes.length} bytes, outside the sane 20 KB to 2 MB range`);
+// Assert before writing: the same gate the route applies to what it serves.
+const problem = resumeProblem(bytes);
+if (problem) {
+  console.error(`pull-resume: ${RESUME_FILE} is ${problem}`);
   process.exit(1);
 }
 
 const sha256 = createHash("sha256").update(bytes).digest("hex");
-writeFileSync(join(ROOT, out), bytes);
+writeFileSync(join(ROOT, RESUME_FALLBACK), bytes);
 
-// Provenance, committed but NOT served (it names the private repo). The node
-// test re-hashes the committed PDF against this, so a hand-edited or stale
-// file in public/ fails rather than passing quietly.
-const recordPath = join(ROOT, "scripts", "resume-source.json");
-const record = existsSync(recordPath) ? JSON.parse(readFileSync(recordPath, "utf8")) : {};
-record[which] = {
-  repo: REPO,
-  file,
-  served: `/${out.replace(/^public\//, "")}`,
+// Provenance, committed, never served. The node test re-hashes the committed
+// fallback against this, so a hand-edited or truncated file fails rather than
+// passing quietly.
+const record = {
+  repo: RESUME_REPO,
+  branch: RESUME_BRANCH,
+  file: RESUME_FILE,
+  fallback: RESUME_FALLBACK,
+  served: "/resume.pdf",
   blobSha: meta.sha,
+  commit: commit?.sha ?? null,
+  committed: commit?.commit?.committer?.date ?? null,
   sha256,
   bytes: bytes.length,
   pulled: new Date().toISOString().slice(0, 10),
 };
-writeFileSync(recordPath, `${JSON.stringify(record, null, 2)}\n`);
+writeFileSync(join(ROOT, "scripts", "resume-source.json"), `${JSON.stringify(record, null, 2)}\n`);
 
 console.log(
-  `pull-resume: ${file} -> ${out} (${(bytes.length / 1024).toFixed(1)} KB, blob ${meta.sha.slice(0, 8)}, sha256 ${sha256.slice(0, 12)})`,
+  `pull-resume: ${RESUME_REPO}/${RESUME_FILE} -> ${RESUME_FALLBACK} (${(bytes.length / 1024).toFixed(1)} KB, blob ${meta.sha.slice(0, 8)}, sha256 ${sha256.slice(0, 12)})`,
 );

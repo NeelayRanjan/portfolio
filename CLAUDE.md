@@ -910,10 +910,22 @@ L5 shape), and both are the machine that day (load average 2.4-3.7 from the
 editor): a build of the commit before the change, fc8fe26, in a sibling
 worktree, failed both the same way under the same load (sky 11.9-12.6 ms
 across three interleaved rounds). Re-run those two on a quiet machine before
-reading anything into them. ⚠️ Unmeasured: the route on Vercel itself
-(local `next start` only); after the first deploy, `curl -sI
-https://neelayranjan.dev/resume.pdf` should show `x-resume-source: repo`,
-`content-type: application/pdf` and `x-robots-tag: noindex`. ⚠️ Also found:
+reading anything into them. **After the push (64797e0 on `main`,
+2026-11-24), checked on production**: `/resume.pdf` answers 200 with
+`x-resume-source: repo`, `content-type: application/pdf`, inline
+disposition, `x-robots-tag: noindex` and `x-vercel-cache: HIT`, its bytes
+the repo's current file (sha256 b9fc85c5ffe3); page 1 carries the new copy.
+The first GET in the seconds around the switchover still returned the old
+static PDF, once. ⚠️ The copy pass's own full-suite run was CUT SHORT (the
+owner's laptop was about to die and they asked for the push anyway): 44 of
+63 checks had run, 42 passing, the two failures being `sky-animates-1280`
+and `lander-mounts` again (the machine-load pair above); `resume-pdf`,
+`search-basics`, `references-lab-link-resolves` and `analytics-queue` were
+among the passes, and `tsc`, `check-voice` and 245 of 245 node tests passed
+on the final tree. The 19 checks from `stargaze-during-download` on (the
+stargaze and sky-card checks, `colophon`, `stargaze-doors`, four
+`offprints-*`) have NOT run against the new copy: run the suite once on a
+quiet machine. ⚠️ Also found:
 fc8fe26 (the 2026-11-13 abstract rewrite) had sat on branch `offprints`
 only, one commit ahead of `origin/main` 6824cf8, so production kept the old
 abstract from 2026-11-13 until this push carried it.

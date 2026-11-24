@@ -22,7 +22,7 @@ is deleted; v1 lives at the tag). **2026-10-01: the `slaac-demo` round
 colophon, the secret stargaze door, the mag-6 coloured sky, the myth
 artworks) fast-forwarded into `main` and deployed, after the owner's NASA
 mentor and NASA legal approved its preview.** Page 1: masthead (title, abstract, the
-live-sampled author photo, the paper-status stamp (IN PREPARATION; UNDER REVIEW until 2026-09-14), status only since
+live-sampled author photo, the paper-status stamp (PREPRINT since 2026-11-24; IN PREPARATION before it, UNDER REVIEW until 2026-09-14), status only since
 2026-09-16, with the bordered "Supplementary material" box beneath it as the
 door to `/lab`, identity links) → Table 1 → Research
 (Figure 1 label-efficiency sweep, Figure 2 Dice CDF, then the bordered NASA
@@ -223,7 +223,12 @@ by dropping `secret.show()`), **`colophon`** (present on `/` and `/lab` at 1280 
 `/resume.pdf`, nothing on the page links Drive, the file serves 200 as
 `application/pdf` starting `%PDF-`, carries `X-Robots-Tag: noindex` and is
 absent from the sitemap; proved to bite by pointing the masthead back at
-Drive and by flipping the header to `all`),
+Drive and by flipping the header to `all`; since 2026-11-24, when
+`/resume.pdf` became a route reading the owner's public repo, also
+`content-disposition: inline` and the served bytes' sha256 equal to the
+repo's current file, or to the committed fallback when the response's
+`x-resume-source` says `fallback`; proved to bite by a build serving the
+repo's bytes plus one and by one with the disposition dropped),
 **`search-basics`** (2026-09-17: one canonical per page on `lib/site.ts`'s
 host, none on the 404; the icon links exactly the three stable `public/`
 paths with no query string, each served with the type and pixel size its
@@ -324,7 +329,7 @@ star colour, 9) plus the rerouter's ten (`test-slaac-arcs` 16,
 `test-slaac-guidance` 4, `test-slaac-reroute` 37, `test-slaac-ring` 7,
 `test-slaac-sampler` 5, `test-slaac-summary` 5, `test-slaac-view` 8;
 `node --test scripts/test-*.mjs` runs them all, ~16 s) runs outside
-Playwright, in plain node (243 cases on branch `offprints`, the 203 `main` runs plus the six `test-offprints-*` files' 40, 37 before the fix wave; 202 cases total, 192 before Task 18, 188 before Task 17; 95 of them the rerouter's, which
+Playwright, in plain node (245 cases since 2026-11-24, when `test-resume` grew from 3 to 5; 243 cases on branch `offprints` before it, the 203 `main` runs plus the six `test-offprints-*` files' 40, 37 before the fix wave; 202 cases total, 192 before Task 18, 188 before Task 17; 95 of them the rerouter's, which
 the SLAAC section describes; 180 before Task 12c; 93 before those, 3 of them the served resume's and
 10 the self-play rule's; 80 before those, 73 before the card
 photographs, 62 before the discoverability round and 47 before the colour
@@ -866,6 +871,53 @@ on a fresh production build at :3100: 63 passed, 0 failed (`sky-animates-1280`
 median 3.10 ms against 5.92), 243 of 243 node tests (203 + 40), `tsc` and
 `check-voice` clean.
 
+**2026-11-24: `/resume.pdf` reads the owner's public resume repo, and the
+copy follows the new resume** (two commits on `offprints`, pushed to `main`
+at the owner's word the same day: "yes, push this, and update the copy as
+well, they do not need another NASA look"; see the end of this entry for
+what was and wasn't checked after the push). **The copy pass**: the stamp
+reads PREPRINT; the abstract says "a Regenstrief preprint, submitted to
+JAMIA"; the surgeon result is the preprint's own measurement (11.1 against
+20.6 minutes per image on five test angiograms, 46% less) in the Research
+prose, the findings ledger and the STUDY note, replacing "~75% faster"; the
+PAPER note and References item 1 link the medRxiv DOI; the SHIFT paragraph
+(still no numerals, no names) and Experience row describe the single-model
+result; the Regenstrief row gained the annotation-convention method;
+References lists four papers in the resume's order (the new "Where Does the
+Artery End?" as item 2, the AIAA abstract retitled and "submitted", MWSCAS
+linked to its DOI). A linked citation carries `track`, the short label its
+`outbound_link` records ("Preprint", "MWSCAS paper"), since the full
+citation is too long for an analytics property. `public/og.png` was
+regenerated (the abstract and the stamp are in its frame). Voice gate
+passed; the distilled Wikipedia "Signs of AI writing" reference was read
+before the pass. Left alone on purpose: the masthead's identity links (a
+"Preprint" link there is the owner's call) and `research.mwscas.citation`
+(the margin copy of the MWSCAS citation, still unlinked).
+**The route** (owner: "I pushed a new resume to github,
+can you use that one on the site? if possible, have the site use the one from
+the repo"; repo `NeelayRanjan/resume`). The static `public/resume.pdf` became
+`app/resume.pdf/route.ts`, prerendered and revalidated every ten minutes, so
+a push to the resume repo reaches the link with no script and no deploy; the
+old copy moved to `content/resume-fallback.pdf` (refreshed to the new resume)
+as what a build prerenders when GitHub is unreachable. Contract: the Stack
+bullet on the route. Verified on a production build at :3100, before the
+copy pass: `tsc` and
+`check-voice` clean, 245 of 245 node tests (243 + 2: `test-resume` went from
+3 cases to 5), and 61 of 63 verify checks, `resume-pdf` among them. The two
+failures are `sky-animates-1280` (median 12.4-12.7 ms against 5.92) and
+`lander-mounts` (the hand-flown view stayed on the fallback past 30 s, the
+L5 shape), and both are the machine that day (load average 2.4-3.7 from the
+editor): a build of the commit before the change, fc8fe26, in a sibling
+worktree, failed both the same way under the same load (sky 11.9-12.6 ms
+across three interleaved rounds). Re-run those two on a quiet machine before
+reading anything into them. ⚠️ Unmeasured: the route on Vercel itself
+(local `next start` only); after the first deploy, `curl -sI
+https://neelayranjan.dev/resume.pdf` should show `x-resume-source: repo`,
+`content-type: application/pdf` and `x-robots-tag: noindex`. ⚠️ Also found:
+fc8fe26 (the 2026-11-13 abstract rewrite) had sat on branch `offprints`
+only, one commit ahead of `origin/main` 6824cf8, so production kept the old
+abstract from 2026-11-13 until this push carried it.
+
 **Open items, roughly in order:**
 
 The lander's own, ahead of the list (LIVE since 2026-10-16):
@@ -961,9 +1013,12 @@ The SLAAC round's own, ahead of the list (LIVE on `main` since 2026-10-01):
    bugs; the field readout is `page_reload` against page views, mobile vs
    desktop, before and after the deploy. None of the 2026-09-14 candidates
    (the 256 headshot on phones, iOS 26 WebGPU, threaded wasm) was it.
-5. **arXiv link** (~2026-09-18) swaps into the references when the preprint is
-   live; the owner then creates a Google Scholar profile, which joins the
-   identity links (the link list is data-driven copy).
+5. ~~arXiv link~~ **The preprint is linked (2026-11-24)**: it went to
+   medRxiv, not arXiv (doi 10.64898/2026.11.13.26368001), and References
+   item 1 and the PAPER note link it. Still owed: the owner creates a Google
+   Scholar profile, which joins the identity links (the link list is
+   data-driven copy). Not done, and the owner's call: a "Preprint" link
+   among the masthead's identity links.
 6. **A transition parity vector for the headshot bundle.** The morph is live on
    the site, but `test_parity.mjs` pins only the from-noise path; its
    `init+strength` case is a structural smoke (step count + finiteness), so the
@@ -1087,7 +1142,15 @@ rewriting more copy.
 are the source of truth; for anything else, read the resume and ask the owner.
 Any fact on the resume is cleared for publication, with two exceptions below.
 
-**⚠️ The resume moved to a private GitHub repo (owner, 2026-09-22): read it
+**⚠️ The resume is in a PUBLIC repo since 2026-11-24 (owner): read it there.**
+`NeelayRanjan/resume` (default branch `main`) holds
+`NeelayRanjan_Resume_ATS.{tex,pdf}` and a class file, nothing else; read the
+`.tex` with `gh api repos/NeelayRanjan/resume/contents/NeelayRanjan_Resume_ATS.tex -q .content | base64 -d`.
+The site serves that PDF live (see Links and the Stack bullet on
+`app/resume.pdf/route.ts`). `NeelayRanjan/SAVE`'s `Resume/` directory, the
+source from 2026-09-22 until then, answers 404 now; the paragraph below is
+its history, and its never-publish rule for the rest of SAVE still holds.
+**The resume moved to a private GitHub repo (owner, 2026-09-22): read it
 there, not from Drive.** `NeelayRanjan/SAVE` (private, default branch
 `master`), directory `Resume/`: `NeelayRanjan_Resume_Public.{tex,pdf}` (the
 designed one, altacv) and `NeelayRanjan_Resume_ATS.{tex,pdf}` (plain, for
@@ -1102,6 +1165,42 @@ publishable in "SLAAC rerouter (Figure 3)" under the demos may ship;
 everything else outside `Resume/` still never does.
 The Drive URLs below still work and are what the site links today, but the
 owner now updates GitHub, so treat Drive as possibly stale.
+
+**Drift, 2026-11-24, RESOLVED the same day** (owner: "update the copy as
+well, they do not need another NASA look"). The site now follows the new
+resume (repo commit 6ae0c48, "nov24_resume") and the preprint's own
+abstract; what changed is in the bullets under Content facts below and in
+Current state. Two things stayed the site's own, as ruled before: Davinci
+Wearables (absent from the resume) and the Pi's timing. The list as found:
+  - **The paper is a medRxiv preprint, "Submitted to JAMIA"**
+    (doi:10.64898/2026.11.13.26368001); the site says "in preparation",
+    names no journal, and has no preprint link (Open item 5 expected arXiv).
+  - **The surgeon number changed**: "cut surgeon labeling time by 46% in a
+    five-image pilot"; this file and the site say ~75% correction-time
+    speedup.
+  - **SHIFT is a different result**: one 1.7B Qwen3-ASR model writing the
+    transcript and the structured clearance in one pass, 43.4% exact match
+    against 27.9% for a Whisper + T5 cascade on 967 utterances from six
+    centers, matching a cascade with a 27B LLM parser (40.6%); ~277,000
+    synthetic clips adding 7.5 points. The site's SHIFT paragraph and
+    Experience row still describe a speech recognizer plus a
+    generate-and-rank parser and a corpus "about 20x the recorded data"
+    (the NASA bullet below: Qwen3-Omni with QLoRA, 17% WER, Kev).
+  - **The AIAA abstract has a new title and status**: N. Ranjan, S. Clarke,
+    "From Radio Audio to Air Traffic Controller Intent: A Single-Model
+    Alternative to ASR-plus-Parser Pipelines", "Extended abstract submitted
+    to AIAA AVIATION 2027"; References still carries the generate-and-rank
+    title as "in preparation".
+  - **A new paper**: "Where Does the Artery End? Inferring Annotation
+    Conventions for Few-Shot Vessel Labeling", N. Ranjan et al., under
+    review (46.4% vs 34.3% Dice with one labeled moyamoya patient); not on
+    the site.
+  - **MWSCAS has a DOI** (10.1109/MWSCAS67364.2026.11680873), so the
+    "don't claim IEEE Xplore indexing until confirmed" hold can lift once
+    the owner says so.
+  - NASA reads "Aviation Systems Division (Code AF)" (this file: Aeronautics
+    Directorate). Davinci Wearables is still absent, the Pi still "~1 s per
+    move" (both ruled before: the site keeps its own).
 
 **Drift, 2026-09-22: the owner fixed the resume the same day and most of it
 is gone.** The resume now reads 88.2% Dice at 16 labels, the 75%
@@ -1144,20 +1243,46 @@ not a contradiction. The original drift list, for the record:
 
 - **First-author paper**: "Bootstrapping surgeon labeling campaigns with
   x0-diffusion: label-efficient vessel segmentation of catheter-based angiograms"
-  (Ranjan, Dev, Gonzalez). **IN PREPARATION** (owner correction, 2026-09-14:
-  the site said "under review at JAMIA" from launch until then, and that was
-  wrong). Say "in preparation" and name no journal; never "under review" or
-  "published" until the owner says the status changed. arXiv preprint from
-  ~2026-09-18 (owner: still on track). The numbers: **Dice 0.882 at 16
-  labels, beating all five baselines in all 25 paired runs; ~75% measured surgeon
-  correction-time speedup, measured with ONE vascular surgeon, the paper's
-  coauthor Dr. Andrew Gonzalez (owner, 2026-09-29; the site says so, case
-  count not given); the claim is label efficiency, not peak accuracy.**
+  (N. Ranjan, S. Dev, A. A. Gonzalez). **A medRxiv PREPRINT, SUBMITTED TO
+  JAMIA, since 2026-11-24** (the resume's words; posted 2026-11-15,
+  https://doi.org/10.64898/2026.11.13.26368001, checked to resolve). The
+  stamp reads PREPRINT, and the abstract, the PAPER note and References say
+  "submitted to JAMIA". Nothing stronger ("under review", "accepted",
+  "published") until the owner says so. History: IN PREPARATION from
+  2026-09-14 (the site said "under review at JAMIA" from launch until then,
+  wrongly). The numbers, each read off the preprint's abstract on
+  2026-11-24: **Dice 0.882 (IoU 0.795) at 16 labels, ahead of all five
+  baselines in all 25 paired runs, by 0.047 over zero-shot SAM; correcting
+  the 16-label model's predictions on FIVE test angiograms averaged 11.1
+  surgeon-minutes per image against 20.6 from scratch (46% less, the
+  resume's "cut surgeon labeling time by 46% in a five-image pilot"), ONE
+  vascular surgeon, the paper's coauthor Dr. Andrew Gonzalez; the claim is
+  label efficiency, not peak accuracy** (at 32 labels the two strongest
+  convolutional models are not significantly different, at 80 they score
+  marginally higher, 0.923 and 0.920 against 0.910). The abstract's "37 to
+  45%" is its ESTIMATE for a whole labeling campaign, not the measurement;
+  the site states the measurement. ⚠️ "~75% faster corrections" was the
+  site's number until 2026-11-24 and is superseded: never reuse it.
   (v1's "80% Dice at 19 images" was an older result. Do not reuse it.)
+- **Second Regenstrief paper** (resume, 2026-11-24): N. Ranjan et al.,
+  "Where Does the Artery End? Inferring Annotation Conventions for Few-Shot
+  Vessel Labeling", UNDER REVIEW, no venue named. A public cerebral artery
+  dataset and the clinical annotators label the same arteries to different
+  lengths; the method infers the target's convention from one to five
+  labeled patients. With one labeled moyamoya patient, 46.4% Dice against
+  34.3% for standard fine-tuning, ahead in all 15 trials; the
+  label-definition shift costs up to 0.51 Dice; in a controlled test it
+  recovered 98 to 100% of the Dice reached with the true convention, against
+  80 to 92%. On the site: References item 2 (plain text, nothing public to
+  link) and the Regenstrief Experience row's second sentence. Coauthors
+  unknown here, so the row's "with Shantanu Dev and Dr. Andrew Gonzalez"
+  stays attached to the first sentence only.
 - **IEEE MWSCAS 2026** (co-author; led the PCB design team): delivered as an
   **oral**, August 11 2026, Cincinnati. 15 authors, Neelay 14th — cite as
   "F. Perez, J. Morisaki, H. Kanakri, M. Rizkalla, et al. (incl. N. Ranjan), IEEE
-  MWSCAS 2026 (oral)". Don't claim IEEE Xplore indexing until confirmed.
+  MWSCAS 2026 (oral)". **On IEEE Xplore since the 2026-11-24 resume**:
+  doi 10.1109/MWSCAS67364.2026.11680873, which resolves to Xplore document
+  11680873; References item 4 links it.
   **Title, per the resume (owner call 2026-09-14): "Helical Antenna for
   Electromagnetic Field Stimulation in Alzheimer's Disease Therapy"**; the
   site used to call this project the "MRI birdcage coil".
@@ -1182,7 +1307,23 @@ not a contradiction. The original drift list, for the record:
   1.2% of the geometric optimum"; and the flight-plan LLM, ~44,000 flights a
   day for the simulation software NASA and the FAA use to evaluate future ATM
   strategies. **GenAI Applied Research Intern, SHIFT, Aug 2026 to present**
-  (Stephen Clarke): Qwen3-Omni-30B fine-tuned with QLoRA for ATC
+  (Stephen Clarke). **Since the 2026-11-24 resume the result is a different
+  one, and the site follows it** (owner: no further NASA look needed): a
+  single 1.7B speech model (Qwen3-ASR) fine-tuned to write the transcript
+  AND the structured clearance from ATC radio audio in one pass; on 967
+  expert-labeled utterances from six en route centers, each held out in
+  turn, 43.4% exact match against 27.9% for a Whisper + T5 cascade, and
+  level with a cascade that adds a 27B LLM parser (40.6%); a synthetic radio
+  speech pipeline (text-to-speech voices, simulated VHF interference, an ASR
+  quality filter) made ~277,000 training clips and added 7.5 points of exact
+  match at a 1:3 real-to-synthetic mix. The paper is now N. Ranjan, S.
+  Clarke, "From Radio Audio to Air Traffic Controller Intent: A Single-Model
+  Alternative to ASR-plus-Parser Pipelines", extended abstract SUBMITTED to
+  AIAA AVIATION 2027 (References item 3; the SHIFT paragraph says so without
+  the year). The resume also names the unit "Aviation Systems Division (Code
+  AF)"; the site names no division. What follows is the EARLIER result, on
+  the site until 2026-11-24 and no longer stated anywhere on it:
+  Qwen3-Omni-30B fine-tuned with QLoRA for ATC
   speech-to-text, 17% WER vs 20% for the Whisper ASR in use (30% zero-shot,
   5-fold CV, ~1.5 h of real audio); Kev, a typed decision model parsing
   transcripts into the DTI maneuver ontology, value-match 40% → 80% (since
@@ -1218,7 +1359,7 @@ not a contradiction. The original drift list, for the record:
   real changes and projects. Too slow to run live in the browser (222M
   params, 890 MB fp32); the rerouter's routes are its precomputed output.
 - Also real and usable: **Regenstrief** (Feb 2024 →; x0-diffusion vessel
-  segmentation, synthetic angiogram pipeline, img2img CLIP for vessel locality;
+  segmentation, the annotation-convention method above, synthetic angiogram pipeline, img2img CLIP for vessel locality;
   Dr. Andrew Gonzalez, Shantanu Dev) · **Davinci Wearables** (2025; agentic vLLM
   nutritional estimation from meal photos, <15% error) · **V2X aircraft-maintenance
   LLM lead** (two-stage RAG; hallucinations ~40% → ~5%) · **the MWSCAS
@@ -1231,10 +1372,18 @@ not a contradiction. The original drift list, for the record:
   "RaspPi 2W (~1s / move)"; the owner ruled (2026-09-14) the site says
   **Raspberry Pi Zero 2 W**, not "Pi 4".
 - **Links** (footer set is data-driven; Google Scholar joins after the preprint):
-  - Resume: **`/resume.pdf`, served by this site** (owner call, 2026-09-22).
-    `scripts/pull-resume.mjs` copies the ATS PDF (owner call, 2026-10-05;
+  - Resume: **`/resume.pdf`, served by this site, read LIVE from the owner's
+    public repo since 2026-11-24** (owner: "have the site use the one from
+    the repo"). `app/resume.pdf/route.ts` fetches
+    `NeelayRanjan/resume`'s `NeelayRanjan_Resume_ATS.pdf` and revalidates
+    every ten minutes, so a push there reaches the link with no script and no
+    deploy (the first request after the window still gets the old PDF and
+    triggers the refresh; the next gets the new one). Same URL as before. The
+    rest of this bullet is the 2026-09-22 to 2026-11-24 arrangement, kept as
+    history: there is no designed variant and no `--designed` flag any more.
+    `scripts/pull-resume.mjs` copied the ATS PDF (owner call, 2026-10-05;
     the designed altacv one until then, same URL) out of the private
-    `NeelayRanjan/SAVE` repo into `public/`; the Drive URL below is retired as
+    `NeelayRanjan/SAVE` repo into `public/` then; the Drive URL below is retired as
     the public copy and nothing on the site links Drive any more. Re-run the
     script whenever the owner updates the resume, or the site keeps serving
     the old one. The designed variant can be pulled with `--designed` to
@@ -1325,7 +1474,8 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   browser, and exists solely so `scripts/test-sky-math.mjs` and
   `scripts/verify-redesign.mjs` have an independent reference to pin
   `lib/sky-math.ts`'s projection math against.
-- **`app/api/iss-tle/route.ts` is the site's only server code path** (every
+- **`app/api/iss-tle/route.ts` was the site's only server code path until
+  2026-11-24; `app/resume.pdf/route.ts` is the second** (next bullet; every
   other route is static). `GET` fetches CelesTrak's TLE for the ISS with an
   8s upstream timeout and `export const revalidate = 7200`; that works here
   specifically because this project has `cacheComponents` off (with it on,
@@ -1397,17 +1547,43 @@ work is real. (Code comments and this file are maintainer-facing and exempt.)
   surfaces as the useless "no available backend found". If ORT changes what it
   fetches, the network tab names the file — don't guess, and the
   `ort-runtime-build` verify check asserts it from the network.
-- `scripts/pull-resume.mjs` (2026-09-22, hand-run, needs `gh` with `repo`
-  scope) copies the resume PDF out of the private `NeelayRanjan/SAVE` repo to
-  `public/resume.pdf` and records repo, path, blob sha, sha256, size and date
-  in `scripts/resume-source.json` (committed, never served, since it names a
-  private repo). `scripts/test-resume.mjs` re-hashes the committed PDF against
-  that record, so a stale or hand-edited file fails rather than shipping. ⚠️ It
-  pulls exactly one named file: that repo also holds the owner's transcript
-  and NASA material, which must never be served here. ⚠️ Both resumes print
-  the owner's phone number, so hosting the PDF publishes it;
-  `next.config.ts` sends `X-Robots-Tag: noindex` for `/resume.pdf` and
-  `/resume-ats.pdf` so the file isn't indexed (the site's own page should rank
+- **`app/resume.pdf/route.ts` (2026-11-24) serves the resume from the owner's
+  public repo.** Prerendered at build, `export const revalidate = 600`, the
+  build lists it `○ /resume.pdf 10m 1y`. `lib/resume-source.ts` (no imports)
+  holds the repo, branch, file, raw URL and `resumeProblem`, the gate (starts
+  `%PDF-`, 20 KB to 2 MB) applied to any bytes before they are served. The
+  site serves the bytes itself because GitHub's raw URL answers
+  `application/octet-stream` under a sandboxing CSP, so a browser downloads it
+  instead of showing it. **Failure, two cases on purpose**: while serving, a
+  failed fetch or a file that fails the gate THROWS, and Next keeps the last
+  good PDF and retries (measured on a mutant build against a local stand-in
+  upstream, 5 s window: a 500, a 200 of HTML and a dropped connection each
+  left the previous PDF served at 200, and the next good file replaced it);
+  during `next build` it prerenders `content/resume-fallback.pdf` instead, so
+  a GitHub outage can't fail a deploy (measured: upstream unreachable, build
+  exit 0, `x-resume-source: fallback`). The response's `x-resume-source` says
+  which copy it is. `X-Robots-Tag: noindex` still comes from
+  `next.config.ts`'s rule for the path. Three traps hit building it, all
+  silent: `fetch(..., { cache: "no-store" })` makes the whole route dynamic
+  (`ƒ`); Next signals that by THROWING from `fetch`, and the fallback's
+  `catch` swallowed it, so the catch calls `unstable_rethrow` first; and a
+  filesystem read off `process.cwd()` with a non-literal path traced the whole
+  project into the function ("Encountered unexpected file in NFT list"), hence
+  the `turbopackIgnore` comment (the read only runs inside the build).
+  ⚠️ A file at `public/resume.pdf` would shadow the route and bring back a
+  copy that goes stale; `test-resume.mjs` fails if one exists. ⚠️ On the
+  Offprints host `/resume.pdf` is a 404, as it was when the file was static
+  (the proxy rewrites it under `/offprints`).
+- `scripts/pull-resume.mjs` (hand-run; no `gh` needed since 2026-11-24, the
+  repo is public) now only refreshes that fallback and records repo, branch,
+  file, blob sha, commit, sha256, size and date in
+  `scripts/resume-source.json`. `scripts/test-resume.mjs` (5 cases) re-hashes
+  the committed fallback against the record and pins the gate, the links and
+  the no-shadowing rule. Skipping the script breaks nothing; run it when the
+  resume changes a lot, so the fallback never drifts far. ⚠️ The resume
+  prints the owner's phone number, so serving the PDF publishes it (the repo
+  is public anyway); `next.config.ts` sends `X-Robots-Tag: noindex` for
+  `/resume.pdf` so the file isn't indexed (the site's own page should rank
   for the name), which is about indexing, not privacy.
 - `scripts/gen-icons.py` (fontTools + cairosvg venv; fetches the STIX variable
   TTF, see its header), `scripts/gen-og.mjs` (Playwright),

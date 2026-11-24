@@ -6,8 +6,9 @@ import { gateOffprintsLinks, latestPiece } from "@/lib/offprints/pieces";
 /**
  * The bibliography: `copy.references.items` rendered as a numbered list,
  * mirroring the approved mockup's `ol.refs`. A reference with no `href`
- * (the first-author paper and the MWSCAS oral, both still unlinkable) renders as
- * plain text rather than a dead or placeholder link. The Offprints entry is
+ * (a paper with nothing public to link yet) renders as plain text rather
+ * than a dead or placeholder link. A linked citation carries `track`, the
+ * short label its click records; the visible text is still the citation. The Offprints entry is
  * dropped while no piece is visible (`gateOffprintsLinks`). A link's vertical
  * padding is hit area only: inline padding doesn't move the line, and 6px
  * a side stays inside the list's own spacing, so neighbours don't overlap.
@@ -28,7 +29,7 @@ export function References() {
           item.href ? (
             <li key={item.label}>
               <TrackedLink
-                label={item.label}
+                label={"track" in item ? item.track : item.label}
                 href={item.href}
                 className="py-1.5 text-link hover:underline hover:underline-offset-[3px]"
               >

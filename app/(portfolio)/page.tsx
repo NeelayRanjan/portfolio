@@ -51,7 +51,17 @@ export default function Home() {
             // a 60px top margin, so without this the PAPER note sits above
             // the heading.
             <div className="space-y-6 min-[880px]:pt-[60px]">
-              <Note tag={notes.paper.tag}>{notes.paper.body}</Note>
+              <Note tag={notes.paper.tag}>
+                {notes.paper.pre}
+                <TrackedLink
+                  label="Preprint"
+                  href={notes.paper.href}
+                  className="text-link hover:underline hover:underline-offset-[3px]"
+                >
+                  {notes.paper.link}
+                </TrackedLink>
+                {notes.paper.post}
+              </Note>
               <Note tag={notes.study.tag}>{notes.study.body}</Note>
             </div>
           }

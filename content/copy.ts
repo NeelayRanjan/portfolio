@@ -90,7 +90,7 @@ export const copy = {
     /** ~80 words, first person. Numbers here are load-bearing: keep them in
      *  sync with `research.prose` and CLAUDE.md's content facts. */
     abstract:
-      "I build diffusion and energy-based models. I’m first author on a Regenstrief paper, in preparation, on segmenting blood vessels from very few labels. At NASA Ames I built a diffusion model that reroutes flights around closed airspace, and now I work on speech recognition for air traffic control. I’m on a gap semester from Purdue and graduate in May 2027. After that I want to keep doing this kind of work full time.",
+      "I build diffusion and energy-based models. I’m first author on a Regenstrief preprint, submitted to JAMIA, on segmenting blood vessels from very few labels. At NASA Ames I built a diffusion model that reroutes flights around closed airspace, and now I work on speech recognition for air traffic control. I’m on a gap semester from Purdue and graduate in May 2027. After that I want to keep doing this kind of work full time.",
     /**
      * The author photo, which is a live diffusion sample rather than a file
      * (`components/figures/HeadshotFigure.tsx`). Every claim below is checked:
@@ -149,12 +149,14 @@ export const copy = {
       statusAbsent: "the model isn't deployed, so this is the photo itself",
       statusFailed: "the model didn't load",
     },
-    /** A claim, not decor: it tracks the paper's real status (owner,
-     *  2026-09-14: in preparation, NOT yet under review; it said UNDER REVIEW
-     *  until then, which was wrong). Since the discoverability round
+    /** A claim, not decor: it tracks the paper's real status. PREPRINT since
+     *  2026-11-24 (the resume's "medRxiv preprint, 2026 ... Submitted to
+     *  JAMIA"; posted 2026-11-15, doi 10.64898/2026.11.13.26368001). It read
+     *  IN PREPARATION from 2026-09-14 (owner: NOT yet under review; it said
+     *  UNDER REVIEW until then, which was wrong). Since the discoverability round
      *  (2026-09-16, spec §6) the stamp is no longer a link; the door to /lab
      *  is the bordered box below it. */
-    stamp: "IN PREPARATION",
+    stamp: "PREPRINT",
     /** The /lab box under the stamp. Two lines:
      *    "Supplementary material →"   (the arrow is the box's decoration)
      *    "diffusion trajectories · MAE vs I-JEPA · a day of synthesized flight plans · SDEdit on MNIST"
@@ -193,10 +195,10 @@ export const copy = {
      *  first visitor action that matters). */
     links: [
       {
-        // Served by this site (owner call, 2026-09-22), not Drive: the resume
-        // now lives in a PRIVATE GitHub repo, which can't serve a public
-        // link, and the Drive copy went stale. scripts/pull-resume.mjs copies
-        // the PDF in; the path is stable, so it survives every update.
+        // Served by this site at a stable path (owner call, 2026-09-22).
+        // Since 2026-11-24 app/resume.pdf/route.ts reads the PDF from the
+        // owner's public resume repo and revalidates every ten minutes, so a
+        // push there updates this link with no script and no deploy.
         label: "Resume",
         href: "/resume.pdf",
       },
@@ -213,8 +215,8 @@ export const copy = {
    *  generic hero-metric template). One row per finding, its result in a
    *  sentence, and a link to the figure that shows it. Every number is one
    *  the page already states: 0.882 / 16 labels / 25 of 25 (Research,
-   *  Figure 1), 0.32% vs 5.4% under 0.5 Dice (Figure 2's caption), ~75%
-   *  with one surgeon (Research, STUDY note), the Elo with search on the Pi
+   *  Figure 1), 0.32% vs 5.4% under 0.5 Dice (Figure 2's caption), 11.1 against
+   *  20.6 surgeon-minutes on five images, 46% less (Research, STUDY note), the Elo with search on the Pi
    *  (owner-confirmed, Figure 4). The NASA row carries no numerals, like
    *  the NASA box. Hrefs point at ids that exist at load: the deferred
    *  figures' DeferredMount slots, not the figures inside them. */
@@ -224,7 +226,7 @@ export const copy = {
     rows: [
       {
         finding: "Label efficiency",
-        result: "0.882 Dice from 16 labeled angiograms, ahead of five baselines in 25 of 25 paired runs (paper in preparation)",
+        result: "0.882 Dice from 16 labeled angiograms, ahead of five baselines in 25 of 25 paired runs (medRxiv preprint)",
         where: "Figure 1",
         href: "#fig-eff",
       },
@@ -236,7 +238,7 @@ export const copy = {
       },
       {
         finding: "Surgeon time",
-        result: "~75% faster corrections, measured with one surgeon",
+        result: "Correcting its masks took a surgeon 46% less time than labeling from scratch, on five test images",
         where: "Research",
         href: "#research",
       },
@@ -267,10 +269,14 @@ export const copy = {
     /** The section's `<h2>`, added for Task 8's page assembly. */
     heading: "Research",
     /** Two paragraphs. Every number matches CLAUDE.md's content facts and
-     *  `masthead.abstract` exactly. */
+     *  `masthead.abstract` exactly. The surgeon sentence is the preprint
+     *  abstract's own (2026-11-24): "Correcting 16-image x0-diffusion
+     *  predictions on five test angiograms averaged 11.1 surgeon-minutes per
+     *  image versus 20.6 from scratch", which is the resume's "46%". It
+     *  replaced "~75% faster", an earlier measurement. */
     prose: [
       "At Regenstrief I trained a diffusion model to predict the vessel mask directly. From 16 labels it reaches 0.882 Dice, ahead of five baselines in all 25 paired runs. Trained to predict noise, the same architecture stays near 0.23.",
-      "The same model made a surgeon ~75% faster at correcting its output.",
+      "Correcting its masks took a vascular surgeon 11.1 minutes per image, against 20.6 labeling from scratch.",
     ],
     /** Margin notes (2026-09-30): the reference detail that used to sit in
      *  the prose column, moved to the rail so the main column reads fast.
@@ -282,13 +288,18 @@ export const copy = {
      *  in app/(portfolio)/page.tsx's NASA box. Main column keeps the claims, the notes
      *  keep the provenance. */
     notes: {
+      /** Rendered pre + link + post, like `dataNote` (2026-11-24: the
+       *  preprint is public, so the status is a link to it). */
       paper: {
         tag: "paper",
-        body: "Ranjan, Dev, Gonzalez. “Bootstrapping surgeon labeling campaigns with x0-diffusion: label-efficient vessel segmentation of catheter-based angiograms.” In preparation.",
+        pre: "Ranjan, Dev, Gonzalez. “Bootstrapping surgeon labeling campaigns with x0-diffusion: label-efficient vessel segmentation of catheter-based angiograms.” ",
+        link: "medRxiv preprint",
+        href: "https://doi.org/10.64898/2026.11.13.26368001",
+        post: ", 2026. Submitted to JAMIA.",
       },
       study: {
         tag: "study",
-        body: "Measured with one vascular surgeon, my coauthor Dr. Andrew Gonzalez.",
+        body: "Measured on five test angiograms with one vascular surgeon, my coauthor Dr. Andrew Gonzalez.",
       },
       scope: {
         tag: "scope",
@@ -443,15 +454,26 @@ export const copy = {
      *  dial"). "Space launch and air/airspace coordination" is the owner's
      *  wording (2026-10-01). No numerals (owner, 2026-10-01: "remove the
      *  numbers, and just keep the high-level"): the dates live in the
-     *  Experience rows, and "fewer errors than the Whisper system in use" is
-     *  the resume's 17% WER against 20%. No names: mentors and colleagues
-     *  are omitted by the owner's call (2026-10-01, "no name dropping").
-     *  The AIAA line (owner, 2026-10-05) is the resume's "Extended abstract
-     *  for AIAA AVIATION 2027, in preparation", year dropped here for the
-     *  no-numerals rule; the References entry carries the full citation. */
+     *  Experience rows. No names: mentors and colleagues are omitted by the
+     *  owner's call (2026-10-01, "no name dropping").
+     *  The SHIFT paragraph follows the 2026-11-24 resume (owner: update the
+     *  copy, no further NASA look needed). Behind each phrase: "one speech
+     *  model" is a 1.7B Qwen3-ASR fine-tune; "more clearances exactly right"
+     *  is 43.4% exact match against 27.9% for a Whisper + T5 cascade, on 967
+     *  expert-labeled utterances from six en route centers, each held out in
+     *  turn; "matches a cascade whose parser is a far larger language model"
+     *  is 40.6% for the cascade with a 27B LLM parser; the synthetic speech
+     *  (text-to-speech voices, simulated VHF interference, an ASR quality
+     *  filter, ~277,000 clips) added 7.5 points at a 1:3 real-to-synthetic
+     *  mix. "A cascade of Whisper and a text parser" avoids the digit in
+     *  "T5". The AIAA line is the resume's "Extended abstract submitted to
+     *  AIAA AVIATION 2027", year dropped here for the no-numerals rule; the
+     *  References entry carries the full citation. Until 2026-11-24 this
+     *  paragraph described the earlier result: a recognizer at 17% WER
+     *  against Whisper's 20%, and a generate-and-rank parser. */
     nasaProse: [
       "On SLAAC (space launch and air/airspace coordination) I trained a diffusion model on FAA radar tracks to reroute flights around closed airspace. It applies the airspace while it samples, so a new closure needs no retraining.",
-      "Since August I’ve been on SHIFT. My speech recognizer for air traffic control makes fewer errors than the Whisper system in use, and a generate-and-rank parser turns its transcripts into a maneuver database. I’m writing the parser up with NASA for AIAA AVIATION.",
+      "Since August I’ve been on SHIFT. I fine-tuned one speech model to write both the transcript and the structured clearance from air traffic control radio in one pass. It gets more clearances exactly right than a cascade of Whisper and a text parser, and matches a cascade whose parser is a far larger language model. Part of that comes from synthetic radio speech I generated, with text-to-speech voices and simulated interference. The extended abstract is submitted to AIAA AVIATION.",
     ],
     /** Figure S3 on /lab since the SLAAC round (2026-09-30): the flight-plan
      *  LM's synthesized day. Was Figure 3 on page 1; the key stays under
@@ -926,11 +948,13 @@ export const copy = {
     rows: [
       /** Two NASA roles, per the 2026-09-30 resume (reverse chronological,
        *  as the resume lists them). SLAAC ended in August, so its lamp is
-       *  "complete"; SHIFT keeps NASA's old "active". */
+       *  "complete"; SHIFT keeps NASA's old "active". The SHIFT row and the
+       *  Regenstrief row's second sentence are the 2026-11-24 resume's
+       *  numbers (its SHIFT bullets and its annotation-convention bullet). */
       {
         when: "since Aug 2026",
         who: "NASA Ames · SHIFT",
-        what: "Speech recognition for air traffic control, a generate-and-rank parser from transcripts to maneuvers, and a synthetic speech corpus about 20x the recorded data.",
+        what: "One speech model that writes both the transcript and the structured clearance from air traffic control radio, at 43.4% exact match against 27.9% for a Whisper and T5 cascade. About 277,000 synthetic radio clips went into training.",
         status: "active",
       },
       {
@@ -942,7 +966,7 @@ export const copy = {
       {
         when: "2024 to present",
         who: "Regenstrief Institute",
-        what: "x0-diffusion vessel segmentation and synthetic angiograms, with Shantanu Dev and Dr. Andrew Gonzalez.",
+        what: "x0-diffusion vessel segmentation and synthetic angiograms, with Shantanu Dev and Dr. Andrew Gonzalez. Also a method that infers how a clinic labels its arteries from one to five labeled patients, at 46.4% Dice against 34.3% for standard fine-tuning from one patient.",
         status: "active",
       },
       {
@@ -980,28 +1004,41 @@ export const copy = {
     /** The section's `<h2>`, added for Task 8's page assembly. */
     heading: "References",
     items: [
-      /** Authors and the full title, as the PAPER note gives them, in the
-       *  same form as the two citations below (2026-10-26 audit: it was the
-       *  only one with no authors). No link until the arXiv preprint. */
+      /** The four citations follow the 2026-11-24 resume's Selected
+       *  Publications, in its order. A linked one carries `track`, the short
+       *  label its `outbound_link` event records (the full citation is too
+       *  long to be an analytics property). Both DOIs were checked to
+       *  resolve on 2026-11-24 (medRxiv; IEEE Xplore document 11680873). */
       {
         label:
-          "N. Ranjan, S. Dev, A. Gonzalez, “Bootstrapping surgeon labeling campaigns with x0-diffusion: label-efficient vessel segmentation of catheter-based angiograms” (in preparation)",
+          "N. Ranjan, S. Dev, A. A. Gonzalez, “Bootstrapping surgeon labeling campaigns with x0-diffusion: label-efficient vessel segmentation of catheter-based angiograms,” medRxiv preprint, 2026 (submitted to JAMIA)",
+        href: "https://doi.org/10.64898/2026.11.13.26368001",
+        track: "Preprint",
+      },
+      /** New on the 2026-11-24 resume. No venue is named there, so none is
+       *  named here. */
+      {
+        label:
+          "N. Ranjan et al., “Where Does the Artery End? Inferring Annotation Conventions for Few-Shot Vessel Labeling” (under review)",
         href: "",
       },
-      /** The SHIFT paper (owner, 2026-10-05; resume commit "AIAA"). Both
-       *  names by the owner's call, though the NASA prose names no one: a
-       *  citation lists its authors. Status ladder, owner-set: "in
-       *  preparation" until the abstract goes in (due Nov 2026), then
-       *  "submitted", and nothing stronger until it is accepted. */
+      /** The SHIFT paper (owner, 2026-10-05). Both names by the owner's
+       *  call, though the NASA prose names no one: a citation lists its
+       *  authors. Status ladder, owner-set: "in preparation" until the
+       *  abstract goes in, then "submitted" (2026-11-24, with the resume's
+       *  new title; it was "Generate-and-rank extraction of air traffic
+       *  control clearances into an en route ontology" until then), and
+       *  nothing stronger until it is accepted. */
       {
         label:
-          "N. Ranjan, S. Clarke, et al., “Generate-and-rank extraction of air traffic control clearances into an en route ontology,” extended abstract for AIAA AVIATION 2027 (in preparation)",
+          "N. Ranjan, S. Clarke, “From Radio Audio to Air Traffic Controller Intent: A Single-Model Alternative to ASR-plus-Parser Pipelines,” extended abstract submitted to AIAA AVIATION 2027",
         href: "",
       },
       {
         label:
           "F. Perez, J. Morisaki, H. Kanakri, M. Rizkalla, et al. (incl. N. Ranjan), “Helical Antenna for Electromagnetic Field Stimulation in Alzheimer’s Disease Therapy,” IEEE MWSCAS 2026 (oral)",
-        href: "",
+        href: "https://doi.org/10.1109/MWSCAS67364.2026.11680873",
+        track: "MWSCAS paper",
       },
       { label: "Resume", href: "/resume.pdf" },
       // CV hidden with the masthead's (see masthead.links).
